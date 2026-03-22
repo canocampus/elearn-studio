@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.local
+*.tbk
+.venv/
+docker/volumes/
+*.log
+.DS_Store
+Thumbs.db
+coverage/
+.nyc_output/
+*.tsbuildinfo
+backend/api/openapi.json
+packages/authoring-ui/src/api/generated.ts

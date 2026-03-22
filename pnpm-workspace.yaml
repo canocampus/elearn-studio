@@ -1,0 +1,4 @@
+# L-03 fix: use glob so new backend services are auto-discovered
+packages:
+  - 'packages/*'
+  - 'backend/*'

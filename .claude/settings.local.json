@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /d/dev/git/elearn-studio -maxdepth 2 -name *.py -o -name *.ts -o -name *.jsx -o -name *.tsx -o -name *.js)",
+      "Bash(docker compose:*)",
+      "Bash(docker exec:*)",
+      "Bash(curl -sf http://localhost:3903/v1/health)",
+      "Bash(pnpm install:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm:*)",
+      "Bash(node /d/dev/git/elearn-studio/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/bin/tsc)",
+      "Bash(curl -s -X POST http://localhost:3001/courses -H \"Content-Type: application/json\" -d '{\"\"title\"\":\"\"Test Course\"\"}')",
+      "Bash(curl -s http://localhost:3001/courses)",
+      "Bash(ID=\"69be84d5078a5731f8e8d820\")",
+      "Bash(__NEW_LINE_34c4265376f7477a__ echo:*)",
+      "Bash(curl -s http://localhost:3001/courses/$ID)",
+      "Bash(curl -s -X DELETE http://localhost:3001/courses/$ID)",
+      "Bash(curl -s http://localhost:3001/courses/notanid)",
+      "Bash(sed -i 's/- \\\\[ \\\\] T002\\\\.6 — Test: `docker compose up` → all 5 services healthy/- [x] T002.6 — Test: dev infra up → mongo OK + garage OK/' /d/dev/git/elearn-studio/tasks.md)",
+      "Bash(sed -i 's/- \\\\[ \\\\] T002\\\\.8 — Test: garage console at http:\\\\/\\\\/localhost:9001/- [x] T002.8 — Test: garage console at http:\\\\/\\\\/localhost:9001 — HTTP 200 ✓/' /d/dev/git/elearn-studio/tasks.md)",
+      "Bash(docker ps:*)",
+      "Bash(docker pull:*)",
+      "Bash(docker search:*)",
+      "Bash(npx vitest:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8081/)",
+      "Bash(docker volume:*)",
+      "Bash(node node_modules/.bin/tsc --noEmit -p backend/api/tsconfig.json)",
+      "Bash(npx tsc:*)",
+      "Bash(curl -v --max-time 10 http://localhost:8081/)",
+      "Bash(xargs grep:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ]
+  }
+}

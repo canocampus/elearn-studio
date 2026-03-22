@@ -1,0 +1,139 @@
+/**
+ * Suspend/Resume support — T027
+ *
+ * Serialises player state to a compact JSON payload, compresses it with
+ * LZString, and stores it in cmi.suspend_data (SCORM 1.2, max 4096 chars).
+ * On resume, the compressed payload is decompressed and the state is restored.
+ *
+ * SuspendData schema (v:1):
+ *   { v: 1, slide: number, scores: [widgetId, { s: score, w: weight, a: answered }][] }
+ */
+
+import LZString from 'lz-string'
+
+/** Compact form stored inside suspend_data */
+interface SuspendPayload {
+  v: 1
+  slide: number
+  scores: Array<[string, { s: number; w: number; a: boolean }]>
+}
+
+/** Subset of PlayerState needed for suspend serialisation (avoids circular dep) */
+export interface SuspendableState {
+  currentSlide: number
+  questionStates: Map<string, { widgetId: string; score: number; weight: number; answered: boolean }>
+}
+
+/** Maximum length (chars) allowed in cmi.suspend_data by SCORM 1.2 */
+export const SUSPEND_DATA_MAX = 4096
+
+/**
+ * Serialise and compress player state into a string ≤ SUSPEND_DATA_MAX chars.
+ * Returns null if the slide index is invalid, or if compressed output exceeds the SCORM 1.2 limit.
+ */
+export function serializeSuspend(state: SuspendableState): string | null {
+  // H-01 fix: reject invalid slide indices before serialising
+  if (!Number.isInteger(state.currentSlide) || state.currentSlide < 0) {
+    console.error(
+      `[ELearnPlayer] Cannot serialize suspend data: invalid currentSlide = ${state.currentSlide}`,
+    )
+    return null
+  }
+  const payload: SuspendPayload = {
+    v: 1,
+    slide: state.currentSlide,
+    scores: Array.from(state.questionStates.values()).map(q => [
+      q.widgetId,
+      { s: q.score, w: q.weight, a: q.answered },
+    ]),
+  }
+  const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload))
+  if (compressed.length > SUSPEND_DATA_MAX) {
+    console.warn(
+      `[ELearnPlayer] suspend_data (${compressed.length} chars) exceeds SCORM 1.2 limit of ${SUSPEND_DATA_MAX} chars — not saving`,
+    )
+    return null
+  }
+  return compressed
+}
+
+/**
+ * Decompress and parse a suspend_data string produced by serializeSuspend().
+ * Returns null on any failure (empty string, corrupt data, unknown version).
+ */
+export function deserializeSuspend(compressed: string): SuspendPayload | null {
+  if (!compressed) return null
+  try {
+    const json = LZString.decompressFromEncodedURIComponent(compressed)
+    if (!json) return null
+    const payload = JSON.parse(json) as SuspendPayload
+    if (payload.v !== 1) return null
+    if (typeof payload.slide !== 'number') return null
+    if (!Array.isArray(payload.scores)) return null
+    return payload
+  } catch {
+    return null
+  }
+}
+
+/** SCORM 1.2 API subset used by suspend helpers */
+interface ScormApi {
+  LMSGetValue(element: string): string
+  LMSSetValue(element: string, value: string): string
+}
+
+/**
+ * Persist the current player state into cmi.suspend_data via the SCORM API.
+ * Returns true if the LMS accepted the save, false otherwise.
+ * No-op (returns false) if there is no SCORM API or if compression exceeds the limit.
+ */
+export function saveSuspendData(state: SuspendableState, api: ScormApi | null): boolean {
+  if (!api) return false
+  const compressed = serializeSuspend(state)
+  if (compressed === null) return false
+  // C-01 fix: check LMSSetValue return value — 'true' means accepted by LMS
+  const result = api.LMSSetValue('cmi.suspend_data', compressed)
+  if (result !== 'true') {
+    console.error(
+      `[ELearnPlayer] LMSSetValue('cmi.suspend_data') failed — LMS returned: ${result}. Progress may not be saved.`,
+    )
+    return false
+  }
+  return true
+}
+
+/**
+ * Restore player state from cmi.suspend_data.
+ * Mutates the provided state object in-place (consistent with the player's mutable-state design).
+ * Returns true if state was successfully restored, false otherwise.
+ */
+export function restoreSuspendData(
+  state: SuspendableState,
+  api: ScormApi | null,
+  slideCount: number,
+): boolean {
+  if (!api) return false
+  const raw = api.LMSGetValue('cmi.suspend_data')
+  const payload = deserializeSuspend(raw)
+  if (!payload) return false
+
+  // C-02 fix: treat out-of-bounds slide as a restore failure rather than silently ignoring it
+  if (payload.slide < 0 || payload.slide >= slideCount) {
+    console.warn(
+      `[ELearnPlayer] Suspended slide ${payload.slide} is out of bounds [0, ${slideCount}). Course may have been edited. Ignoring suspend_data.`,
+    )
+    return false
+  }
+  state.currentSlide = payload.slide
+
+  state.questionStates.clear()
+  for (const [widgetId, q] of payload.scores) {
+    // H-03 fix: clamp score/weight/answered to safe ranges to prevent NaN propagation
+    const score   = typeof q.s === 'number' && isFinite(q.s) && q.s >= 0 && q.s <= 1 ? q.s : 0
+    const weight  = typeof q.w === 'number' && isFinite(q.w) && q.w > 0 ? q.w : 100
+    const answered = q.a === true
+    state.questionStates.set(widgetId, { widgetId, score, weight, answered })
+  }
+
+  return true
+}
