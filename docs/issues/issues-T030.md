@@ -178,6 +178,11 @@ export interface ConceptAnimatorSceneDef {
 ### L-03: Magic Numbers
 - ModeController line 63: divisor 2 lacks explanation
 
+**Fix applied**: Extracted as `private static readonly RETRY_DECAY_BASE = 2` with JSDoc
+explaining the exponential decay formula.
+
+**Status**: ✅ Closed
+
 ### L-04: Dead Code
 - ProcessFlowScene.test.ts mocks (lines 14–50) unused; expected for T031
 
@@ -197,7 +202,7 @@ export interface ConceptAnimatorSceneDef {
 | CRITICAL | 2     | ✅ Closed |
 | HIGH     | 3     | ✅ Closed |
 | MEDIUM   | 4     | ⚠ Open    |
-| LOW      | 4     | ⚠ Open    |
+| LOW      | 4     | 1 ✅ Closed / 3 ⚠ Open |
 
 **Verdict**: ✅ PASS (CRITICALs and HIGHs resolved)
 

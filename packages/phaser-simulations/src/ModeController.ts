@@ -59,7 +59,10 @@ export class ModeController {
     if (this.mode === 'demo') return 0
     if (!correct) return 0
     if (this.mode === 'assessment') return 1.0
-    // practice: diminishing returns per attempt
-    return 1.0 / Math.pow(2, attempt - 1)
+    // practice: score halves on each retry (1st=1.0, 2nd=0.5, 3rd=0.25, …)
+    return 1.0 / Math.pow(ModeController.RETRY_DECAY_BASE, attempt - 1)
   }
+
+  /** Base for the exponential retry decay: score = 1 / 2^(attempt-1). */
+  private static readonly RETRY_DECAY_BASE = 2
 }

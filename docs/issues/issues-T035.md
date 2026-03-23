@@ -32,7 +32,10 @@ without a full page reload, stale Phaser game instances could accumulate.
 **Recommendation**: Expose a `ELearnPlayer.destroy()` method that flushes cleanups, or attach a
 `beforeunload` listener. Low urgency — SCORM iframes are typically discarded on navigation.
 
-**Status**: ⚠ Open — deferred; standard SCORM delivery unloads the iframe on exit.
+**Fix applied**: Added `beforeunload` listener in `init()` that flushes `simCleanup` and all
+`phaserCleanups` on page unload, guarding against stale instances in same-window re-init scenarios.
+
+**Status**: ✅ Closed
 
 ---
 
@@ -45,14 +48,14 @@ without a full page reload, stale Phaser game instances could accumulate.
 `NaN` (e.g., a buggy Phaser sim dispatches a non-numeric value), `Math.min/max` returns `NaN`,
 which would be stored in `questionStates` and later passed to `LMSSetValue`.
 
-**Recommendation**:
+**Fix applied**:
 ```typescript
 const rawScore = typeof detail.score === 'number' && isFinite(detail.score)
   ? detail.score : 0
-const score = Math.min(1, Math.max(0, rawScore))
+score: Math.min(1, Math.max(0, rawScore))
 ```
 
-**Status**: ⚠ Open — low probability, Phaser sim is internal code, but worth hardening.
+**Status**: ✅ Closed
 
 ---
 
@@ -100,9 +103,17 @@ implementation is a simple double-`some`, but coverage depth is shallow.
   This is intentional for T035 (real scene builders are T036+) but should carry a `// TODO: T036`
   comment to signal the incomplete state.
 
+**Fix applied**: Replaced informal comment with `// TODO: T036 — delegate to per-simType scene builders`.
+
+**Status**: ✅ Closed
+
 ### L-04: Dynamic Import Comment Duplication
 - `/* @vite-ignore */` and `/* webpackIgnore: true */` are both present as defensive comments.
   The project uses Vite; webpackIgnore is dead code but harmless.
+
+**Fix applied**: Removed `/* webpackIgnore: true */` — project uses Vite exclusively.
+
+**Status**: ✅ Closed
 
 ---
 
@@ -132,10 +143,13 @@ implementation is a simple double-`some`, but coverage depth is shallow.
 |----------|-------|------------|
 | CRITICAL | 0     | —          |
 | HIGH     | 0     | —          |
-| MEDIUM   | 4     | ⚠ Open    |
-| LOW      | 4     | ⚠ Open    |
+| MEDIUM   | 4     | 2 ✅ Closed / 2 ⚠ Open |
+| LOW      | 4     | 2 ✅ Closed / 2 ⚠ Open |
 
 **Verdict**: ✅ PASS — implementation is clean and safe to ship.
 
-No fixes required before commit. Medium issues are deferred to follow-up tasks (T036+ or a
-dedicated hardening task).
+**Post-commit hardening (2026-03-23)**:
+- [M-01] ✅ `beforeunload` listener added to `init()` — flushes `phaserCleanups` on player teardown
+- [M-02] ✅ NaN/Infinity guard added before SCORM score clamping
+- [L-03] ✅ `// TODO: T036` comment added to `buildSceneConfig` stub
+- [L-04] ✅ Dead `/* webpackIgnore: true */` comment removed

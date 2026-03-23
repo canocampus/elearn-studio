@@ -52,7 +52,7 @@ export async function mountPhaserSim(
     // Using a variable to prevent TypeScript static analysis from complaining about
     // the missing module (the file only exists in the deployed SCORM package).
     const bundlePath = './phaser-bundle.js'
-    Phaser = (await import(/* @vite-ignore */ /* webpackIgnore: true */ bundlePath)) as PhaserModule
+    Phaser = (await import(/* @vite-ignore */ bundlePath)) as PhaserModule
   } catch (err) {
     console.error('[PhaserSimWidget] Failed to load phaser-bundle.js:', err)
     container.innerHTML =
@@ -96,8 +96,8 @@ function buildSceneConfig(config: PhaserSimConfig): Record<string, unknown> {
   if (!config.sceneDef) {
     return makePlaceholderScene(config)
   }
-  // Future: delegate to per-simType scene builders (process-flow, physics-demo, …)
-  // For now, all sceneDef-driven sims use the placeholder until T036+.
+  // TODO: T036 — delegate to per-simType scene builders (ProcessFlowScene, InteractiveDiagramScene, …)
+  // All sceneDef-driven sims use the placeholder scene until T036 scene builders are implemented.
   return makePlaceholderScene(config)
 }
 

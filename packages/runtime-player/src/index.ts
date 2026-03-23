@@ -595,10 +595,12 @@ function attachEvents(state: PlayerState): void {
     const widget = slide?.widgets.find(w => w.id === detail.widgetId)
     const ep = widget?.extendedProperties ?? {}
     const passingScore = (ep.passingScore as number | undefined) ?? 70
+    // Guard against NaN/Infinity before clamping (buggy sim could dispatch non-finite value)
+    const rawScore = typeof detail.score === 'number' && isFinite(detail.score) ? detail.score : 0
     // Weight defaults to passingScore so a perfect phaser sim scores 100%
     state.questionStates.set(detail.widgetId, {
       widgetId: detail.widgetId,
-      score: Math.min(1, Math.max(0, detail.score)), // clamp to [0,1]
+      score: Math.min(1, Math.max(0, rawScore)),
       weight: passingScore,
       answered: true,
     })
@@ -716,6 +718,18 @@ function init(
       }
     }
   }
+
+  // Flush any live Phaser games when the LMS navigates away from the iframe.
+  // Without this, re-initialising the player in the same window without a page
+  // reload could accumulate stale Phaser instances (T035-M01).
+  window.addEventListener('beforeunload', () => {
+    state.simCleanup?.()
+    state.simCleanup = null
+    for (const cleanup of state.phaserCleanups) {
+      cleanup()
+    }
+    state.phaserCleanups = []
+  }, { once: true })
 
   attachEvents(state)
   goToSlide(state, state.currentSlide)
