@@ -3,6 +3,7 @@
  * Buttons: course title | New Slide | Delete Slide | Preview | Publish
  */
 
+import { useState, useRef, useEffect } from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { addSlide, deleteSlide, nextSlideTitle } from '../../api/courseApi'
 import { useToast } from '../ui/Toast'
@@ -20,6 +21,7 @@ interface TopToolbarProps {
 }
 
 export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleInspector, inspectorOpen, onToggleHistory, historyOpen }: TopToolbarProps) {
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
   const toast = useToast()
   const isDebug = useDebugMode()
   const course = useEditorStore(s => s.course)
@@ -52,11 +54,14 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
 
   function handleSaveAsTemplate() {
     if (!course) return
-    const name = prompt('Template name:', `${course.title} Template`)
-    if (!name?.trim()) return
+    setShowSaveTemplate(true)
+  }
+
+  function handleSaveTemplateConfirm(name: string) {
+    if (!course) return
     saveUserTemplate({
       id: `user-${Date.now()}`,
-      name: name.trim(),
+      name,
       description: `Saved from "${course.title}"`,
       icon: '📋',
       isBuiltIn: false,
@@ -65,6 +70,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
         widgets: slide.widgets.map(({ id: _id, actions: _actions, ...rest }) => rest),
       })),
     })
+    setShowSaveTemplate(false)
     toast.success('Template saved.')
   }
 
@@ -92,6 +98,14 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
   }
 
   return (
+    <>
+    {showSaveTemplate && course && (
+      <SaveTemplateDialog
+        defaultName={`${course.title} Template`}
+        onConfirm={handleSaveTemplateConfirm}
+        onCancel={() => setShowSaveTemplate(false)}
+      />
+    )}
     <div style={styles.toolbar}>
       <span style={styles.logo}>eLearn Studio</span>
       <span style={styles.separator} />
@@ -153,7 +167,102 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
         </>
       )}
     </div>
+    </>
   )
+}
+
+// ── SaveTemplateDialog ────────────────────────────────────────────────────────
+
+interface SaveTemplateDialogProps {
+  defaultName: string
+  onConfirm: (name: string) => void
+  onCancel: () => void
+}
+
+function SaveTemplateDialog({ defaultName, onConfirm, onCancel }: SaveTemplateDialogProps) {
+  const [name, setName] = useState(defaultName)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.select()
+  }, [])
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && name.trim()) onConfirm(name.trim())
+    if (e.key === 'Escape') onCancel()
+  }
+
+  return (
+    <div style={saveDialogStyles.overlay} onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel() }}>
+      <div style={saveDialogStyles.dialog} role="dialog" aria-modal="true" aria-label="Save as Template">
+        <h2 style={saveDialogStyles.heading}>Save as Template</h2>
+        <label style={saveDialogStyles.label} htmlFor="template-name-input">Template name</label>
+        <input
+          id="template-name-input"
+          ref={inputRef}
+          style={saveDialogStyles.input}
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={handleKeyDown}
+          maxLength={80}
+          autoComplete="off"
+        />
+        <div style={saveDialogStyles.actions}>
+          <button style={saveDialogStyles.btnCancel} onClick={onCancel}>Cancel</button>
+          <button style={saveDialogStyles.btnSave} onClick={() => name.trim() && onConfirm(name.trim())} disabled={!name.trim()}>
+            Save Template
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const saveDialogStyles: Record<string, React.CSSProperties> = {
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000,
+  },
+  dialog: {
+    background: '#1e1e2e',
+    border: '1px solid #313244',
+    borderRadius: 8,
+    padding: '24px 28px',
+    width: 360,
+    maxWidth: 'calc(100vw - 32px)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  heading: { margin: 0, fontSize: 16, fontWeight: 600, color: '#cdd6f4' },
+  label: { margin: 0, fontSize: 12, color: '#a6adc8', fontWeight: 500 },
+  input: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '7px 10px',
+    background: '#181825',
+    border: '1px solid #45475a',
+    borderRadius: 4,
+    color: '#cdd6f4',
+    fontSize: 13,
+    outline: 'none',
+  },
+  actions: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
+  btnCancel: {
+    padding: '6px 14px', fontSize: 12,
+    background: 'transparent', border: '1px solid #45475a',
+    borderRadius: 4, color: '#a6adc8', cursor: 'pointer',
+  },
+  btnSave: {
+    padding: '6px 18px', fontSize: 12,
+    background: '#89b4fa', border: '1px solid #89b4fa',
+    borderRadius: 4, color: '#1e1e2e', fontWeight: 600, cursor: 'pointer',
+  },
 }
 
 const styles: Record<string, React.CSSProperties> = {

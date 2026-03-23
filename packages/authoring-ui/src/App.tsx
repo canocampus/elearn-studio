@@ -119,10 +119,11 @@ export function App() {
     setShowNewCourseDialog(false)
     setAppState('loading')
     try {
+      // Validate + build slides BEFORE writing to DB — avoids orphaned courses
+      const slides = template ? applyTemplate(template) : null
       const created = await createCourse(title)
-      let id = created._id
-      if (template) {
-        const slides = applyTemplate(template)
+      const id = created._id
+      if (slides) {
         const updated = await updateCourse(id, { slides })
         setCourse(updated)
       } else {

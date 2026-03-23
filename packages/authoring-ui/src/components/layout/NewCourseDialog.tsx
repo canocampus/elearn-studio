@@ -26,7 +26,9 @@ export function NewCourseDialog({ onConfirm, onCancel }: NewCourseDialogProps) {
   function handleConfirm() {
     const trimmed = title.trim()
     if (!trimmed) return
-    const template = selectedId ? (templates.find(t => t.id === selectedId) ?? null) : null
+    // Re-fetch at confirm time in case a user template was removed while the dialog was open
+    const currentTemplates = getAllTemplates()
+    const template = selectedId ? (currentTemplates.find(t => t.id === selectedId) ?? null) : null
     onConfirm(trimmed, template)
   }
 
@@ -58,7 +60,6 @@ export function NewCourseDialog({ onConfirm, onCancel }: NewCourseDialogProps) {
         <div style={s.grid}>
           {/* Blank option */}
           <TemplateCard
-            id={null}
             name="Blank"
             description="Start from scratch with a single empty slide."
             icon="☐"
@@ -68,7 +69,6 @@ export function NewCourseDialog({ onConfirm, onCancel }: NewCourseDialogProps) {
           {templates.map(t => (
             <TemplateCard
               key={t.id}
-              id={t.id}
               name={t.name}
               description={t.description}
               icon={t.icon}
@@ -94,7 +94,6 @@ export function NewCourseDialog({ onConfirm, onCancel }: NewCourseDialogProps) {
 // ─── Template Card ───────────────────────────────────────────────────────────
 
 interface TemplateCardProps {
-  id: string | null
   name: string
   description: string
   icon: string

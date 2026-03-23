@@ -30,6 +30,23 @@ function makeId(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
+// ── Widget validation ─────────────────────────────────────────────────────────
+
+function isValidTemplateWidget(tw: unknown): tw is TemplateWidget {
+  if (!tw || typeof tw !== 'object') return false
+  const w = tw as Record<string, unknown>
+  if (typeof w['type'] !== 'string' || w['type'].length === 0) return false
+  const b = w['bounds']
+  if (!b || typeof b !== 'object') return false
+  const bounds = b as Record<string, unknown>
+  return (
+    typeof bounds['x'] === 'number' &&
+    typeof bounds['y'] === 'number' &&
+    typeof bounds['width'] === 'number' &&
+    typeof bounds['height'] === 'number'
+  )
+}
+
 // ── Apply ─────────────────────────────────────────────────────────────────────
 
 /** Convert template slides into proper Slide[] with fresh IDs. */
@@ -37,7 +54,7 @@ export function applyTemplate(template: CourseTemplate): Slide[] {
   return template.slides.map(ts => ({
     id: `slide-${makeId()}`,
     title: ts.title,
-    widgets: ts.widgets.map(tw => ({
+    widgets: ts.widgets.filter(isValidTemplateWidget).map(tw => ({
       ...tw,
       id: `w-${makeId()}`,
       actions: [],
@@ -645,7 +662,8 @@ export function getUserTemplates(): CourseTemplate[] {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     return JSON.parse(raw) as CourseTemplate[]
-  } catch {
+  } catch (err) {
+    console.error('[Templates] localStorage read failed:', err)
     return []
   }
 }
