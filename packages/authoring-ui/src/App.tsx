@@ -12,9 +12,11 @@
 import { useEffect, useState } from 'react'
 import { AppLayout } from './components/layout/AppLayout'
 import { LoginPage } from './pages/LoginPage'
+import { NewCourseDialog } from './components/layout/NewCourseDialog'
 import { useEditorStore } from './store/editorStore'
 import { useAuthStore } from './store/authStore'
-import { listCourses, createCourse, getCourse } from './api/courseApi'
+import { listCourses, createCourse, getCourse, updateCourse } from './api/courseApi'
+import { applyTemplate, type CourseTemplate } from './templates/courseTemplates'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
@@ -26,6 +28,8 @@ export function App() {
   const [courseId, setCourseId] = useState<string | null>(null)
 
   const setCourse = useEditorStore((s) => s.setCourse)
+  const showNewCourseDialog = useEditorStore((s) => s.showNewCourseDialog)
+  const setShowNewCourseDialog = useEditorStore((s) => s.setShowNewCourseDialog)
   const { accessToken, user, setAuth } = useAuthStore()
 
   // ── Silent refresh on first load ─────────────────────────────────────────
@@ -109,6 +113,31 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken])
 
+  // ── New Course handler ────────────────────────────────────────────────────
+
+  async function handleCreateCourse(title: string, template: CourseTemplate | null) {
+    setShowNewCourseDialog(false)
+    setAppState('loading')
+    try {
+      const created = await createCourse(title)
+      let id = created._id
+      if (template) {
+        const slides = applyTemplate(template)
+        const updated = await updateCourse(id, { slides })
+        setCourse(updated)
+      } else {
+        const full = await getCourse(id)
+        setCourse(full)
+      }
+      setCourseId(id)
+      setAppState('ready')
+    } catch (err) {
+      console.error('[App] create course failed:', err)
+      setErrorMessage(err instanceof Error ? err.message : String(err))
+      setAppState('error')
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (appState === 'initialising' || appState === 'loading') {
@@ -152,7 +181,17 @@ export function App() {
     )
   }
 
-  return <AppLayout courseId={courseId!} />
+  return (
+    <>
+      <AppLayout courseId={courseId!} />
+      {showNewCourseDialog && (
+        <NewCourseDialog
+          onConfirm={handleCreateCourse}
+          onCancel={() => setShowNewCourseDialog(false)}
+        />
+      )}
+    </>
+  )
 }
 
 const splashStyle: React.CSSProperties = {

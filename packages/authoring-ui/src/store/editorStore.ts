@@ -44,6 +44,10 @@ interface EditorState {
   // Selected widget ID in GrapesJS canvas (null when nothing selected)
   selectedWidgetId: string | null
   setSelectedWidgetId: (id: string | null) => void
+
+  // New Course dialog visibility
+  showNewCourseDialog: boolean
+  setShowNewCourseDialog: (show: boolean) => void
 }
 
 export const useEditorStore = create<EditorState>()(devtools((set, get) => ({
@@ -77,4 +81,7 @@ export const useEditorStore = create<EditorState>()(devtools((set, get) => ({
 
   selectedWidgetId: null,
   setSelectedWidgetId: (selectedWidgetId) => set({ selectedWidgetId }),
+
+  showNewCourseDialog: false,
+  setShowNewCourseDialog: (showNewCourseDialog) => set({ showNewCourseDialog }),
 }), { name: 'editorStore', enabled: import.meta.env.DEV }))
