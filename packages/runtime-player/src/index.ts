@@ -21,6 +21,10 @@ import {
   renderSimShell, mountSimPlayer,
   type SimConfig,
 } from './sim/simPlayer'
+import {
+  mountPhaserSim,
+  type PhaserSimConfig,
+} from './widgets/phaserSimWidget'
 import { saveSuspendData, restoreSuspendData } from './suspend'
 
 // ─── Embedded types (mirror authoring-ui/types) ───────────────────────────────
@@ -115,6 +119,8 @@ interface PlayerState {
   remediationVisited: boolean
   /** Cleanup callback from the currently-mounted sim player (cancels demo timers). */
   simCleanup: (() => void) | null
+  /** Cleanup callbacks for any Phaser games on the current slide. */
+  phaserCleanups: Array<() => void>
 }
 
 // ─── Question evaluation (inlined from question-engine) ───────────────────────
@@ -290,6 +296,14 @@ function renderScreenshotSim(w: BaseWidget): string {
   return `<div class="el-widget el-sim-player" id="w-${w.id}" data-widget-id="${w.id}" style="${style}">${renderSimShell()}</div>`
 }
 
+function renderPhaserSim(w: BaseWidget): string {
+  const ep = w.extendedProperties
+  const width = (ep.width as number | undefined) ?? w.bounds.width
+  const height = (ep.height as number | undefined) ?? w.bounds.height
+  const style = `${positionStyle(w.bounds)}overflow:hidden;background:#1a1a2e;`
+  return `<div class="el-widget el-phaser-sim" id="w-${w.id}" data-widget-id="${w.id}" data-phaser-width="${width}" data-phaser-height="${height}" style="${style}"></div>`
+}
+
 function renderWidget(w: BaseWidget): string {
   if (!w.visible) return ''
   switch (w.type) {
@@ -313,6 +327,7 @@ function renderWidget(w: BaseWidget): string {
     case 'question-order':  return renderOrderText(w)
     case 'question-hotspot':   return renderHotspot(w)
     case 'screenshot-sim':     return renderScreenshotSim(w)
+    case 'phaser-sim':         return renderPhaserSim(w)
     default: return ''
   }
 }
@@ -361,6 +376,12 @@ function goToSlide(state: PlayerState, index: number): void {
   state.simCleanup?.()
   state.simCleanup = null
 
+  // Destroy any Phaser games from the previous slide
+  for (const cleanup of state.phaserCleanups) {
+    cleanup()
+  }
+  state.phaserCleanups = []
+
   const { course, container } = state
   if (index < 0 || index >= course.slides.length) return
   state.currentSlide = index
@@ -392,6 +413,23 @@ function goToSlide(state: PlayerState, index: number): void {
           },
         })
       }
+    } else if (w.type === 'phaser-sim') {
+      const ep = w.extendedProperties
+      const phaserConfig: PhaserSimConfig = {
+        widgetId: w.id,
+        simType: (ep.simType as string) ?? 'process-flow',
+        mode: (ep.mode as string) ?? 'demo',
+        passingScore: (ep.passingScore as number) ?? 70,
+        sceneDef: (ep.sceneDef as Record<string, unknown> | null) ?? null,
+        width: (ep.width as number | undefined) ?? w.bounds.width,
+        height: (ep.height as number | undefined) ?? w.bounds.height,
+      }
+      // Mount asynchronously — dynamic import keeps Phaser out of main bundle
+      mountPhaserSim(el, phaserConfig).then(cleanup => {
+        state.phaserCleanups.push(cleanup)
+      }).catch(err => {
+        console.error(`[ELearnPlayer] Failed to mount phaser-sim ${w.id}:`, err)
+      })
     }
   }
 
@@ -547,6 +585,27 @@ function handleSubmit(state: PlayerState, widgetId: string): void {
 // ─── Event delegation ─────────────────────────────────────────────────────────
 
 function attachEvents(state: PlayerState): void {
+  // T035 — SCORM bridge for Phaser sim score events.
+  // Phaser sims dispatch 'elearn:widgetScore' on window when complete.
+  window.addEventListener('elearn:widgetScore', (e: Event) => {
+    const detail = (e as CustomEvent<{ widgetId: string; score: number }>).detail
+    if (!detail?.widgetId) return
+    // Find the widget to get its passingScore for weight calculation
+    const slide = state.course.slides[state.currentSlide]
+    const widget = slide?.widgets.find(w => w.id === detail.widgetId)
+    const ep = widget?.extendedProperties ?? {}
+    const passingScore = (ep.passingScore as number | undefined) ?? 70
+    // Weight defaults to passingScore so a perfect phaser sim scores 100%
+    state.questionStates.set(detail.widgetId, {
+      widgetId: detail.widgetId,
+      score: Math.min(1, Math.max(0, detail.score)), // clamp to [0,1]
+      weight: passingScore,
+      answered: true,
+    })
+    updateScoreDisplays(state)
+    scormReport(state, 'incomplete')
+  })
+
   state.container.addEventListener('click', (e) => {
     const target = e.target as HTMLElement
     const btn = target.closest<HTMLElement>('[data-action]')
@@ -639,6 +698,7 @@ function init(
     passMark: options.passMark ?? 80,
     remediationVisited: false,
     simCleanup: null,
+    phaserCleanups: [],
   }
 
   // Attempt to restore full suspend state (slide + question scores) from cmi.suspend_data.

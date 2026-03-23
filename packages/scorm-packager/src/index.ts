@@ -77,6 +77,12 @@ export interface PackSCORM12Options {
    */
   playerPath?: string
   /**
+   * Absolute path to the Phaser bundle (phaser-bundle.js).
+   * Only copied into the ZIP when the course contains at least one phaser-sim widget.
+   * Defaults to packages/phaser-simulations/dist/phaser-bundle.js
+   */
+  phaserBundlePath?: string
+  /**
    * Extra local asset files to include under assets/ inside the ZIP.
    * Each entry: { localPath, zipPath }
    */
@@ -213,11 +219,22 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-// ─── Default player path resolution ──────────────────────────────────────────
+// ─── Default path resolution ──────────────────────────────────────────────────
 
 function defaultPlayerPath(): string {
   // __dirname = packages/scorm-packager/dist → ../../runtime-player/dist/player.js
   return path.resolve(__dirname, '..', '..', 'runtime-player', 'dist', 'player.js')
+}
+
+function defaultPhaserBundlePath(): string {
+  return path.resolve(__dirname, '..', '..', 'phaser-simulations', 'dist', 'phaser-bundle.js')
+}
+
+/** Returns true when the course contains at least one phaser-sim widget. */
+export function courseHasPhaserSim(course: CourseDoc): boolean {
+  return course.slides.some(slide =>
+    slide.widgets.some(w => w.type === 'phaser-sim')
+  )
 }
 
 // ─── Main packager function ───────────────────────────────────────────────────
@@ -252,6 +269,9 @@ export async function packSCORM12(
   const fileName = options.fileName ?? `${safeTitle}_scorm12.zip`
   const outputPath = path.join(outputDir, fileName)
 
+  const includePhaser = courseHasPhaserSim(course)
+  const phaserBundlePath = options.phaserBundlePath ?? defaultPhaserBundlePath()
+
   return new Promise<string>((resolve, reject) => {
     const output = fs.createWriteStream(outputPath)
     const archive = archiver('zip', { zlib: { level: 9 } })
@@ -270,6 +290,11 @@ export async function packSCORM12(
 
     // player.js
     archive.file(playerPath, { name: 'player.js' })
+
+    // T035 — phaser-bundle.js: only included when the course has phaser-sim widgets
+    if (includePhaser && fs.existsSync(phaserBundlePath)) {
+      archive.file(phaserBundlePath, { name: 'phaser-bundle.js' })
+    }
 
     // Optional extra assets
     if (options.assetPaths) {
@@ -322,6 +347,8 @@ export async function packAICC(
   const outputPath = path.join(outputDir, fileName)
 
   const bridge = buildHACPBridge()
+  const includePhaser = courseHasPhaserSim(course)
+  const phaserBundlePath = defaultPhaserBundlePath()
 
   return new Promise<string>((resolve, reject) => {
     const output  = fs.createWriteStream(outputPath)
@@ -347,6 +374,11 @@ export async function packAICC(
 
     // player.js
     archive.file(playerPath, { name: 'player.js' })
+
+    // T035 — phaser-bundle.js: only included when the course has phaser-sim widgets
+    if (includePhaser && fs.existsSync(phaserBundlePath)) {
+      archive.file(phaserBundlePath, { name: 'phaser-bundle.js' })
+    }
 
     // Optional extra assets
     if (options.assetPaths) {
