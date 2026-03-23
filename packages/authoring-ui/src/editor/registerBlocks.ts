@@ -20,6 +20,7 @@
 import type { Editor } from 'grapesjs'
 import { registerQuestionBlocks } from './registerQuestionBlocks'
 import { registerSimBlock } from './registerSimBlock'
+import { registerPhaserSimBlock } from './registerPhaserSimBlock'
 
 // ---------------------------------------------------------------------------
 // SVG icons (inline, minimal)
@@ -99,6 +100,8 @@ export function registerBlocks(editor: Editor): void {
   registerMediaPlayerWidget(editor)
   // T024.1
   registerSimBlock(editor)
+  // T034
+  registerPhaserSimBlock(editor)
 }
 
 // ---------------------------------------------------------------------------

@@ -17,6 +17,7 @@ import { updateStorageContext } from '../../editor/storageManager'
 import { useEditorStore } from '../../store/editorStore'
 import { useActionsStore } from '../../store/actionsStore'
 import { isQuestionWidgetType } from '../../types/questions'
+import { isPhaserSimWidgetType } from '../../types/phaserSim'
 
 interface EditorCanvasProps {
   courseId: string
@@ -69,7 +70,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
         ed.on('component:selected', (component) => {
           const type: string = component.get('type') ?? ''
           setSelectedComponentType(type)
-          if (isQuestionWidgetType(type)) {
+          if (isQuestionWidgetType(type) || isPhaserSimWidgetType(type)) {
             setRightTab('properties')
           }
 

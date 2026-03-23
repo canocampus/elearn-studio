@@ -24,10 +24,12 @@ import { BlockManagerPanel } from '../sidebar/BlockManagerPanel'
 import { LayerManagerPanel } from '../sidebar/LayerManagerPanel'
 import { StyleManagerPanel } from '../sidebar/StyleManagerPanel'
 import { QuestionPropertiesPanel } from '../sidebar/QuestionPropertiesPanel'
+import { PhaserSimPropertiesPanel } from '../sidebar/PhaserSimPropertiesPanel'
 import { AnimationPropertiesPanel } from '../sidebar/AnimationPropertiesPanel'
 import { ActionsPanel } from '../actions/ActionsPanel'
 import { EditorCanvas } from '../editor/EditorCanvas'
 import { SimulationEditor } from '../simulation/SimulationEditor'
+import { PhaserSimPreviewModal } from '../simulation/PhaserSimPreviewModal'
 import { PanelErrorBoundary } from '../ui/ErrorBoundary'
 import { useDebugMode } from '../../hooks/useDebugMode'
 import { CourseInspector } from '../debug/CourseInspector'
@@ -82,6 +84,8 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
     <div style={styles.root}>
       {/* T024.2 — SimulationEditor overlays the entire IDE when open */}
       <SimulationEditor />
+      {/* T034 — PhaserSimPreviewModal overlays the IDE for phaser sim preview */}
+      <PhaserSimPreviewModal />
       {showPublishDialog && course && (
         <PublishDialog
           course={course}
@@ -166,6 +170,9 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
           <div style={{ display: rightTab === 'properties' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
             <PanelErrorBoundary name="QuestionPropertiesPanel">
               <QuestionPropertiesPanel />
+            </PanelErrorBoundary>
+            <PanelErrorBoundary name="PhaserSimPropertiesPanel">
+              <PhaserSimPropertiesPanel />
             </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'actions' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
