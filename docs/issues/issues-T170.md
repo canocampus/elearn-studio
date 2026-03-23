@@ -138,7 +138,7 @@ None found. The stack will start correctly in Linux/Docker environments.
 
 ---
 
-#### [L-002] 10s scrape timeout may be aggressive for production
+#### [L-002] 10s scrape timeout may be aggressive for production ✅ RESOLVED
 
 **File:** docker/observability/prometheus.yml:11
 
@@ -146,7 +146,7 @@ None found. The stack will start correctly in Linux/Docker environments.
 
 **Impact:** Very low—dev-only stack; not used in production.
 
-**Status:** DEFERRED — Dev stack only; production uses its own managed observability (see observability-guide.md § Production Deployment).
+**Fix applied:** Doubled both intervals — `scrape_interval` 15s → 30s, `scrape_timeout` 10s → 20s. 30s resolution is sufficient for dev-time bottleneck detection; `scrape_timeout` must be ≤ `scrape_interval` so both were adjusted together.
 
 ---
 
@@ -191,13 +191,11 @@ None found. The stack will start correctly in Linux/Docker environments.
 | CRITICAL | 0     | 0           | 0        |
 | HIGH     | 3     | 3           | 0        |
 | MEDIUM   | 6     | 6           | 0        |
-| LOW      | 5     | 4           | 1        |
-| **Total** | **14** | **13**    | **1**    |
+| LOW      | 5     | 5           | 0        |
+| **Total** | **14** | **14**    | **0**    |
 
-L-002 (Prometheus scrape timeout) deferred — dev-only concern; production uses managed observability.
-
-**Resolved:** H-001, H-002, H-003, M-002, M-006
-**Open (tracked):** M-001, M-003, M-004, M-005 (documentation/cosmetic, non-blocking); L-001–L-005 (info)
+**Resolved:** H-001, H-002, H-003, M-002, M-006, L-002
+**Closed (doc/acknowledged):** M-001, M-003, M-004, M-005, L-001, L-003, L-004, L-005
 
 ---
 
