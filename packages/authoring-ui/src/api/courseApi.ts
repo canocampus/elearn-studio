@@ -1,71 +1,41 @@
 /**
  * API client for the eLearn Studio backend API.
- * All requests are JSON. API_KEY header is sent when configured.
+ * All requests are authenticated via Bearer token (managed by apiClient).
  */
 
 import type { CourseDoc, CourseListItem, Slide } from '../types/course'
 import type { SimConfig } from '../types/simulation'
-
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
-
-function getHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  const apiKey = import.meta.env.VITE_API_KEY
-  if (apiKey) {
-    headers['X-Api-Key'] = apiKey
-  }
-  return headers
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const method = init?.method ?? 'GET'
-  let res: Response
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers: { ...getHeaders(), ...(init?.headers ?? {}) },
-    })
-  } catch (networkErr) {
-    throw new Error(
-      `API ${method} ${path} — network error (is the backend running at ${API_BASE}?): ${networkErr}`,
-    )
-  }
-  if (!res.ok) {
-    const raw = await res.text().catch(() => '')
-    const body = raw.length > 500 ? raw.slice(0, 500) + '…' : raw
-    throw new Error(`API ${method} ${path} → ${res.status}: ${body}`)
-  }
-  return res.json() as Promise<T>
-}
+import type { components } from './generated'
+import { apiRequest, apiBlobRequest } from './apiClient'
 
 // ---------------------------------------------------------------------------
 // Courses
 // ---------------------------------------------------------------------------
 
 export function listCourses(): Promise<CourseListItem[]> {
-  return request<CourseListItem[]>('/courses')
+  return apiRequest<CourseListItem[]>('/courses')
 }
 
 export function getCourse(id: string): Promise<CourseDoc> {
-  return request<CourseDoc>(`/courses/${id}`)
+  return apiRequest<CourseDoc>(`/courses/${id}`)
 }
 
 export function createCourse(title: string): Promise<CourseDoc> {
-  return request<CourseDoc>('/courses', {
+  return apiRequest<CourseDoc>('/courses', {
     method: 'POST',
     body: JSON.stringify({ title }),
   })
 }
 
 export function updateCourse(id: string, data: Partial<CourseDoc>): Promise<CourseDoc> {
-  return request<CourseDoc>(`/courses/${id}`, {
+  return apiRequest<CourseDoc>(`/courses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
 }
 
 export function deleteCourse(id: string): Promise<void> {
-  return request<void>(`/courses/${id}`, { method: 'DELETE' })
+  return apiRequest<void>(`/courses/${id}`, { method: 'DELETE' })
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +49,7 @@ export function nextSlideTitle(slides: CourseDoc['slides']): string {
 
 // R-07: targeted slide routes use atomic MongoDB $push/$set/$pull — no race conditions
 export function addSlide(courseId: string, title: string): Promise<CourseDoc> {
-  return request<CourseDoc>(`/courses/${courseId}/slides`, {
+  return apiRequest<CourseDoc>(`/courses/${courseId}/slides`, {
     method: 'POST',
     body: JSON.stringify({ title }),
   })
@@ -90,14 +60,14 @@ export function updateSlide(
   slideId: string,
   patch: Partial<Slide>,
 ): Promise<CourseDoc> {
-  return request<CourseDoc>(`/courses/${courseId}/slides/${slideId}`, {
+  return apiRequest<CourseDoc>(`/courses/${courseId}/slides/${slideId}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
   })
 }
 
 export function deleteSlide(courseId: string, slideId: string): Promise<CourseDoc> {
-  return request<CourseDoc>(`/courses/${courseId}/slides/${slideId}`, { method: 'DELETE' })
+  return apiRequest<CourseDoc>(`/courses/${courseId}/slides/${slideId}`, { method: 'DELETE' })
 }
 
 // Duplicate: add a blank slide then copy the source slide's content into it.
@@ -113,10 +83,40 @@ export async function duplicateSlide(courseId: string, sourceSlide: Slide): Prom
 
 // R-07 extension: atomic reorder via a targeted route (no GET+PUT race)
 export function reorderSlides(courseId: string, orderedIds: string[]): Promise<CourseDoc> {
-  return request<CourseDoc>(`/courses/${courseId}/slides/reorder`, {
+  return apiRequest<CourseDoc>(`/courses/${courseId}/slides/reorder`, {
     method: 'PATCH',
     body: JSON.stringify({ orderedIds }),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Audit History (T167)
+// ---------------------------------------------------------------------------
+
+/** Generated from OpenAPI schema — do not edit manually. */
+export type AuditLogEntry = components['schemas']['AuditEntry']
+
+export interface CourseHistoryResult {
+  entries: AuditLogEntry[]
+  total: number
+}
+
+export async function getCourseHistory(
+  courseId: string,
+  opts: { limit?: number; skip?: number } = {},
+): Promise<CourseHistoryResult> {
+  const params = new URLSearchParams()
+  if (opts.limit !== undefined) params.set('limit', String(opts.limit))
+  if (opts.skip !== undefined) params.set('skip', String(opts.skip))
+  const qs = params.toString() ? `?${params.toString()}` : ''
+
+  // Backend returns { success, data: AuditLogEntry[], meta: { total, limit, skip } }
+  const res = await apiRequest<{
+    success: boolean
+    data: AuditLogEntry[]
+    meta: { total: number; limit: number; skip: number }
+  }>(`/courses/${courseId}/history${qs}`)
+  return { entries: res.data, total: res.meta.total }
 }
 
 // ---------------------------------------------------------------------------
@@ -125,27 +125,11 @@ export function reorderSlides(courseId: string, orderedIds: string[]): Promise<C
 
 /**
  * Request a SCORM 1.2 ZIP from the backend and trigger a browser download.
- * Returns the suggested file name from the Content-Disposition header.
  */
 export async function exportSCORM12(courseId: string, courseTitle: string): Promise<void> {
-  const apiKey = import.meta.env.VITE_API_KEY
-  const headers: Record<string, string> = {}
-  if (apiKey) headers['X-Api-Key'] = apiKey
-
-  let res: Response
-  try {
-    res = await fetch(`${API_BASE}/courses/${courseId}/export/scorm12`, {
-      method: 'POST',
-      headers,
-    })
-  } catch (err) {
-    throw new Error(`Export network error: ${err}`)
-  }
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Export failed ${res.status}: ${body}`)
-  }
+  const res = await apiBlobRequest(`/courses/${courseId}/export/scorm12`, {
+    method: 'POST',
+  })
 
   const blob = await res.blob()
   const disposition = res.headers.get('Content-Disposition') ?? ''
@@ -166,10 +150,9 @@ export async function exportSCORM12(courseId: string, courseTitle: string): Prom
 
 /**
  * Import a recorded simulation session into a course.
- * Fetches the raw session from Garage via the backend and returns an authoring-ready SimConfig.
  */
 export function importSimulation(courseId: string, sessionId: string): Promise<SimConfig> {
-  return request<{ success: boolean; data: SimConfig }>(
+  return apiRequest<{ success: boolean; data: SimConfig }>(
     `/courses/${courseId}/simulations/import`,
     {
       method: 'POST',
@@ -182,30 +165,24 @@ export function importSimulation(courseId: string, sessionId: string): Promise<S
 // Assets
 // ---------------------------------------------------------------------------
 
-// R-02: interface matches actual backend response ({ url, objectName, originalName })
-export interface AssetUploadResult {
-  url: string
-  objectName: string
-  originalName: string
-}
-
-// R-06: shared auth headers for multipart requests (no Content-Type — let browser set boundary)
-function getMultipartHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {}
-  const apiKey = import.meta.env.VITE_API_KEY
-  if (apiKey) {
-    headers['X-Api-Key'] = apiKey
-  }
-  return headers
-}
+/** Generated from OpenAPI schema — do not edit manually. */
+export type AssetUploadResult = components['schemas']['Asset']
 
 export async function uploadAsset(file: File): Promise<AssetUploadResult> {
+  const { useAuthStore } = await import('../store/authStore')
+  const token = useAuthStore.getState().accessToken
+
   const formData = new FormData()
   formData.append('file', file)
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
   const res = await fetch(`${API_BASE}/assets`, {
     method: 'POST',
     body: formData,
-    headers: getMultipartHeaders(),
+    headers,
+    credentials: 'include',
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
