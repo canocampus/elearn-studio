@@ -76,6 +76,35 @@ export function deserializeSuspend(compressed: string): SuspendPayload | null {
   }
 }
 
+// ─── Suspend data size estimation (T204) ─────────────────────────────────────
+
+export interface SuspendSizeEstimate {
+  /** Estimated compressed length (chars) for cmi.suspend_data */
+  compressed: number
+  /** Percentage of the SCORM 1.2 limit used (0–100) */
+  percentage: number
+}
+
+/**
+ * Estimates the cmi.suspend_data size for a course with the given question widget IDs.
+ * Builds a worst-case payload (all questions answered at midpoint score), compresses it,
+ * and returns the size relative to the SCORM 1.2 limit.
+ *
+ * This is an authoring-time advisory only — actual runtime size may vary based on
+ * variable values and intermediate state.
+ */
+export function estimateSuspendSize(questionWidgetIds: string[]): SuspendSizeEstimate {
+  const payload: SuspendPayload = {
+    v: 1,
+    slide: 0,
+    scores: questionWidgetIds.map((id) => [id, { s: 0.5, w: 100, a: true }]),
+  }
+  const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload))
+  const size = compressed.length
+  const percentage = Math.round((size / SUSPEND_DATA_MAX) * 100)
+  return { compressed: size, percentage }
+}
+
 /** SCORM 1.2 API subset used by suspend helpers */
 interface ScormApi {
   LMSGetValue(element: string): string

@@ -13,6 +13,7 @@
 import { Router, Request, Response } from 'express'
 import { getObject } from '../storage/s3'
 import { Readable } from 'stream'
+import { logger } from '../lib/logger'
 import type {
   AuthoredSimStep,
   SimConfig,
@@ -27,6 +28,66 @@ export const simulationsRouter: Router = Router()
 // POST /courses/:courseId/simulations/import
 // ---------------------------------------------------------------------------
 
+/**
+ * @openapi
+ * /courses/{courseId}/simulations/import:
+ *   post:
+ *     summary: Import a simulation recording into a course
+ *     description: Fetches recordings/{sessionId}/session.json from Garage, converts RawSimStep[] to AuthoredSimStep[] with default hotspots, and returns a SimConfig.
+ *     tags: [Simulations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [sessionId]
+ *             properties:
+ *               sessionId: { type: string, pattern: '^[a-zA-Z0-9_-]+$', example: session-abc123 }
+ *     responses:
+ *       200:
+ *         description: SimConfig generated from recording
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/SimConfig' }
+ *       400:
+ *         description: Missing or invalid courseId / sessionId
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Session recording not found in storage
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       422:
+ *         description: Session file is corrupted (JSON parse error)
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       500:
+ *         description: Storage error
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 simulationsRouter.post(
   '/courses/:courseId/simulations/import',
   async (req: Request, res: Response): Promise<void> => {
@@ -60,7 +121,7 @@ simulationsRouter.post(
       try {
         session = JSON.parse(Buffer.concat(chunks).toString('utf-8')) as RawSession
       } catch (parseErr) {
-        console.error('[simulations] JSON parse error for session:', sessionId, parseErr)
+        logger.error({ err: parseErr, sessionId }, 'JSON parse error for simulation session')
         res.status(422).json({ success: false, error: 'Session file is corrupted' })
         return
       }
@@ -70,7 +131,7 @@ simulationsRouter.post(
         res.status(404).json({ success: false, error: `Session '${sessionId}' not found` })
         return
       }
-      console.error('[simulations] getObject error:', err)
+      logger.error({ err, sessionId }, 'getObject error loading simulation session')
       res.status(500).json({ success: false, error: 'Failed to load session from storage' })
       return
     }
@@ -112,6 +173,54 @@ simulationsRouter.post(
 // GET /simulations/screenshot?key=<objectKey>
 // ---------------------------------------------------------------------------
 
+/**
+ * @openapi
+ * /simulations/screenshot:
+ *   get:
+ *     summary: Proxy a simulation screenshot from Garage
+ *     description: Streams a screenshot PNG/JPEG from Garage so the authoring UI never needs direct Garage credentials. Key must start with recordings/ and end with .png or .jpeg.
+ *     tags: [Simulations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: key
+ *         required: true
+ *         schema: { type: string, example: recordings/session-abc123/step-1.png }
+ *     responses:
+ *       200:
+ *         description: Screenshot image
+ *         content:
+ *           image/png:
+ *             schema: { type: string, format: binary }
+ *           image/jpeg:
+ *             schema: { type: string, format: binary }
+ *       400:
+ *         description: Missing key parameter
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       403:
+ *         description: Key outside allowed recordings/ prefix or path traversal attempt
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Screenshot not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       500:
+ *         description: Storage error
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 simulationsRouter.get(
   '/simulations/screenshot',
   async (req: Request, res: Response): Promise<void> => {
@@ -147,7 +256,7 @@ simulationsRouter.get(
         res.status(404).json({ success: false, error: 'Screenshot not found' })
         return
       }
-      console.error('[simulations] screenshot proxy error:', err)
+      logger.error({ err, key }, 'Screenshot proxy error')
       res.status(500).json({ success: false, error: 'Failed to retrieve screenshot' })
     }
   },

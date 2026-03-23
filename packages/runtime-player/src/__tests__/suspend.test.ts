@@ -91,6 +91,18 @@ describe('serializeSuspend', () => {
   })
 })
 
+  it('T205 TEST-01: 100 questions with realistic IDs stay within SCORM 1.2 limit', () => {
+    // Stress test: 100 questions, realistic widget IDs, worst-case scores (0.5 = no compression gain)
+    const scores: [string, { score: number; weight: number; answered: boolean }][] = Array.from(
+      { length: 100 },
+      (_, i) => [`widget-q${String(i).padStart(3, '0')}`, { score: 0.5, weight: 100, answered: true }],
+    )
+    const state = makeState(0, scores)
+    const result = serializeSuspend(state)
+    expect(result).not.toBeNull()
+    expect(result!.length).toBeLessThanOrEqual(SUSPEND_DATA_MAX)
+  })
+
 // ─── deserializeSuspend ───────────────────────────────────────────────────────
 
 describe('deserializeSuspend', () => {

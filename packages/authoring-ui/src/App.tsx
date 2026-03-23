@@ -1,24 +1,85 @@
 /**
  * Root application component.
- * Loads (or creates) the first available course on mount.
- * Phase 1: single-course UI. Phase 2+ will add course picker.
+ *
+ * On mount:
+ *   1. Tries POST /auth/refresh to silently restore session from httpOnly cookie.
+ *   2. If successful, bootstraps the course list and loads the editor.
+ *   3. If not, shows the LoginPage.
+ *
+ * After login, the user is stored in authStore (memory only — no localStorage).
  */
 
 import { useEffect, useState } from 'react'
 import { AppLayout } from './components/layout/AppLayout'
+import { LoginPage } from './pages/LoginPage'
 import { useEditorStore } from './store/editorStore'
+import { useAuthStore } from './store/authStore'
 import { listCourses, createCourse, getCourse } from './api/courseApi'
 
-type LoadState = 'loading' | 'ready' | 'error'
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+
+type AppState = 'initialising' | 'login' | 'loading' | 'ready' | 'error'
 
 export function App() {
-  const [loadState, setLoadState] = useState<LoadState>('loading')
+  const [appState, setAppState] = useState<AppState>('initialising')
   const [errorMessage, setErrorMessage] = useState('')
   const [courseId, setCourseId] = useState<string | null>(null)
-  const setCourse = useEditorStore(s => s.setCourse)
 
+  const setCourse = useEditorStore((s) => s.setCourse)
+  const { accessToken, user, setAuth } = useAuthStore()
+
+  // ── Silent refresh on first load ─────────────────────────────────────────
   useEffect(() => {
-    async function bootstrap() {
+    async function tryRestoreSession() {
+      try {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+        if (!res.ok) {
+          setAppState('login')
+          return
+        }
+        const body = (await res.json()) as {
+          success: boolean
+          data: { accessToken: string }
+        }
+        if (!body.success) {
+          setAppState('login')
+          return
+        }
+        const token = body.data.accessToken
+
+        // Fetch user info
+        const meRes = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        })
+        if (!meRes.ok) {
+          setAppState('login')
+          return
+        }
+        const me = (await meRes.json()) as {
+          success: boolean
+          data: { sub: string; email: string; role: string }
+        }
+        setAuth(token, { id: me.data.sub, email: me.data.email, role: me.data.role })
+        // bootstrapCourse runs when accessToken changes (next effect)
+      } catch {
+        setAppState('login')
+      }
+    }
+
+    tryRestoreSession()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Bootstrap course when authenticated ──────────────────────────────────
+  useEffect(() => {
+    if (!accessToken || !user) return
+
+    async function bootstrapCourse() {
+      setAppState('loading')
       try {
         const courses = await listCourses()
         let id: string
@@ -36,18 +97,21 @@ export function App() {
         const full = await getCourse(id)
         setCourse(full)
         setCourseId(id)
-        setLoadState('ready')
+        setAppState('ready')
       } catch (err) {
         console.error('[App] bootstrap failed:', err)
         setErrorMessage(err instanceof Error ? err.message : String(err))
-        setLoadState('error')
+        setAppState('error')
       }
     }
 
-    bootstrap()
-  }, [setCourse])
+    bootstrapCourse()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken])
 
-  if (loadState === 'loading') {
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (appState === 'initialising' || appState === 'loading') {
     return (
       <div style={splashStyle}>
         <span style={{ color: '#89b4fa', fontSize: 14 }}>Loading eLearn Studio…</span>
@@ -55,7 +119,11 @@ export function App() {
     )
   }
 
-  if (loadState === 'error') {
+  if (appState === 'login') {
+    return <LoginPage />
+  }
+
+  if (appState === 'error') {
     return (
       <div style={{ ...splashStyle, flexDirection: 'column', gap: 12 }}>
         <span style={{ color: '#f38ba8', fontSize: 14, fontWeight: 600 }}>Failed to load</span>

@@ -8,6 +8,9 @@ import { beforeAll, afterAll, afterEach } from 'vitest'
 
 const MONGO_URI = process.env.MONGO_URI_TEST ?? 'mongodb://localhost:27017/elearn-test'
 
+// T171: set a deterministic JWT_SECRET for all tests
+process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-characters-long'
+
 beforeAll(async () => {
   await mongoose.connect(MONGO_URI)
 })

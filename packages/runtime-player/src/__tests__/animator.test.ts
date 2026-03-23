@@ -223,4 +223,26 @@ describe('executeAnimation', () => {
     const [, timing] = (el.animate as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(timing.iterations).toBe(Infinity)
   })
+
+  it('T205 TEST-04: two concurrent play-animation calls on same widget each start a new Animation (browser manages overlap)', () => {
+    // Documented behavior: executeAnimation does NOT cancel the prior animation.
+    // Each call returns a distinct Animation object. The browser (or caller) is
+    // responsible for cancelling the previous animation if needed.
+    const mockAnim1 = { id: 'anim-1', cancel: vi.fn(), finish: vi.fn(), play: vi.fn(), pause: vi.fn() }
+    const mockAnim2 = { id: 'anim-2', cancel: vi.fn(), finish: vi.fn(), play: vi.fn(), pause: vi.fn() }
+    ;(el.animate as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce(mockAnim1)
+      .mockReturnValueOnce(mockAnim2)
+
+    const anim1 = executeAnimation(el, makePath({ duration: 2000 }))
+    const anim2 = executeAnimation(el, makePath({ duration: 500 }))
+
+    expect(el.animate).toHaveBeenCalledTimes(2)
+    expect(anim1).not.toBeNull()
+    expect(anim2).not.toBeNull()
+    // Both are independent WAAPI Animation objects — no implicit cancellation
+    expect(anim1).not.toBe(anim2)
+    expect((anim1 as unknown as typeof mockAnim1).id).toBe('anim-1')
+    expect((anim2 as unknown as typeof mockAnim2).id).toBe('anim-2')
+  })
 })

@@ -16,7 +16,9 @@
 import { useState } from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { exportSCORM12 } from '../../api/courseApi'
+import { ToastProvider, useToast } from '../ui/Toast'
 import { TopToolbar } from './TopToolbar'
+import { PublishDialog } from './PublishDialog'
 import { SlideList } from '../sidebar/SlideList'
 import { BlockManagerPanel } from '../sidebar/BlockManagerPanel'
 import { LayerManagerPanel } from '../sidebar/LayerManagerPanel'
@@ -26,12 +28,18 @@ import { AnimationPropertiesPanel } from '../sidebar/AnimationPropertiesPanel'
 import { ActionsPanel } from '../actions/ActionsPanel'
 import { EditorCanvas } from '../editor/EditorCanvas'
 import { SimulationEditor } from '../simulation/SimulationEditor'
+import { PanelErrorBoundary } from '../ui/ErrorBoundary'
+import { useDebugMode } from '../../hooks/useDebugMode'
+import { CourseInspector } from '../debug/CourseInspector'
+import { CourseHistory } from '../debug/CourseHistory'
+import { ActionsDebugOverlay } from '../debug/ActionsDebugOverlay'
 
 interface AppLayoutProps {
   courseId: string
 }
 
-export function AppLayout({ courseId }: AppLayoutProps) {
+function AppLayoutInner({ courseId }: AppLayoutProps) {
+  const toast = useToast()
   const course = useEditorStore(s => s.course)
   const currentSlideIndex = useEditorStore(s => s.currentSlideIndex)
   const leftTab = useEditorStore(s => s.leftTab)
@@ -40,20 +48,31 @@ export function AppLayout({ courseId }: AppLayoutProps) {
   const setRightTab = useEditorStore(s => s.setRightTab)
 
   const [publishing, setPublishing] = useState(false)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [showInspector, setShowInspector] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const isDebug = useDebugMode()
   const currentSlide = course?.slides[currentSlideIndex]
 
   function handlePreview() {
     // T017: full preview mode — future enhancement
-    alert('Preview mode — coming soon')
+    toast.info('Preview mode — coming soon')
   }
 
-  async function handlePublish() {
+  function handlePublish() {
+    if (!course) return
+    setShowPublishDialog(true)
+  }
+
+  async function handleConfirmPublish() {
     if (!course) return
     setPublishing(true)
     try {
       await exportSCORM12(course._id, course.title)
+      setShowPublishDialog(false)
+      toast.success('SCORM package ready')
     } catch (err) {
-      alert(`Publish failed: ${err instanceof Error ? err.message : err}`)
+      toast.error(`Export failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setPublishing(false)
     }
@@ -63,7 +82,30 @@ export function AppLayout({ courseId }: AppLayoutProps) {
     <div style={styles.root}>
       {/* T024.2 — SimulationEditor overlays the entire IDE when open */}
       <SimulationEditor />
-      <TopToolbar onPreview={handlePreview} onPublish={handlePublish} publishing={publishing} />
+      {showPublishDialog && course && (
+        <PublishDialog
+          course={course}
+          onConfirm={handleConfirmPublish}
+          onCancel={() => setShowPublishDialog(false)}
+          publishing={publishing}
+        />
+      )}
+      <TopToolbar
+        onPreview={handlePreview}
+        onPublish={handlePublish}
+        publishing={publishing}
+        onToggleInspector={() => setShowInspector(v => !v)}
+        inspectorOpen={showInspector}
+        onToggleHistory={() => setShowHistory(v => !v)}
+        historyOpen={showHistory}
+      />
+      {import.meta.env.DEV && isDebug && <ActionsDebugOverlay />}
+      {import.meta.env.DEV && isDebug && showInspector && (
+        <CourseInspector onClose={() => setShowInspector(false)} />
+      )}
+      {import.meta.env.DEV && isDebug && showHistory && (
+        <CourseHistory courseId={courseId} onClose={() => setShowHistory(false)} />
+      )}
 
       <div style={styles.body}>
         {/* ---- Left sidebar ---- */}
@@ -74,20 +116,26 @@ export function AppLayout({ courseId }: AppLayoutProps) {
           </div>
 
           <div style={{ display: leftTab === 'slides' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-            <SlideList />
+            <PanelErrorBoundary name="SlideList">
+              <SlideList />
+            </PanelErrorBoundary>
           </div>
           <div style={{ display: leftTab === 'blocks' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-            <BlockManagerPanel />
+            <PanelErrorBoundary name="BlockManagerPanel">
+              <BlockManagerPanel />
+            </PanelErrorBoundary>
           </div>
         </aside>
 
         {/* ---- Canvas ---- */}
         <main style={styles.canvasArea}>
           {currentSlide ? (
-            <EditorCanvas
-              courseId={courseId}
-              slideId={currentSlide.id}
-            />
+            <PanelErrorBoundary name="EditorCanvas">
+              <EditorCanvas
+                courseId={courseId}
+                slideId={currentSlide.id}
+              />
+            </PanelErrorBoundary>
           ) : (
             <div style={styles.noSlide}>
               No slides yet — click <strong>+ New Slide</strong> to start
@@ -106,23 +154,41 @@ export function AppLayout({ courseId }: AppLayoutProps) {
           </div>
 
           <div style={{ display: rightTab === 'layers' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-            <LayerManagerPanel />
+            <PanelErrorBoundary name="LayerManagerPanel">
+              <LayerManagerPanel />
+            </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'styles' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-            <StyleManagerPanel />
+            <PanelErrorBoundary name="StyleManagerPanel">
+              <StyleManagerPanel />
+            </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'properties' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-            <QuestionPropertiesPanel />
+            <PanelErrorBoundary name="QuestionPropertiesPanel">
+              <QuestionPropertiesPanel />
+            </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'actions' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-            <ActionsPanel />
+            <PanelErrorBoundary name="ActionsPanel">
+              <ActionsPanel />
+            </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'animations' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-            <AnimationPropertiesPanel />
+            <PanelErrorBoundary name="AnimationPropertiesPanel">
+              <AnimationPropertiesPanel />
+            </PanelErrorBoundary>
           </div>
         </aside>
       </div>
     </div>
+  )
+}
+
+export function AppLayout({ courseId }: AppLayoutProps) {
+  return (
+    <ToastProvider>
+      <AppLayoutInner courseId={courseId} />
+    </ToastProvider>
   )
 }
 

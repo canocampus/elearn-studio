@@ -20,6 +20,8 @@ export interface SimHotspot {
   tolerance: number
 }
 
+export type SimInteractionType = 'click' | 'hover' | 'type'
+
 export interface AuthoredSimStep {
   id: string
   order: number
@@ -36,6 +38,10 @@ export interface AuthoredSimStep {
   /** Backend-proxied URL for the screenshot image */
   screenshotUrl: string
   hotspot: SimHotspot
+  /** T202: How the learner interacts with this step (default: 'click') */
+  interactionType?: SimInteractionType
+  /** T202: Required text for 'type' interaction steps */
+  expectedText?: string
 }
 
 export type SimMode = 'demo' | 'practice' | 'assessment'
@@ -80,6 +86,8 @@ export function renderSimShell(): string {
     <div class="el-sim-bar" style="height:60px;display:flex;align-items:center;padding:0 12px;gap:8px;background:#1a1a2e;color:#fff;font-size:12px;overflow:hidden;flex-shrink:0;">
       <span class="el-sim-step-counter" style="white-space:nowrap;font-weight:600;color:#89b4fa;min-width:72px;"></span>
       <p class="el-sim-instruction" style="flex:1;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></p>
+      <input class="el-sim-type-input" type="text" placeholder="Type here…"
+        style="display:none;padding:4px 8px;border-radius:4px;border:1px solid #45475a;background:#1e1e2e;color:#cdd6f4;font-size:12px;width:160px;flex-shrink:0;" />
       <span class="el-sim-feedback" style="display:none;white-space:nowrap;font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;"></span>
       <button class="el-sim-next-btn" style="display:none;cursor:pointer;padding:4px 12px;background:#89b4fa;border:none;border-radius:4px;color:#1a1a2e;font-weight:600;flex-shrink:0;"></button>
     </div>`
@@ -105,6 +113,7 @@ export function mountSimPlayer(
   const clickLayerEl  = el.querySelector<HTMLElement>('.el-sim-click-layer')!
   const counterEl     = el.querySelector<HTMLElement>('.el-sim-step-counter')!
   const instructionEl = el.querySelector<HTMLElement>('.el-sim-instruction')!
+  const typeInputEl   = el.querySelector<HTMLInputElement>('.el-sim-type-input')!
   const feedbackEl    = el.querySelector<HTMLElement>('.el-sim-feedback')!
   const nextBtn       = el.querySelector<HTMLButtonElement>('.el-sim-next-btn')!
 
@@ -118,10 +127,17 @@ export function mountSimPlayer(
   // Extract widget id from element id ("w-abc" → "abc")
   const widgetId = el.id.startsWith('w-') ? el.id.slice(2) : el.id
 
+  // T202: cleanup for hover/type listeners
+  let hoverCleanup: (() => void) | null = null
+
   function cancel(): void {
     if (demoTimer !== null) {
       clearTimeout(demoTimer)
       demoTimer = null
+    }
+    if (hoverCleanup !== null) {
+      hoverCleanup()
+      hoverCleanup = null
     }
   }
 
@@ -154,10 +170,12 @@ export function mountSimPlayer(
   }
 
   function clearFeedbackAndNext(): void {
-    feedbackEl.style.display = 'none'
-    feedbackEl.textContent   = ''
-    nextBtn.style.display    = 'none'
-    nextBtn.onclick          = null
+    feedbackEl.style.display  = 'none'
+    feedbackEl.textContent    = ''
+    nextBtn.style.display     = 'none'
+    nextBtn.onclick           = null
+    typeInputEl.style.display = 'none'
+    typeInputEl.value         = ''
   }
 
   function loadStep(idx: number): void {
@@ -189,7 +207,82 @@ export function mountSimPlayer(
         loadStep(idx + 1)
       }, delay)
     } else {
-      clickLayerEl.style.pointerEvents = 'auto'
+      const interaction = step.interactionType ?? 'click'
+
+      if (interaction === 'hover') {
+        // T202: hover interaction — success when pointer enters the hotspot region
+        clickLayerEl.style.pointerEvents = 'auto'
+        clickLayerEl.style.cursor = 'default'
+
+        function onHover(e: MouseEvent): void {
+          const rect = clickLayerEl.getBoundingClientRect()
+          if (rect.width === 0 || rect.height === 0) return
+          const mx = ((e.clientX - rect.left) / rect.width) * REF_W
+          const my = ((e.clientY - rect.top) / rect.height) * REF_H
+          const { x, y, width, height, tolerance } = step.hotspot
+          const hit =
+            mx >= x - tolerance && mx <= x + width  + tolerance &&
+            my >= y - tolerance && my <= y + height + tolerance
+          if (hit) {
+            clickLayerEl.removeEventListener('mousemove', onHover)
+            hoverCleanup = null
+            if (mode === 'assessment') correctCount++
+            showFeedback(step.correctFeedback || 'Correct!', '#2ecc71')
+            clickLayerEl.style.pointerEvents = 'none'
+            showNextBtn('Next', () => loadStep(currentStepIdx + 1))
+          }
+        }
+
+        clickLayerEl.addEventListener('mousemove', onHover)
+        hoverCleanup = () => clickLayerEl.removeEventListener('mousemove', onHover)
+
+      } else if (interaction === 'type') {
+        // T202: type interaction — learner must type the expectedText
+        clickLayerEl.style.pointerEvents = 'none'
+        typeInputEl.style.display = 'inline-block'
+        typeInputEl.value = ''
+        typeInputEl.focus()
+
+        function onTypeSubmit(e: KeyboardEvent): void {
+          if (e.key !== 'Enter') return
+          const typed = typeInputEl.value.trim().toLowerCase()
+          const expected = (step.expectedText ?? '').trim().toLowerCase()
+          if (typed === expected && expected !== '') {
+            typeInputEl.removeEventListener('keydown', onTypeSubmit)
+            if (mode === 'assessment') correctCount++
+            showFeedback(step.correctFeedback || 'Correct!', '#2ecc71')
+            typeInputEl.disabled = true
+            showNextBtn('Next', () => loadStep(currentStepIdx + 1))
+          } else {
+            attemptCount++
+            const maxAttempts = step.maxAttempts === -1 ? Infinity : step.maxAttempts
+            const limitReached = maxAttempts !== Infinity && attemptCount >= maxAttempts
+            if (limitReached) {
+              typeInputEl.removeEventListener('keydown', onTypeSubmit)
+              showFeedback(step.incorrectFeedback || 'Incorrect.', '#e74c3c')
+              typeInputEl.disabled = true
+              showNextBtn('Next', () => loadStep(currentStepIdx + 1))
+            } else {
+              let msg = step.incorrectFeedback || 'Try again.'
+              if (!hintShown && step.hint) {
+                msg = `${step.hint} — ${msg}`
+                hintShown = true
+              }
+              showFeedback(msg, '#f39c12')
+              typeInputEl.value = ''
+            }
+          }
+        }
+
+        typeInputEl.disabled = false
+        typeInputEl.addEventListener('keydown', onTypeSubmit)
+        hoverCleanup = () => typeInputEl.removeEventListener('keydown', onTypeSubmit)
+
+      } else {
+        // Default: click interaction
+        clickLayerEl.style.pointerEvents = 'auto'
+        clickLayerEl.style.cursor = 'crosshair'
+      }
     }
   }
 

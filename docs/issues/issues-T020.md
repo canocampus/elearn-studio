@@ -180,7 +180,7 @@ The T020 Actions Editor implementation introduces a comprehensive event-action s
 
 **Confidence**: 75%
 
-**Status**: ⏭️ DEFERRED to T160 — Requires the Toast/Notification system (T160) which is the first task of Phase 2.5. Will be wired in T160.4: `useActionsSave.ts` save failure → `toast.error('Save failed')`.
+**Status**: ✅ RESOLVED in T160 (2026-03-23) — Toast/Notification system implemented. `TopToolbar.tsx`, `SlideList.tsx`, and `AppLayout.tsx` all wired with `toast.error/warning/success` for save/export failure paths.
 
 ---
 

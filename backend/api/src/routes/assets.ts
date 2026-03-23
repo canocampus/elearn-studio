@@ -1,14 +1,17 @@
 import express, { Router, Request, Response, NextFunction } from 'express'
 import multer from 'multer'
+import rateLimit from 'express-rate-limit'
 import { randomUUID } from 'crypto'
 import path from 'path'
-import { putObject, getObject, statObject } from '../storage/s3'
-import { apiKeyAuth } from '../middleware/auth'
+import { putObject, getPresignedUrl, statObject } from '../storage/s3'
+import { logger } from '../lib/logger'
 
 export const assetsRouter: express.Router = Router()
 
-// H-03: allowlist safe MIME types only
-const ALLOWED_MIME_TYPES = new Set([
+// ── MIME / extension configuration ───────────────────────────────────────────
+
+// Default allowlist. Override via ALLOWED_MIME_TYPES env var (comma-separated).
+const DEFAULT_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/gif',
@@ -20,67 +23,193 @@ const ALLOWED_MIME_TYPES = new Set([
   'audio/ogg',
   'audio/wav',
   'application/pdf',
-])
+]
 
-// Types safe to serve inline (no Content-Disposition: attachment needed).
-// M-01: SVG excluded — SVG can contain executable JavaScript (script tags, event handlers).
-// SVG files are served as attachment to prevent stored XSS.
-const INLINE_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'video/mp4',
-  'video/webm',
-  'audio/mpeg',
-  'audio/ogg',
-  'audio/wav',
-])
+const ALLOWED_MIME_TYPES = new Set(
+  process.env.ALLOWED_MIME_TYPES
+    ? process.env.ALLOWED_MIME_TYPES.split(',').map((t) => t.trim()).filter(Boolean)
+    : DEFAULT_MIME_TYPES,
+)
+
+// Canonical extensions per MIME type.
+// Used to normalise the stored object name and prevent extension spoofing
+// (e.g. uploading a file as photo.php with MIME image/jpeg).
+const MIME_TO_EXTENSIONS: Record<string, string[]> = {
+  'image/jpeg':      ['.jpg', '.jpeg'],
+  'image/png':       ['.png'],
+  'image/gif':       ['.gif'],
+  'image/webp':      ['.webp'],
+  'image/svg+xml':   ['.svg'],
+  'video/mp4':       ['.mp4'],
+  'video/webm':      ['.webm'],
+  'audio/mpeg':      ['.mp3'],
+  'audio/ogg':       ['.ogg'],
+  'audio/wav':       ['.wav'],
+  'application/pdf': ['.pdf'],
+}
+
+// Extensions that must be served as attachment (not inline) to prevent XSS.
+// SVG can contain <script> tags; PDF can execute JavaScript via PDF engines.
+const ATTACHMENT_EXTENSIONS = new Set(['.svg', '.pdf'])
 
 // C-01: objectName must be UUID + explicitly whitelisted extension.
 // Using a character range (\.[a-z0-9]{1,10}) would allow dangerous extensions
 // like .phtml, .shtml, .php3 that browsers may execute.
+// C-02 fix: no 'i' flag — objects are always stored as lowercase UUID + lowercase ext.
+// Requests with uppercase chars intentionally fail (400) to prevent case-mismatch 404s.
 const OBJECT_NAME_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpe?g|png|gif|webp|svg|mp4|webm|mp3|ogg|wav|pdf)$/i
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpe?g|png|gif|webp|svg|mp4|webm|mp3|ogg|wav|pdf)$/
+
+// ── Upload size configuration ─────────────────────────────────────────────────
+
+const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_ASSET_SIZE_MB ?? '50', 10)
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+// ── Per-endpoint rate limiter ─────────────────────────────────────────────────
+
+// Stricter per-user limit for uploads (expensive S3 writes).
+// C-01 fix: key by req.user.sub only — requireAuth middleware guarantees it is set.
+// Falling back to req.ip in Docker would map all users to the gateway IP, defeating
+// the per-user limit.
+const uploadLimiter = rateLimit({
+  windowMs:        15 * 60 * 1000, // 15 minutes
+  limit:           20,
+  keyGenerator:    (req: Request) => req.user?.sub ?? 'unknown',
+  standardHeaders: 'draft-7',
+  legacyHeaders:   false,
+  message:         { success: false, error: 'Too many upload requests, please try again later' },
+})
+
+// ── Multer configuration ──────────────────────────────────────────────────────
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB
+  limits: { fileSize: MAX_FILE_SIZE_BYTES },
   fileFilter: (_req, file, cb) => {
     // H-03: reject disallowed MIME types at upload time
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
-      cb(new Error(`File type not allowed: ${file.mimetype}`))
+      const err = new Error(`File type not allowed: ${file.mimetype}`) as Error & { code: string }
+      err.code = 'MIME_NOT_ALLOWED'
+      cb(err)
       return
     }
     cb(null, true)
   },
 })
 
-// Multer error → 400 (file type rejected, size exceeded, etc.)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function multerErrorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
-  if (err instanceof multer.MulterError || err instanceof Error) {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ success: false, error: `File exceeds the ${MAX_FILE_SIZE_MB} MB size limit` })
+      return
+    }
+    res.status(400).json({ success: false, error: err.message })
+    return
+  }
+  if (err instanceof Error) {
+    if ((err as Error & { code?: string }).code === 'MIME_NOT_ALLOWED') {
+      res.status(415).json({ success: false, error: err.message })
+      return
+    }
     res.status(400).json({ success: false, error: err.message })
     return
   }
   res.status(500).json({ success: false, error: 'Upload failed' })
 }
 
-// POST /assets — multipart upload → Garage, return URL
-assetsRouter.post('/', upload.single('file'), async (req, res) => {
+/**
+ * @openapi
+ * /assets:
+ *   post:
+ *     summary: Upload an asset
+ *     description: Multipart upload to Garage S3. Allowed types — jpeg, png, gif, webp, svg, mp4, webm, mp3, ogg, wav, pdf. Max 50 MB (configurable via MAX_ASSET_SIZE_MB env). Rate limited to 20 uploads per 15 min per user.
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [file]
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Asset uploaded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Asset' }
+ *       400:
+ *         description: No file provided
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       413:
+ *         description: File exceeds size limit
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       415:
+ *         description: MIME type not allowed
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       429:
+ *         description: Upload rate limit exceeded
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       503:
+ *         description: Storage service unavailable
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
+// ── POST /assets — multipart upload → Garage, return URL ─────────────────────
+
+// H-05 fix: reject obviously oversized requests before multer buffers the body into RAM.
+// Content-Length is spoofable but gives an early exit for well-behaved clients without
+// incurring memory cost. Multer's own limit catches spoofed lengths.
+assetsRouter.post('/', uploadLimiter, (req, res, next) => {
+  const cl = parseInt(req.headers['content-length'] ?? '', 10)
+  if (!isNaN(cl) && cl > MAX_FILE_SIZE_BYTES) {
+    res.status(413).json({ success: false, error: `File exceeds the ${MAX_FILE_SIZE_MB} MB size limit` })
+    return
+  }
+  next()
+}, upload.single('file'), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ success: false, error: 'No file provided' })
     return
   }
 
-  const ext = path.extname(req.file.originalname).toLowerCase()
+  // T166: use canonical extension derived from MIME type to prevent extension spoofing.
+  // If the original extension is acceptable for this MIME type, preserve it;
+  // otherwise fall back to the first canonical extension.
+  const originalExt = path.extname(req.file.originalname).toLowerCase()
+  const allowedExts = MIME_TO_EXTENSIONS[req.file.mimetype] ?? []
+  const ext = allowedExts.includes(originalExt) ? originalExt : (allowedExts[0] ?? '')
   const objectName = `${randomUUID()}${ext}`
 
-  // H-03: catch storage errors and return 503 instead of letting Express crash
   try {
     await putObject(objectName, req.file.buffer, req.file.mimetype, req.file.size)
   } catch (err) {
-    console.error('Storage upload failed:', err)
+    logger.error({ err }, 'Storage upload failed')
     res.status(503).json({ success: false, error: 'Storage service unavailable' })
     return
   }
@@ -97,9 +226,54 @@ assetsRouter.post('/', upload.single('file'), async (req, res) => {
 
 assetsRouter.use(multerErrorHandler)
 
-// GET /assets/:objectName — proxy from Garage
-// T154-001: require API key auth to prevent unauthenticated asset access
-assetsRouter.get('/:objectName', apiKeyAuth, async (req, res) => {
+/**
+ * @openapi
+ * /assets/{objectName}:
+ *   get:
+ *     summary: Retrieve an asset (redirects to pre-signed URL)
+ *     description: Returns a 302 redirect to a time-limited Garage pre-signed URL. objectName must match UUID + whitelisted extension pattern. SVG and PDF are served with Content-Disposition attachment.
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: objectName
+ *         required: true
+ *         schema: { type: string, example: a1b2c3d4-e5f6-4789-abcd-ef0123456789.png }
+ *     responses:
+ *       302:
+ *         description: Redirect to pre-signed asset URL
+ *         headers:
+ *           Location:
+ *             schema: { type: string, format: uri }
+ *       400:
+ *         description: Invalid asset name
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       503:
+ *         description: Storage service unavailable
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
+// ── GET /assets/:objectName — redirect to Garage pre-signed URL ───────────────
+// H-04: auth is enforced by the global requireAuth middleware in app.ts (applied before
+// all /assets routes). No explicit auth call needed here; the middleware guarantees
+// req.user is populated before this handler runs.
+//
+// Switching from stream proxy to 302 redirect offloads bandwidth from the API
+// server. The pre-signed URL is time-limited (1 hour) and signed with our
+// Garage credentials — the client never receives raw credentials.
+//
+// Content-Disposition: attachment is encoded into the presigned URL for types
+// that can execute code in the browser (SVG, PDF).
+assetsRouter.get('/:objectName', async (req, res) => {
   const { objectName } = req.params
 
   // C-01: validate objectName against UUID + whitelisted-extension pattern
@@ -108,34 +282,15 @@ assetsRouter.get('/:objectName', apiKeyAuth, async (req, res) => {
     return
   }
 
+  const ext = path.extname(objectName).toLowerCase()
+  const contentDisposition = ATTACHMENT_EXTENSIONS.has(ext) ? 'attachment' : undefined
+
   try {
-    const { stream, contentType, contentLength } = await getObject(objectName)
-
-    // Serve non-inline types as attachment to prevent stored XSS
-    if (!INLINE_MIME_TYPES.has(contentType)) {
-      res.setHeader('Content-Disposition', 'attachment')
-    }
-
-    res.setHeader('Content-Type', contentType)
-    // H-02: only set Content-Length when value is known (avoid "0 bytes" responses)
-    if (contentLength !== undefined) {
-      res.setHeader('Content-Length', String(contentLength))
-    }
-    stream.pipe(res)
-  } catch (err: unknown) {
-    // H-04: differentiate 404 (not found) from 5xx (storage failure)
-    const s3Err = err as { name?: string; $metadata?: { httpStatusCode?: number } }
-    const httpStatus = s3Err.$metadata?.httpStatusCode
-    if (
-      s3Err.name === 'NoSuchKey' ||
-      s3Err.name === 'NotFound' ||
-      httpStatus === 404
-    ) {
-      res.status(404).json({ success: false, error: 'Asset not found' })
-    } else {
-      console.error('Storage retrieval failed:', err)
-      res.status(503).json({ success: false, error: 'Storage service unavailable' })
-    }
+    const presignedUrl = await getPresignedUrl(objectName, { contentDisposition })
+    res.redirect(302, presignedUrl)
+  } catch (err) {
+    logger.error({ err }, 'Failed to generate presigned URL')
+    res.status(503).json({ success: false, error: 'Storage service unavailable' })
   }
 })
 

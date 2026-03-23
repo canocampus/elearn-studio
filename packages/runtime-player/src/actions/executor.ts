@@ -9,7 +9,7 @@
 import type { Action } from './types'
 import type { ExecutionContext } from './context'
 import { executeNavigate }       from './builtins/navigate'
-import { executeShow, executeHide } from './builtins/visibility'
+import { executeShow, executeHide, executeBringToFront } from './builtins/visibility'
 import { executeSetVariable }    from './builtins/variables'
 import { executeDisplayMessage } from './builtins/message'
 import { executePlayMedia, executeStopMedia } from './builtins/media'
@@ -39,10 +39,20 @@ export class ActionExecutor {
   async run(actions: Action[]): Promise<void> {
     const errors: Error[] = []
     for (const action of actions) {
+      const startTs = Date.now()
+      window.dispatchEvent(new CustomEvent('elearn:action:start', {
+        detail: { type: action.type, timestamp: startTs },
+      }))
       try {
         await this.dispatch(action)
+        window.dispatchEvent(new CustomEvent('elearn:action:end', {
+          detail: { type: action.type, timestamp: startTs, duration: Date.now() - startTs },
+        }))
       } catch (err) {
         console.error(`[ActionExecutor] Error in ${action.type}:`, err)
+        window.dispatchEvent(new CustomEvent('elearn:action:error', {
+          detail: { type: action.type, timestamp: startTs, error: String(err) },
+        }))
         errors.push(err as Error)
       }
     }
@@ -63,6 +73,9 @@ export class ActionExecutor {
         break
       case 'hide':
         executeHide(action, this.ctx)
+        break
+      case 'bring-to-front':
+        executeBringToFront(action, this.ctx)
         break
       case 'set-variable':
         executeSetVariable(action, this.ctx)

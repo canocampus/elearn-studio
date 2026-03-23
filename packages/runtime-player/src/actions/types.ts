@@ -32,6 +32,11 @@ export interface HideAction {
   params: { widgetId: string }
 }
 
+export interface BringToFrontAction {
+  type: 'bring-to-front'
+  params: { widgetId: string }
+}
+
 export type VariableValueType = 'literal' | 'expression'
 
 export interface SetVariableAction {
@@ -120,6 +125,7 @@ export type Action =
   | NavigateAction
   | ShowAction
   | HideAction
+  | BringToFrontAction
   | SetVariableAction
   | DisplayMessageAction
   | PlayMediaAction

@@ -77,6 +77,7 @@ export function ActionSequenceEditor() {
   return (
     <div
       style={styles.list}
+      data-testid="event-list"
       onDragLeave={handleDragLeave}
     >
       {/* Drop slot before first row */}
@@ -149,7 +150,7 @@ function ActionRow({
   onChange,
 }: ActionRowProps) {
   return (
-    <div style={styles.row}>
+    <div style={styles.row} data-testid="action-item">
       {/* Reorder controls */}
       <div style={styles.orderBtns}>
         <button

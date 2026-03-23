@@ -1,0 +1,67 @@
+# eLearn Studio — Docker image build check
+# Builds all Docker images on PRs to verify Dockerfiles are not broken.
+# Does NOT push images — build verification only.
+
+name: Docker Build
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "backend/api/Dockerfile"
+      - "docker/**"
+      - "packages/*/Dockerfile"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-api:
+    name: Build API image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies (needed for scorm-packager pre-build)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build scorm-packager (Dockerfile COPY dependency)
+        run: pnpm --filter @elearn-studio/scorm-packager run build
+
+      - name: Verify scorm-packager artifact
+        run: test -f packages/scorm-packager/dist/index.js
+
+      - name: Build runtime-player (Dockerfile COPY dependency)
+        run: pnpm --filter @elearn-studio/runtime-player run build
+
+      - name: Verify runtime-player artifact
+        run: test -f packages/runtime-player/dist/player.js
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API Docker image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/api/Dockerfile
+          push: false
+          tags: elearn-studio/api:pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

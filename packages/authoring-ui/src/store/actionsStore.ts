@@ -7,6 +7,7 @@
  */
 
 import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 import { type Action, type ActionSequence, type SharedActionSequence, WIDGET_EVENTS, SLIDE_EVENTS } from '../types/actions'
 
 // M4: allowlist of known event names validated at store level
@@ -79,7 +80,7 @@ function updateSequence(
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
-export const useActionsStore = create<ActionsState>((set, get) => ({
+export const useActionsStore = create<ActionsState>()(devtools((set, get) => ({
   widgetId: null,
   sequences: [],
   selectedEvent: null,
@@ -233,4 +234,4 @@ export const useActionsStore = create<ActionsState>((set, get) => ({
       ),
     })
   },
-}))
+}), { name: 'actionsStore', enabled: import.meta.env.DEV }))

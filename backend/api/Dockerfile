@@ -38,5 +38,10 @@ COPY packages/runtime-player/dist/player.js ./player.js
 
 ENV PLAYER_JS_PATH=/app/player.js
 
+# OTel tracing — set OTEL_EXPORTER_OTLP_ENDPOINT at runtime (via docker-compose or k8s env).
+# Tracing is disabled when the variable is unset; no code change required.
+ENV OTEL_EXPORTER_OTLP_ENDPOINT=""
+ENV OTEL_SERVICE_NAME="elearn-api"
+
 EXPOSE 3001
 CMD ["node", "dist/index.js"]

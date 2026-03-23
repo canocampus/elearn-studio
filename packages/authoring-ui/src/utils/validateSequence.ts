@@ -15,6 +15,7 @@
  */
 
 import type { Action, ActionSequence, SharedActionSequence } from '../types/actions'
+import { detectCycles } from './cycleDetection'
 
 export interface ValidationWarning {
   /** Human-readable description of the problem */
@@ -44,6 +45,7 @@ function validateAction(
   switch (action.type) {
     case 'show':
     case 'hide':
+    case 'bring-to-front':
     case 'play-media':
     case 'stop-media':
     case 'score-question': {
@@ -139,5 +141,17 @@ export function validateAllSequences(
     widgetIds,
     sharedSequenceNames: sharedSequences.map((s) => s.name),
   }
-  return sequences.flatMap((seq) => validateSequence(seq, ctx))
+  const warnings = sequences.flatMap((seq) => validateSequence(seq, ctx))
+
+  // Detect circular dependencies among shared sequences (T201)
+  const cycles = detectCycles(sharedSequences)
+  for (const cycle of cycles) {
+    warnings.push({
+      message: `Circular dependency in shared sequences: ${cycle.path.join(' → ')}`,
+      event: 'call-sequence',
+      actionIndex: -1,
+    })
+  }
+
+  return warnings
 }

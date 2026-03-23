@@ -18,8 +18,10 @@ import {
   reorderSlides,
   updateSlide,
 } from '../../api/courseApi'
+import { useToast } from '../ui/Toast'
 
 export function SlideList() {
+  const toast = useToast()
   const course = useEditorStore(s => s.course)
   const setCourse = useEditorStore(s => s.setCourse)
   const currentSlideIndex = useEditorStore(s => s.currentSlideIndex)
@@ -51,7 +53,7 @@ export function SlideList() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setSaveError(msg)
-      console.error('Failed to add slide:', err)
+      toast.error(`Failed to add slide: ${msg}`)
     } finally {
       setIsAdding(false)
     }
@@ -71,7 +73,7 @@ export function SlideList() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setSaveError(msg)
-      console.error('Failed to duplicate slide:', err)
+      toast.warning(`Failed to duplicate slide: ${msg}`)
     } finally {
       setIsProcessing(false)
     }
@@ -92,7 +94,7 @@ export function SlideList() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setSaveError(msg)
-      console.error('Failed to delete slide:', err)
+      toast.warning(`Failed to delete slide: ${msg}`)
     } finally {
       setIsProcessing(false)
     }
@@ -119,7 +121,7 @@ export function SlideList() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setSaveError(msg)
-      console.error('Failed to rename slide:', err)
+      toast.warning(`Failed to rename slide: ${msg}`)
     } finally {
       setIsProcessing(false)
     }
@@ -160,7 +162,7 @@ export function SlideList() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setSaveError(msg)
-      console.error('Failed to reorder slides:', err)
+      toast.warning(`Failed to reorder slides: ${msg}`)
     }
   }
 
@@ -270,6 +272,7 @@ function SlideItem({
 
   return (
     <div
+      data-testid="slide-item"
       draggable
       role="button"
       tabIndex={0}

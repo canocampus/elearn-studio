@@ -5,7 +5,9 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
 } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { Readable } from 'stream'
+import { logger } from '../lib/logger'
 
 function buildEndpoint(): string {
   const host = process.env.GARAGE_ENDPOINT ?? 'localhost'
@@ -35,6 +37,20 @@ export const s3Client = new S3Client({
 })
 
 export const BUCKET = process.env.GARAGE_BUCKET ?? 'elearn-assets'
+
+// ── Public-facing client for pre-signed URL generation ────────────────────────
+// If S3_PUBLIC_ENDPOINT is configured, generated URLs will use that host so
+// they are reachable from client browsers (the internal GARAGE_ENDPOINT may
+// only be accessible within Docker's network).
+const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT
+const publicS3Client = publicEndpoint
+  ? new S3Client({
+      endpoint:       publicEndpoint,
+      region:         process.env.GARAGE_REGION ?? 'garage',
+      credentials:    { accessKeyId, secretAccessKey },
+      forcePathStyle: true,
+    })
+  : s3Client
 
 // ── Thin wrappers (routes depend on these, tests mock this module) ────────────
 
@@ -85,6 +101,28 @@ export async function statObject(
 }
 
 /**
+ * Generate a time-limited pre-signed GET URL for an object.
+ *
+ * @param key                  Object key in the bucket.
+ * @param options.contentDisposition  Passed as ResponseContentDisposition — use
+ *                             'attachment' to force browser download for types
+ *                             that could otherwise execute (SVG, PDF).
+ * @param expiresIn            URL validity in seconds (default: 3600).
+ */
+export async function getPresignedUrl(
+  key: string,
+  options?: { contentDisposition?: string },
+  expiresIn = 3600,
+): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket:                     BUCKET,
+    Key:                        key,
+    ResponseContentDisposition: options?.contentDisposition,
+  })
+  return getSignedUrl(publicS3Client, command, { expiresIn })
+}
+
+/**
  * Verify that the bucket is accessible.
  * Called at startup and by the /health endpoint.
  * Bucket creation is handled by the garage-init Docker service — this function
@@ -93,5 +131,5 @@ export async function statObject(
 export async function initStorage(): Promise<void> {
   // C-03: HeadBucketCommand confirms endpoint reachable, credentials valid, bucket exists
   await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET }))
-  console.log(`Connected to Garage storage — bucket: ${BUCKET} at ${buildEndpoint()}`)
+  logger.info({ bucket: BUCKET, endpoint: buildEndpoint() }, 'Connected to Garage storage')
 }

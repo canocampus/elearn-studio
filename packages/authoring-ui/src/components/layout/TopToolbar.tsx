@@ -5,14 +5,22 @@
 
 import { useEditorStore } from '../../store/editorStore'
 import { addSlide, deleteSlide, nextSlideTitle } from '../../api/courseApi'
+import { useToast } from '../ui/Toast'
+import { useDebugMode } from '../../hooks/useDebugMode'
 
 interface TopToolbarProps {
   onPreview: () => void
   onPublish: () => void
   publishing?: boolean
+  onToggleInspector?: () => void
+  inspectorOpen?: boolean
+  onToggleHistory?: () => void
+  historyOpen?: boolean
 }
 
-export function TopToolbar({ onPreview, onPublish, publishing = false }: TopToolbarProps) {
+export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleInspector, inspectorOpen, onToggleHistory, historyOpen }: TopToolbarProps) {
+  const toast = useToast()
+  const isDebug = useDebugMode()
   const course = useEditorStore(s => s.course)
   const setCourse = useEditorStore(s => s.setCourse)
   const currentSlideIndex = useEditorStore(s => s.currentSlideIndex)
@@ -34,7 +42,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false }: TopTool
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setSaveError(msg)
-      alert(`Failed to add slide: ${msg}`)
+      toast.error(`Failed to add slide: ${msg}`)
     } finally {
       setIsSaving(false)
     }
@@ -43,7 +51,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false }: TopTool
   async function handleDeleteSlide() {
     if (!course || !currentSlide) return
     if (course.slides.length === 1) {
-      alert('A course must have at least one slide.')
+      toast.warning('A course must have at least one slide.')
       return
     }
     if (!confirm(`Delete "${currentSlide.title}"?`)) return
@@ -57,7 +65,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false }: TopTool
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setSaveError(msg)
-      alert(`Failed to delete slide: ${msg}`)
+      toast.error(`Failed to delete slide: ${msg}`)
     } finally {
       setIsSaving(false)
     }
@@ -92,6 +100,28 @@ export function TopToolbar({ onPreview, onPublish, publishing = false }: TopTool
       <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={onPublish} disabled={publishing}>
         {publishing ? 'Packaging…' : 'Publish SCORM'}
       </button>
+
+      {import.meta.env.DEV && isDebug && (
+        <>
+          <span style={styles.divider} />
+          <button
+            style={{ ...styles.btn, ...(inspectorOpen ? styles.btnDebugActive : styles.btnDebug) }}
+            onClick={onToggleInspector}
+            title="Toggle Course Inspector"
+            data-testid="debug-inspector-toggle"
+          >
+            {} JSON
+          </button>
+          <button
+            style={{ ...styles.btn, ...(historyOpen ? styles.btnDebugActive : styles.btnDebug) }}
+            onClick={onToggleHistory}
+            title="Toggle Course History"
+            data-testid="debug-history-toggle"
+          >
+            ⏱ History
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -165,5 +195,17 @@ const styles: Record<string, React.CSSProperties> = {
     height: 20,
     background: '#45475a',
     margin: '0 4px',
+  },
+  btnDebug: {
+    borderColor: '#f9e2af',
+    color: '#f9e2af',
+    fontSize: 11,
+  },
+  btnDebugActive: {
+    background: '#f9e2af',
+    borderColor: '#f9e2af',
+    color: '#1e1e2e',
+    fontWeight: 600,
+    fontSize: 11,
   },
 }

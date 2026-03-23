@@ -1,8 +1,8 @@
 /**
- * Form for editing a single SimStep's authoring properties. (T024.7, T024.8, T024.9)
+ * Form for editing a single SimStep's authoring properties. (T024.7, T024.8, T024.9, T202)
  */
 
-import type { AuthoredSimStep } from '../../types/simulation'
+import type { AuthoredSimStep, SimInteractionType } from '../../types/simulation'
 
 interface StepFormProps {
   step: AuthoredSimStep
@@ -85,6 +85,29 @@ export function StepForm({ step, onChange }: StepFormProps) {
           }
         />
       </Field>
+
+      {/* T202 — Interaction type */}
+      <Field label="Interaction type" hint="How the learner responds to this step">
+        <select
+          style={styles.input}
+          value={step.interactionType ?? 'click'}
+          onChange={e => onChange({ interactionType: e.target.value as SimInteractionType })}
+        >
+          <option value="click">Click</option>
+          <option value="hover">Hover</option>
+          <option value="type">Type text</option>
+        </select>
+      </Field>
+
+      {(step.interactionType === 'type') && (
+        <Field label="Expected text" hint="Learner must type this exact string (case-insensitive)">
+          <input
+            style={styles.input}
+            value={step.expectedText ?? ''}
+            onChange={e => onChange({ expectedText: e.target.value })}
+          />
+        </Field>
+      )}
     </div>
   )
 }

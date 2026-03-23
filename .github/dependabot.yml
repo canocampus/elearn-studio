@@ -1,0 +1,52 @@
+# Dependabot configuration for eLearn Studio
+# Weekly updates for npm packages and GitHub Actions versions.
+
+version: 2
+
+updates:
+  # npm / pnpm workspace packages
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    rebase-strategy: "auto"
+    open-pull-requests-limit: 10
+    groups:
+      # Batch minor/patch OTel updates together
+      opentelemetry:
+        patterns:
+          - "@opentelemetry/*"
+      # Batch all Grafana/observability stack updates
+      grafana-stack:
+        patterns:
+          - "grafana*"
+          - "prom*"
+      # Batch TypeScript + type definitions
+      typescript-types:
+        patterns:
+          - "typescript"
+          - "@types/*"
+      # Batch test tooling
+      test-tooling:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "supertest"
+          - "@types/supertest"
+    ignore:
+      # Express 5 is already in use — skip major bumps
+      - dependency-name: express
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 5

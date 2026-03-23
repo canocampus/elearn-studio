@@ -7,6 +7,7 @@ import request from 'supertest'
 import { Readable } from 'stream'
 import { app } from '../app'
 import type { RawSession } from '../types/simulation'
+import { authHeader } from './authHelper'
 
 // ── Mock storage so tests never need Garage credentials ──────────────────────
 
@@ -21,7 +22,7 @@ vi.mock('../storage/s3', () => ({
   statObject:  vi.fn(),
 }))
 
-vi.stubEnv('API_KEY', '')
+const auth = authHeader()
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ describe('POST /courses/:id/simulations/import', () => {
   it('returns 400 when sessionId is missing', async () => {
     const res = await request(app)
       .post('/courses/course-1/simulations/import')
+      .set(auth)
       .send({})
     expect(res.status).toBe(400)
     expect(res.body.success).toBe(false)
@@ -85,6 +87,7 @@ describe('POST /courses/:id/simulations/import', () => {
   it('returns 400 for sessionId containing path traversal characters', async () => {
     const res = await request(app)
       .post('/courses/course-1/simulations/import')
+      .set(auth)
       .send({ sessionId: '../../../admin' })
     expect(res.status).toBe(400)
     expect(res.body.success).toBe(false)
@@ -97,6 +100,7 @@ describe('POST /courses/:id/simulations/import', () => {
     })
     const res = await request(app)
       .post('/courses/course-1/simulations/import')
+      .set(auth)
       .send({ sessionId: 'sess-abc' })
     expect(res.status).toBe(422)
     expect(res.body.success).toBe(false)
@@ -109,6 +113,7 @@ describe('POST /courses/:id/simulations/import', () => {
 
     const res = await request(app)
       .post('/courses/course-1/simulations/import')
+      .set(auth)
       .send({ sessionId: 'missing-sess' })
     expect(res.status).toBe(404)
     expect(res.body.success).toBe(false)
@@ -124,6 +129,7 @@ describe('POST /courses/:id/simulations/import', () => {
 
     const res = await request(app)
       .post('/courses/course-1/simulations/import')
+      .set(auth)
       .send({ sessionId: 'sess-abc' })
 
     expect(res.status).toBe(200)
@@ -164,6 +170,7 @@ describe('POST /courses/:id/simulations/import', () => {
 
     const res = await request(app)
       .post('/courses/course-1/simulations/import')
+      .set(auth)
       .send({ sessionId: 'sess-abc' })
     expect(res.status).toBe(500)
     expect(res.body.success).toBe(false)
@@ -177,6 +184,7 @@ describe('POST /courses/:id/simulations/import', () => {
 
     await request(app)
       .post('/courses/course-99/simulations/import')
+      .set(auth)
       .send({ sessionId: 'sess-xyz' })
 
     expect(mockGetObject).toHaveBeenCalledWith('recordings/sess-xyz/session.json')
@@ -191,35 +199,35 @@ describe('GET /simulations/screenshot', () => {
   })
 
   it('returns 400 when key is missing', async () => {
-    const res = await request(app).get('/simulations/screenshot')
+    const res = await request(app).get('/simulations/screenshot').set(auth)
     expect(res.status).toBe(400)
   })
 
   it('returns 403 for keys outside recordings/ prefix', async () => {
     const res = await request(app).get(
       '/simulations/screenshot?key=other/path/file.png',
-    )
+    ).set(auth)
     expect(res.status).toBe(403)
   })
 
   it('returns 403 for non-image keys', async () => {
     const res = await request(app).get(
       '/simulations/screenshot?key=recordings/sess/session.json',
-    )
+    ).set(auth)
     expect(res.status).toBe(403)
   })
 
   it('returns 403 for path traversal with .. segments', async () => {
     const res = await request(app).get(
       '/simulations/screenshot?key=recordings/sess/../../../etc/passwd.png',
-    )
+    ).set(auth)
     expect(res.status).toBe(403)
   })
 
   it('returns 403 for encoded path traversal', async () => {
     const res = await request(app).get(
       '/simulations/screenshot?key=recordings/..%2F..%2Fetc%2Fpasswd.png',
-    )
+    ).set(auth)
     expect(res.status).toBe(403)
   })
 
@@ -233,7 +241,7 @@ describe('GET /simulations/screenshot', () => {
 
     const res = await request(app).get(
       '/simulations/screenshot?key=recordings/sess-abc/screenshots/step-0000.png',
-    )
+    ).set(auth)
     expect(res.status).toBe(200)
     expect(res.headers['content-type']).toMatch(/image\/jpeg/)
     expect(res.headers['cache-control']).toMatch(/max-age=3600/)
@@ -245,7 +253,7 @@ describe('GET /simulations/screenshot', () => {
 
     const res = await request(app).get(
       '/simulations/screenshot?key=recordings/sess-abc/screenshots/missing.png',
-    )
+    ).set(auth)
     expect(res.status).toBe(404)
   })
 })

@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { SlideList } from '../components/sidebar/SlideList'
+import { ToastProvider } from '../components/ui/Toast'
 import { useEditorStore } from '../store/editorStore'
 import type { CourseDoc } from '../types/course'
 
@@ -66,6 +67,10 @@ function setupStore(course: CourseDoc | null, currentSlideIndex = 0) {
   useEditorStore.setState({ course, currentSlideIndex })
 }
 
+function renderSlideList() {
+  return render(<ToastProvider><SlideList /></ToastProvider>)
+}
+
 // ---------------------------------------------------------------------------
 // Suite
 // ---------------------------------------------------------------------------
@@ -84,7 +89,7 @@ describe('SlideList', () => {
   describe('no course loaded', () => {
     it('shows "No course loaded" message', () => {
       setupStore(null)
-      render(<SlideList />)
+      renderSlideList()
       expect(screen.getByText(/No course loaded/i)).toBeInTheDocument()
     })
   })
@@ -96,14 +101,14 @@ describe('SlideList', () => {
   describe('slide rendering', () => {
     it('renders all slide titles', () => {
       setupStore(makeCourse([makeSlide('s1', 'Intro'), makeSlide('s2', 'Module 1')]))
-      render(<SlideList />)
+      renderSlideList()
       expect(screen.getByText('Intro')).toBeInTheDocument()
       expect(screen.getByText('Module 1')).toBeInTheDocument()
     })
 
     it('renders 1-based slide numbers in thumbnails', () => {
       setupStore(makeCourse([makeSlide('s1', 'A'), makeSlide('s2', 'B'), makeSlide('s3', 'C')]))
-      render(<SlideList />)
+      renderSlideList()
       expect(screen.getByText('1')).toBeInTheDocument()
       expect(screen.getByText('2')).toBeInTheDocument()
       expect(screen.getByText('3')).toBeInTheDocument()
@@ -111,13 +116,13 @@ describe('SlideList', () => {
 
     it('renders "+ Add Slide" button', () => {
       setupStore(makeCourse([makeSlide('s1', 'Slide 1')]))
-      render(<SlideList />)
+      renderSlideList()
       expect(screen.getByRole('button', { name: /Add Slide/i })).toBeInTheDocument()
     })
 
     it('slide items are draggable (T013.4)', () => {
       setupStore(makeCourse([makeSlide('s1', 'Slide 1'), makeSlide('s2', 'Slide 2')]))
-      const { container } = render(<SlideList />)
+      const { container } = render(<ToastProvider><SlideList /></ToastProvider>)
       const items = container.querySelectorAll('[draggable]')
       expect(items).toHaveLength(2)
     })
@@ -136,13 +141,13 @@ describe('SlideList', () => {
     })
 
     it('calls addSlide with courseId and new title on "+" click', async () => {
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.click(screen.getByRole('button', { name: /Add Slide/i }))
       await waitFor(() => expect(addSlide).toHaveBeenCalledWith('course-1', 'Slide 2'))
     })
 
     it('updates the store with returned course after add', async () => {
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.click(screen.getByRole('button', { name: /Add Slide/i }))
       await waitFor(() => {
         const course = useEditorStore.getState().course
@@ -151,7 +156,7 @@ describe('SlideList', () => {
     })
 
     it('selects the new (last) slide after add', async () => {
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.click(screen.getByRole('button', { name: /Add Slide/i }))
       await waitFor(() => {
         expect(useEditorStore.getState().currentSlideIndex).toBe(1)
@@ -166,7 +171,7 @@ describe('SlideList', () => {
   describe('T013.3 — delete slide', () => {
     it('delete button is disabled when only one slide', () => {
       setupStore(makeCourse([makeSlide('s1', 'Only Slide')]))
-      render(<SlideList />)
+      renderSlideList()
       // Hover to reveal action buttons
       const item = screen.getByTitle('Only Slide')
       fireEvent.mouseEnter(item)
@@ -178,7 +183,7 @@ describe('SlideList', () => {
       const course = makeCourse([makeSlide('s1', 'A'), makeSlide('s2', 'B')])
       setupStore(course)
       vi.spyOn(window, 'confirm').mockReturnValue(false)
-      render(<SlideList />)
+      renderSlideList()
       const item = screen.getByTitle('A')
       fireEvent.mouseEnter(item)
       const deleteBtn = screen.getByTitle('Delete slide')
@@ -193,7 +198,7 @@ describe('SlideList', () => {
       vi.spyOn(window, 'confirm').mockReturnValue(true)
       setupStore(course)
 
-      render(<SlideList />)
+      renderSlideList()
       const item = screen.getByTitle('A')
       fireEvent.mouseEnter(item)
       const deleteBtn = screen.getByTitle('Delete slide')
@@ -212,7 +217,7 @@ describe('SlideList', () => {
       vi.spyOn(window, 'confirm').mockReturnValue(true)
       setupStore(course, 1) // s2 is selected
 
-      render(<SlideList />)
+      renderSlideList()
       const item = screen.getByTitle('B')
       fireEvent.mouseEnter(item)
       const deleteBtn = screen.getByTitle('Delete slide')
@@ -236,7 +241,7 @@ describe('SlideList', () => {
       vi.mocked(duplicateSlide).mockResolvedValue(updated)
       setupStore(course)
 
-      render(<SlideList />)
+      renderSlideList()
       const item = screen.getByTitle('Slide 1')
       fireEvent.mouseEnter(item)
       const dupBtn = screen.getByTitle('Duplicate slide')
@@ -254,7 +259,7 @@ describe('SlideList', () => {
       vi.mocked(duplicateSlide).mockResolvedValue(updated)
       setupStore(makeCourse([slide]))
 
-      render(<SlideList />)
+      renderSlideList()
       const item = screen.getByTitle('Slide 1')
       fireEvent.mouseEnter(item)
       fireEvent.click(screen.getByTitle('Duplicate slide'))
@@ -272,7 +277,7 @@ describe('SlideList', () => {
   describe('T013.5 — rename slide (double-click)', () => {
     it('double-click on slide shows an input with current title', () => {
       setupStore(makeCourse([makeSlide('s1', 'Old Title')]))
-      render(<SlideList />)
+      renderSlideList()
       const item = screen.getByTitle('Old Title')
       fireEvent.dblClick(item)
       const input = screen.getByRole('textbox')
@@ -286,7 +291,7 @@ describe('SlideList', () => {
       vi.mocked(updateSlide).mockResolvedValue(updated)
       setupStore(course)
 
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.dblClick(screen.getByTitle('Old Title'))
       const input = screen.getByRole('textbox')
       fireEvent.change(input, { target: { value: 'New Title' } })
@@ -299,7 +304,7 @@ describe('SlideList', () => {
 
     it('Escape cancels the rename without calling updateSlide', async () => {
       setupStore(makeCourse([makeSlide('s1', 'Original')]))
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.dblClick(screen.getByTitle('Original'))
       const input = screen.getByRole('textbox')
       fireEvent.change(input, { target: { value: 'Changed' } })
@@ -314,7 +319,7 @@ describe('SlideList', () => {
     it('does not call updateSlide when title is unchanged', async () => {
       const course = makeCourse([makeSlide('s1', 'Same Title')])
       setupStore(course)
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.dblClick(screen.getByTitle('Same Title'))
       const input = screen.getByRole('textbox')
       fireEvent.keyDown(input, { key: 'Enter' }) // commit unchanged title
@@ -326,7 +331,7 @@ describe('SlideList', () => {
 
     it('does not call updateSlide when title is blank', async () => {
       setupStore(makeCourse([makeSlide('s1', 'Title')]))
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.dblClick(screen.getByTitle('Title'))
       const input = screen.getByRole('textbox')
       fireEvent.change(input, { target: { value: '   ' } })
@@ -348,7 +353,7 @@ describe('SlideList', () => {
       vi.mocked(addSlide).mockRejectedValue(new Error('network error'))
       setupStore(course)
 
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.click(screen.getByTitle('Add blank slide'))
 
       await waitFor(() => {
@@ -364,7 +369,7 @@ describe('SlideList', () => {
       vi.spyOn(window, 'confirm').mockReturnValue(true)
       setupStore(course, 1)
 
-      render(<SlideList />)
+      renderSlideList()
       // Click delete on the first slide's button (both canDelete since 2 slides)
       const deleteButtons = screen.getAllByTitle('Delete slide')
       fireEvent.click(deleteButtons[0])
@@ -380,7 +385,7 @@ describe('SlideList', () => {
       vi.mocked(duplicateSlide).mockRejectedValue(new Error('dup failed'))
       setupStore(course)
 
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.click(screen.getByTitle('Duplicate slide'))
 
       await waitFor(() => {
@@ -395,7 +400,7 @@ describe('SlideList', () => {
       vi.mocked(updateSlide).mockRejectedValue(new Error('rename failed'))
       setupStore(course)
 
-      render(<SlideList />)
+      renderSlideList()
       fireEvent.dblClick(screen.getByTitle('Original'))
       const input = screen.getByRole('textbox')
       fireEvent.change(input, { target: { value: 'New Name' } })

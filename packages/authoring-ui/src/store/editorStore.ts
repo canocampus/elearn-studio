@@ -3,6 +3,7 @@
  */
 
 import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 import type { Editor } from 'grapesjs'
 import type { CourseDoc, Slide } from '../types/course'
 
@@ -45,7 +46,7 @@ interface EditorState {
   setSelectedWidgetId: (id: string | null) => void
 }
 
-export const useEditorStore = create<EditorState>((set, get) => ({
+export const useEditorStore = create<EditorState>()(devtools((set, get) => ({
   editor: null,
   setEditor: (editor) => set({ editor }),
 
@@ -76,4 +77,4 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   selectedWidgetId: null,
   setSelectedWidgetId: (selectedWidgetId) => set({ selectedWidgetId }),
-}))
+}), { name: 'editorStore', enabled: import.meta.env.DEV }))

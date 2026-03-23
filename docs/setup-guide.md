@@ -58,12 +58,132 @@ docker compose -f docker/docker-compose.yml --profile moodle up -d
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| API | http://localhost:3001 | `X-Api-Key: <API_KEY>` (optional in dev) |
+| API | http://localhost:3001 | Bearer token (JWT) |
 | API health | http://localhost:3001/health | None required |
 | Garage S3 API | http://localhost:3900 | `GARAGE_ACCESS_KEY` / `GARAGE_SECRET_KEY` |
 | Garage admin API | http://localhost:3903 | None (unauthenticated in dev) |
 | Authoring UI | http://localhost:3000 | — |
+| **Grafana** | **http://localhost:3001** | `admin` / `changeme` (see `GRAFANA_ADMIN_PASSWORD`) |
+| Prometheus | http://localhost:9090 | None |
+| Loki | http://localhost:3100 | None |
+| Tempo | http://localhost:3200 | None |
+| cAdvisor | http://localhost:8082 | None |
 | Moodle LMS | http://localhost:8081 | `admin` / `Admin1234!` |
+
+> **Port note:** Grafana and the eLearn API both use port 3001. In the dev compose the
+> API runs locally via `pnpm dev` (not in Docker), so there is no conflict.
+> If you run the full Docker stack, change `GF_SERVER_HTTP_PORT` in docker-compose.dev.yml.
+
+---
+
+## Observability Stack (T170)
+
+The dev compose includes a full observability stack — mandatory for all contributors.
+All services start with `docker compose -f docker/docker-compose.dev.yml up -d`.
+
+### Architecture
+
+```
+elearn-api (OTLP HTTP :4318)
+    └─▶ otel-collector ──▶ Tempo       (traces — queried by Grafana)
+                      ──▶ Prometheus   (app metrics + container metrics)
+Pino JSON logs (container stdout)
+    └─▶ Promtail ──▶ Loki              (logs — queried by Grafana)
+cAdvisor + docker-exporter
+    └─▶ Prometheus                      (container CPU / memory / network)
+```
+
+### Grafana
+
+Open **http://localhost:3001** — log in with `admin` / `changeme`
+(override with `GRAFANA_ADMIN_PASSWORD` in `docker/.env`).
+
+Two pre-provisioned dashboards load automatically:
+
+| Dashboard | What it shows |
+|-----------|--------------|
+| **eLearn Studio — API Overview** | Request rate, error rate, p50/p95/p99 latency, live API log stream |
+| **eLearn Studio — Container Metrics** | Per-container CPU, memory, and network I/O |
+
+### Viewing traces for a specific API request
+
+1. In the **API Overview** dashboard, click any spike in the error rate or latency graph.
+2. Click **Explore Traces in Tempo** (link in the top-right of the dashboard).
+3. In Tempo's Explore view, filter by `service.name = elearn-api` and the time range.
+4. Click a trace to expand the span waterfall.
+
+Alternatively, from a **Loki log line** that contains a `traceId` field:
+1. Expand the log entry in the Logs panel.
+2. Click the **TraceID** derived field link — Grafana opens the matching Tempo trace.
+
+### Querying logs in Loki
+
+Open **Explore → Loki** (or click the Logs panel in the API Overview dashboard).
+
+Useful LogQL queries:
+
+```logql
+# All elearn-api logs
+{service="elearn-api"} | json
+
+# Error-level logs only
+{service="elearn-api", level="error"} | json
+
+# Logs for a specific user
+{service="elearn-api"} | json | userId="<sub>"
+
+# Client-side errors forwarded by the authoring UI
+{service="elearn-api"} | json | source="client"
+```
+
+### Verifying the pipeline (dev)
+
+A dev-only endpoint lets you confirm the full auth → API → Loki pipeline without
+generating a real error:
+
+```bash
+# Returns {"ok":true,"userId":"<sub>"} and emits a Pino info log
+curl -H "Authorization: Bearer <token>" http://localhost:3001/telemetry/ping
+```
+
+Then verify the log appeared in Loki:
+```logql
+{service="elearn-api"} | json | source="telemetry-ping"
+```
+
+### Alert notifications
+
+The dev stack defines 4 alert rules (API error rate, container memory, MongoDB down,
+elearn-api down) but **does not configure notification channels**. Alerts are visible
+in Grafana under Alerting → Alert rules but do not send emails or Slack messages.
+To add notifications, configure a contact point in Grafana UI or via
+`docker/observability/grafana/alerting/` provisioning YAML.
+
+### Windows Docker Desktop compatibility
+
+| Component | WSL2 backend | Hyper-V / no WSL2 |
+|-----------|-------------|-------------------|
+| Promtail (log collection) | ✅ works | ⚠ starts but collects no logs |
+| cAdvisor (container metrics) | ✅ works | ⚠ starts but emits no metrics |
+| All other services | ✅ works | ✅ works |
+
+**Fix:** Enable the WSL2 backend in Docker Desktop → Settings → General →
+"Use the WSL 2 based engine". This exposes the Docker socket and Linux filesystem
+paths that Promtail and cAdvisor require.
+
+### Production deployment guidance
+
+For production, replace the dev compose services with your own infrastructure:
+
+| Component | Recommended approach |
+|-----------|---------------------|
+| Traces | Keep `OTEL_EXPORTER_OTLP_ENDPOINT` pointing at your OTel Collector |
+| Logs | Promtail (or Grafana Alloy) → your Loki instance |
+| Metrics | Prometheus scraping cAdvisor + otel-collector on your infra |
+| Dashboards | Import the JSON files from `docker/observability/grafana/dashboards/` |
+
+The `OTEL_EXPORTER_OTLP_ENDPOINT`, `LOG_LEVEL`, and `GRAFANA_ADMIN_PASSWORD`
+variables in `.env.example` cover the most common overrides.
 
 ---
 
@@ -151,6 +271,9 @@ Copy `.env.example` to `.env` and override as needed. All have working defaults 
 | `GARAGE_BUCKET` | `elearn-assets` | Bucket name |
 | `API_KEY` | _(unset)_ | If set, all routes except `/health` require `X-Api-Key` header |
 | `CORS_ORIGIN` | `http://localhost:3000` | Allowed CORS origin |
+| `LOG_LEVEL` | `info` | Pino log level: `trace \| debug \| info \| warn \| error \| fatal` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ | OTLP collector URL; unset disables trace export |
+| `OTEL_SERVICE_NAME` | `elearn-api` | Service name tag in traces |
 
 ### Docker Compose overrides
 
@@ -162,6 +285,7 @@ Copy `.env.example` to `.env` and override as needed. All have working defaults 
 | `MOODLE_DB_PASSWORD` | `moodle_pass` | Moodle PostgreSQL password |
 | `MOODLE_ADMIN_USER` | `admin` | Moodle admin username |
 | `MOODLE_ADMIN_PASSWORD` | `Admin1234!` | Moodle admin password |
+| `GRAFANA_ADMIN_PASSWORD` | `changeme` | Grafana admin password (change for any non-local env) |
 
 ---
 

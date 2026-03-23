@@ -2,6 +2,9 @@
   "name": "elearn-studio",
   "version": "0.0.1",
   "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": ["bcrypt", "protobufjs"]
+  },
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"

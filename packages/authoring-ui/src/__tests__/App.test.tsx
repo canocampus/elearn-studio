@@ -6,9 +6,10 @@
  *           instead of hardcoded 'http://localhost:3001'
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { App } from '../App'
+import { useAuthStore } from '../store/authStore'
 
 // Mock the API layer so we don't hit the network
 vi.mock('../api/courseApi', () => ({
@@ -24,8 +25,38 @@ vi.mock('../components/layout/AppLayout', () => ({
 
 import { listCourses, getCourse, createCourse } from '../api/courseApi'
 
+/**
+ * Simulate successful POST /auth/refresh + GET /auth/me responses so App
+ * can transition out of 'initialising' and into 'loading' / 'ready'.
+ */
+function stubAuthSuccess() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: { accessToken: 'test-token' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            data: { sub: 'u1', email: 'test@test.com', role: 'author' },
+          }),
+      }),
+  )
+}
+
+beforeEach(() => {
+  // Reset auth store so each test starts unauthenticated
+  useAuthStore.setState({ accessToken: null, user: null })
+  stubAuthSuccess()
+})
+
 afterEach(() => {
   vi.clearAllMocks()
+  vi.unstubAllGlobals()
   vi.unstubAllEnvs()
 })
 

@@ -52,12 +52,13 @@ describe('courseApi — request routing', () => {
     vi.unstubAllGlobals()
   })
 
-  it('listCourses: GET /courses with JSON Content-Type', async () => {
+  it('listCourses: GET /courses — no body, no Content-Type', async () => {
     fetchSpy.mockResolvedValue(makeResponse([]))
     await listCourses()
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
     expect(url).toContain('/courses')
-    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
+    // GET has no body — apiClient must NOT set Content-Type (would break some servers)
+    expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined()
   })
 
   it('getCourse: GET /courses/:id', async () => {
@@ -315,8 +316,11 @@ describe('courseApi — R-06 getMultipartHeaders', () => {
     expect(headers['Content-Type']).toBeUndefined()
   })
 
-  it('includes X-Api-Key when VITE_API_KEY is set', async () => {
-    vi.stubEnv('VITE_API_KEY', 'secret-key-123')
+  it('includes Authorization: Bearer when token is in authStore', async () => {
+    // Set a token in the auth store
+    const { useAuthStore } = await import('../store/authStore')
+    useAuthStore.setState({ accessToken: 'jwt-token-xyz', user: null })
+
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -328,7 +332,10 @@ describe('courseApi — R-06 getMultipartHeaders', () => {
 
     const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit]
     const headers = init.headers as Record<string, string>
-    expect(headers['X-Api-Key']).toBe('secret-key-123')
+    expect(headers['Authorization']).toBe('Bearer jwt-token-xyz')
+
+    // Cleanup store
+    useAuthStore.setState({ accessToken: null, user: null })
   })
 
   it('omits X-Api-Key when VITE_API_KEY is not set', async () => {

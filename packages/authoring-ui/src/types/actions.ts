@@ -42,6 +42,11 @@ export interface HideAction {
   params: { widgetId: string }
 }
 
+export interface BringToFrontAction {
+  type: 'bring-to-front'
+  params: { widgetId: string }
+}
+
 // ─── Variables ────────────────────────────────────────────────────────────────
 
 export type VariableValueType = 'literal' | 'expression'
@@ -162,6 +167,7 @@ export type Action =
   | NavigateAction
   | ShowAction
   | HideAction
+  | BringToFrontAction
   | SetVariableAction
   | DisplayMessageAction
   | PlayMediaAction
@@ -231,6 +237,7 @@ export const ACTION_PALETTE: ActionMeta[] = [
   // Object
   { type: 'show',             label: 'Show',             category: 'Object',     description: 'Make a widget visible' },
   { type: 'hide',             label: 'Hide',             category: 'Object',     description: 'Hide a widget' },
+  { type: 'bring-to-front',  label: 'Bring to Front',   category: 'Object',     description: 'Move widget above all others (max z-index)' },
   { type: 'display-message',  label: 'Display Message',  category: 'Object',     description: 'Show a modal message' },
   // Media
   { type: 'play-media',       label: 'Play Media',       category: 'Media',      description: 'Play audio or video' },

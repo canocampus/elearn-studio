@@ -11,6 +11,9 @@ export interface SimHotspot {
   tolerance: number
 }
 
+/** T202: Interaction type for a simulation step */
+export type SimInteractionType = 'click' | 'hover' | 'type'
+
 export interface AuthoredSimStep {
   id: string
   order: number
@@ -30,6 +33,10 @@ export interface AuthoredSimStep {
   /** Backend-proxied URL for displaying the screenshot in the editor */
   screenshotUrl: string
   hotspot: SimHotspot
+  /** T202: How the learner interacts with this step (default: 'click') */
+  interactionType: SimInteractionType
+  /** T202: Required text for 'type' interaction steps */
+  expectedText?: string
 }
 
 export type SimMode = 'demo' | 'practice' | 'assessment'

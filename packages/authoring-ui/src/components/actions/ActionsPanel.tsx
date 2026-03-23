@@ -41,7 +41,7 @@ export function ActionsPanel() {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} data-testid="actions-panel">
       {/* Validation warnings (T020.18) */}
       {warnings.length > 0 && (
         <div style={styles.warnings}>

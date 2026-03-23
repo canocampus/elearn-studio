@@ -1,11 +1,24 @@
-import express, { Router } from 'express'
+import express, { Router, Request } from 'express'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
 import { isValidObjectId } from 'mongoose'
+import rateLimit from 'express-rate-limit'
 import { Course } from '../models/Course'
+import { AuditLog } from '../models/AuditLog'
+import { logAudit } from '../lib/auditLogger'
 import { packSCORM12 } from '@elearn-studio/scorm-packager'
+
+// Limit per-user SCORM export requests — exports are CPU/disk intensive
+const exportLimiter = rateLimit({
+  windowMs:        15 * 60 * 1000, // 15 minutes
+  limit:           5,
+  keyGenerator:    (req: Request) => req.user?.sub ?? 'unknown',
+  standardHeaders: 'draft-7',
+  legacyHeaders:   false,
+  message:         { success: false, error: 'Too many export requests, please try again later' },
+})
 
 export const coursesRouter: express.Router = Router()
 
@@ -23,6 +36,34 @@ interface CourseUpdatePayload {
   metadata?: unknown
 }
 
+/**
+ * @openapi
+ * /courses:
+ *   get:
+ *     summary: List all courses
+ *     description: Returns all non-deleted courses sorted by updatedAt descending. Only title, _id and updatedAt are returned.
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Course list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/CourseSummary' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // GET /courses — list (title, id, updatedAt)
 coursesRouter.get('/', async (_req, res) => {
   const courses = await Course.find({ deletedAt: null }, { title: 1, updatedAt: 1 }).sort({
@@ -31,6 +72,47 @@ coursesRouter.get('/', async (_req, res) => {
   res.json({ success: true, data: courses })
 })
 
+/**
+ * @openapi
+ * /courses/{id}:
+ *   get:
+ *     summary: Get a course by ID
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *         description: MongoDB ObjectId of the course
+ *     responses:
+ *       200:
+ *         description: Full course document
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Course' }
+ *       400:
+ *         description: Invalid ObjectId
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // GET /courses/:id — full document
 coursesRouter.get('/:id', async (req, res) => {
   if (!validateId(req.params.id)) {
@@ -45,6 +127,38 @@ coursesRouter.get('/:id', async (req, res) => {
   res.json({ success: true, data: course })
 })
 
+/**
+ * @openapi
+ * /courses:
+ *   post:
+ *     summary: Create a new course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: string, maxLength: 200, example: My New Course }
+ *     responses:
+ *       201:
+ *         description: Course created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Course' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // POST /courses — create empty course
 coursesRouter.post('/', async (req, res) => {
   const body = req.body as { title?: unknown }
@@ -53,9 +167,66 @@ coursesRouter.post('/', async (req, res) => {
     ? body.title.trim().slice(0, 200)
     : 'Untitled Course'
   const course = await Course.create({ title })
+  if (req.user) {
+    void logAudit(course._id as string, 'course.create', req.user, { title })
+  }
   res.status(201).json({ success: true, data: course })
 })
 
+/**
+ * @openapi
+ * /courses/{id}:
+ *   put:
+ *     summary: Update a course (full replace of allowed fields)
+ *     description: Allowlisted fields only — title, slides, templates, resources, settings, metadata.
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:     { type: string, maxLength: 200 }
+ *               slides:    { type: array, items: { type: object } }
+ *               templates: { type: array, items: { type: object } }
+ *               resources: { type: array, items: { type: object } }
+ *               settings:  { type: object }
+ *               metadata:  { type: object }
+ *     responses:
+ *       200:
+ *         description: Updated course
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Course' }
+ *       400:
+ *         description: Invalid ObjectId
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // PUT /courses/:id — full replace
 coursesRouter.put('/:id', async (req, res) => {
   if (!validateId(req.params.id)) {
@@ -76,9 +247,56 @@ coursesRouter.put('/:id', async (req, res) => {
     res.status(404).json({ success: false, error: 'Course not found' })
     return
   }
+  if (req.user) {
+    void logAudit(req.params.id, 'course.update', req.user, {
+      fields: Object.keys({ title, slides, templates, resources, settings, metadata }).filter(
+        k => (req.body as CourseUpdatePayload)[k as keyof CourseUpdatePayload] !== undefined
+      ),
+    })
+  }
   res.json({ success: true, data: course })
 })
 
+/**
+ * @openapi
+ * /courses/{id}:
+ *   delete:
+ *     summary: Soft-delete a course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Course soft-deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { type: object, nullable: true, example: null }
+ *       400:
+ *         description: Invalid ObjectId
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course not found or already deleted
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // DELETE /courses/:id — soft delete
 coursesRouter.delete('/:id', async (req, res) => {
   if (!validateId(req.params.id)) {
@@ -93,6 +311,9 @@ coursesRouter.delete('/:id', async (req, res) => {
   if (!course) {
     res.status(404).json({ success: false, error: 'Course not found' })
     return
+  }
+  if (req.user) {
+    void logAudit(req.params.id, 'course.delete', req.user)
   }
   res.json({ success: true, data: null })
 })
@@ -109,6 +330,53 @@ interface SlidePatchPayload {
   thumbnail?: unknown
 }
 
+/**
+ * @openapi
+ * /courses/{id}/slides:
+ *   post:
+ *     summary: Add a slide to a course
+ *     tags: [Slides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: string, maxLength: 200, example: Introduction }
+ *     responses:
+ *       201:
+ *         description: Updated course with the new slide appended
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Course' }
+ *       400:
+ *         description: Invalid ObjectId
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // POST /courses/:id/slides — atomically push a new slide
 coursesRouter.post('/:id/slides', async (req, res) => {
   if (!validateId(req.params.id)) {
@@ -130,9 +398,67 @@ coursesRouter.post('/:id/slides', async (req, res) => {
     res.status(404).json({ success: false, error: 'Course not found' })
     return
   }
+  if (req.user) {
+    void logAudit(req.params.id, 'slide.create', req.user, { slideId: slide.id, title: slide.title })
+  }
   res.status(201).json({ success: true, data: course })
 })
 
+/**
+ * @openapi
+ * /courses/{id}/slides/{slideId}:
+ *   patch:
+ *     summary: Update a slide's fields
+ *     tags: [Slides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: slideId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:     { type: string }
+ *               widgets:   { type: array, items: { type: object } }
+ *               actions:   { type: array, items: { type: object } }
+ *               thumbnail: { type: string }
+ *     responses:
+ *       200:
+ *         description: Updated course
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Course' }
+ *       400:
+ *         description: Invalid ObjectId or no updatable fields
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course or slide not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // PATCH /courses/:id/slides/:slideId — atomically update one slide's fields
 coursesRouter.patch('/:id/slides/:slideId', async (req, res) => {
   if (!validateId(req.params.id)) {
@@ -160,9 +486,59 @@ coursesRouter.patch('/:id/slides/:slideId', async (req, res) => {
     res.status(404).json({ success: false, error: 'Course or slide not found' })
     return
   }
+  if (req.user) {
+    void logAudit(req.params.id, 'slide.update', req.user, {
+      slideId: req.params.slideId,
+      fields: Object.keys($set).map(k => k.replace('slides.$.', '')),
+    })
+  }
   res.json({ success: true, data: course })
 })
 
+/**
+ * @openapi
+ * /courses/{id}/slides/{slideId}:
+ *   delete:
+ *     summary: Remove a slide from a course
+ *     tags: [Slides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: slideId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Updated course with slide removed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Course' }
+ *       400:
+ *         description: Invalid ObjectId
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // DELETE /courses/:id/slides/:slideId — atomically pull one slide
 coursesRouter.delete('/:id/slides/:slideId', async (req, res) => {
   if (!validateId(req.params.id)) {
@@ -178,9 +554,65 @@ coursesRouter.delete('/:id/slides/:slideId', async (req, res) => {
     res.status(404).json({ success: false, error: 'Course not found' })
     return
   }
+  if (req.user) {
+    void logAudit(req.params.id, 'slide.delete', req.user, { slideId: req.params.slideId })
+  }
   res.json({ success: true, data: course })
 })
 
+/**
+ * @openapi
+ * /courses/{id}/slides/reorder:
+ *   patch:
+ *     summary: Reorder slides
+ *     description: Supply the complete ordered array of slide IDs. All existing slide IDs must be present.
+ *     tags: [Slides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [orderedIds]
+ *             properties:
+ *               orderedIds:
+ *                 type: array
+ *                 items: { type: string }
+ *                 example: [slide-uuid-1, slide-uuid-2]
+ *     responses:
+ *       200:
+ *         description: Updated course with slides in new order
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Course' }
+ *       400:
+ *         description: Invalid ObjectId, empty orderedIds, or IDs do not match existing slides
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
 // PATCH /courses/:id/slides/reorder — atomically reorder slides by supplying ordered ID array
 // Uses $set on the entire slides subdocument to avoid the GET+PUT race condition of the old
 // reorderSlides client implementation.
@@ -220,16 +652,135 @@ coursesRouter.patch('/:id/slides/reorder', async (req, res) => {
     { $set: { slides: reordered } },
     { new: true },
   )
+  if (req.user) {
+    void logAudit(req.params.id, 'slide.reorder', req.user, { orderedIds })
+  }
   res.json({ success: true, data: updated })
 })
 
-// POST /courses/:id/export/scorm12 — generate SCORM 1.2 ZIP and stream to client
-coursesRouter.post('/:id/export/scorm12', async (req, res) => {
+/**
+ * @openapi
+ * /courses/{id}/history:
+ *   get:
+ *     summary: Get audit history for a course
+ *     description: Returns paginated audit log entries, newest first. Limit is capped at 200, default 50.
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 50, maximum: 200 }
+ *       - in: query
+ *         name: skip
+ *         schema: { type: integer, default: 0, minimum: 0 }
+ *     responses:
+ *       200:
+ *         description: Paginated audit entries
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success, data, meta]
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/AuditEntry' }
+ *                 meta: { $ref: '#/components/schemas/PaginationMeta' }
+ *       400:
+ *         description: Invalid ObjectId
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
+// GET /courses/:id/history — paginated audit log for a course (newest first)
+coursesRouter.get('/:id/history', async (req, res) => {
   if (!validateId(req.params.id)) {
     res.status(400).json({ success: false, error: 'Invalid course id' })
     return
   }
-  const course = await Course.findOne({ _id: req.params.id, deletedAt: null })
+
+  const limit = Math.min(Number(req.query.limit) || 50, 200)
+  const skip = Math.max(Number(req.query.skip) || 0, 0)
+
+  const [entries, total] = await Promise.all([
+    AuditLog.find({ courseId: req.params.id })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    AuditLog.countDocuments({ courseId: req.params.id }),
+  ])
+
+  res.json({ success: true, data: entries, meta: { total, limit, skip } })
+})
+
+/**
+ * @openapi
+ * /courses/{id}/export/scorm12:
+ *   post:
+ *     summary: Export course as SCORM 1.2 ZIP
+ *     description: Generates a SCORM 1.2 compliant ZIP and streams it as a file download. Rate limited to 5 requests per 15 minutes per user.
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: SCORM 1.2 ZIP file download
+ *         content:
+ *           application/zip:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Invalid ObjectId
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       429:
+ *         description: Too many export requests
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       500:
+ *         description: Package generation failed
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
+// POST /courses/:id/export/scorm12 — generate SCORM 1.2 ZIP and stream to client
+coursesRouter.post('/:id/export/scorm12', exportLimiter, async (req, res) => {
+  const courseId = req.params['id'] as string
+  if (!validateId(courseId)) {
+    res.status(400).json({ success: false, error: 'Invalid course id' })
+    return
+  }
+  const course = await Course.findOne({ _id: courseId, deletedAt: null })
   if (!course) {
     res.status(404).json({ success: false, error: 'Course not found' })
     return
