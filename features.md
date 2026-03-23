@@ -385,6 +385,14 @@
 | F12.8 | Integration test: SCORM package → Moodle import + completion | P1 |
 | F12.9 | Integration test: course with Phaser sim → SCORM → Moodle | P1 |
 | F12.10 | Playwright E2E: create course → publish → student completes | P2 |
+| F12.11 | Observability stack: OTel Collector + Prometheus + Grafana (dev) | P1 |
+| F12.12 | Distributed tracing: Tempo backend + trace exploration in Grafana | P1 |
+| F12.13 | Log aggregation: Loki + Promtail → Grafana log/trace correlation | P1 |
+
+> **Observability is a first-class dev tool**, not a production monitoring afterthought.
+> The Grafana/Prometheus/Loki/Tempo stack runs in the local dev Docker Compose and is
+> actively used during feature development to explore distributed traces, detect API
+> performance bottlenecks, and correlate logs with traces — before issues reach production.
 
 ---
 

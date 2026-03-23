@@ -133,12 +133,53 @@ services:
       POSTGRES_PASSWORD: moodle_pass
     volumes: [moodle_data:/var/lib/postgresql/data]
 
+  # --- Observability stack (dev-time performance tooling) ---
+  # Purpose: active trace exploration and bottleneck detection during development.
+  # NOT a production monitoring system — these services run locally alongside the
+  # authoring stack so developers can query traces and correlate logs in real time.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    # Receives traces/metrics from the API; fans out to Tempo (traces) and Prometheus (metrics)
+    ports: ["4317:4317", "4318:4318", "8889:8889"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    # Scrapes otel-collector:8889, cadvisor:8080, docker-exporter:9417
+    ports: ["9090:9090"]
+
+  tempo:
+    image: grafana/tempo:latest
+    # Stores distributed traces; queryable from Grafana Explore → TraceQL
+    ports: ["3200:3200"]
+
+  loki:
+    image: grafana/loki:latest
+    # Aggregates container logs via Promtail; correlatable with traces via traceId field
+    ports: ["3100:3100"]
+
+  promtail:
+    image: grafana/promtail:latest
+    # Scrapes Docker container logs and forwards to Loki
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3001:3000"]
+    # Dashboards: elearn-overview (API latency/error rate), elearn-containers (resource usage)
+    # Explore: Loki for logs, Tempo for traces — click traceId in log line to jump to trace
+
 volumes:
   mongo_data:
   garage_meta:
   garage_data:
   moodle_data:
 ```
+
+> **Why observability in dev?** The stack lets developers open Grafana (`:3001`),
+> run a course interaction, and immediately see the full request trace in Tempo —
+> end-to-end latency broken down by span (Express handler → Mongoose → Garage).
+> Slow spans show up as wide bars. Log lines in Loki carry the same `traceId`,
+> so a single click correlates logs to the trace. This workflow catches P95
+> bottlenecks during feature development, not after production incidents.
 
 ---
 

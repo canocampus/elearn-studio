@@ -258,6 +258,83 @@ class PhaserSimWidget {
 
 ---
 
+## Observability Stack — Critical Details
+
+The observability stack is a **mandatory first-class development tool**, not an
+optional production-monitoring add-on. It runs in `docker-compose.dev.yml` alongside
+the authoring stack and is used actively during feature development to:
+
+- **Explore distributed traces** — see the full request path (Express → Mongoose →
+  Garage) broken down by span in Grafana Tempo
+- **Detect API bottlenecks** — identify slow spans before they reach production by
+  inspecting P95 latency per endpoint during local development
+- **Correlate logs ↔ traces** — every Pino log line carries a `traceId`; clicking it
+  in Grafana Loki jumps directly to the matching Tempo trace
+
+### Stack components
+
+| Service | Image | Role |
+|---|---|---|
+| **OTel Collector** | `otel/opentelemetry-collector-contrib` | Single ingestion point; fans out traces to Tempo, metrics to Prometheus |
+| **Tempo** | `grafana/tempo` | Distributed trace storage; queryable via TraceQL in Grafana Explore |
+| **Prometheus** | `prom/prometheus` | Scrapes OTel Collector (app metrics), cAdvisor (container), docker-exporter |
+| **Loki** | `grafana/loki` | Log aggregation from all containers via Promtail |
+| **Promtail** | `grafana/promtail` | Scrapes Docker container stdout/stderr → forwards to Loki |
+| **Grafana** | `grafana/grafana` | Dashboards + Explore UI; port 3001 |
+
+### Instrumentation in the API
+
+The backend API (`backend/api`) uses `@opentelemetry/sdk-node` with auto-instrumentation:
+- HTTP spans: every Express request gets a span with method, route, status code
+- MongoDB spans: every Mongoose query is a child span showing collection + operation
+- Garage spans: S3 client calls appear as child spans with bucket + key
+- All spans carry `traceId` injected by the OTel SDK; Pino picks it up via
+  `@opentelemetry/api` so every log line includes the same `traceId`
+
+### Development workflow
+
+```bash
+# Start the full dev stack including observability
+docker compose -f docker/docker-compose.dev.yml up -d
+
+# Open Grafana
+open http://localhost:3001   # admin / admin
+
+# Explore traces: Grafana → Explore → Tempo
+# Explore logs:   Grafana → Explore → Loki → {job="api"}
+# Dashboards:     elearn-overview (latency/errors), elearn-containers (resources)
+
+# Verify OTel pipeline is healthy
+curl http://localhost:13133/   # OTel Collector health endpoint
+```
+
+### Trace exploration example
+
+After calling `POST /api/courses`, open Grafana Explore → Tempo and search for
+`{ .http.route = "/api/courses" }`. The resulting trace shows:
+- Total handler time
+- Mongoose `insertOne` span (child)
+- Any Garage calls for default assets (grandchild spans)
+
+Wide spans indicate bottlenecks. Clicking the `traceId` in Loki log view jumps
+directly to the matching Tempo trace.
+
+### Configuration files
+
+```
+docker/observability/
+├── otel-collector-config.yaml   # Receivers: OTLP 4317/4318; exporters: Tempo, Prometheus
+├── prometheus.yml               # Scrape targets + metric_relabel_configs
+├── tempo.yaml                   # Storage backend, retention (24h dev default)
+├── promtail-config.yaml         # Docker log scraping pipeline
+└── grafana/
+    ├── datasources/             # Auto-provisioned: Prometheus, Loki, Tempo
+    ├── dashboards/              # elearn-overview.json, elearn-containers.json
+    └── alerting/                # alert-rules.yaml (visualization-only in dev)
+```
+
+---
+
 ## Data Model
 
 ```typescript
