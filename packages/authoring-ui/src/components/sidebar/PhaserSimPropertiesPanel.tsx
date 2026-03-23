@@ -117,31 +117,46 @@ export function PhaserSimPropertiesPanel() {
   }
 
   const selected = editor.getSelected()
-  if (!selected) {
+  // Guard against Zustand store lag: verify the live component type, not just the store value.
+  // Matches the pattern used in QuestionPropertiesPanel.
+  if (!selected || (selected.get('type') as string) !== 'phaser-sim') {
     return null
   }
 
   const ep = getExtendedProps(selected)
 
+  // Handlers re-fetch the selected component at call time to guard against the case where
+  // the GrapesJS selection changes between the render that opened this panel and the user
+  // clicking a control (e.g., rapid select/deselect while the panel is still mounted).
   function handleSimTypeChange(simType: PhaserSimExtendedProps['simType']): void {
-    setExtendedProps(selected!, { simType })
+    const component = editor.getSelected()
+    if (!component) return
+    setExtendedProps(component, { simType })
   }
 
   function handleModeChange(mode: PhaserSimMode): void {
-    setExtendedProps(selected!, { mode })
+    const component = editor.getSelected()
+    if (!component) return
+    setExtendedProps(component, { mode })
   }
 
   function handlePassingScoreChange(passingScore: number): void {
+    const component = editor.getSelected()
+    if (!component) return
     const clamped = Math.max(0, Math.min(100, passingScore))
-    setExtendedProps(selected!, { passingScore: clamped })
+    setExtendedProps(component, { passingScore: clamped })
   }
 
   function handleWidthChange(width: number): void {
-    setExtendedProps(selected!, { width: Math.max(100, width) })
+    const component = editor.getSelected()
+    if (!component) return
+    setExtendedProps(component, { width: Math.max(100, width) })
   }
 
   function handleHeightChange(height: number): void {
-    setExtendedProps(selected!, { height: Math.max(100, height) })
+    const component = editor.getSelected()
+    if (!component) return
+    setExtendedProps(component, { height: Math.max(100, height) })
   }
 
   function handleSceneDefBlur(): void {
@@ -149,18 +164,22 @@ export function PhaserSimPropertiesPanel() {
     if (sceneDefJson.trim() && !parsed) {
       setJsonError(true)
     } else {
+      const component = editor.getSelected()
+      if (!component) return
       setJsonError(false)
-      setExtendedProps(selected!, { sceneDef: parsed })
+      setExtendedProps(component, { sceneDef: parsed })
     }
   }
 
   function handlePreview(): void {
-    const componentId = selected!.getId()
+    const component = editor.getSelected()
+    if (!component) return
+    const componentId = component.getId()
     if (!componentId) {
       console.warn('[PhaserSimPropertiesPanel] Cannot open preview: component lacks ID')
       return
     }
-    const current = getExtendedProps(selected!)
+    const current = getExtendedProps(component)
     openPreview(current, componentId)
   }
 

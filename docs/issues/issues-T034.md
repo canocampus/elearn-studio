@@ -8,7 +8,76 @@
 
 ## CRITICAL Issues
 
-### C-01: React `key` Prop Null Crash
+_None._
+
+---
+
+## HIGH Issues (second review pass — background agent)
+
+### H-02: Handlers Use Stale Closure Reference to `selected`
+
+**File**: `packages/authoring-ui/src/components/sidebar/PhaserSimPropertiesPanel.tsx`
+**Lines**: 126–165 (all handler functions)
+
+**Issue**: All handler functions (`handleSimTypeChange`, `handleModeChange`, etc.) closed over the
+`selected` component captured at render time via `selected!`. If the GrapesJS selection changes
+between the render that opened the panel and the user clicking a control (rapid
+select/deselect, store sync delay), the handlers would write properties to a component that is
+no longer selected.
+
+```typescript
+// BEFORE — handlers write to render-time closure, not current selection
+function handleSimTypeChange(simType: ...): void {
+  setExtendedProps(selected!, { simType })  // `selected` may be stale
+}
+```
+
+**Why High**: Silent data corruption — properties written to the wrong component with no error,
+potentially overwriting a different widget's sceneDef or simType.
+
+**Fix applied**: Each handler re-fetches the current selection at call time:
+```typescript
+function handleSimTypeChange(simType: ...): void {
+  const component = editor.getSelected()
+  if (!component) return
+  setExtendedProps(component, { simType })
+}
+```
+
+---
+
+### H-03: No Live Type Guard — Zustand Store Can Lag Behind GrapesJS
+
+**File**: `packages/authoring-ui/src/components/sidebar/PhaserSimPropertiesPanel.tsx`
+**Line**: 115 (early return condition)
+
+**Issue**: The panel returned non-null when `selectedComponentType === 'phaser-sim'` (Zustand
+store) but did not verify the live `editor.getSelected().get('type')`. In edge cases where the
+Zustand store update is deferred, the panel could render for a component whose actual type is
+`text`, `image`, etc., and write phaser-sim properties to it.
+
+```typescript
+// BEFORE — only checks Zustand store
+if (!editor || selectedComponentType !== 'phaser-sim') { return null }
+const selected = editor.getSelected()
+if (!selected) { return null }
+// No check that selected.get('type') === 'phaser-sim'
+```
+
+**Why High**: Same silent data corruption risk as H-02 — phaser-sim extended properties written
+to a non-phaser-sim component.
+
+**Fix applied**: Match the `QuestionPropertiesPanel` pattern — validate live component type:
+```typescript
+const selected = editor.getSelected()
+if (!selected || (selected.get('type') as string) !== 'phaser-sim') {
+  return null
+}
+```
+
+---
+
+## CRITICAL Issues (first review pass)
 
 **File**: `packages/authoring-ui/src/components/sidebar/PhaserSimPropertiesPanel.tsx`
 **Line**: 256
@@ -144,12 +213,14 @@ API calls under the current storage manager implementation.
 | Severity | Count | Status     |
 |----------|-------|------------|
 | CRITICAL | 1     | ✅ Closed  |
-| HIGH     | 1     | ✅ Closed  |
+| HIGH     | 3     | ✅ Closed  |
 | MEDIUM   | 3     | ⚠ Open    |
 | LOW      | 3     | ⚠ Open    |
 
-**Verdict**: ✅ PASS (CRITICAL and HIGH resolved before commit)
+**Verdict**: ✅ PASS (all CRITICAL and HIGH resolved)
 
 **Fixes applied**:
 1. [C-01] ✅ `key` prop uses `selected.getId() ?? selected.get('cid') as string` fallback
 2. [H-01] ✅ `handlePreview` guards against null ID with early return + `console.warn`
+3. [H-02] ✅ All handlers re-fetch `editor.getSelected()` at call time instead of using closure
+4. [H-03] ✅ Early return validates live `selected.get('type') === 'phaser-sim'` (matches QuestionPropertiesPanel pattern)
