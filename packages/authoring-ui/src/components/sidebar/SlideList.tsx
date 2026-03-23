@@ -276,6 +276,8 @@ function SlideItem({
       draggable
       role="button"
       tabIndex={0}
+      aria-label={`Slide ${index + 1}: ${slide.title}`}
+      aria-current={isActive ? 'true' : undefined}
       style={{
         ...styles.item,
         ...(isActive ? styles.itemActive : {}),
@@ -312,6 +314,7 @@ function SlideItem({
           <input
             style={styles.titleInput}
             value={editingTitle}
+            aria-label={`Rename slide: ${slide.title}`}
             autoFocus
             onChange={e => onRenameChange(e.target.value)}
             onBlur={onRenameCommit}

@@ -4,7 +4,7 @@
  * Color coding: green <75%, amber 75–90%, red >90%
  */
 
-import { useMemo } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import LZString from 'lz-string'
 import type { CourseDoc } from '../../types/course'
 
@@ -63,11 +63,21 @@ export function PublishDialog({ course, onConfirm, onCancel, publishing }: Publi
 
   const meterColor = getMeterColor(percentage)
   const questionCount = useMemo(() => getQuestionWidgetIds(course).length, [course])
+  const titleId = 'publish-dialog-title'
+  const firstFocusRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    firstFocusRef.current?.focus()
+  }, [])
+
+  function handleBackdropKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') onCancel()
+  }
 
   return (
-    <div style={styles.backdrop}>
-      <div style={styles.dialog}>
-        <h2 style={styles.title}>Publish SCORM Package</h2>
+    <div style={styles.backdrop} onKeyDown={handleBackdropKeyDown}>
+      <div style={styles.dialog} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <h2 id={titleId} style={styles.title}>Publish SCORM Package</h2>
 
         <section style={styles.section}>
           <div style={styles.sectionLabel}>Suspend Data Estimate</div>
@@ -83,7 +93,14 @@ export function PublishDialog({ course, onConfirm, onCancel, publishing }: Publi
           </div>
 
           {/* Progress bar */}
-          <div style={styles.meterTrack}>
+          <div
+            style={styles.meterTrack}
+            role="progressbar"
+            aria-valuenow={percentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Suspend data usage"
+          >
             <div
               style={{
                 ...styles.meterFill,
@@ -94,24 +111,24 @@ export function PublishDialog({ course, onConfirm, onCancel, publishing }: Publi
           </div>
 
           {percentage >= 90 && (
-            <p style={styles.warning}>
+            <p role="alert" style={styles.warning}>
               Warning: suspend data is near the SCORM 1.2 limit (4096 chars). Some LMS
               implementations may truncate it, causing score loss. Consider splitting the
               course into smaller modules.
             </p>
           )}
           {percentage >= 75 && percentage < 90 && (
-            <p style={styles.caution}>
+            <p role="alert" style={styles.caution}>
               Caution: suspend data is at {percentage}% capacity. Monitor after publishing.
             </p>
           )}
         </section>
 
         <div style={styles.actions}>
-          <button style={{ ...styles.btn, ...styles.btnCancel }} onClick={onCancel} disabled={publishing}>
+          <button ref={firstFocusRef} style={{ ...styles.btn, ...styles.btnCancel }} onClick={onCancel} disabled={publishing}>
             Cancel
           </button>
-          <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={onConfirm} disabled={publishing}>
+          <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={onConfirm} disabled={publishing} aria-busy={publishing}>
             {publishing ? 'Packaging…' : 'Publish SCORM 1.2'}
           </button>
         </div>

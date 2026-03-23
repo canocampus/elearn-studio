@@ -7,6 +7,7 @@ import { useEditorStore } from '../../store/editorStore'
 import { addSlide, deleteSlide, nextSlideTitle } from '../../api/courseApi'
 import { useToast } from '../ui/Toast'
 import { useDebugMode } from '../../hooks/useDebugMode'
+import { saveUserTemplate } from '../../templates/courseTemplates'
 
 interface TopToolbarProps {
   onPreview: () => void
@@ -28,6 +29,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
   const isSaving = useEditorStore(s => s.isSaving)
   const setIsSaving = useEditorStore(s => s.setIsSaving)
   const setSaveError = useEditorStore(s => s.setSaveError)
+  const setShowNewCourseDialog = useEditorStore(s => s.setShowNewCourseDialog)
 
   const currentSlide = course?.slides[currentSlideIndex]
 
@@ -46,6 +48,24 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
     } finally {
       setIsSaving(false)
     }
+  }
+
+  function handleSaveAsTemplate() {
+    if (!course) return
+    const name = prompt('Template name:', `${course.title} Template`)
+    if (!name?.trim()) return
+    saveUserTemplate({
+      id: `user-${Date.now()}`,
+      name: name.trim(),
+      description: `Saved from "${course.title}"`,
+      icon: '📋',
+      isBuiltIn: false,
+      slides: course.slides.map(slide => ({
+        title: slide.title,
+        widgets: slide.widgets.map(({ id: _id, actions: _actions, ...rest }) => rest),
+      })),
+    })
+    toast.success('Template saved.')
   }
 
   async function handleDeleteSlide() {
@@ -76,9 +96,15 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
       <span style={styles.logo}>eLearn Studio</span>
       <span style={styles.separator} />
       <span style={styles.courseTitle}>{course?.title ?? '—'}</span>
-      {isSaving && <span style={styles.savingBadge}>Saving…</span>}
+      {isSaving && <span role="status" aria-live="polite" style={styles.savingBadge}>Saving…</span>}
 
       <span style={styles.spacer} />
+
+      <button style={{ ...styles.btn, ...styles.btnSecondary }} onClick={() => setShowNewCourseDialog(true)} title="New course">
+        New Course
+      </button>
+
+      <span style={styles.divider} />
 
       <button style={styles.btn} onClick={handleNewSlide} title="Add slide">
         + New Slide
@@ -92,12 +118,16 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
         Delete Slide
       </button>
 
+      <button style={styles.btn} onClick={handleSaveAsTemplate} title="Save current course as a template" disabled={!course}>
+        Save as Template
+      </button>
+
       <span style={styles.divider} />
 
       <button style={{ ...styles.btn, ...styles.btnSecondary }} onClick={onPreview}>
         Preview
       </button>
-      <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={onPublish} disabled={publishing}>
+      <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={onPublish} disabled={publishing} aria-busy={publishing}>
         {publishing ? 'Packaging…' : 'Publish SCORM'}
       </button>
 

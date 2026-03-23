@@ -29,18 +29,16 @@ export function EventSelector() {
 
   return (
     <div style={styles.container}>
-      {/* Event tabs */}
-      <div style={styles.tabRow}>
+      {/* Event tabs — toolbar with toggle buttons + per-tab remove buttons */}
+      <div style={styles.tabRow} role="toolbar" aria-label="Event handlers">
         {sequences.map((seq) => (
-          <div
-            key={seq.event}
-            style={{
-              ...styles.tab,
-              ...(selectedEvent === seq.event ? styles.tabActive : {}),
-            }}
-          >
+          <div key={seq.event} role="group" aria-label={formatEvent(seq.event)} style={styles.tab}>
             <button
-              style={styles.tabLabel}
+              style={{
+                ...styles.tabLabel,
+                ...(selectedEvent === seq.event ? styles.tabLabelActive : {}),
+              }}
+              aria-pressed={selectedEvent === seq.event}
               onClick={() => selectEvent(seq.event)}
             >
               {formatEvent(seq.event)}
@@ -48,6 +46,7 @@ export function EventSelector() {
             <button
               style={styles.tabRemove}
               title={`Remove ${formatEvent(seq.event)} event`}
+              aria-label={`Remove ${formatEvent(seq.event)} event`}
               onClick={() => removeSequence(seq.event)}
             >
               ×
@@ -60,6 +59,8 @@ export function EventSelector() {
             style={styles.addBtn}
             onClick={() => setShowAdd((v) => !v)}
             title="Add event"
+            aria-haspopup="menu"
+            aria-expanded={showAdd}
           >
             + Event
           </button>
@@ -68,10 +69,11 @@ export function EventSelector() {
 
       {/* Add event dropdown */}
       {showAdd && (
-        <div style={styles.dropdown}>
+        <div style={styles.dropdown} role="menu" aria-label="Available events">
           {availableEvents.map((event) => (
             <button
               key={event}
+              role="menuitem"
               style={styles.dropdownItem}
               onClick={() => handleAdd(event)}
             >
@@ -109,10 +111,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 4,
     overflow: 'hidden',
   },
-  tabActive: {
-    background: '#45475a',
-    outline: '1px solid #89b4fa',
-  },
   tabLabel: {
     padding: '3px 8px',
     fontSize: 11,
@@ -121,6 +119,11 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+  },
+  tabLabelActive: {
+    background: '#45475a',
+    outline: '1px solid #89b4fa',
+    outlineOffset: '-1px',
   },
   tabRemove: {
     padding: '3px 5px 3px 0',

@@ -113,8 +113,8 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
 
       <div style={styles.body}>
         {/* ---- Left sidebar ---- */}
-        <aside style={styles.sidebar}>
-          <div style={styles.tabBar}>
+        <aside style={styles.sidebar} aria-label="Slide navigation">
+          <div style={styles.tabBar} role="tablist" aria-label="Left panel tabs">
             <TabButton label="Slides" active={leftTab === 'slides'} onClick={() => setLeftTab('slides')} />
             <TabButton label="Blocks" active={leftTab === 'blocks'} onClick={() => setLeftTab('blocks')} />
           </div>
@@ -148,8 +148,8 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
         </main>
 
         {/* ---- Right sidebar ---- */}
-        <aside style={{ ...styles.sidebar, borderRight: 'none', borderLeft: '1px solid #313244' }}>
-          <div style={styles.tabBar}>
+        <aside style={{ ...styles.sidebar, borderRight: 'none', borderLeft: '1px solid #313244' }} aria-label="Properties">
+          <div style={styles.tabBar} role="tablist" aria-label="Right panel tabs">
             <TabButton label="Layers" active={rightTab === 'layers'} onClick={() => setRightTab('layers')} />
             <TabButton label="Styles" active={rightTab === 'styles'} onClick={() => setRightTab('styles')} />
             <TabButton label="Props" active={rightTab === 'properties'} onClick={() => setRightTab('properties')} />
@@ -208,6 +208,8 @@ interface TabButtonProps {
 function TabButton({ label, active, onClick }: TabButtonProps) {
   return (
     <button
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       style={{
         flex: 1,
