@@ -829,7 +829,261 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 ### Phase 4 — Closing Tasks
 - [ ] T400.TEST — Final test pass: full Playwright E2E test (create course with all widget types + screenshot sim + Phaser sim → publish SCORM 1.2 → import Moodle → student completes → score recorded); SCORM 2004 integration test; AICC integration test; axe-core accessibility pass
 - [ ] T400.DOCS — Final documentation review: verify all docs are consistent with the implemented code, update CHANGELOG.md with all features delivered per phase, publish docs/index.md as documentation home page
-- [ ] T400.ISSUES — close the issues generated in phase 4 that were not completed.
+- [ ] T400.ISSUES — Closing the problems generated in all phases that were not completed, regardless of their severity, can no longer be delayed at this point we must obtain a prototype without leaving anything unfined.
+
+---
+
+## PHASE 5 — Documentation & Visual Guides
+
+> **Context:** The prototype is complete and stable after Phase 4. This phase produces
+> all public-facing documentation: a rich README.md with Mermaid diagrams (using the
+> claude-mermaid plugin), a full user guide with Playwright-captured screenshots of the
+> real application, developer/contributor documentation, and a docs index page.
+>
+> **Playwright screenshots:** Claude Code uses `@playwright/test` to launch the real
+> application (docker compose up), navigate through each feature, and capture screenshots
+> automatically. Screenshots are saved to `docs/assets/screenshots/` and referenced
+> directly in the markdown guides. This ensures documentation always reflects the real UI.
+>
+> **Mermaid diagrams:** The claude-mermaid plugin is used for all architecture, workflow,
+> and data model diagrams. Every diagram must render correctly in GitHub and in the
+> docs site. No external image assets for diagrams — Mermaid source only.
+>
+> **Implementation order:**
+> T500 → T501 → T502 → T503 → T504 → T505 → T506
+
+---
+
+### T500 — Playwright Screenshot Automation
+> Foundation for all visual documentation. Must run before T502–T505.
+> Requires: `docker compose up` with the full dev stack running.
+- [ ] T500.1 — Create `docs/scripts/capture-screenshots.ts` — Playwright script that:
+  - Launches Chromium against `http://localhost:3000`
+  - Logs in with test credentials (uses E2E auth fixture from T169.4)
+  - Navigates through each documented screen and captures PNG screenshots
+  - Saves all screenshots to `docs/assets/screenshots/` with descriptive names
+  - Reports total screenshots captured on completion
+- [ ] T500.2 — Capture: **Dashboard / Course list** (`01-dashboard.png`)
+- [ ] T500.3 — Capture: **New course dialog** (`02-new-course-dialog.png`)
+- [ ] T500.4 — Capture: **GrapesJS editor — empty slide** (`03-editor-empty.png`)
+- [ ] T500.5 — Capture: **GrapesJS editor — Block Manager open** (`04-block-manager.png`)
+- [ ] T500.6 — Capture: **GrapesJS editor — slide with mixed widgets** (text + image + button) (`05-editor-widgets.png`)
+- [ ] T500.7 — Capture: **Layer Manager panel** (`06-layer-manager.png`)
+- [ ] T500.8 — Capture: **Style Manager / Properties panel** (`07-properties-panel.png`)
+- [ ] T500.9 — Capture: **Multiple Choice question widget — authoring** (`08-question-mc-authoring.png`)
+- [ ] T500.10 — Capture: **Question Extended Properties panel** (`09-question-properties.png`)
+- [ ] T500.11 — Capture: **Actions Editor — open with event selector** (`10-actions-editor.png`)
+- [ ] T500.12 — Capture: **Actions Editor — condition + nested actions** (`11-actions-condition.png`)
+- [ ] T500.13 — Capture: **Simulation Recorder — recording in progress** (`12-sim-recorder.png`)
+- [ ] T500.14 — Capture: **Simulation Editor — hotspot drawing over screenshot** (`13-sim-editor-hotspot.png`)
+- [ ] T500.15 — Capture: **Simulation Player — Practice mode** (`14-sim-player-practice.png`)
+- [ ] T500.16 — Capture: **Phaser Process Flow simulation — authoring** (`15-phaser-processflow.png`)
+- [ ] T500.17 — Capture: **Phaser Interactive Diagram — runtime** (`16-phaser-diagram.png`)
+- [ ] T500.18 — Capture: **SCORM Export dialog / progress** (`17-scorm-export.png`)
+- [ ] T500.19 — Capture: **Moodle — imported course running** (`18-moodle-course.png`)
+- [ ] T500.20 — Capture: **Grafana — eLearn overview dashboard** (`19-grafana-dashboard.png`)
+- [ ] T500.21 — Add `pnpm --filter docs run capture` script to monorepo root; document in CONTRIBUTING.md
+- [ ] T500.22 — Refine the generated code
+- [ ] T500.23 — A reviewer will generate `docs/issues/issues-T500.md` with detected problems; resolve them before terminating this block
+
+---
+
+### T501 — README.md (Root — GitHub Landing Page)
+> Uses claude-mermaid plugin for all diagrams. No external diagram images.
+> Target audience: developers discovering the project on GitHub.
+- [ ] T501.1 — Header section: project name, tagline, badges (CI status, license MIT, pnpm, TypeScript, Docker)
+- [ ] T501.2 — **Mermaid diagram: System Architecture** — shows all packages + services + data flows:
+  ```
+  authoring-ui (GrapesJS) → backend/api → MongoDB + Garage
+  simulation-engine (Playwright) → authoring-ui
+  phaser-simulations → runtime-player
+  scorm-packager → ZIP → Moodle LMS
+  observability stack (Grafana + Loki + Prometheus + Tempo)
+  ```
+- [ ] T501.3 — **Mermaid diagram: Tech Stack** — grouped by layer (Frontend / Backend / Storage / Packaging / Observability)
+- [ ] T501.4 — **Mermaid diagram: Course Authoring Workflow** — flowchart from "Create Course" to "SCORM Published in Moodle"
+- [ ] T501.5 — **Mermaid diagram: Simulation Types** — mindmap or flowchart showing Screenshot Sim vs Phaser Sim types
+- [ ] T501.6 — Screenshot: editor overview (from T500.5) embedded in README with caption
+- [ ] T501.7 — Screenshot: Moodle course running (from T500.19) embedded with caption
+- [ ] T501.8 — Quick Start section:
+  ```bash
+  git clone https://github.com/USER/elearn-studio
+  cd elearn-studio
+  cp docker/.env.example docker/.env
+  docker compose up
+  # Open http://localhost:3000
+  ```
+- [ ] T501.9 — Feature highlights section: key capabilities with emoji icons and one-line descriptions
+- [ ] T501.10 — Project structure section: monorepo package tree with one-line descriptions per package
+- [ ] T501.11 — Links section: User Guide, Developer Guide, API Reference, Contributing, License
+- [ ] T501.12 — Refine the generated documentation
+- [ ] T501.13 — A reviewer will generate `docs/issues/issues-T501.md` with detected problems; resolve them before terminating this block
+
+---
+
+### T502 — User Guide (`docs/user-guide/`)
+> Full guide for course authors. Uses Playwright screenshots from T500.
+> Audience: instructional designers, educators, e-learning authors.
+- [ ] T502.1 — `docs/user-guide/index.md` — overview and navigation, links to all sections
+- [ ] T502.2 — `docs/user-guide/01-getting-started.md`:
+  - What is eLearn Studio
+  - System requirements
+  - First login and account setup
+  - Creating your first course (step by step with screenshots 01–05)
+- [ ] T502.3 — `docs/user-guide/02-editor-overview.md`:
+  - **Mermaid diagram: Editor UI Layout** — annotated wireframe of the authoring interface
+  - Left sidebar (Slide list + Block Manager)
+  - Main canvas (GrapesJS)
+  - Right sidebar (Layer Manager + Properties)
+  - Top toolbar (New Slide, Publish, Preview)
+  - Screenshots: 03, 04, 06, 07
+- [ ] T502.4 — `docs/user-guide/03-working-with-slides.md`:
+  - Adding, duplicating, deleting slides
+  - Reordering slides via drag and drop
+  - Slide titles and thumbnails
+  - Working with slide templates
+- [ ] T502.5 — `docs/user-guide/04-widgets.md`:
+  - Complete widget catalog with screenshot of each widget in the editor
+  - Text widget: formatting, inline editing
+  - Image widget: uploading assets, resizing
+  - Button widget: labels, styling
+  - Media player: audio and video
+  - Navigation buttons: prev/next/first/last
+  - Scoring widgets: Score Quiz, Done button
+- [ ] T502.6 — `docs/user-guide/05-questions.md`:
+  - **Mermaid diagram: Question Scoring Flow** — from answer to LMS score
+  - Multiple Choice (single + multiple correct)
+  - True/False
+  - Fill in the Blank
+  - Match Items, Drag Objects, Hotspot
+  - Configuring feedback (immediate vs delayed)
+  - Setting attempt limits and weights
+  - Screenshots: 08, 09
+- [ ] T502.7 — `docs/user-guide/06-actions-editor.md`:
+  - **Mermaid diagram: Event → Action flow** — how events trigger action sequences
+  - Opening the Actions Editor
+  - Adding and configuring actions
+  - Conditions (if/else) with visual examples
+  - Loops and variables
+  - Shared action sequences
+  - Practical examples: show/hide on click, navigate on score, conditional feedback
+  - Screenshots: 10, 11
+- [ ] T502.8 — `docs/user-guide/07-screenshot-simulations.md`:
+  - **Mermaid diagram: Screenshot Simulation Workflow** — record → edit → publish
+  - Planning your simulation
+  - Recording with the Simulation Recorder (step by step)
+  - Editing steps in the Simulation Editor: hotspots, instructions, feedback
+  - The three simulation modes: Demo, Practice, Assessment
+  - Screenshots: 12, 13, 14
+- [ ] T502.9 — `docs/user-guide/08-phaser-simulations.md`:
+  - **Mermaid diagram: Phaser Simulation Types** — decision tree for choosing type
+  - Process Flow simulations: nodes, edges, steps
+  - Interactive Diagram simulations: uploading diagram, placing hotspots
+  - Gamified Quiz: configuring timer, lives, combos
+  - Screenshots: 15, 16
+- [ ] T502.10 — `docs/user-guide/09-publishing.md`:
+  - **Mermaid diagram: SCORM Packaging Pipeline** — course JSON → imsmanifest → ZIP → LMS
+  - Exporting as SCORM 1.2
+  - Exporting as SCORM 2004
+  - Exporting as AICC
+  - Importing into Moodle (step by step with screenshots)
+  - Testing without an LMS (standalone mode)
+  - Screenshots: 17, 18
+- [ ] T502.11 — `docs/user-guide/10-course-history.md`:
+  - Viewing change history
+  - Restoring a previous version
+- [ ] T502.12 — Refine the generated documentation
+- [ ] T502.13 — A reviewer will generate `docs/issues/issues-T502.md` with detected problems; resolve them before terminating this block
+
+---
+
+### T503 — Developer & Contributor Guide (`docs/developer-guide/`)
+> Audience: developers who want to contribute or extend eLearn Studio.
+- [ ] T503.1 — `docs/developer-guide/index.md` — overview and navigation
+- [ ] T503.2 — `docs/developer-guide/01-architecture.md`:
+  - **Mermaid diagram: Package Dependency Graph** — monorepo internal dependencies
+  - **Mermaid diagram: Data Model (ER)** — Course → Slides → Widgets → ActionSequences
+  - **Mermaid diagram: Runtime Player Widget Rendering Pipeline** — JSON → DOM
+  - Package-by-package explanation: responsibility, key files, build output
+- [ ] T503.3 — `docs/developer-guide/02-local-setup.md`:
+  - Prerequisites (Node.js 20, pnpm, Docker Desktop, Git)
+  - Clone, install, configure `.env`
+  - `docker compose up` — service URLs and port map (full table)
+  - Running tests: unit, E2E, specific package
+  - Hot reload in dev mode
+- [ ] T503.4 — `docs/developer-guide/03-adding-widget-types.md`:
+  - Step-by-step guide: GrapesJS Block + Component → Storage Manager converter → Runtime Player renderer
+  - Code examples with the `text` widget as reference
+  - Checklist: all places that must be updated when adding a widget
+- [ ] T503.5 — `docs/developer-guide/04-adding-phaser-simulations.md`:
+  - How to add a new Phaser simulation type
+  - Extending `PhaserSimWidget`, `ScoreTracker`, `ModeController`
+  - Adding the authoring builder panel
+  - Registering the new type in the runtime player
+- [ ] T503.6 — `docs/developer-guide/05-observability.md`:
+  - **Mermaid diagram: Observability Stack** — full pipeline from app to Grafana
+  - Grafana at http://localhost:3002 — dashboards overview
+  - How to query logs in Loki for a specific request
+  - How to view a distributed trace in Tempo
+  - How to add a new metric or dashboard panel
+  - Production deployment: connecting your own Grafana to the endpoints
+- [ ] T503.7 — `docs/developer-guide/06-contributing.md`:
+  - Branch naming convention (`feature/TXX-description`)
+  - Commit format (conventional commits: feat/fix/docs/test/chore)
+  - PR checklist: tests passing, lint clean, openapi regenerated, screenshots updated if UI changed
+  - Issue templates and reviewer workflow
+  - How to regenerate `openapi.json` and `generated.ts`
+- [ ] T503.8 — Refine the generated documentation
+- [ ] T503.9 — A reviewer will generate `docs/issues/issues-T503.md` with detected problems; resolve them before terminating this block
+
+---
+
+### T504 — API Reference (`docs/api-reference/`)
+> Auto-generated from OpenAPI spec (T168) + hand-written context sections.
+- [ ] T504.1 — `docs/api-reference/index.md` — overview: base URL, auth header format, error envelope schema, pagination
+- [ ] T504.2 — **Mermaid diagram: API Resource Map** — all endpoints grouped by resource with HTTP methods
+- [ ] T504.3 — `docs/api-reference/auth.md` — login, refresh, logout, register, /me — request/response examples with curl
+- [ ] T504.4 — `docs/api-reference/courses.md` — CRUD + slide atomic endpoints — full request/response JSON examples
+- [ ] T504.5 — `docs/api-reference/assets.md` — upload, pre-signed URL fetch — multipart example + response shape
+- [ ] T504.6 — `docs/api-reference/export.md` — SCORM 1.2, SCORM 2004, AICC export endpoints — response format, error cases
+- [ ] T504.7 — `docs/api-reference/history.md` — course history list + restore endpoint
+- [ ] T504.8 — `docs/api-reference/telemetry.md` — client error reporting endpoint
+- [ ] T504.9 — Add link to live Swagger UI (`http://localhost:3001/docs`) in index.md
+- [ ] T504.10 — Refine the generated documentation
+- [ ] T504.11 — A reviewer will generate `docs/issues/issues-T504.md` with detected problems; resolve them before terminating this block
+
+---
+
+### T505 — SCORM & LMS Integration Guide (`docs/scorm-guide/`)
+- [ ] T505.1 — `docs/scorm-guide/index.md` — overview: what SCORM is, which version to choose
+- [ ] T505.2 — **Mermaid diagram: SCORM 1.2 Communication Flow** — LMSInitialize → GetValue → SetValue → LMSFinish with data fields
+- [ ] T505.3 — **Mermaid diagram: SCORM 2004 Sequencing Flow** — cmi.completion_status + cmi.success_status lifecycle
+- [ ] T505.4 — `docs/scorm-guide/scorm12.md` — SCORM 1.2 export, Moodle import walkthrough with screenshots (T500.17, T500.18)
+- [ ] T505.5 — `docs/scorm-guide/scorm2004.md` — SCORM 2004 export + sequencing rules
+- [ ] T505.6 — `docs/scorm-guide/aicc.md` — AICC export, 4-file format explained, Moodle import
+- [ ] T505.7 — `docs/scorm-guide/compatibility.md` — full compatibility matrix: LMS × SCORM version × feature (completion, score, suspend, resume)
+- [ ] T505.8 — `docs/scorm-guide/troubleshooting.md` — common LMS integration issues and fixes
+- [ ] T505.9 — Refine the generated documentation
+- [ ] T505.10 — A reviewer will generate `docs/issues/issues-T505.md` with detected problems; resolve them before terminating this block
+
+---
+
+### T506 — Docs Site Index & Final Assembly
+- [ ] T506.1 — `docs/index.md` — documentation home page: links to all guides with one-paragraph description each
+- [ ] T506.2 — `docs/CHANGELOG.md` — full changelog: one entry per phase with key features delivered (Phase 0 → Phase 5)
+- [ ] T506.3 — Update root `README.md` links to point to correct docs pages (verify all links resolve)
+- [ ] T506.4 — Verify all Mermaid diagrams render correctly in GitHub (push to a branch, inspect rendered markdown)
+- [ ] T506.5 — Verify all screenshot paths resolve in GitHub (`docs/assets/screenshots/*.png` committed and referenced correctly)
+- [ ] T506.6 — `docs/glossary.md` — key terms: SCORM, AICC, xAPI, LMS, Widget, ActionSequence, SimStep, PhaserScene, Garage, Runtime Player
+- [ ] T506.7 — Add documentation badge to README: `[![Documentation](https://img.shields.io/badge/docs-elearn--studio-blue)](docs/index.md)`
+- [ ] T506.8 — Refine the generated documentation
+- [ ] T506.9 — A reviewer will generate `docs/issues/issues-T506.md` with detected problems; resolve them before terminating this block
+
+---
+
+### Phase 5 — Closing Tasks
+- [ ] T500.TEST — Verify screenshot automation: `pnpm run capture` completes without errors; all 20 screenshots generated at correct paths; no placeholder/blank screenshots; screenshots reflect real application state (not loading states)
+- [ ] T500.DOCS — Final documentation review pass: all internal links resolve; all Mermaid diagrams render in GitHub preview; all screenshots load; README Quick Start tested on a clean machine (no prior setup); CHANGELOG complete from Phase 0 to Phase 5
 
 ---
 
