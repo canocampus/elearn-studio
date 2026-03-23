@@ -1,0 +1,41 @@
+# Prometheus configuration for eLearn Studio (dev)
+#
+# Scrape targets:
+#   - cadvisor:8080         — per-container CPU / memory / network metrics
+#   - docker-exporter:9417  — Docker daemon and image metrics
+#   - otel-collector:8889   — app metrics forwarded by OTel Collector
+
+global:
+  scrape_interval:     30s
+  evaluation_interval: 15s
+  scrape_timeout:      20s
+
+  external_labels:
+    project: elearn-studio
+    env: dev
+
+scrape_configs:
+  # Container-level metrics from cAdvisor
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    metric_relabel_configs:
+      # Drop per-CPU metrics — too high cardinality for dev
+      - source_labels: [cpu]
+        regex: ".+"
+        action: drop
+
+  # Docker daemon metrics (image counts, container counts, etc.)
+  - job_name: docker-exporter
+    static_configs:
+      - targets: ["docker-exporter:9417"]
+
+  # Application metrics exported by the OTel Collector's Prometheus exporter
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8889"]
+    metric_relabel_configs:
+      # Drop OTel Collector internal health/build metrics — low signal in dev
+      - source_labels: [__name__]
+        regex: "otelcol_build_info|otelcol_process_uptime_seconds.*"
+        action: drop

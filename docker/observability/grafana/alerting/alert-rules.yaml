@@ -1,0 +1,241 @@
+# Grafana alert rules provisioning for eLearn Studio (dev)
+# Loaded automatically on Grafana startup.
+#
+# Alerts:
+#   1. API error rate > 5% for 5 minutes
+#   2. Container memory usage > 80% for 5 minutes
+#   3. MongoDB container not seen for 1 minute
+#   4. elearn-api container not seen for 1 minute
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: elearn-studio
+    folder: eLearn Alerts
+    interval: 1m
+    rules:
+      # ── Alert 1: High API error rate ────────────────────────────────────────
+      - uid: elearn-api-high-error-rate
+        title: High API Error Rate (> 5%)
+        condition: threshold
+        data:
+          - refId: error_rate
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >-
+                (
+                  sum(rate(elearn_http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+                  /
+                  sum(rate(elearn_http_server_request_duration_seconds_count[5m]))
+                ) * 100
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: error_rate
+          - refId: threshold
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [error_rate]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: error_rate
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: threshold
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          description: "The elearn-api 5xx error rate has exceeded 5% for 5 consecutive minutes. Check logs in Loki for root cause."
+          summary: "eLearn API error rate > 5%"
+        labels:
+          severity: warning
+        isPaused: false
+
+      # ── Alert 2: Container memory > 80% ─────────────────────────────────────
+      - uid: elearn-container-high-memory
+        title: Container Memory Usage > 80%
+        condition: threshold
+        data:
+          - refId: mem_pct
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >-
+                max by (name) (
+                  container_memory_working_set_bytes{name!="",name!~".*_exporter.*|cadvisor|promtail|grafana"}
+                  / container_spec_memory_limit_bytes{name!="",name!~".*_exporter.*|cadvisor|promtail|grafana"}
+                ) > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: mem_pct
+          - refId: threshold
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.8]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [mem_pct]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: mem_pct
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: threshold
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          description: "A container is using more than 80% of its memory limit. This may cause OOM kills."
+          summary: "Container memory usage > 80%"
+        labels:
+          severity: warning
+        isPaused: false
+
+      # ── Alert 3: MongoDB container down ─────────────────────────────────────
+      - uid: elearn-mongo-down
+        title: MongoDB Container Down
+        condition: threshold
+        data:
+          - refId: mongo_seen
+            queryType: ""
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: absent(container_last_seen{name=~".*mongo.*"})
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: mongo_seen
+          - refId: threshold
+            queryType: ""
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [mongo_seen]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: mongo_seen
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: threshold
+              type: classic_conditions
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          description: "The MongoDB container has not been seen by cAdvisor for more than 1 minute. The API will be unable to serve requests."
+          summary: "MongoDB container is down"
+        labels:
+          severity: critical
+        isPaused: false
+
+      # ── Alert 4: elearn-api container down ──────────────────────────────────
+      - uid: elearn-api-down
+        title: eLearn API Container Down
+        condition: threshold
+        data:
+          - refId: api_seen
+            queryType: ""
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: absent(container_last_seen{name=~".*elearn.*api.*"})
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: api_seen
+          - refId: threshold
+            queryType: ""
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [api_seen]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: api_seen
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: threshold
+              type: classic_conditions
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          description: "The elearn-api container has not been seen by cAdvisor for more than 1 minute. Authoring UI requests will fail."
+          summary: "eLearn API container is down"
+        labels:
+          severity: critical
+        isPaused: false

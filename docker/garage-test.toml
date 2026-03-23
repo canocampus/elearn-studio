@@ -1,0 +1,26 @@
+# Garage S3-compatible object storage — E2E test configuration
+# Uses a known, fixed admin token so CI can configure buckets without secrets.
+# This config is ONLY used by docker-compose.test.yml — never for production.
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+db_engine    = "lmdb"
+
+# Single-node: no replication
+replication_factor = 1
+
+rpc_bind_addr   = "[::]:3901"
+rpc_public_addr = "garage:3901"
+
+# Fixed RPC secret for test environment
+rpc_secret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+[s3_api]
+s3_region    = "garage"
+api_bind_addr = "[::]:3900"
+root_domain  = ""
+
+[admin]
+api_bind_addr = "0.0.0.0:3903"
+# Fixed admin token for test environment — not used in production
+admin_token = "garage-admin-test"

@@ -1,0 +1,40 @@
+# Grafana Tempo configuration for eLearn Studio (dev)
+#
+# Receives traces from OTel Collector via OTLP.
+# Uses local filesystem storage (dev only — not suitable for production).
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    # Tempo receives traces exclusively from otel-collector via OTLP HTTP.
+    # The app sends to otel-collector:4318; the collector forwards here via otlphttp/tempo.
+    # Only HTTP is enabled — the collector uses otlphttp (not grpc) to forward traces.
+    # This port is internal to Docker and NOT exposed to the host.
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 24h       # Keep 24 h of traces in dev
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+
+query_frontend:
+  search:
+    duration_slo: 5s
+    throughput_bytes_slo: 1.073741824e+09
+  trace_by_id:
+    duration_slo: 5s

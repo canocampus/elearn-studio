@@ -1,0 +1,28 @@
+# Garage S3-compatible object storage — single-node dev/production configuration
+# Documentation: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+# This file is a template. Do NOT use directly — it is rendered by the garage-config
+# init service via envsubst into /etc/garage/garage.toml at container startup.
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+db_engine    = "lmdb"
+
+# Single-node: no replication
+replication_factor = 1
+
+rpc_bind_addr   = "[::]:3901"
+rpc_public_addr = "garage:3901"
+
+# RPC secret — MUST be a 64-char hex string.
+# Generate with: openssl rand -hex 32
+rpc_secret = "${GARAGE_RPC_SECRET}"
+
+[s3_api]
+s3_region    = "garage"
+api_bind_addr = "[::]:3900"
+root_domain  = ""
+
+[admin]
+api_bind_addr = "0.0.0.0:3903"
+# admin_token required — Garage v1.0.0 disables the admin API entirely without it.
+admin_token = "${GARAGE_ADMIN_TOKEN}"

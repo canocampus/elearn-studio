@@ -1,0 +1,61 @@
+# E2E test infrastructure — minimal services for Playwright tests
+# Usage: docker compose -f docker/docker-compose.test.yml up -d
+#
+# Differences from docker-compose.dev.yml:
+#  - No observability stack (Grafana, Loki, Prometheus, Tempo) — not needed for E2E
+#  - Uses garage-test.toml with a known, fixed admin token
+#  - Separate volumes to avoid conflicts with dev data
+#  - Test bucket: elearn-assets-test
+
+services:
+  mongo-test:
+    image: mongo:7
+    ports:
+      - "27018:27017"   # Different port to avoid conflict with dev MongoDB
+    volumes:
+      - mongo_test_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  garage-test:
+    image: dxflrs/garage:v1.0.0
+    volumes:
+      - ./garage-test.toml:/etc/garage.toml:ro
+      - garage_test_meta:/var/lib/garage/meta
+      - garage_test_data:/var/lib/garage/data
+    ports:
+      - "3910:3900"   # S3 API — different port from dev
+      - "3913:3903"   # Admin API — different port from dev
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage.toml
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  garage-test-init:
+    image: alpine:3.19
+    volumes:
+      - ./garage-init.sh:/init/garage-init.sh:ro
+    command: ["sh", "/init/garage-init.sh"]
+    environment:
+      GARAGE_ADMIN_URL: http://garage-test:3903
+      GARAGE_ADMIN_TOKEN: garage-admin-test
+      GARAGE_BUCKET: elearn-assets-test
+      GARAGE_ACCESS_KEY: GKtestkey0000000000000000001
+      GARAGE_SECRET_KEY: 0000000000000000000000000000000000000000000000000000000000000002
+    depends_on:
+      garage-test:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  mongo_test_data:
+  garage_test_meta:
+  garage_test_data:

@@ -1,0 +1,177 @@
+# Development infrastructure — MongoDB, Garage, and full observability stack
+# Run app services locally: pnpm dev
+# Usage: docker compose -f docker/docker-compose.dev.yml up -d
+
+services:
+  # ── Core data services ────────────────────────────────────────────────────
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_dev_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  garage:
+    image: dxflrs/garage:v1.0.0
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - garage_dev_meta:/var/lib/garage/meta
+      - garage_dev_data:/var/lib/garage/data
+    ports:
+      - "3900:3900"   # S3 API
+      - "3903:3903"   # Admin API
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage.toml
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  garage-init:
+    image: alpine:3.19
+    volumes:
+      - ./garage-init.sh:/init/garage-init.sh:ro
+    command: ["sh", "/init/garage-init.sh"]
+    environment:
+      GARAGE_ADMIN_URL: http://garage:3903
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-garage-admin-dev}
+      GARAGE_BUCKET: elearn-assets
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-GK000000000000000000000001}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-0000000000000000000000000000000000000000000000000000000000000001}
+    depends_on:
+      garage:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Observability stack ───────────────────────────────────────────────────
+
+  # Grafana — dashboards, alerts, and unified view of all telemetry
+  # http://localhost:3001 (admin / see GRAFANA_ADMIN_PASSWORD in .env)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme}
+      GF_SECURITY_ADMIN_USER: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+    volumes:
+      - grafana_dev_data:/var/lib/grafana
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/alerting:/etc/grafana/provisioning/alerting:ro
+    depends_on:
+      - loki
+      - prometheus
+      - tempo
+
+  # Loki — log aggregation backend
+  # Uses Loki's built-in local-config.yaml (filesystem + BoltDB storage).
+  # Logs survive container restarts (persisted in loki_dev_data volume).
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_dev_data:/loki
+
+  # Promtail — log collector; scrapes container stdout/stderr via Docker socket
+  # Linux / Docker Desktop (WSL2): works as-is.
+  # macOS (Docker Desktop): works as-is — Docker Desktop maps the socket correctly.
+  # Windows (Docker Desktop without WSL2): /var/run/docker.sock and
+  #   /var/lib/docker/containers are not available from the Windows host.
+  #   Promtail will start but not collect logs. Enable WSL2 backend in Docker Desktop
+  #   settings, or run the full stack inside WSL2 to resolve this.
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./observability/promtail-config.yaml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
+  # Prometheus — metrics storage and alert evaluation
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_dev_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - cadvisor
+      - docker-exporter
+      - otel-collector
+
+  # OpenTelemetry Collector — receives OTLP from API; routes traces to Tempo, metrics to Prometheus
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4317:4317"   # gRPC OTLP receiver
+      - "4318:4318"   # HTTP OTLP receiver
+      - "8889:8889"   # Prometheus metrics exporter (scraped by Prometheus)
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      - tempo
+
+  # Tempo — distributed tracing backend
+  tempo:
+    image: grafana/tempo:latest
+    ports:
+      - "3200:3200"   # Tempo HTTP API (queried by Grafana)
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_dev_data:/var/tempo
+
+  # cAdvisor — per-container CPU / memory / network metrics
+  # Port 8082 to avoid conflict with Moodle on 8081; internal container port is 8080
+  # Linux / Docker Desktop (WSL2): works as-is.
+  # Windows (Docker Desktop without WSL2): Linux host paths (/, /sys, /var/lib/docker)
+  #   are not available. cAdvisor will start but emit no container metrics.
+  #   Enable WSL2 backend in Docker Desktop settings to resolve this.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    ports:
+      - "8082:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    privileged: true
+
+  # docker-exporter — Docker daemon metrics (image counts, container states)
+  docker-exporter:
+    image: prometheusnet/docker_exporter:latest
+    ports:
+      - "9417:9417"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  mongo_dev_data:
+  garage_dev_meta:
+  garage_dev_data:
+  grafana_dev_data:
+  loki_dev_data:
+  prometheus_dev_data:
+  tempo_dev_data:

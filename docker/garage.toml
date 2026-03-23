@@ -1,0 +1,30 @@
+# Garage S3-compatible object storage — single-node dev/production configuration
+# Documentation: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+db_engine    = "lmdb"
+
+# Single-node: no replication
+replication_factor = 1
+
+rpc_bind_addr   = "[::]:3901"
+rpc_public_addr = "garage:3901"
+
+# RPC secret — MUST be a 64-char hex string.
+# Generate with: openssl rand -hex 32
+# NOTE: This file is NOT used by docker compose. Use garage.toml.tmpl instead.
+# docker compose runs the garage-config service which renders garage.toml.tmpl
+# using envsubst and writes the result to the garage_config named volume.
+rpc_secret = "29e998bff705b8ae7ec38d8bf1c0ceb68e446fc1159ed6903157bbf14322e248"
+
+[s3_api]
+s3_region    = "garage"
+api_bind_addr = "[::]:3900"
+root_domain  = ""
+
+[admin]
+api_bind_addr = "0.0.0.0:3903"
+# admin_token required — Garage v1.0.0 disables the admin API entirely without it.
+# NOTE: Set via GARAGE_ADMIN_TOKEN env var in docker/.env (see .env.example).
+admin_token = "REPLACE_ME"

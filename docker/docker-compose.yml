@@ -1,0 +1,174 @@
+services:
+  api:
+    build:
+      # R-10: root context provides pnpm-lock.yaml for reproducible frozen installs
+      context: ..
+      dockerfile: backend/api/Dockerfile
+    ports:
+      - "3011:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - MONGO_URI=mongodb://mongo:27017/elearn
+      - GARAGE_ENDPOINT=garage
+      - GARAGE_PORT=3900
+      - GARAGE_REGION=garage
+      - GARAGE_USE_SSL=false
+      - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY:-GK000000000000000000000001}
+      - GARAGE_SECRET_KEY=${GARAGE_SECRET_KEY:-0000000000000000000000000000000000000000000000000000000000000001}
+      - GARAGE_BUCKET=elearn-assets
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      garage:
+        condition: service_healthy
+      garage-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  authoring-ui:
+    build:
+      context: ../packages/authoring-ui
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy   # M-09 fix: wait for api to be healthy
+    # Startup sequence: mongo (~10s) → garage (~15s) → garage-init (~10s) → api (~40s) ≈ 75s total
+    # Wait for http://localhost:3000 until the api health check passes.
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    # M-06 fix: no ports exposed in production — accessible only within Docker network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Renders garage.toml.tmpl → /etc/garage/garage.toml using envsubst.
+  # Must complete before the garage service starts.
+  garage-config:
+    image: alpine:3.19
+    volumes:
+      - ./garage.toml.tmpl:/tmpl/garage.toml.tmpl:ro
+      - garage_config:/etc/garage
+    command: >
+      sh -c "apk add --no-cache gettext-envsubst &&
+             envsubst < /tmpl/garage.toml.tmpl > /etc/garage/garage.toml"
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?GARAGE_RPC_SECRET is required — generate with: openssl rand -hex 32}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?GARAGE_ADMIN_TOKEN is required}
+    restart: "no"
+
+  garage:
+    image: dxflrs/garage:v1.0.0
+    volumes:
+      - garage_config:/etc/garage:ro
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+    ports:
+      - "3900:3900"   # S3 API
+      - "127.0.0.1:3903:3903"   # Admin API — bound to loopback only
+    environment:
+      GARAGE_CONFIG_FILE: /etc/garage/garage.toml
+    depends_on:
+      garage-config:
+        condition: service_completed_successfully
+    healthcheck:
+      # Garage image has no shell or wget — use the garage binary directly
+      test: ["CMD", "/garage", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  garage-init:
+    image: alpine:3.19
+    volumes:
+      - ./garage-init.sh:/init/garage-init.sh:ro
+    command: ["sh", "/init/garage-init.sh"]
+    environment:
+      GARAGE_ADMIN_URL: http://garage:3903
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-garage-admin-dev}
+      GARAGE_BUCKET: elearn-assets
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY:-GK000000000000000000000001}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY:-0000000000000000000000000000000000000000000000000000000000000001}
+    depends_on:
+      garage:
+        condition: service_healthy
+    restart: "no"
+
+  # Moodle SCORM testing — start with: docker compose --profile moodle up -d
+  # Uses official Bitnami Moodle image. First run installs DB (~5 min).
+  # Access at http://localhost:8081
+  moodle:
+    image: bitnamilegacy/moodle
+    profiles: [moodle]
+    ports:
+      - "8081:8080"
+    environment:
+      - MOODLE_DATABASE_HOST=moodle-db
+      - MOODLE_DATABASE_PORT_NUMBER=3306
+      - MOODLE_DATABASE_NAME=moodle
+      - MOODLE_DATABASE_USER=moodle
+      - MOODLE_DATABASE_PASSWORD=${MOODLE_DB_PASSWORD:-moodle_pass}
+      - MOODLE_USERNAME=${MOODLE_ADMIN_USER:-admin}
+      - MOODLE_PASSWORD=${MOODLE_ADMIN_PASSWORD:-Admin1234!}
+      - MOODLE_SITE_NAME=eLearn Studio Test LMS
+      - MOODLE_EMAIL=admin@elearn.local
+      - ALLOW_EMPTY_PASSWORD=no
+      - BITNAMI_DEBUG=true
+    depends_on:
+      moodle-db:
+        condition: service_healthy
+    volumes:
+      - moodle_data:/bitnami/moodle
+      - moodle_moodledata:/bitnami/moodledata
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/login/index.php | grep -q 'login' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s  # first-run DB installation takes ~5 minutes
+    restart: unless-stopped
+
+  moodle-db:
+    image: mariadb:11
+    profiles: [moodle]
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: moodle
+      MYSQL_USER: moodle
+      MYSQL_PASSWORD: ${MOODLE_DB_PASSWORD:-moodle_pass}
+      MYSQL_ROOT_PASSWORD: ${MOODLE_DB_PASSWORD:-moodle_pass}
+    volumes:
+      - moodle_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  garage_config:
+  garage_meta:
+  garage_data:
+  moodle_data:
+  moodle_moodledata:
+  moodle_db_data:

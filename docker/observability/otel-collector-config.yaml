@@ -1,0 +1,57 @@
+# OpenTelemetry Collector configuration for eLearn Studio (dev)
+#
+# Data flow:
+#   elearn-api (OTLP HTTP :4318) → receivers → processors → exporters
+#   Traces  → otlphttp/tempo   (Tempo receives on its own :4318)
+#   Metrics → prometheus       (scrape endpoint :8889)
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Batch reduces the number of outgoing connections and data volume
+  batch:
+    send_batch_size: 1024
+    timeout: 5s
+
+  # Drop health-check spans to keep Tempo storage clean
+  filter/drop_health:
+    error_mode: ignore
+    traces:
+      span:
+        - 'attributes["http.route"] == "/health"'
+
+exporters:
+  # Forward traces to Tempo over OTLP HTTP
+  otlphttp/tempo:
+    endpoint: http://tempo:4318
+    tls:
+      insecure: true
+
+  # Expose app metrics on :8889 for Prometheus to scrape
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: elearn
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Debug exporter — uncomment to log span titles to otel-collector stdout (verbose, dev-only)
+  # debug:
+  #   verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, filter/drop_health]
+      exporters: [otlphttp/tempo]
+
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
