@@ -20,6 +20,13 @@ export class PhaserSimWidget {
   private tracker: ScoreTracker | null = null
   private controller: ModeController | null = null
 
+  /**
+   * Mount a Phaser simulation into the given container element.
+   *
+   * @param container - Host DOM element; Phaser creates a canvas inside it.
+   * @param config    - Simulation configuration (type, mode, scene definition).
+   * @returns Promise that resolves when the game is initialised.
+   */
   async mount(container: HTMLElement, config: PhaserSimConfig): Promise<void> {
     if (this.game) {
       this.destroy()
@@ -34,23 +41,34 @@ export class PhaserSimWidget {
 
     const scene = await this.buildScene(Phaser, config)
 
-    this.game = new Phaser.Game({
-      parent: container,
-      width: config.width ?? 800,
-      height: config.height ?? 500,
-      backgroundColor: '#1a1a2e',
-      scene,
-      physics: { default: 'arcade' },
-      // Disable the Phaser banner in the console
-      banner: false,
-    })
+    try {
+      this.game = new Phaser.Game({
+        parent: container,
+        width: config.width ?? 800,
+        height: config.height ?? 500,
+        backgroundColor: '#1a1a2e',
+        scene,
+        physics: { default: 'arcade' },
+        // Disable the Phaser banner in the console
+        banner: false,
+      })
+    } catch (err) {
+      console.error('[PhaserSimWidget] Phaser.Game constructor failed:', err)
+      container.innerHTML = '<p style="color:red;padding:12px;">Simulation failed to initialize.</p>'
+      return
+    }
 
-    // Forward the sim-complete event to SCORM via ScoreTracker
+    // Forward the sim-complete event to SCORM via ScoreTracker.
+    // Safety: tracker is guaranteed set above; game events fire after mount() completes.
     this.game.events.on('sim-complete', () => {
       this.tracker?.complete()
     })
   }
 
+  /**
+   * Destroy the Phaser game instance and release all resources.
+   * Safe to call multiple times.
+   */
   destroy(): void {
     if (this.game) {
       this.game.destroy(true)
@@ -60,12 +78,22 @@ export class PhaserSimWidget {
     this.controller = null
   }
 
-  /** Exposed for testing and authoring preview. */
+  /**
+   * Returns the ScoreTracker for this simulation.
+   * Null before mount() or after destroy().
+   *
+   * @returns Active ScoreTracker, or null if not mounted.
+   */
   getTracker(): ScoreTracker | null {
     return this.tracker
   }
 
-  /** Exposed for testing and scene use. */
+  /**
+   * Returns the ModeController for this simulation.
+   * Null before mount() or after destroy().
+   *
+   * @returns Active ModeController, or null if not mounted.
+   */
   getController(): ModeController | null {
     return this.controller
   }
@@ -80,18 +108,24 @@ export class PhaserSimWidget {
       case 'process-flow': {
         const { ProcessFlowScene } = await import('./scenes/ProcessFlowScene')
         if (!this.tracker || !this.controller) throw new Error('PhaserSimWidget: tracker/controller not initialised')
+        // Safety: scene instances satisfy Phaser.Scene at runtime; typed as unknown first
+        // because TypeScript cannot verify structural compatibility without the full Phaser types.
         return new ProcessFlowScene(sceneDef, this.tracker, this.controller) as unknown as typeof Phaser.Scene
       }
       case 'interactive-diagram': {
         const { InteractiveDiagramScene } = await import('./scenes/InteractiveDiagramScene')
         if (!this.tracker || !this.controller) throw new Error('PhaserSimWidget: tracker/controller not initialised')
+        // Safety: same structural cast as process-flow above.
         return new InteractiveDiagramScene(sceneDef, this.tracker, this.controller) as unknown as typeof Phaser.Scene
       }
       case 'gamified-quiz': {
         const { GamifiedQuizScene } = await import('./scenes/GamifiedQuizScene')
         if (!this.tracker || !this.controller) throw new Error('PhaserSimWidget: tracker/controller not initialised')
+        // Safety: same structural cast as process-flow above.
         return new GamifiedQuizScene(sceneDef, this.tracker, this.controller) as unknown as typeof Phaser.Scene
       }
+      // TODO: T033 — physics-demo scene builder
+      // TODO: T034 — concept-animator scene builder
       default: {
         throw new Error(`Unknown simType: ${(sceneDef as { simType: string }).simType}`)
       }

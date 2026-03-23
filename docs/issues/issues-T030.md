@@ -128,23 +128,27 @@ export interface ConceptAnimatorSceneDef {
 
 ### M-01: Non-Null Propagation Without Comments
 
-**File**: `packages/phaser-simulations/src/PhaserSimWidget.ts`  
+**File**: `packages/phaser-simulations/src/PhaserSimWidget.ts`
 **Lines**: 82, 86, 90
 
 **Issue**: Non-null assertions lack explanation (M-02 below covers type casts).
 
-**Fix**: Add comment: "Safety: tracker and controller guaranteed set by mount()."
+**Fix applied**: Added "Safety: tracker is guaranteed set above; game events fire after mount() completes." comment above the `sim-complete` listener.
+
+**Status**: ✅ Closed
 
 ---
 
 ### M-02: Missing Scene Type Cases
 
-**File**: `packages/phaser-simulations/src/PhaserSimWidget.ts`  
+**File**: `packages/phaser-simulations/src/PhaserSimWidget.ts`
 **Lines**: 79–95
 
 **Issue**: buildScene() handles 3/5 SimTypes; no TODO for T033/T034.
 
-**Fix**: Add TODO comments.
+**Fix applied**: Added `// TODO: T033 — physics-demo scene builder` and `// TODO: T034 — concept-animator scene builder` stubs in the `buildScene()` switch.
+
+**Status**: ✅ Closed
 
 ---
 
@@ -156,14 +160,20 @@ export interface ConceptAnimatorSceneDef {
 
 **Why Medium**: Critical paths untested.
 
+**Status**: ⚠ Open — deferred to T036 when real scene builders are integrated.
+
 ---
 
 ### M-04: Type Cast Workaround
 
-**File**: `packages/phaser-simulations/src/PhaserSimWidget.ts`  
+**File**: `packages/phaser-simulations/src/PhaserSimWidget.ts`
 **Lines**: 76, 82
 
 **Issue**: `as unknown as typeof Phaser.Scene` suggests type architecture strain.
+
+**Fix applied**: Added "Safety: scene instances satisfy Phaser.Scene at runtime; typed as unknown first because TypeScript cannot verify structural compatibility without the full Phaser types." comment on each cast.
+
+**Status**: ✅ Closed
 
 ---
 
@@ -172,8 +182,16 @@ export interface ConceptAnimatorSceneDef {
 ### L-01: Missing Error Handling in mount()
 - No try/catch around Phaser.Game init (low risk but should add)
 
+**Fix applied**: Wrapped `new Phaser.Game(...)` in a try/catch; on failure logs to console and injects a red error paragraph into `container`.
+
+**Status**: ✅ Closed
+
 ### L-02: Missing JSDoc
 - Public methods lack @param/@return documentation
+
+**Fix applied**: Added `@param`/`@returns` JSDoc to `mount()`, `destroy()`, `getTracker()`, and `getController()`.
+
+**Status**: ✅ Closed
 
 ### L-03: Magic Numbers
 - ModeController line 63: divisor 2 lacks explanation
@@ -185,6 +203,10 @@ explaining the exponential decay formula.
 
 ### L-04: Dead Code
 - ProcessFlowScene.test.ts mocks (lines 14–50) unused; expected for T031
+
+**Fix applied**: Removed dead `mockEmit`, `mockOn`, `mockGameEvents`, `mockText`, `mockCircle`, `mockLine`, `mockGraphics`, and `MockScene` declarations from `ProcessFlowScene.test.ts` (lines 13–50). Tests target only `ProcessFlowLogic` and require no Phaser mocks.
+
+**Status**: ✅ Closed
 
 ---
 
@@ -201,10 +223,10 @@ explaining the exponential decay formula.
 |----------|-------|-----------|
 | CRITICAL | 2     | ✅ Closed |
 | HIGH     | 3     | ✅ Closed |
-| MEDIUM   | 4     | ⚠ Open    |
-| LOW      | 4     | 1 ✅ Closed / 3 ⚠ Open |
+| MEDIUM   | 4     | 3 ✅ Closed / 1 ⚠ Open |
+| LOW      | 4     | ✅ All Closed |
 
-**Verdict**: ✅ PASS (CRITICALs and HIGHs resolved)
+**Verdict**: ✅ PASS (all CRITICAL/HIGH closed; M-03 deferred to T036)
 
 **Fixes applied**:
 1. [C-01] ✅ ProcessFlowLogic created — test file now passes (T031 delivered in same session)
@@ -212,3 +234,10 @@ explaining the exponential decay formula.
 3. [H-01] ✅ `if (max === 0) return 0` guard in `getPercentage()`
 4. [H-02] ✅ ScoreTracker tests refactored with `beforeEach`/`afterEach` listener lifecycle
 5. [H-03] ✅ `PhysicsDemoSceneDef` and `ConceptAnimatorSceneDef` stubs added to types.ts + exported from index.ts
+6. [M-01] ✅ "Safety: ..." comment added above `sim-complete` listener
+7. [M-02] ✅ `// TODO: T033` and `// TODO: T034` stubs added to `buildScene()` switch
+8. [M-04] ✅ Explanatory comment added on each `as unknown as typeof Phaser.Scene` cast
+9. [L-01] ✅ try/catch added around `new Phaser.Game(...)` with error injection into container
+10. [L-02] ✅ JSDoc `@param`/`@returns` added to `mount()`, `destroy()`, `getTracker()`, `getController()`
+11. [L-03] ✅ `RETRY_DECAY_BASE = 2` extracted as named constant with JSDoc
+12. [L-04] ✅ Dead mock declarations removed from `ProcessFlowScene.test.ts`

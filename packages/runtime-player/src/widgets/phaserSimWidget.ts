@@ -62,15 +62,22 @@ export async function mountPhaserSim(
 
   const sceneConfig = buildSceneConfig(config)
 
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    parent: container,
-    width: config.width,
-    height: config.height,
-    backgroundColor: '#1a1a2e',
-    scene: sceneConfig,
-    scale: { mode: 0 /* NONE */ },
-  })
+  let game: PhaserGame
+  try {
+    game = new Phaser.Game({
+      type: Phaser.AUTO,
+      parent: container,
+      width: config.width,
+      height: config.height,
+      backgroundColor: '#1a1a2e',
+      scene: sceneConfig,
+      scale: { mode: 0 /* NONE */ },
+    })
+  } catch (err) {
+    console.error('[PhaserSimWidget] Phaser.Game constructor failed:', err)
+    container.innerHTML = '<p style="color:red;padding:12px;">Simulation failed to initialize.</p>'
+    return () => { /* nothing to clean up */ }
+  }
 
   // Bridge: Phaser sim fires 'sim-complete' with a 0-100 score value.
   // Dispatch as a DOM CustomEvent so the player's SCORM bridge can catch it.

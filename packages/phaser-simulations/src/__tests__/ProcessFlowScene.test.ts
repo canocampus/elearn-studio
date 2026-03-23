@@ -11,45 +11,6 @@ import { ScoreTracker } from '../ScoreTracker'
 import { ModeController } from '../ModeController'
 
 // ---------------------------------------------------------------------------
-// Minimal Phaser mocks — only what ProcessFlowScene actually calls
-// ---------------------------------------------------------------------------
-
-const mockEmit = vi.fn()
-const mockOn = vi.fn()
-const mockGameEvents = { emit: mockEmit, on: mockOn }
-
-const mockText = { setText: vi.fn(), setStyle: vi.fn(), destroy: vi.fn() }
-const mockCircle = {
-  setInteractive: vi.fn().mockReturnThis(),
-  on: vi.fn().mockReturnThis(),
-  setFillStyle: vi.fn().mockReturnThis(),
-  setStrokeStyle: vi.fn().mockReturnThis(),
-  x: 0, y: 0,
-}
-const mockLine = { setLineWidth: vi.fn(), destroy: vi.fn() }
-
-const mockGraphics = {
-  lineStyle: vi.fn().mockReturnThis(),
-  lineBetween: vi.fn().mockReturnThis(),
-  strokePath: vi.fn().mockReturnThis(),
-  clear: vi.fn().mockReturnThis(),
-  destroy: vi.fn(),
-}
-
-// Phaser.Scene base — ProcessFlowScene extends this
-class MockScene {
-  events = { emit: vi.fn(), on: vi.fn() }
-  game = { events: mockGameEvents }
-  add = {
-    graphics: vi.fn(() => mockGraphics),
-    circle: vi.fn(() => ({ ...mockCircle })),
-    text: vi.fn(() => ({ ...mockText })),
-  }
-  // init / create / update hooks called by Phaser lifecycle
-  // We invoke them manually in tests
-}
-
-// ---------------------------------------------------------------------------
 // Import ProcessFlowScene after mocks are in place
 // Note: vitest hoists vi.mock() calls, but since ProcessFlowScene imports
 // 'phaser' dynamically (not at module top-level), we test by instantiation.

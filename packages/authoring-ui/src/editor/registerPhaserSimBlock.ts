@@ -39,6 +39,11 @@ const PLACEHOLDER_HTML = `
   </div>
 `
 
+/**
+ * Register the Phaser Simulation GrapesJS block and component type.
+ *
+ * @param editor - The GrapesJS Editor instance to register into.
+ */
 export function registerPhaserSimBlock(editor: Editor): void {
   editor.Components.addType('phaser-sim', {
     model: {

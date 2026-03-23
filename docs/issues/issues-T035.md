@@ -61,17 +61,17 @@ score: Math.min(1, Math.max(0, rawScore))
 
 ### M-03: `mountPhaserSim` Promise Rejection Not Surfaced to User
 
-**File**: `packages/runtime-player/src/index.ts`
-**Line**: `mountPhaserSim(el, phaserConfig).then(...).catch(err => { console.error(...) })`
+**File**: `packages/runtime-player/src/widgets/phaserSimWidget.ts`
+**Line**: after bundle load, `new Phaser.Game(...)` call
 
 **Issue**: If `mountPhaserSim` rejects (bundle load failure or Phaser.Game constructor throw),
 the error is logged to console but the learner sees a blank widget with no explanation.
 
-**Recommendation**: On rejection, inject an error message into `el` similar to the bundle-not-found
-path inside `mountPhaserSim` itself.
+**Fix applied**: Wrapped `new Phaser.Game(...)` in a try/catch; on failure logs to console
+and injects `<p style="color:red;...">Simulation failed to initialize.</p>` into `container`,
+matching the bundle-not-found error display pattern already in place.
 
-**Status**: ⚠ Open — `mountPhaserSim` already handles the bundle failure case internally; outer
-rejection is an edge case (Phaser constructor crash).
+**Status**: ✅ Closed
 
 ---
 
@@ -80,10 +80,13 @@ rejection is an edge case (Phaser constructor crash).
 **File**: `packages/scorm-packager/src/__tests__/courseHasPhaserSim.test.ts`
 
 **Issue**: Test suite covers second-slide detection but does not test a course where _every_
-slide has multiple widgets (stress test for `some`/`some` short-circuit). Low risk given the
-implementation is a simple double-`some`, but coverage depth is shallow.
+slide has multiple widgets (stress test for `some`/`some` short-circuit).
 
-**Status**: ⚠ Open — acceptable for current scope.
+**Fix applied**: Added two new tests — one that places `phaser-sim` in one of five slides each
+having multiple widgets (returns true), and one with five multi-widget slides but no `phaser-sim`
+(returns false). Both exercise the `some`/`some` short-circuit fully.
+
+**Status**: ✅ Closed
 
 ---
 
@@ -143,7 +146,7 @@ implementation is a simple double-`some`, but coverage depth is shallow.
 |----------|-------|------------|
 | CRITICAL | 0     | —          |
 | HIGH     | 0     | —          |
-| MEDIUM   | 4     | 2 ✅ Closed / 2 ⚠ Open |
+| MEDIUM   | 4     | ✅ All Closed |
 | LOW      | 4     | 2 ✅ Closed / 2 ⚠ Open |
 
 **Verdict**: ✅ PASS — implementation is clean and safe to ship.
@@ -151,5 +154,7 @@ implementation is a simple double-`some`, but coverage depth is shallow.
 **Post-commit hardening (2026-03-23)**:
 - [M-01] ✅ `beforeunload` listener added to `init()` — flushes `phaserCleanups` on player teardown
 - [M-02] ✅ NaN/Infinity guard added before SCORM score clamping
+- [M-03] ✅ try/catch around `new Phaser.Game(...)` — injects error UI into container on constructor crash
+- [M-04] ✅ Multi-slide multi-widget stress tests added to `courseHasPhaserSim.test.ts`
 - [L-03] ✅ `// TODO: T036` comment added to `buildSceneConfig` stub
 - [L-04] ✅ Dead `/* webpackIgnore: true */` comment removed

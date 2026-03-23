@@ -33,6 +33,11 @@ export function isPhaserSimWidgetType(type: string): boolean {
   return type === 'phaser-sim'
 }
 
+/** Type guard: returns true if `s` is a valid PhaserSimType string. */
+export function isPhaserSimType(s: string): s is PhaserSimType {
+  return PHASER_SIM_TYPES.some((t) => t.id === s)
+}
+
 export const PHASER_SIM_DEFAULT_EXTENDED: PhaserSimExtendedProps = {
   simType: 'process-flow',
   mode: 'practice',

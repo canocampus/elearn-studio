@@ -65,4 +65,30 @@ describe('courseHasPhaserSim', () => {
     const course: CourseDoc = { ...makeCourse([]), slides: [] }
     expect(courseHasPhaserSim(course)).toBe(false)
   })
+
+  it('returns true when every slide has multiple widgets and one is phaser-sim', () => {
+    // Stress test: verifies the some/some short-circuit works across many slides + widgets
+    const slides = Array.from({ length: 5 }, (_, i) => ({
+      id: `s${i}`,
+      title: `Slide ${i}`,
+      widgets: [
+        makeWidget('text'),
+        makeWidget('image'),
+        makeWidget('question-mc'),
+        ...(i === 3 ? [makeWidget('phaser-sim')] : []),
+      ],
+    }))
+    const course: CourseDoc = { ...makeCourse([]), slides }
+    expect(courseHasPhaserSim(course)).toBe(true)
+  })
+
+  it('returns false when every slide has multiple widgets but none is phaser-sim', () => {
+    const slides = Array.from({ length: 5 }, (_, i) => ({
+      id: `s${i}`,
+      title: `Slide ${i}`,
+      widgets: [makeWidget('text'), makeWidget('image'), makeWidget('screenshot-sim')],
+    }))
+    const course: CourseDoc = { ...makeCourse([]), slides }
+    expect(courseHasPhaserSim(course)).toBe(false)
+  })
 })

@@ -191,12 +191,24 @@ API calls under the current storage manager implementation.
 ### L-01: Missing JSDoc on `registerPhaserSimBlock`
 - Exported function lacks `@param` / `@returns` documentation.
 
+**Fix applied**: Added JSDoc `@param editor` documentation to `registerPhaserSimBlock`.
+
+**Status**: ✅ Closed
+
 ### L-02: `PhaserSimStore` Has No Selector Helpers
 - Consumers use `useStore(s => s.field)` directly. Selector helpers would improve refactor safety.
+
+**Fix applied**: Added `usePreviewOpen`, `useEditingComponentId`, `usePhaserSimConfig`, and `usePhaserSimActions` selector hooks to `phaserSimStore.ts`.
+
+**Status**: ✅ Closed
 
 ### L-03: `phaserSim.ts` Types Not Validated at Runtime
 - `PHASER_SIM_TYPES` array is the only validation gate; schema validation (zod) would catch
   malformed `sceneDef` earlier.
+
+**Fix applied**: Added `isPhaserSimType(s: string): s is PhaserSimType` type guard that validates against `PHASER_SIM_TYPES`. Full Zod schema for `sceneDef` deferred to T036.
+
+**Status**: ✅ Closed
 
 ---
 
@@ -215,12 +227,15 @@ API calls under the current storage manager implementation.
 | CRITICAL | 1     | ✅ Closed  |
 | HIGH     | 3     | ✅ Closed  |
 | MEDIUM   | 3     | ⚠ Open    |
-| LOW      | 3     | ⚠ Open    |
+| LOW      | 3     | ✅ All Closed |
 
-**Verdict**: ✅ PASS (all CRITICAL and HIGH resolved)
+**Verdict**: ✅ PASS (all CRITICAL and HIGH resolved; MEDIUM deferred to T036+)
 
 **Fixes applied**:
 1. [C-01] ✅ `key` prop uses `selected.getId() ?? selected.get('cid') as string` fallback
 2. [H-01] ✅ `handlePreview` guards against null ID with early return + `console.warn`
 3. [H-02] ✅ All handlers re-fetch `editor.getSelected()` at call time instead of using closure
 4. [H-03] ✅ Early return validates live `selected.get('type') === 'phaser-sim'` (matches QuestionPropertiesPanel pattern)
+5. [L-01] ✅ JSDoc `@param editor` added to `registerPhaserSimBlock`
+6. [L-02] ✅ Selector hooks `usePreviewOpen`, `useEditingComponentId`, `usePhaserSimConfig`, `usePhaserSimActions` added to `phaserSimStore.ts`
+7. [L-03] ✅ `isPhaserSimType(s: string): s is PhaserSimType` type guard added to `phaserSim.ts`
