@@ -97,9 +97,21 @@ having multiple widgets (returns true), and one with five multi-widget slides bu
   An integration test mounting a mock Phaser sim and verifying `LMSSetValue` would increase
   confidence.
 
+**Fix applied**: Created `packages/runtime-player/src/__tests__/scormScoreChain.test.ts` with 12
+integration tests covering: normalised score reporting, clamping, NaN/Infinity/non-numeric guards,
+missing widgetId ignore, `lesson_status`, `score.min/max`, `LMSCommit`, and no-API safety.
+`mountPhaserSim` and `suspend` modules are mocked; `window.API` set to a mock SCORM object.
+
+**Status**: ✅ Closed
+
 ### L-02: `PhaserSimConfig` Width/Height Fallback Chain is Verbose
 - `(ep.width as number | undefined) ?? w.bounds.width` repeated across multiple fields.
   A helper `getNumericProp(ep, 'width', w.bounds.width)` would reduce repetition.
+
+**Fix applied**: Added `numProp(ep, key, fallback)` helper in `packages/runtime-player/src/index.ts`
+(after `positionStyle`). Replaced all 4 verbose cast occurrences in `renderPhaserSim` and `goToSlide`.
+
+**Status**: ✅ Closed
 
 ### L-03: `buildSceneConfig` is a Pass-Through Stub
 - `buildSceneConfig` always calls `makePlaceholderScene` regardless of `sceneDef` content.

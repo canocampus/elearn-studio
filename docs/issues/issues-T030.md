@@ -160,7 +160,12 @@ export interface ConceptAnimatorSceneDef {
 
 **Why Medium**: Critical paths untested.
 
-**Status**: ⚠ Open — deferred to T036 when real scene builders are integrated.
+**Fix applied**: Created `packages/phaser-simulations/src/__tests__/PhaserSimWidget.test.ts` with 16 tests
+covering initial null state, `mount()` game creation, `sim-complete` listener dispatch, constructor
+error injection, `destroy()` idempotency, and double-mount cleanup. Phaser and scene modules mocked
+via `vi.mock` so no WebGL/canvas required.
+
+**Status**: ✅ Closed
 
 ---
 
@@ -223,10 +228,10 @@ explaining the exponential decay formula.
 |----------|-------|-----------|
 | CRITICAL | 2     | ✅ Closed |
 | HIGH     | 3     | ✅ Closed |
-| MEDIUM   | 4     | 3 ✅ Closed / 1 ⚠ Open |
+| MEDIUM   | 4     | ✅ All Closed |
 | LOW      | 4     | ✅ All Closed |
 
-**Verdict**: ✅ PASS (all CRITICAL/HIGH closed; M-03 deferred to T036)
+**Verdict**: ✅ PASS (all issues closed)
 
 **Fixes applied**:
 1. [C-01] ✅ ProcessFlowLogic created — test file now passes (T031 delivered in same session)

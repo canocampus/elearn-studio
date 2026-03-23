@@ -172,6 +172,12 @@ function positionStyle(b: Bounds): string {
   return `position:absolute;left:${b.x}px;top:${b.y}px;width:${b.width}px;height:${b.height}px;`
 }
 
+/** Reads `ep[key]` as a number, falling back to `fallback` if absent or non-numeric. */
+function numProp(ep: Record<string, unknown>, key: string, fallback: number): number {
+  const v = ep[key]
+  return typeof v === 'number' ? v : fallback
+}
+
 function renderText(w: BaseWidget): string {
   const html = (w.properties.html as string) ?? (w.properties.content as string) ?? ''
   const style = `${positionStyle(w.bounds)}overflow:hidden;box-sizing:border-box;`
@@ -298,8 +304,8 @@ function renderScreenshotSim(w: BaseWidget): string {
 
 function renderPhaserSim(w: BaseWidget): string {
   const ep = w.extendedProperties
-  const width = (ep.width as number | undefined) ?? w.bounds.width
-  const height = (ep.height as number | undefined) ?? w.bounds.height
+  const width = numProp(ep, 'width', w.bounds.width)
+  const height = numProp(ep, 'height', w.bounds.height)
   const style = `${positionStyle(w.bounds)}overflow:hidden;background:#1a1a2e;`
   return `<div class="el-widget el-phaser-sim" id="w-${w.id}" data-widget-id="${w.id}" data-phaser-width="${width}" data-phaser-height="${height}" style="${style}"></div>`
 }
@@ -421,8 +427,8 @@ function goToSlide(state: PlayerState, index: number): void {
         mode: (ep.mode as string) ?? 'demo',
         passingScore: (ep.passingScore as number) ?? 70,
         sceneDef: (ep.sceneDef as Record<string, unknown> | null) ?? null,
-        width: (ep.width as number | undefined) ?? w.bounds.width,
-        height: (ep.height as number | undefined) ?? w.bounds.height,
+        width: numProp(ep, 'width', w.bounds.width),
+        height: numProp(ep, 'height', w.bounds.height),
       }
       // Mount asynchronously — dynamic import keeps Phaser out of main bundle
       mountPhaserSim(el, phaserConfig).then(cleanup => {
