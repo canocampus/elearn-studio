@@ -20,21 +20,19 @@ Open-source, web-based e-learning authoring platform inspired by ToolBook 11.5 â
 
 ```mermaid
 graph LR
-  UI[authoring-ui: GrapesJS + React]
-  SE[simulation-engine: Playwright]
-  AE[actions-editor: React]
-  
-  SP[scorm-packager: ZIP Builder]
-  RP[runtime-player: Vanilla JS]
-  PS[phaser-simulations: Phaser.js]
-  
-  API[backend/api: Express + TS]
+  UI["authoring-ui (GrapesJS + React)"]
+  SE["simulation-engine (Playwright)"]
+  AE["actions-editor (React)"]
+  SP["scorm-packager (ZIP Builder)"]
+  RP["runtime-player (Vanilla JS)"]
+  PS["phaser-simulations (Phaser.js)"]
+  API["backend/api (Express + TS)"]
   DB[(MongoDB 7)]
   GRG[(Garage S3)]
-  
-  GF[Grafana Dashboards]
-  LK[Loki Logs]
-  TM[Tempo Traces]
+  LMS[Moodle LMS]
+  GF[Grafana]
+  LK[Loki]
+  TM[Tempo]
 
   UI --> API
   AE --> UI
@@ -43,7 +41,7 @@ graph LR
   API --> GRG
   SP --> DB
   SP --> GRG
-  SP --> LMS[Moodle LMS]
+  SP --> LMS
   RP --> LMS
   PS --> RP
   API --> LK
@@ -138,9 +136,9 @@ graph TD
   A[Create Course] --> B[Add Slides]
   B --> C[Place Widgets on Canvas]
   C --> D{Widget type?}
-  D -->|Question| E[Configure Scoring & Feedback]
+  D -->|Question| E["Configure Scoring and Feedback"]
   D -->|Simulation| F[Record or Build Simulation]
-  D -->|Basic widget| G[Set Properties & Actions]
+  D -->|Basic widget| G[Set Properties and Actions]
   E --> H[Preview in Runtime Player]
   F --> H
   G --> H
@@ -161,14 +159,14 @@ graph TD
   SIM --> PS[Phaser Simulation]
 
   SS --> SS1[Record with Playwright]
-  SS --> SS2[Edit hotspots in Konva.js]
-  SS --> SS3[Replay: demo / practice / assessment]
+  SS --> SS2["Edit hotspots in Konva.js"]
+  SS --> SS3["Replay - demo / practice / assessment"]
 
-  PS --> PS1[Process Flow: Animated node diagrams]
-  PS --> PS2[Physics Demo: Matter.js simulation]
-  PS --> PS3[Gamified Quiz: Timer + lives + combos]
-  PS --> PS4[Concept Animator: Algorithm visualization]
-  PS --> PS5[Interactive Diagram: Labeled hotspots]
+  PS --> PS1[Process Flow - Animated node diagrams]
+  PS --> PS2["Physics Demo - Matter.js simulation"]
+  PS --> PS3[Gamified Quiz - Timer + lives + combos]
+  PS --> PS4[Concept Animator - Algorithm visualization]
+  PS --> PS5[Interactive Diagram - Labeled hotspots]
 ```
 
 ---
