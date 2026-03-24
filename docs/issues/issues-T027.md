@@ -64,12 +64,12 @@ if (!Number.isInteger(state.currentSlide) || state.currentSlide < 0) {
 
 ---
 
-### H-02 Mutation of Input State (Pre-Existing Pattern — Not Fixed)
+### H-02 ✅ ACCEPTED (Prototype) — Mutation of Input State
 **File:** `packages/runtime-player/src/suspend.ts`
 
-`restoreSuspendData()` mutates the `state` argument in-place (assigns `state.currentSlide`, calls `state.questionStates.clear()`). This violates the project's immutability rule (`coding-style.md`). However, mutation is the pervasive, load-bearing pattern throughout the entire runtime player (`goToSlide`, `handleSubmit`, `scormReport`, etc.). Changing only this function would create an inconsistency; changing the entire player is out of scope for T027.
+`restoreSuspendData()` mutates the `state` argument in-place. This violates the immutability rule in `coding-style.md`. However, mutation is the pervasive, load-bearing pattern throughout the entire runtime player. Changing only this function would create an inconsistency within the module.
 
-**Deferred:** Will be addressed in a future refactor task that converts the runtime player to an immutable state model. Function is documented as mutating via JSDoc.
+**Prototype acceptance:** Runtime player is vanilla JS in a constrained LMS iframe environment. Converting to an immutable model requires a full player rewrite out of scope for v0.x. Function is annotated with JSDoc `@mutates` note. Accepted as a known architectural trade-off for the prototype.
 
 ---
 

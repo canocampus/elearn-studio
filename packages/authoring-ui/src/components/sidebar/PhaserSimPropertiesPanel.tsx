@@ -2,13 +2,17 @@
  * Phaser Simulation Properties Panel — right sidebar panel rendered outside the GrapesJS canvas.
  *
  * T034 — Opens when a phaser-sim widget is selected; auto-shown by EditorCanvas component:selected hook.
+ * T031.10-12 — ProcessFlowBuilderSection (nodes/edges/steps)
+ * T032.6     — DiagramBuilderSection (background image + hotspots)
+ * T033.9     — GamifiedQuizRulesSection (timer, lives, combo, questions)
  *
  * Fields:
  *   - Sim Type (process-flow | interactive-diagram | gamified-quiz | physics-demo | concept-animator)
  *   - Mode (demo | practice | assessment)
  *   - Passing Score (0–100)
  *   - Canvas dimensions (width × height)
- *   - Scene Definition (raw JSON textarea)
+ *   - Sim-type-specific structured editor (T031/T032/T033)
+ *   - Scene Definition (raw JSON textarea — always available as fallback)
  *   - Preview button → opens PhaserSimPreviewModal
  *
  * Writes directly to GrapesJS component via model.set('extendedProperties', {...}).
@@ -22,7 +26,16 @@ import {
   PHASER_SIM_DEFAULT_EXTENDED,
   PHASER_SIM_TYPES,
 } from '../../types/phaserSim'
-import type { PhaserSimExtendedProps, PhaserSimMode } from '../../types/phaserSim'
+import type {
+  PhaserSimExtendedProps,
+  PhaserSimMode,
+  ProcessFlowSceneDef,
+  InteractiveDiagramSceneDef,
+  GamifiedQuizSceneDef,
+} from '../../types/phaserSim'
+import { ProcessFlowBuilderSection } from './ProcessFlowBuilderSection'
+import { DiagramBuilderSection } from './DiagramBuilderSection'
+import { GamifiedQuizRulesSection } from './GamifiedQuizRulesSection'
 
 // ---------------------------------------------------------------------------
 // Shared styles (mirrors QuestionPropertiesPanel style)
@@ -171,6 +184,16 @@ export function PhaserSimPropertiesPanel() {
     }
   }
 
+  function handleTypedSceneDefChange(
+    newDef: ProcessFlowSceneDef | InteractiveDiagramSceneDef | GamifiedQuizSceneDef,
+  ): void {
+    const component = editor.getSelected()
+    if (!component) return
+    setJsonError(false)
+    setSceneDefJson(JSON.stringify(newDef, null, 2))
+    setExtendedProps(component, { sceneDef: newDef as Record<string, unknown> })
+  }
+
   function handlePreview(): void {
     const component = editor.getSelected()
     if (!component) return
@@ -273,7 +296,27 @@ export function PhaserSimPropertiesPanel() {
         </div>
       </div>
 
-      {/* Scene Definition */}
+      {/* Structured sim-type editors — T031.10-12, T032.6, T033.9 */}
+      {ep.simType === 'process-flow' && (
+        <ProcessFlowBuilderSection
+          sceneDef={ep.sceneDef}
+          onSceneDefChange={handleTypedSceneDefChange}
+        />
+      )}
+      {ep.simType === 'interactive-diagram' && (
+        <DiagramBuilderSection
+          sceneDef={ep.sceneDef}
+          onSceneDefChange={handleTypedSceneDefChange}
+        />
+      )}
+      {ep.simType === 'gamified-quiz' && (
+        <GamifiedQuizRulesSection
+          sceneDef={ep.sceneDef}
+          onSceneDefChange={handleTypedSceneDefChange}
+        />
+      )}
+
+      {/* Scene Definition (raw JSON fallback — always available) */}
       <div style={SECTION_STYLE}>
         <div style={SECTION_TITLE_STYLE}>Scene Definition (JSON)</div>
         <PhaserSimSceneDefEditor

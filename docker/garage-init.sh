@@ -30,6 +30,14 @@ if [ -z "$BUCKET" ]; then
   exit 1
 fi
 
+# T153-007 fix: validate bucket name format before attempting creation.
+# Garage bucket aliases follow S3 naming rules: lowercase, alphanumeric + dash,
+# length 3–63, must start and end with alphanumeric character.
+if ! echo "$BUCKET" | grep -qE '^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$'; then
+  echo "ERROR: GARAGE_BUCKET '$BUCKET' is invalid. Bucket names must be 3-63 lowercase alphanumeric chars/dashes, start and end with alphanumeric." >&2
+  exit 1
+fi
+
 # ── Install dependencies ──────────────────────────────────────────────────────
 # jq and curl not present in Alpine by default; install once.
 apk add --no-cache jq curl > /dev/null 2>&1
@@ -49,18 +57,21 @@ post_json() {
 }
 
 # ── Wait for Garage admin API (max 60 s) ─────────────────────────────────────
+# T153-005 fix: log timestamps and attempt count so failures are easier to diagnose.
 echo "==> Waiting for Garage admin API at $ADMIN ..."
 WAIT=0
+ATTEMPT=0
 until curl -sf -H "Authorization: Bearer $TOKEN" "$ADMIN/v1/health" > /dev/null; do
-  echo "    not ready, retrying in 2s ..."
+  ATTEMPT=$((ATTEMPT + 1))
+  echo "    [$(date -u '+%H:%M:%S')] attempt $ATTEMPT — not ready, retrying in 2s ..."
   sleep 2
   WAIT=$((WAIT + 2))
   if [ "$WAIT" -ge 60 ]; then
-    echo "ERROR: Garage admin API not ready after 60 seconds" >&2
+    echo "ERROR: Garage admin API not ready after 60 seconds ($ATTEMPT attempts)" >&2
     exit 1
   fi
 done
-echo "==> Garage admin API ready."
+echo "==> Garage admin API ready after $ATTEMPT retries."
 
 # ── 1. Retrieve node ID ───────────────────────────────────────────────────────
 NODE_ID=$(get_json "$ADMIN/v1/status" | jq -r '.node')

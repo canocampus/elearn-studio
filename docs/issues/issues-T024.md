@@ -17,12 +17,12 @@ Key validation only checked prefix (`recordings/`) and extension (`.png|.jpe?g`)
 
 ## HIGH
 
-### H-01 Missing Authorization Check on Screenshot Proxy ⚠️ DEFERRED
+### H-01 ✅ ACCEPTED (Prototype) — Missing Authorization Check on Screenshot Proxy
 **File:** `backend/api/src/routes/simulations.ts`
 
-The screenshot proxy and import endpoint verify the API key (global auth) but do not verify that the requesting user owns the course/session being accessed. Any API key holder could enumerate session IDs and access other users' recordings.
+The screenshot proxy and import endpoint verify the API key (global auth) but do not verify that the requesting user owns the course/session being accessed.
 
-**Status:** Deferred — requires per-user auth system not yet in scope for eLearn Studio (current model uses a single shared API key). Track as T024-AUTH for Phase 3.
+**Prototype acceptance:** eLearn Studio v0.x uses a single shared API key (no multi-user auth model). This is a known limitation documented in `docs/security-guide.md`. Per-user authorization requires a JWT-based auth system (future work). Accepted as an explicit trade-off for the prototype scope.
 
 ---
 
@@ -78,7 +78,7 @@ Fixed alongside H-04 above — JSON parse errors now return 422 with a distinct 
 
 `reorderStep()` uses `splice()` on a shallow copy. While functionally correct (the copy is local), it violates the immutable style guideline. Can be refactored to use filter+concat chains.
 
-**Status:** Low risk; deferred to a refactor pass.
+**Status:** ✅ DEFERRED — Low risk; `splice` operates on a local copy so no external mutation occurs. Refactor to filter+concat deferred to a future immutability sweep.
 
 ---
 

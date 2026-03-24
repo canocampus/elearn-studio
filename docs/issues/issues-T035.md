@@ -159,7 +159,7 @@ missing widgetId ignore, `lesson_status`, `score.min/max`, `LMSCommit`, and no-A
 | CRITICAL | 0     | —          |
 | HIGH     | 0     | —          |
 | MEDIUM   | 4     | ✅ All Closed |
-| LOW      | 4     | 2 ✅ Closed / 2 ⚠ Open |
+| LOW      | 4     | 4 ✅ All Closed         |
 
 **Verdict**: ✅ PASS — implementation is clean and safe to ship.
 

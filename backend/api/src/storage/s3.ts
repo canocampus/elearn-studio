@@ -21,11 +21,24 @@ function buildEndpoint(): string {
 }
 
 // C-02: fail loudly at startup if credentials are not configured
+// T154-008 fix: validate key format so bad values are caught at startup, not at first request.
+// Garage access keys begin with 'GK' followed by 22 alphanumeric chars (26 total).
+// Secret keys are 64 lowercase hex characters.
 const accessKeyId     = process.env.GARAGE_ACCESS_KEY
 const secretAccessKey = process.env.GARAGE_SECRET_KEY
 if (!accessKeyId || !secretAccessKey) {
   throw new Error(
     'GARAGE_ACCESS_KEY and GARAGE_SECRET_KEY environment variables are required'
+  )
+}
+if (!/^GK[A-Za-z0-9]{22,}$/.test(accessKeyId)) {
+  throw new Error(
+    `GARAGE_ACCESS_KEY format invalid — expected 'GK' followed by alphanumeric characters (got "${accessKeyId}")`
+  )
+}
+if (!/^[0-9a-f]{64}$/.test(secretAccessKey)) {
+  throw new Error(
+    'GARAGE_SECRET_KEY format invalid — expected 64 lowercase hex characters'
   )
 }
 
@@ -107,17 +120,23 @@ export async function statObject(
  * @param options.contentDisposition  Passed as ResponseContentDisposition — use
  *                             'attachment' to force browser download for types
  *                             that could otherwise execute (SVG, PDF).
+ * @param options.contentType  Passed as ResponseContentType — overrides the stored
+ *                             Content-Type header, guarding against corrupted metadata
+ *                             (T154-009). Pass the canonical MIME type derived from
+ *                             the object extension so clients always receive a
+ *                             trustworthy Content-Type.
  * @param expiresIn            URL validity in seconds (default: 3600).
  */
 export async function getPresignedUrl(
   key: string,
-  options?: { contentDisposition?: string },
+  options?: { contentDisposition?: string; contentType?: string },
   expiresIn = 3600,
 ): Promise<string> {
   const command = new GetObjectCommand({
     Bucket:                     BUCKET,
     Key:                        key,
     ResponseContentDisposition: options?.contentDisposition,
+    ResponseContentType:        options?.contentType,
   })
   return getSignedUrl(publicS3Client, command, { expiresIn })
 }

@@ -8,6 +8,31 @@ import { logger } from '../lib/logger'
 
 export const assetsRouter: express.Router = Router()
 
+// ── SVG sanitization ──────────────────────────────────────────────────────────
+
+// T154-004 fix: strip active content from SVG files on upload.
+// SVGs are served as Content-Disposition: attachment, but we also sanitize at
+// rest to prevent stored XSS if the content-disposition header is ever bypassed.
+// Removes <script> elements, <foreignObject> (can embed HTML), and inline event
+// handlers (on*="...") without requiring an external dependency.
+function sanitizeSvg(buffer: Buffer): Buffer {
+  let svg = buffer.toString('utf8')
+
+  // Remove <script> ... </script> blocks (case-insensitive, with attributes)
+  svg = svg.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+
+  // Remove <foreignObject> blocks (can embed arbitrary HTML/JS)
+  svg = svg.replace(/<foreignObject\b[^>]*>[\s\S]*?<\/foreignObject>/gi, '')
+
+  // Remove inline event handler attributes: onclick="...", onload="...", etc.
+  svg = svg.replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')
+
+  // Remove javascript: URIs in href / xlink:href / src attributes
+  svg = svg.replace(/\s+(?:href|xlink:href|src)\s*=\s*(?:"[^"]*javascript:[^"]*"|'[^']*javascript:[^']*')/gi, '')
+
+  return Buffer.from(svg, 'utf8')
+}
+
 // ── MIME / extension configuration ───────────────────────────────────────────
 
 // Default allowlist. Override via ALLOWED_MIME_TYPES env var (comma-separated).
@@ -206,8 +231,13 @@ assetsRouter.post('/', uploadLimiter, (req, res, next) => {
   const ext = allowedExts.includes(originalExt) ? originalExt : (allowedExts[0] ?? '')
   const objectName = `${randomUUID()}${ext}`
 
+  // T154-004 fix: sanitize SVG content before storing to strip active content
+  const fileBuffer = req.file.mimetype === 'image/svg+xml'
+    ? sanitizeSvg(req.file.buffer)
+    : req.file.buffer
+
   try {
-    await putObject(objectName, req.file.buffer, req.file.mimetype, req.file.size)
+    await putObject(objectName, fileBuffer, req.file.mimetype, fileBuffer.length)
   } catch (err) {
     logger.error({ err }, 'Storage upload failed')
     res.status(503).json({ success: false, error: 'Storage service unavailable' })
@@ -285,8 +315,19 @@ assetsRouter.get('/:objectName', async (req, res) => {
   const ext = path.extname(objectName).toLowerCase()
   const contentDisposition = ATTACHMENT_EXTENSIONS.has(ext) ? 'attachment' : undefined
 
+  // T154-009 fix: derive canonical content-type from the whitelisted extension and
+  // pass it as ResponseContentType so the presigned URL overrides any corrupted
+  // metadata stored in Garage. This ensures clients always receive a trustworthy
+  // Content-Type regardless of what Garage has recorded.
+  const canonicalMime = Object.entries(MIME_TO_EXTENSIONS).find(([, exts]) =>
+    exts.includes(ext)
+  )?.[0]
+
   try {
-    const presignedUrl = await getPresignedUrl(objectName, { contentDisposition })
+    const presignedUrl = await getPresignedUrl(objectName, {
+      contentDisposition,
+      contentType: canonicalMime,
+    })
     res.redirect(302, presignedUrl)
   } catch (err) {
     logger.error({ err }, 'Failed to generate presigned URL')

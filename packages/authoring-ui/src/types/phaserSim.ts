@@ -21,6 +21,74 @@ export interface PhaserSimExtendedProps {
   height?: number
 }
 
+// ---------------------------------------------------------------------------
+// SceneDef mirrors (no Phaser runtime dependency — types only)
+// ---------------------------------------------------------------------------
+
+export interface ProcessFlowNode {
+  id: string
+  x: number
+  y: number
+  label: string
+  type: 'start' | 'step' | 'decision' | 'end'
+}
+
+export interface ProcessFlowEdge {
+  id: string
+  from: string
+  to: string
+  label?: string
+}
+
+export interface ProcessFlowStep {
+  id: string
+  nodeId: string
+  instruction: string
+  correctAction: 'click' | 'hover'
+}
+
+export interface ProcessFlowSceneDef {
+  simType: 'process-flow'
+  nodes: ProcessFlowNode[]
+  edges: ProcessFlowEdge[]
+  steps: ProcessFlowStep[]
+  autoAdvanceDelayMs?: number
+}
+
+export interface DiagramHotspot {
+  id: string
+  x: number
+  y: number
+  radius: number
+  label: string
+  description: string
+  isCorrect?: boolean
+}
+
+export interface InteractiveDiagramSceneDef {
+  simType: 'interactive-diagram'
+  backgroundImageUrl: string
+  hotspots: DiagramHotspot[]
+  width?: number
+  height?: number
+}
+
+export interface QuizQuestion {
+  id: string
+  text: string
+  options: string[]
+  correctIndex: number
+  pointValue: number
+}
+
+export interface GamifiedQuizSceneDef {
+  simType: 'gamified-quiz'
+  questions: QuizQuestion[]
+  timerSeconds?: number
+  initialLives?: number
+  comboMultiplier?: number
+}
+
 export const PHASER_SIM_TYPES: Array<{ id: PhaserSimType; label: string }> = [
   { id: 'process-flow',        label: 'Process Flow' },
   { id: 'interactive-diagram', label: 'Interactive Diagram' },

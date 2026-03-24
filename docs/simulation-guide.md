@@ -2,6 +2,10 @@
 
 **Last Updated:** 2026-03-22
 
+**See also:** [Authoring Guide — Widget Types](authoring-guide.md#widget-types) for an overview of how simulations fit into course authoring.
+
+---
+
 eLearn Studio supports two types of simulations:
 
 1. **Screenshot Simulations** (Playwright-based) — Record software UI walkthroughs and replay with hotspot click verification
@@ -59,7 +63,9 @@ eLearn Studio supports two types of simulations:
 
 ## Recording (Backend — T024)
 
-The Simulation Recorder runs in the backend. It uses Playwright Chromium to capture user interactions.
+> **Note:** The Recorder engine (`packages/simulation-engine`) is implemented and tested as a standalone module. The `/api/simulations/recorder/*` routes are defined in `packages/simulation-engine/src/routes/recorder.ts` but are **not yet mounted** in the main backend API (`backend/api/src/app.ts`). Calling these endpoints directly against the running backend will return 404. Integration into the main API is tracked as a future task. For development and testing, run the simulation-engine service separately or invoke the recorder module directly.
+
+The Simulation Recorder uses Playwright Chromium to capture user interactions.
 
 ### Starting a Recording Session
 
