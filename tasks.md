@@ -920,28 +920,28 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 
 ---
 
-### T502 — User Guide (`docs/user-guide/`)
+### T502 — User Guide (`docs/user-guide/`) ✅ 2026-03-24
 > Full guide for course authors. Uses Playwright screenshots from T500.
 > Audience: instructional designers, educators, e-learning authors.
-- [ ] T502.1 — `docs/user-guide/index.md` — overview and navigation, links to all sections
-- [ ] T502.2 — `docs/user-guide/01-getting-started.md`:
+- [x] T502.1 — `docs/user-guide/index.md` — overview and navigation, links to all sections
+- [x] T502.2 — `docs/user-guide/01-getting-started.md`:
   - What is eLearn Studio
   - System requirements
   - First login and account setup
   - Creating your first course (step by step with screenshots 01–05)
-- [ ] T502.3 — `docs/user-guide/02-editor-overview.md`:
+- [x] T502.3 — `docs/user-guide/02-editor-overview.md`:
   - **Mermaid diagram: Editor UI Layout** — annotated wireframe of the authoring interface
   - Left sidebar (Slide list + Block Manager)
   - Main canvas (GrapesJS)
   - Right sidebar (Layer Manager + Properties)
   - Top toolbar (New Slide, Publish, Preview)
   - Screenshots: 03, 04, 06, 07
-- [ ] T502.4 — `docs/user-guide/03-working-with-slides.md`:
+- [x] T502.4 — `docs/user-guide/03-working-with-slides.md`:
   - Adding, duplicating, deleting slides
   - Reordering slides via drag and drop
   - Slide titles and thumbnails
   - Working with slide templates
-- [ ] T502.5 — `docs/user-guide/04-widgets.md`:
+- [x] T502.5 — `docs/user-guide/04-widgets.md`:
   - Complete widget catalog with screenshot of each widget in the editor
   - Text widget: formatting, inline editing
   - Image widget: uploading assets, resizing
@@ -949,7 +949,7 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
   - Media player: audio and video
   - Navigation buttons: prev/next/first/last
   - Scoring widgets: Score Quiz, Done button
-- [ ] T502.6 — `docs/user-guide/05-questions.md`:
+- [x] T502.6 — `docs/user-guide/05-questions.md`:
   - **Mermaid diagram: Question Scoring Flow** — from answer to LMS score
   - Multiple Choice (single + multiple correct)
   - True/False
@@ -958,7 +958,7 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
   - Configuring feedback (immediate vs delayed)
   - Setting attempt limits and weights
   - Screenshots: 08, 09
-- [ ] T502.7 — `docs/user-guide/06-actions-editor.md`:
+- [x] T502.7 — `docs/user-guide/06-actions-editor.md`:
   - **Mermaid diagram: Event → Action flow** — how events trigger action sequences
   - Opening the Actions Editor
   - Adding and configuring actions
@@ -967,20 +967,20 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
   - Shared action sequences
   - Practical examples: show/hide on click, navigate on score, conditional feedback
   - Screenshots: 10, 11
-- [ ] T502.8 — `docs/user-guide/07-screenshot-simulations.md`:
+- [x] T502.8 — `docs/user-guide/07-screenshot-simulations.md`:
   - **Mermaid diagram: Screenshot Simulation Workflow** — record → edit → publish
   - Planning your simulation
   - Recording with the Simulation Recorder (step by step)
   - Editing steps in the Simulation Editor: hotspots, instructions, feedback
   - The three simulation modes: Demo, Practice, Assessment
   - Screenshots: 12, 13, 14
-- [ ] T502.9 — `docs/user-guide/08-phaser-simulations.md`:
+- [x] T502.9 — `docs/user-guide/08-phaser-simulations.md`:
   - **Mermaid diagram: Phaser Simulation Types** — decision tree for choosing type
   - Process Flow simulations: nodes, edges, steps
   - Interactive Diagram simulations: uploading diagram, placing hotspots
   - Gamified Quiz: configuring timer, lives, combos
   - Screenshots: 15, 16
-- [ ] T502.10 — `docs/user-guide/09-publishing.md`:
+- [x] T502.10 — `docs/user-guide/09-publishing.md`:
   - **Mermaid diagram: SCORM Packaging Pipeline** — course JSON → imsmanifest → ZIP → LMS
   - Exporting as SCORM 1.2
   - Exporting as SCORM 2004
@@ -988,11 +988,11 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
   - Importing into Moodle (step by step with screenshots)
   - Testing without an LMS (standalone mode)
   - Screenshots: 17, 18
-- [ ] T502.11 — `docs/user-guide/10-course-history.md`:
+- [x] T502.11 — `docs/user-guide/10-course-history.md`:
   - Viewing change history
   - Restoring a previous version
-- [ ] T502.12 — Refine the generated documentation
-- [ ] T502.13 — A reviewer will generate `docs/issues/issues-T502.md` with detected problems; resolve them before terminating this block
+- [x] T502.12 — Refine the generated documentation
+- [x] T502.13 — A reviewer will generate `docs/issues/issues-T502.md` with detected problems; resolve them before terminating this block
 
 ---
 
