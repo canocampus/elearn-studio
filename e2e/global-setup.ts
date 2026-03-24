@@ -84,7 +84,16 @@ export default async function globalSetup() {
   await page.getByRole('button', { name: 'Sign in' }).click()
 
   // Wait for editor to be ready (TopToolbar "Publish SCORM" visible)
-  await page.getByRole('button', { name: /Publish SCORM/i }).waitFor({ timeout: 20_000 })
+  try {
+    await page.getByRole('button', { name: /Publish SCORM/i }).waitFor({ timeout: 20_000 })
+  } catch (err) {
+    await page.screenshot({ path: 'e2e-setup-failure.png', fullPage: true })
+    const url = page.url()
+    const html = await page.content()
+    console.error('[globalSetup] Timed out. URL:', url)
+    console.error('[globalSetup] Page HTML snippet:', html.slice(0, 2000))
+    throw err
+  }
 
   // Save storageState (cookies + localStorage)
   await context.storageState({ path: path.join(authDir, 'state.json') })

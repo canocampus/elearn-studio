@@ -203,8 +203,8 @@ describe('courseApi — T013.2 duplicateSlide', () => {
     }
     fetchSpy = vi
       .fn()
-      .mockResolvedValueOnce(makeResponse(withNew))
-      .mockResolvedValueOnce(makeResponse(withContent))
+      .mockResolvedValueOnce(makeResponse({ success: true, data: withNew }))
+      .mockResolvedValueOnce(makeResponse({ success: true, data: withContent }))
     vi.stubGlobal('fetch', fetchSpy)
   })
 

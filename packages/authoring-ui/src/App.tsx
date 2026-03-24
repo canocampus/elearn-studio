@@ -18,7 +18,9 @@ import { useAuthStore } from './store/authStore'
 import { listCourses, createCourse, getCourse, updateCourse } from './api/courseApi'
 import { applyTemplate, type CourseTemplate } from './templates/courseTemplates'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+// Empty default → relative URL → routed through Vite dev proxy to 127.0.0.1:3001
+// (avoids Chromium localhost→::1 IPv6 resolution issue in E2E tests)
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 type AppState = 'initialising' | 'login' | 'loading' | 'ready' | 'error'
 

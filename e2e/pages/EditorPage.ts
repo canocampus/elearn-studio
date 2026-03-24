@@ -35,14 +35,14 @@ export class EditorPage {
     this.publishScormButton = page.getByRole('button', { name: /Publish SCORM/i })
     this.previewButton = page.getByRole('button', { name: /Preview/i })
 
-    // Left sidebar tabs (AppLayout TabButton renders as <button> with text)
-    this.slidesTab = page.getByRole('button', { name: 'Slides', exact: true })
-    this.blocksTab = page.getByRole('button', { name: 'Blocks', exact: true })
+    // Left sidebar tabs (AppLayout TabButton renders as <button role="tab">)
+    this.slidesTab = page.getByRole('tab', { name: 'Slides', exact: true })
+    this.blocksTab = page.getByRole('tab', { name: 'Blocks', exact: true })
 
     // Right sidebar tabs
-    this.layersTab = page.getByRole('button', { name: 'Layers', exact: true })
-    this.stylesTab = page.getByRole('button', { name: 'Styles', exact: true })
-    this.actionsTab = page.getByRole('button', { name: 'Actions', exact: true })
+    this.layersTab = page.getByRole('tab', { name: 'Layers', exact: true })
+    this.stylesTab = page.getByRole('tab', { name: 'Styles', exact: true })
+    this.actionsTab = page.getByRole('tab', { name: 'Actions', exact: true })
 
     // Publish dialog
     this.publishDialog = page.getByRole('dialog').filter({ hasText: 'Publish SCORM Package' })

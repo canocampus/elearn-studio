@@ -12,26 +12,28 @@ import { apiRequest, apiBlobRequest } from './apiClient'
 // Courses
 // ---------------------------------------------------------------------------
 
+type ApiEnvelope<T> = { success: boolean; data: T }
+
 export function listCourses(): Promise<CourseListItem[]> {
-  return apiRequest<CourseListItem[]>('/courses')
+  return apiRequest<ApiEnvelope<CourseListItem[]>>('/courses').then(r => r.data)
 }
 
 export function getCourse(id: string): Promise<CourseDoc> {
-  return apiRequest<CourseDoc>(`/courses/${id}`)
+  return apiRequest<ApiEnvelope<CourseDoc>>(`/courses/${id}`).then(r => r.data)
 }
 
 export function createCourse(title: string): Promise<CourseDoc> {
-  return apiRequest<CourseDoc>('/courses', {
+  return apiRequest<ApiEnvelope<CourseDoc>>('/courses', {
     method: 'POST',
     body: JSON.stringify({ title }),
-  })
+  }).then(r => r.data)
 }
 
 export function updateCourse(id: string, data: Partial<CourseDoc>): Promise<CourseDoc> {
-  return apiRequest<CourseDoc>(`/courses/${id}`, {
+  return apiRequest<ApiEnvelope<CourseDoc>>(`/courses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }).then(r => r.data)
 }
 
 export function deleteCourse(id: string): Promise<void> {
@@ -49,10 +51,10 @@ export function nextSlideTitle(slides: CourseDoc['slides']): string {
 
 // R-07: targeted slide routes use atomic MongoDB $push/$set/$pull — no race conditions
 export function addSlide(courseId: string, title: string): Promise<CourseDoc> {
-  return apiRequest<CourseDoc>(`/courses/${courseId}/slides`, {
+  return apiRequest<ApiEnvelope<CourseDoc>>(`/courses/${courseId}/slides`, {
     method: 'POST',
     body: JSON.stringify({ title }),
-  })
+  }).then(r => r.data)
 }
 
 export function updateSlide(
@@ -60,14 +62,14 @@ export function updateSlide(
   slideId: string,
   patch: Partial<Slide>,
 ): Promise<CourseDoc> {
-  return apiRequest<CourseDoc>(`/courses/${courseId}/slides/${slideId}`, {
+  return apiRequest<ApiEnvelope<CourseDoc>>(`/courses/${courseId}/slides/${slideId}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
-  })
+  }).then(r => r.data)
 }
 
 export function deleteSlide(courseId: string, slideId: string): Promise<CourseDoc> {
-  return apiRequest<CourseDoc>(`/courses/${courseId}/slides/${slideId}`, { method: 'DELETE' })
+  return apiRequest<ApiEnvelope<CourseDoc>>(`/courses/${courseId}/slides/${slideId}`, { method: 'DELETE' }).then(r => r.data)
 }
 
 // Duplicate: add a blank slide then copy the source slide's content into it.
@@ -83,10 +85,10 @@ export async function duplicateSlide(courseId: string, sourceSlide: Slide): Prom
 
 // R-07 extension: atomic reorder via a targeted route (no GET+PUT race)
 export function reorderSlides(courseId: string, orderedIds: string[]): Promise<CourseDoc> {
-  return apiRequest<CourseDoc>(`/courses/${courseId}/slides/reorder`, {
+  return apiRequest<ApiEnvelope<CourseDoc>>(`/courses/${courseId}/slides/reorder`, {
     method: 'PATCH',
     body: JSON.stringify({ orderedIds }),
-  })
+  }).then(r => r.data)
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +179,7 @@ export async function uploadAsset(file: File): Promise<AssetUploadResult> {
   const headers: Record<string, string> = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+  const API_BASE = import.meta.env.VITE_API_URL ?? ''
   const res = await fetch(`${API_BASE}/assets`, {
     method: 'POST',
     body: formData,

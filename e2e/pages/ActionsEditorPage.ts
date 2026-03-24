@@ -13,7 +13,7 @@ export class ActionsEditorPage {
   readonly eventList: Locator
 
   constructor(private readonly page: Page) {
-    this.actionsTab = page.getByRole('button', { name: 'Actions', exact: true })
+    this.actionsTab = page.getByRole('tab', { name: 'Actions', exact: true })
     // The Actions panel container
     this.panel = page.locator('[data-testid="actions-panel"]')
     this.addEventButton = page.getByRole('button', { name: /Add event/i })

@@ -52,7 +52,10 @@ export default defineConfig({
       testMatch: /auth\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
-        storageState: undefined,
+        // Explicitly clear storage so auth tests start unauthenticated.
+        // `undefined` falls through to the global storageState; an explicit
+        // empty object is required to override it.
+        storageState: { cookies: [], origins: [] },
       },
     },
 

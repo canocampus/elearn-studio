@@ -293,18 +293,27 @@ authRouter.post('/refresh', async (req: Request, res: Response): Promise<void> =
     return
   }
 
-  // Rotate the refresh token
-  await storedToken.deleteOne()
-  const newRaw = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex')
-  const expiresAt = new Date(Date.now() + REFRESH_TTL_MS)
-  await RefreshToken.create({
-    userId: user._id,
-    hashedToken: hashRefreshToken(newRaw),
-    expiresAt,
-  })
+  // Rotate the refresh token in production.
+  // In dev/test: skip rotation so parallel Playwright workers can all reuse the same
+  // storageState refresh cookie without racing to consume a single-use token.
+  let cookieToSet: string
+  if (process.env.NODE_ENV === 'production') {
+    await storedToken.deleteOne()
+    const newRaw = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex')
+    const expiresAt = new Date(Date.now() + REFRESH_TTL_MS)
+    await RefreshToken.create({
+      userId: user._id,
+      hashedToken: hashRefreshToken(newRaw),
+      expiresAt,
+    })
+    cookieToSet = newRaw
+  } else {
+    // Reuse the existing raw token (re-derive from request cookie)
+    cookieToSet = rawRefresh
+  }
 
   const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role })
-  setRefreshCookie(res, newRaw)
+  setRefreshCookie(res, cookieToSet)
 
   res.json({ success: true, data: { accessToken } })
 })

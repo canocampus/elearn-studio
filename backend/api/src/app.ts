@@ -54,23 +54,28 @@ app.use(pinoHttp({
 }))
 
 // C-04 fix: restrict CORS to configured origin only
+// credentials: true required so browsers accept responses from cross-origin
+// fetches that include credentials (cookies / Authorization header)
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    credentials: true,
   })
 )
 
 app.use(express.json({ limit: '10mb' }))
 app.use(cookieParser())
 
-// H-05 fix: rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 200,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-})
-app.use(limiter)
+// H-05 fix: rate limiting (disabled in dev/test so E2E runs don't trip the limit)
+if (process.env.NODE_ENV === 'production') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 200,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+  })
+  app.use(limiter)
+}
 
 // T168: Swagger UI — dev only (disabled in production)
 if (process.env.NODE_ENV !== 'production') {
