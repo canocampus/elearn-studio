@@ -73,19 +73,65 @@ Minimum coverage target: **80%** across statements, branches, functions, and lin
 
 ```bash
 # Install Playwright browsers (once, or after upgrading Playwright)
-pnpm --filter authoring-ui exec playwright install --with-deps
+pnpm --filter @elearn-studio/e2e exec playwright install --with-deps
 
 # Run E2E tests (requires the dev stack to be running)
-pnpm --filter authoring-ui exec playwright test
+pnpm --filter @elearn-studio/e2e run test
 
 # Run with UI (interactive mode)
-pnpm --filter authoring-ui exec playwright test --ui
+pnpm --filter @elearn-studio/e2e run test:ui
 
 # Run a single spec
-pnpm --filter authoring-ui exec playwright test e2e/course-crud.spec.ts
+pnpm --filter @elearn-studio/e2e exec playwright test editor.spec.ts
 ```
 
 E2E tests require Docker dev stack running (`docker compose ... up -d`).
+
+---
+
+## Documentation Screenshots
+
+Screenshots for the user guide and README are captured automatically using a
+standalone Playwright script. The output PNGs live in `docs/assets/screenshots/`
+and are committed to the repository so docs render on GitHub without re-running
+the capture.
+
+### Running the capture script
+
+```bash
+# Prerequisites: full dev stack must be running
+docker compose -f docker/docker-compose.dev.yml up -d
+pnpm dev  # authoring-ui on :3000, api on :3001
+
+# Install docs package deps (once)
+pnpm install
+
+# Run capture (19 screenshots → docs/assets/screenshots/)
+pnpm --filter @elearn-studio/docs run capture
+```
+
+The script reuses `e2e/.auth/state.json` if present (created by the E2E setup
+run). If the file is missing it authenticates from scratch using the test user
+`e2e-test@elearn.test`.
+
+### Environment variables
+
+| Variable | Default | Override |
+|---|---|---|
+| `DOCS_API_URL` | `http://localhost:3001` | Backend URL |
+| `DOCS_BASE_URL` | `http://localhost:3000` | Authoring UI URL |
+| `DOCS_GRAFANA_URL` | `http://localhost:3010` | Grafana URL |
+| `E2E_TEST_USER_EMAIL` | `e2e-test@elearn.test` | Test user email |
+| `E2E_TEST_USER_PASSWORD` | `e2e-password-secure-123` | Test user password |
+
+### When to re-run
+
+Re-run the capture script when:
+- UI layout or feature set changes significantly
+- New widgets, panels, or dialogs are added
+- Preparing a release (ensures screenshots match the released version)
+
+Commit the updated PNGs along with the code change that triggered them.
 
 ---
 

@@ -3,3 +3,4 @@ packages:
   - 'packages/*'
   - 'backend/*'
   - 'e2e'
+  - 'docs'

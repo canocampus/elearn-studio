@@ -834,9 +834,9 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 ---
 
 ### T499 — Install Documentation Skills
-- [ ] T499.1 — Copy `elearn-docs-technical/SKILL.md` to `~/.claude/skills/elearn-docs-technical/`
-- [ ] T499.2 — Copy `elearn-docs-user/SKILL.md` to `~/.claude/skills/elearn-docs-user/`
-- [ ] T499.3 — Verify both skills appear in Claude Code session
+- [x] T499.1 — Copy `elearn-docs-technical/SKILL.md` to `~/.claude/skills/elearn-docs-technical/`
+- [x] T499.2 — Copy `elearn-docs-user/SKILL.md` to `~/.claude/skills/elearn-docs-user/`
+- [x] T499.3 — Verify both skills appear in Claude Code session ✅ 2026-03-24
 
 ---
 ## PHASE 5 — Documentation & Visual Guides
@@ -863,34 +863,34 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 ### T500 — Playwright Screenshot Automation
 > Foundation for all visual documentation. Must run before T502–T505.
 > Requires: `docker compose up` with the full dev stack running.
-- [ ] T500.1 — Create `docs/scripts/capture-screenshots.ts` — Playwright script that:
+- [x] T500.1 — Create `docs/scripts/capture-screenshots.ts` — Playwright script that:
   - Launches Chromium against `http://localhost:3000`
   - Logs in with test credentials (uses E2E auth fixture from T169.4)
   - Navigates through each documented screen and captures PNG screenshots
   - Saves all screenshots to `docs/assets/screenshots/` with descriptive names
   - Reports total screenshots captured on completion
-- [ ] T500.2 — Capture: **Dashboard / Course list** (`01-dashboard.png`)
-- [ ] T500.3 — Capture: **New course dialog** (`02-new-course-dialog.png`)
-- [ ] T500.4 — Capture: **GrapesJS editor — empty slide** (`03-editor-empty.png`)
-- [ ] T500.5 — Capture: **GrapesJS editor — Block Manager open** (`04-block-manager.png`)
-- [ ] T500.6 — Capture: **GrapesJS editor — slide with mixed widgets** (text + image + button) (`05-editor-widgets.png`)
-- [ ] T500.7 — Capture: **Layer Manager panel** (`06-layer-manager.png`)
-- [ ] T500.8 — Capture: **Style Manager / Properties panel** (`07-properties-panel.png`)
-- [ ] T500.9 — Capture: **Multiple Choice question widget — authoring** (`08-question-mc-authoring.png`)
-- [ ] T500.10 — Capture: **Question Extended Properties panel** (`09-question-properties.png`)
-- [ ] T500.11 — Capture: **Actions Editor — open with event selector** (`10-actions-editor.png`)
-- [ ] T500.12 — Capture: **Actions Editor — condition + nested actions** (`11-actions-condition.png`)
-- [ ] T500.13 — Capture: **Simulation Recorder — recording in progress** (`12-sim-recorder.png`)
-- [ ] T500.14 — Capture: **Simulation Editor — hotspot drawing over screenshot** (`13-sim-editor-hotspot.png`)
-- [ ] T500.15 — Capture: **Simulation Player — Practice mode** (`14-sim-player-practice.png`)
-- [ ] T500.16 — Capture: **Phaser Process Flow simulation — authoring** (`15-phaser-processflow.png`)
-- [ ] T500.17 — Capture: **Phaser Interactive Diagram — runtime** (`16-phaser-diagram.png`)
-- [ ] T500.18 — Capture: **SCORM Export dialog / progress** (`17-scorm-export.png`)
-- [ ] T500.19 — Capture: **Moodle — imported course running** (`18-moodle-course.png`)
-- [ ] T500.20 — Capture: **Grafana — eLearn overview dashboard** (`19-grafana-dashboard.png`)
-- [ ] T500.21 — Add `pnpm --filter docs run capture` script to monorepo root; document in CONTRIBUTING.md
-- [ ] T500.22 — Refine the generated code
-- [ ] T500.23 — A reviewer will generate `docs/issues/issues-T500.md` with detected problems; resolve them before terminating this block
+- [x] T500.2 — Capture: **Dashboard / Course list** (`01-dashboard.png`)
+- [x] T500.3 — Capture: **New course dialog** (`02-new-course-dialog.png`)
+- [x] T500.4 — Capture: **GrapesJS editor — empty slide** (`03-editor-empty.png`)
+- [x] T500.5 — Capture: **GrapesJS editor — Block Manager open** (`04-block-manager.png`)
+- [x] T500.6 — Capture: **GrapesJS editor — slide with mixed widgets** (text + image + button) (`05-editor-widgets.png`)
+- [x] T500.7 — Capture: **Layer Manager panel** (`06-layer-manager.png`)
+- [x] T500.8 — Capture: **Style Manager / Properties panel** (`07-properties-panel.png`)
+- [x] T500.9 — Capture: **Multiple Choice question widget — authoring** (`08-question-mc-authoring.png`)
+- [x] T500.10 — Capture: **Question Extended Properties panel** (`09-question-properties.png`)
+- [x] T500.11 — Capture: **Actions Editor — open with event selector** (`10-actions-editor.png`)
+- [x] T500.12 — Capture: **Actions Editor — condition + nested actions** (`11-actions-condition.png`)
+- [x] T500.13 — Capture: **Simulation Recorder — recording in progress** (`12-sim-recorder.png`)
+- [x] T500.14 — Capture: **Simulation Editor — hotspot drawing over screenshot** (`13-sim-editor-hotspot.png`)
+- [x] T500.15 — Capture: **Simulation Player — Practice mode** (`14-sim-player-practice.png`)
+- [x] T500.16 — Capture: **Phaser Process Flow simulation — authoring** (`15-phaser-processflow.png`)
+- [x] T500.17 — Capture: **Phaser Interactive Diagram — runtime** (`16-phaser-diagram.png`)
+- [x] T500.18 — Capture: **SCORM Export dialog / progress** (`17-scorm-export.png`)
+- [ ] T500.19 — Capture: **Moodle — imported course running** (`18-moodle-course.png`) — BLOCKED: Moodle service DOWN
+- [x] T500.20 — Capture: **Grafana — eLearn overview dashboard** (`19-grafana-dashboard.png`)
+- [x] T500.21 — Add `pnpm --filter docs run capture` script to monorepo root; document in CONTRIBUTING.md
+- [x] T500.22 — Refine the generated code
+- [x] T500.23 — A reviewer will generate `docs/issues/issues-T500.md` with detected problems; resolve them before terminating this block ✅ 2026-03-24
 
 ---
 
