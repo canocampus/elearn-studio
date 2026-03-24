@@ -42,6 +42,7 @@ const DEFAULT_MIME_TYPES = [
   'image/gif',
   'image/webp',
   'image/svg+xml',
+  'image/bmp',
   'video/mp4',
   'video/webm',
   'audio/mpeg',
@@ -65,6 +66,7 @@ const MIME_TO_EXTENSIONS: Record<string, string[]> = {
   'image/gif':       ['.gif'],
   'image/webp':      ['.webp'],
   'image/svg+xml':   ['.svg'],
+  'image/bmp':       ['.bmp'],
   'video/mp4':       ['.mp4'],
   'video/webm':      ['.webm'],
   'audio/mpeg':      ['.mp3'],
@@ -83,7 +85,7 @@ const ATTACHMENT_EXTENSIONS = new Set(['.svg', '.pdf'])
 // C-02 fix: no 'i' flag — objects are always stored as lowercase UUID + lowercase ext.
 // Requests with uppercase chars intentionally fail (400) to prevent case-mismatch 404s.
 const OBJECT_NAME_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpe?g|png|gif|webp|svg|mp4|webm|mp3|ogg|wav|pdf)$/
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpe?g|png|gif|webp|svg|bmp|mp4|webm|mp3|ogg|wav|pdf)$/
 
 // ── Upload size configuration ─────────────────────────────────────────────────
 

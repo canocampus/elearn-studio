@@ -6,6 +6,17 @@
 
 import type { Component } from 'grapesjs'
 import type { BaseWidget, Bounds, WidgetType } from '../types/course'
+import {
+  MC_DEFAULT_EXTENDED,
+  TF_DEFAULT_EXTENDED,
+  FILL_DEFAULT_EXTENDED,
+} from '../types/questions'
+import type { MCExtendedProps, TFExtendedProps, FillExtendedProps } from '../types/questions'
+import {
+  buildMCPreviewHTML,
+  buildTFPreviewHTML,
+  buildFillPreviewHTML,
+} from './registerQuestionBlocks'
 
 /**
  * Shape of a GrapesJS component definition as produced by grapesjsFromWidgets.
@@ -23,6 +34,8 @@ export interface GrapesJsComponentDef {
     'z-index': number
     display: 'block' | 'none'
   }
+  /** GrapesJS inner HTML content — used by text/button types to render stored HTML. */
+  content?: string
   properties: BaseWidget['properties']
   actions: BaseWidget['actions']
   extendedProperties: BaseWidget['extendedProperties']
@@ -68,22 +81,44 @@ export function widgetsFromGrapesjs(components: Component[]): BaseWidget[] {
  * Converts eLearn Studio Widgets into GrapesJS component definitions.
  */
 export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef[] {
-  return widgets.map((w) => ({
-    type: w.type,
-    // id preserved so the round-trip produces the same Widget id after load
-    attributes: { id: w.id },
-    style: {
-      position: 'absolute',
-      left: `${w.bounds.x}px`,
-      top: `${w.bounds.y}px`,
-      width: `${w.bounds.width}px`,
-      height: `${w.bounds.height}px`,
-      'z-index': w.layer,
-      display: w.visible ? 'block' : 'none',
-    },
-    // GrapesJS will store these custom fields in the component model
-    properties: w.properties,
-    actions: w.actions,
-    extendedProperties: w.extendedProperties,
-  }))
+  return widgets.map((w) => {
+    const props = w.properties as Record<string, unknown>
+    const def: GrapesJsComponentDef = {
+      type: w.type,
+      // id preserved so the round-trip produces the same Widget id after load
+      attributes: { id: w.id },
+      style: {
+        position: 'absolute',
+        left: `${w.bounds.x}px`,
+        top: `${w.bounds.y}px`,
+        width: `${w.bounds.width}px`,
+        height: `${w.bounds.height}px`,
+        'z-index': w.layer,
+        display: w.visible ? 'block' : 'none',
+      },
+      // GrapesJS will store these custom fields in the component model
+      properties: w.properties,
+      actions: w.actions,
+      extendedProperties: w.extendedProperties,
+    }
+    // Map properties.content → GrapesJS content field so text/button/nav widgets
+    // render their stored HTML instead of the component type's default placeholder.
+    if (typeof props?.content === 'string') {
+      def.content = props.content
+    }
+    // Pre-render question widget previews into def.content so GrapesJS natively
+    // displays the question on load. onRender() may not fire during programmatic
+    // loadProjectData(), but GrapesJS always renders def.content.
+    if (w.type === 'question-mc') {
+      const ep = (w.extendedProperties as MCExtendedProps | undefined) ?? MC_DEFAULT_EXTENDED
+      def.content = buildMCPreviewHTML(ep)
+    } else if (w.type === 'question-tf') {
+      const ep = (w.extendedProperties as TFExtendedProps | undefined) ?? TF_DEFAULT_EXTENDED
+      def.content = buildTFPreviewHTML(ep)
+    } else if (w.type === 'question-fill') {
+      const ep = (w.extendedProperties as FillExtendedProps | undefined) ?? FILL_DEFAULT_EXTENDED
+      def.content = buildFillPreviewHTML(ep)
+    }
+    return def
+  })
 }
