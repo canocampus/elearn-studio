@@ -5,6 +5,10 @@
  * live eLearn Studio application and captures 19 PNG screenshots to
  * docs/assets/screenshots/.
  *
+ * Strategy: pre-populate slides with widget data via the REST API before opening
+ * the editor. This avoids relying on GrapesJS drag-and-drop in headless Playwright,
+ * which silently fails when the drop target is inside a cross-origin iframe.
+ *
  * Usage:
  *   pnpm --filter docs run capture
  *
@@ -20,7 +24,7 @@
  *   DOCS_NETWORK_IDLE_TIMEOUT — ms to wait for networkidle (default: 8000)
  */
 
-import { chromium, Browser, BrowserContext, Page, request as pwRequest } from '@playwright/test'
+import { chromium, Browser, BrowserContext, Page, request as pwRequest, APIRequestContext } from '@playwright/test'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -36,11 +40,106 @@ const E2E_PASSWORD = process.env.E2E_TEST_USER_PASSWORD ?? 'e2e-password-secure-
 const AUTH_STATE_PATH  = path.join(__dirname, '../../e2e/.auth/state.json')
 const SCREENSHOTS_DIR  = path.join(__dirname, '../assets/screenshots')
 
+// Canvas size (fixed 1024×768 ToolBook layout)
+const CANVAS_W = 1024
+const CANVAS_H = 768
+
+// ── Widget factory helpers ─────────────────────────────────────────────────────
+function textWidget(id: string, x: number, y: number, w: number, h: number, html: string) {
+  return {
+    id, type: 'text', layer: 1, visible: true, actions: [], extendedProperties: {},
+    bounds: { x, y, width: w, height: h },
+    properties: { content: html },
+  }
+}
+
+function buttonWidget(id: string, x: number, y: number, label: string) {
+  return {
+    id, type: 'button', layer: 2, visible: true, actions: [], extendedProperties: {},
+    bounds: { x, y, width: 160, height: 48 },
+    properties: { label },
+  }
+}
+
+function navButtonsWidget(id: string) {
+  return {
+    id, type: 'nav-buttons', layer: 2, visible: true, actions: [], extendedProperties: {},
+    bounds: { x: 50, y: CANVAS_H - 80, width: 400, height: 48 },
+    properties: {},
+  }
+}
+
+function mcQuestionWidget(id: string) {
+  return {
+    id,
+    type: 'question-mc',
+    layer: 1,
+    visible: true,
+    actions: [],
+    bounds: { x: 50, y: 60, width: CANVAS_W - 100, height: 480 },
+    properties: {
+      questionText: 'Which SCORM standard provides the most comprehensive sequencing support?',
+      options: ['SCORM 1.2', 'SCORM 2004', 'AICC', 'xAPI'],
+      correctIndex: 1,
+      feedback: {
+        correct: 'Correct! SCORM 2004 includes advanced sequencing and navigation rules.',
+        incorrect: 'Not quite — SCORM 2004 is the answer.',
+      },
+    },
+    extendedProperties: { scoring: { weight: 100, attempts: 2 } },
+  }
+}
+
+function screenshotSimWidget(id: string) {
+  return {
+    id,
+    type: 'screenshot-sim',
+    layer: 1,
+    visible: true,
+    actions: [],
+    bounds: { x: 0, y: 0, width: CANVAS_W, height: CANVAS_H },
+    properties: { sessionId: null, mode: 'practice', demoDelay: 2000, maxAttempts: 3 },
+    extendedProperties: {},
+  }
+}
+
+function phaserSimWidget(id: string) {
+  return {
+    id,
+    type: 'phaser-sim',
+    layer: 1,
+    visible: true,
+    actions: [],
+    bounds: { x: 112, y: 134, width: 800, height: 500 },
+    properties: {},
+    extendedProperties: {
+      simType: 'process-flow',
+      mode: 'demo',
+      passingScore: 70,
+      sceneDef: {
+        simType: 'process-flow',
+        nodes: [
+          { id: 'start',   x: 80,  y: 250, label: 'Ticket Created', type: 'start' },
+          { id: 'triage',  x: 280, y: 250, label: 'L1 Triage',      type: 'step' },
+          { id: 'resolve', x: 480, y: 250, label: 'Resolve Issue',   type: 'decision' },
+          { id: 'close',   x: 680, y: 250, label: 'Close Ticket',   type: 'end' },
+        ],
+        edges: [
+          { from: 'start',   to: 'triage' },
+          { from: 'triage',  to: 'resolve', label: 'urgent' },
+          { from: 'resolve', to: 'close' },
+        ],
+        interactionMode: 'demo',
+      },
+    },
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function log(msg: string)  { console.log(`[capture] ${msg}`) }
 function warn(msg: string) { console.warn(`[capture] WARN: ${msg}`) }
 
-/** [R5] Wipe and recreate the screenshots folder before every run. */
+/** Wipe and recreate the screenshots folder before every run. */
 function cleanScreenshotsDir() {
   if (fs.existsSync(SCREENSHOTS_DIR)) {
     fs.rmSync(SCREENSHOTS_DIR, { recursive: true, force: true })
@@ -64,7 +163,7 @@ async function screenshot(page: Page, name: string, description: string): Promis
 }
 
 /**
- * [R2] Wait for network to go idle, then wait an extra stabilisation tick.
+ * Wait for network to go idle, then wait an extra stabilisation tick.
  * Swallows timeout errors so a slow network does not abort the whole run.
  */
 async function waitNetworkIdle(page: Page, timeoutMs = NET_IDLE_MS): Promise<void> {
@@ -76,39 +175,28 @@ async function waitNetworkIdle(page: Page, timeoutMs = NET_IDLE_MS): Promise<voi
 }
 
 /**
- * [R1] Wait for the GrapesJS iframe body to contain at least one rendered
- * element before taking a capture.  Falls back gracefully after timeout.
+ * Wait for the GrapesJS iframe body to be visible before capturing.
+ * Falls back gracefully after timeout.
  */
-async function waitForGjsIframeContent(page: Page, timeoutMs = 15_000): Promise<void> {
+async function waitForGjsIframe(page: Page, timeoutMs = 20_000): Promise<void> {
   try {
-    const gjsFrame = page.frameLocator('iframe.gjs-frame')
-    await gjsFrame.locator('body').waitFor({ state: 'visible', timeout: timeoutMs })
+    await page.locator('iframe.gjs-frame').waitFor({ state: 'attached', timeout: timeoutMs })
+    await page.frameLocator('iframe.gjs-frame').locator('body').waitFor({ state: 'visible', timeout: timeoutMs })
   } catch {
-    // iframe not present or took too long — proceed with whatever is rendered
+    // iframe not present or too slow — proceed with whatever is rendered
   }
 }
 
 /**
- * [R3] After a dragTo operation, wait for a CSS selector inside the GrapesJS
- * iframe that confirms the widget has been injected.
- *
- * @param selector  Any CSS selector that should become visible inside the iframe
- *                  once the widget has been mounted (e.g. '[data-widget="text"]').
- * @param timeoutMs How long to wait before giving up and continuing.
+ * Wait for a widget type to be visible inside the GrapesJS iframe.
+ * Used to confirm pre-populated widgets rendered correctly.
  */
-async function waitForWidgetInCanvas(
-  page: Page,
-  selector: string,
-  timeoutMs = 10_000,
-): Promise<void> {
+async function waitForWidgetInCanvas(page: Page, selector: string, timeoutMs = 10_000): Promise<void> {
   try {
-    await page
-      .frameLocator('iframe.gjs-frame')
-      .locator(selector)
-      .first()
+    await page.frameLocator('iframe.gjs-frame').locator(selector).first()
       .waitFor({ state: 'visible', timeout: timeoutMs })
   } catch {
-    // Widget may have a different selector — fall through to networkidle
+    // Widget selector may differ — fall back to short networkidle wait
     await waitNetworkIdle(page, 3_000)
   }
 }
@@ -157,8 +245,8 @@ async function ensureAuthState(browser: Browser): Promise<BrowserContext> {
     await page.close()
   }
 
-  // [R4] Disable CSS transitions and animations in ALL frames (including GrapesJS iframe)
-  // so that we never capture a panel mid-open or a widget mid-fade-in.
+  // Disable CSS transitions and animations in ALL frames (including GrapesJS iframe)
+  // so panels never appear mid-open or widgets mid-fade-in.
   await ctx.addInitScript(() => {
     const inject = () => {
       if (document.getElementById('__no-anim__')) return
@@ -183,38 +271,148 @@ async function ensureAuthState(browser: Browser): Promise<BrowserContext> {
   return ctx
 }
 
-/** Create (or reuse) a "Docs Screenshots" course with pre-loaded slides. */
-async function ensureDocsCourse(accessToken: string): Promise<string> {
+interface SlideIds {
+  empty:         string
+  withWidgets:   string
+  withQuestion:  string
+  withSim:       string
+  withPhaser:    string
+}
+
+/**
+ * Always delete any existing "Docs Screenshots" course and create a fresh one.
+ * Pre-populate slides with realistic widget data via PATCH so the editor opens
+ * with content already rendered — no drag-and-drop needed.
+ *
+ * Returns an object mapping slide purpose to slide id.
+ */
+async function setupDocsCourse(accessToken: string): Promise<{ courseId: string; slides: SlideIds }> {
   const apiCtx = await pwRequest.newContext({ baseURL: API_URL })
   const headers = { Authorization: `Bearer ${accessToken}` }
 
+  // 1. Delete any existing "Docs Screenshots" course (avoid state pollution)
   const listRes  = await apiCtx.get('/courses', { headers })
   const listBody = await listRes.json() as { data: Array<{ _id: string; title: string }> }
-  const existing = listBody.data.find(c => c.title === 'Docs Screenshots')
-  if (existing) {
-    log(`Reusing existing course: ${existing._id}`)
-    await apiCtx.dispose()
-    return existing._id
+  for (const c of listBody.data.filter(c => c.title === 'Docs Screenshots')) {
+    await apiCtx.delete(`/courses/${c._id}`, { headers })
+    log(`Deleted stale course: ${c._id}`)
   }
 
+  // 2. Create fresh course
   const createRes  = await apiCtx.post('/courses', { data: { title: 'Docs Screenshots' }, headers })
   if (!createRes.ok()) throw new Error(`Create course failed: ${await createRes.text()}`)
-  const createBody = await createRes.json() as { data: { _id: string } }
+  const createBody = await createRes.json() as { data: { _id: string; slides: Array<{ id: string }> } }
   const courseId   = createBody.data._id
-  log(`Created docs course: ${courseId}`)
+  log(`Created fresh docs course: ${courseId}`)
 
-  for (const title of ['Slide 2', 'Slide 3']) {
-    const r = await apiCtx.post(`/courses/${courseId}/slides`, { data: { title }, headers })
-    if (!r.ok()) warn(`Add slide "${title}" failed: ${await r.text()}`)
+  // 3. Add all five slides explicitly (do not rely on a default slide from course creation)
+  const slideIds: string[] = []
+
+  for (const title of ['Empty Slide', 'Widgets Slide', 'Question Slide', 'Simulation Slide', 'Phaser Slide']) {
+    const r    = await apiCtx.post(`/courses/${courseId}/slides`, { data: { title }, headers })
+    if (!r.ok()) throw new Error(`Add slide "${title}" failed: ${await r.text()}`)
+    const body = await r.json() as { data: { slides: Array<{ id: string }> } }
+    const last  = body.data.slides.at(-1)
+    if (!last?.id) throw new Error(`No slide id returned for "${title}"`)
+    slideIds.push(last.id)
   }
 
+  const [emptyId, widgetsId, questionId, simId, phaserId] = slideIds
+
+  // 4. Patch each slide with pre-built widget data
+  await patchSlide(apiCtx, courseId, widgetsId, headers, [
+    textWidget('w-heading', 50, 60, CANVAS_W - 100, 80,
+      '<h2 style="font-family:sans-serif;font-size:28px;font-weight:700;color:#1e293b;margin:0">Welcome to eLearn Studio</h2>'),
+    textWidget('w-body', 50, 160, CANVAS_W - 100, 140,
+      '<p style="font-family:sans-serif;font-size:16px;color:#334155;line-height:1.6">Build interactive courses with the visual slide editor. Drag widgets from the Blocks panel onto the canvas, configure properties in the right panel, and publish to any LMS via SCORM.</p>'),
+    buttonWidget('w-btn-next', CANVAS_W - 220, CANVAS_H - 80, 'Next →'),
+    navButtonsWidget('w-nav'),
+  ])
+  log(`Patched widgets slide: ${widgetsId}`)
+
+  await patchSlide(apiCtx, courseId, questionId, headers, [
+    mcQuestionWidget('w-mc-1'),
+    navButtonsWidget('w-nav-q'),
+  ])
+  log(`Patched question slide: ${questionId}`)
+
+  await patchSlide(apiCtx, courseId, simId, headers, [
+    screenshotSimWidget('w-sim-1'),
+  ])
+  log(`Patched simulation slide: ${simId}`)
+
+  await patchSlide(apiCtx, courseId, phaserId, headers, [
+    phaserSimWidget('w-phaser-1'),
+  ])
+  log(`Patched phaser slide: ${phaserId}`)
+
+  // emptyId slide is left with no widgets — used for the "empty editor" screenshot
+
   await apiCtx.dispose()
-  return courseId
+
+  return {
+    courseId,
+    slides: {
+      empty:        emptyId,
+      withWidgets:  widgetsId,
+      withQuestion: questionId,
+      withSim:      simId,
+      withPhaser:   phaserId,
+    },
+  }
+}
+
+async function patchSlide(
+  apiCtx: APIRequestContext,
+  courseId: string,
+  slideId: string,
+  headers: Record<string, string>,
+  widgets: object[],
+): Promise<void> {
+  const r = await apiCtx.patch(`/courses/${courseId}/slides/${slideId}`, {
+    data: { widgets },
+    headers,
+  })
+  if (!r.ok()) throw new Error(`PATCH slide ${slideId} failed: ${await r.text()}`)
+}
+
+/**
+ * Navigate to a specific slide by clicking it in the slide list panel.
+ * Switches to the "Slides" tab first (the Blocks tab may be active from a prior step).
+ * Uses the slide title via aria-label (SlideItem renders aria-label="Slide N: {title}").
+ * Waits for the GrapesJS iframe to reload before returning.
+ */
+async function navigateToSlide(page: Page, slideTitle: string): Promise<void> {
+  // Ensure the Slides panel is visible (not obscured by the Blocks or Layers tab)
+  try {
+    const slidesTab = page.getByRole('tab', { name: 'Slides', exact: true })
+    if (await slidesTab.count() > 0) {
+      await slidesTab.click()
+      await page.locator('[data-testid="slide-item"]').first()
+        .waitFor({ state: 'visible', timeout: 8_000 })
+    }
+  } catch {
+    // tab not found or slides already visible — continue
+  }
+
+  // SlideItem: <div data-testid="slide-item" aria-label="Slide N: {title}" ...>
+  const slideBtn = page.locator(`[data-testid="slide-item"][aria-label*="${slideTitle}"]`).first()
+
+  try {
+    await slideBtn.waitFor({ state: 'visible', timeout: 8_000 })
+    await slideBtn.click()
+  } catch {
+    warn(`navigateToSlide: could not find slide with title "${slideTitle}"`)
+  }
+
+  // Wait for GrapesJS to reload the new slide content
+  await waitForGjsIframe(page, 15_000)
+  await waitNetworkIdle(page, 4_000)
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
-  // [R5] Clean + recreate screenshots folder
+  // Clean + recreate screenshots folder
   cleanScreenshotsDir()
 
   const browser = await chromium.launch({ headless: true })
@@ -223,22 +421,20 @@ async function main() {
 
   try {
     const accessToken = await authenticate()
-    const courseId    = await ensureDocsCourse(accessToken)
-    const ctx         = await ensureAuthState(browser)
-    const page        = await ctx.newPage()
+    const { courseId, slides } = await setupDocsCourse(accessToken)
+    const ctx  = await ensureAuthState(browser)
+    const page = await ctx.newPage()
     await page.setViewportSize({ width: 1440, height: 900 })
 
     // ── 01: Dashboard / Course list ───────────────────────────────────────────
     log('Navigating to dashboard...')
     await page.goto('/')
     try {
-      // Try the course-list view first
       await page.waitForSelector(
         '[data-testid="course-list"], [data-testid="course-item"], .course-card',
         { timeout: 8_000 },
       )
     } catch {
-      // App opens directly in editor — wait for the editor toolbar
       await page.getByRole('button', { name: /Publish SCORM/i }).waitFor({ timeout: 25_000 })
     }
     await waitNetworkIdle(page)
@@ -246,10 +442,9 @@ async function main() {
 
     // ── 02: New course dialog ─────────────────────────────────────────────────
     try {
-      const newCourseBtn = page.locator('[title="New course"]')
+      const newCourseBtn = page.locator('[title="New course"], button').filter({ hasText: /New Course/i }).first()
       await newCourseBtn.waitFor({ timeout: 5_000 })
       await newCourseBtn.click()
-      // Wait for the dialog to be fully visible (no animation blur thanks to R4)
       await page.locator('[role="dialog"], .modal, [data-testid="new-course-dialog"]')
         .first()
         .waitFor({ state: 'visible', timeout: 8_000 })
@@ -262,23 +457,20 @@ async function main() {
       skipped++
     }
 
-    // ── Navigate to the docs course editor ────────────────────────────────────
+    // ── Open the docs course — starts on first (empty) slide ──────────────────
     log(`Opening docs course editor: ${courseId}`)
     await page.goto(`/?courseId=${courseId}`)
     await page.getByRole('button', { name: /Publish SCORM/i }).waitFor({ timeout: 30_000 })
-
-    // [R1] Wait for the GrapesJS iframe to load its content before proceeding
-    await page.locator('iframe.gjs-frame').waitFor({ state: 'attached', timeout: 20_000 })
-    await waitForGjsIframeContent(page)
+    await waitForGjsIframe(page)
     await waitNetworkIdle(page)
 
     // ── 03: Editor — empty slide ──────────────────────────────────────────────
+    // The first slide has no widgets — shows clean empty canvas
     if (await screenshot(page, '03-editor-empty.png', 'GrapesJS editor — empty slide')) captured++
 
     // ── 04: Block Manager panel ───────────────────────────────────────────────
     try {
       await page.getByRole('tab', { name: 'Blocks', exact: true }).click()
-      // Wait for the block list to render; at least one block item must be visible
       await page.locator('.gjs-block').first().waitFor({ state: 'visible', timeout: 8_000 })
       if (await screenshot(page, '04-block-manager.png', 'Block Manager panel open')) captured++
     } catch (err) {
@@ -286,39 +478,30 @@ async function main() {
       skipped++
     }
 
-    // ── 05: Editor with a Text widget ─────────────────────────────────────────
-    try {
-      const gjsFrame   = page.frameLocator('iframe.gjs-frame')
-      const gjsBody    = gjsFrame.locator('body')
-      const textBlock  = page.locator('.gjs-block').filter({ hasText: /^Text$/i }).first()
+    // ── Navigate to the widgets slide ─────────────────────────────────────────
+    log('Navigating to widgets slide...')
+    await navigateToSlide(page, 'Widgets Slide')
 
-      if (await textBlock.count() > 0) {
-        await textBlock.dragTo(gjsBody, { targetPosition: { x: 200, y: 200 } })
-        // [R3] Confirm the widget landed in the canvas
-        await waitForWidgetInCanvas(page, '[data-gjs-type="text"], p, [contenteditable]')
-      }
-      await waitNetworkIdle(page, 4_000)
-      if (await screenshot(page, '05-editor-widgets.png', 'Editor with Text widget')) captured++
-    } catch (err) {
-      warn(`05-editor-widgets: ${err}`)
-      if (await screenshot(page, '05-editor-widgets.png', 'Editor (fallback)')) captured++
-    }
+    // ── 05: Editor with Text + Button widgets ─────────────────────────────────
+    // Wait for the heading text widget to appear in the canvas
+    await waitForWidgetInCanvas(page, 'h2, [data-gjs-type="text"]')
+    if (await screenshot(page, '05-editor-widgets.png', 'Editor with pre-populated widgets')) captured++
 
     // ── 06: Layer Manager ─────────────────────────────────────────────────────
     try {
       await page.getByRole('tab', { name: 'Layers', exact: true }).click()
-      await page.locator('.gjs-layer, [data-gjs-layer]').first().waitFor({ state: 'visible', timeout: 8_000 })
+      await page.locator('.gjs-layer, [data-gjs-layer], [class*="layer-item"]').first()
+        .waitFor({ state: 'visible', timeout: 8_000 })
       if (await screenshot(page, '06-layer-manager.png', 'Layer Manager panel')) captured++
     } catch (err) {
       warn(`06-layer-manager: ${err}`)
       skipped++
     }
 
-    // ── 07: Style Manager / Properties ───────────────────────────────────────
+    // ── 07: Style Manager / Properties ────────────────────────────────────────
     try {
       await page.getByRole('tab', { name: 'Styles', exact: true }).click()
-      // Wait for at least one style property to appear
-      await page.locator('.gjs-sm-sector, .gjs-field, [data-gjs-style]').first()
+      await page.locator('.gjs-sm-sector, .gjs-field, [data-gjs-style], [class*="sm-sector"]').first()
         .waitFor({ state: 'visible', timeout: 8_000 })
       if (await screenshot(page, '07-properties-panel.png', 'Style Manager panel')) captured++
     } catch (err) {
@@ -326,35 +509,22 @@ async function main() {
       skipped++
     }
 
-    // ── 08: Multiple Choice question widget ───────────────────────────────────
-    try {
-      await page.getByRole('tab', { name: 'Blocks', exact: true }).click()
-      await page.locator('.gjs-block').first().waitFor({ state: 'visible', timeout: 6_000 })
+    // ── Navigate to the question slide ────────────────────────────────────────
+    log('Navigating to question slide...')
+    await navigateToSlide(page, 'Question Slide')
 
-      const mcBlock = page.locator('.gjs-block').filter({ hasText: /Multiple.?Choice/i }).first()
-      if (await mcBlock.count() > 0) {
-        const gjsFrame = page.frameLocator('iframe.gjs-frame')
-        await mcBlock.dragTo(gjsFrame.locator('body'), { targetPosition: { x: 300, y: 300 } })
-        // [R3] Wait for the MC question widget to appear in the canvas
-        await waitForWidgetInCanvas(page, '[data-widget="question-mc"], .question-mc, .question-widget')
-        await waitNetworkIdle(page, 4_000)
-      }
-      if (await screenshot(page, '08-question-mc-authoring.png', 'Multiple Choice widget authoring')) captured++
-    } catch (err) {
-      warn(`08-question-mc-authoring: ${err}`)
-      if (await screenshot(page, '08-question-mc-authoring.png', 'Editor (fallback)')) captured++
-    }
+    // ── 08: Multiple Choice question widget ───────────────────────────────────
+    // The MC question is pre-populated — wait for it to render
+    await waitForWidgetInCanvas(page, '[data-gjs-type="question-mc"], .question-widget, [data-widget]', 12_000)
+    if (await screenshot(page, '08-question-mc-authoring.png', 'Multiple Choice widget in canvas')) captured++
 
     // ── 09: Question Extended Properties ─────────────────────────────────────
     try {
       await page.getByRole('tab', { name: 'Props', exact: true }).click()
-      // Wait for the properties panel to populate
-      await page.locator('[data-testid="question-props-panel"], .question-props, .extended-props')
+      await page.locator('[data-testid="question-props-panel"], .question-props, .extended-props, [class*="props"]')
         .first()
         .waitFor({ state: 'visible', timeout: 8_000 })
-        .catch(() => {
-          // Acceptable — panel may not exist if no widget is selected; capture as-is
-        })
+        .catch(() => {})
       await waitNetworkIdle(page, 3_000)
       if (await screenshot(page, '09-question-properties.png', 'Question Extended Properties panel')) captured++
     } catch (err) {
@@ -362,10 +532,9 @@ async function main() {
       skipped++
     }
 
-    // ── 10: Actions Editor ────────────────────────────────────────────────────
+    // ── 10: Actions Editor ─────────────────────────────────────────────────────
     try {
       await page.getByRole('tab', { name: 'Actions', exact: true }).click()
-      // Wait for the actions editor root container
       await page.locator('[data-testid="actions-editor"], .actions-editor, [class*="actions"]')
         .first()
         .waitFor({ state: 'visible', timeout: 8_000 })
@@ -377,7 +546,7 @@ async function main() {
       skipped++
     }
 
-    // ── 11: Actions Editor — event row / condition view ───────────────────────
+    // ── 11: Actions Editor — event row ────────────────────────────────────────
     try {
       const addEventBtn = page
         .locator('[data-testid="add-event-btn"], button')
@@ -385,7 +554,6 @@ async function main() {
         .first()
       if (await addEventBtn.count() > 0) {
         await addEventBtn.click()
-        // Wait for the event row to appear
         await page.locator('[data-testid="event-row"], .event-row, .action-event')
           .first()
           .waitFor({ state: 'visible', timeout: 6_000 })
@@ -397,36 +565,27 @@ async function main() {
       if (await screenshot(page, '11-actions-condition.png', 'Actions Editor (fallback)')) captured++
     }
 
-    // ── 12: Simulation Recorder ───────────────────────────────────────────────
-    try {
-      await page.getByRole('tab', { name: 'Blocks', exact: true }).click()
-      await page.locator('.gjs-block').first().waitFor({ state: 'visible', timeout: 6_000 })
+    // ── Navigate to the simulation slide ──────────────────────────────────────
+    log('Navigating to simulation slide...')
+    await navigateToSlide(page, 'Simulation Slide')
 
-      const simBlock = page.locator('.gjs-block')
-        .filter({ hasText: /Software.?Walkthrough|Screenshot.?Sim|Simulation/i })
-        .first()
-      if (await simBlock.count() > 0) {
-        const gjsFrame = page.frameLocator('iframe.gjs-frame')
-        await simBlock.dragTo(gjsFrame.locator('body'), { targetPosition: { x: 150, y: 400 } })
-        // [R3] Confirm screenshot-sim widget injected
-        await waitForWidgetInCanvas(page, '[data-widget="screenshot-sim"], .screenshot-sim-widget')
-        await waitNetworkIdle(page, 4_000)
-      }
-      if (await screenshot(page, '12-sim-recorder.png', 'Simulation Recorder widget')) captured++
-    } catch (err) {
-      warn(`12-sim-recorder: ${err}`)
-      if (await screenshot(page, '12-sim-recorder.png', 'Editor (fallback)')) captured++
-    }
+    // ── 12: Simulation widget in canvas ───────────────────────────────────────
+    // The screenshot-sim widget is pre-populated — wait for the placeholder to render
+    await waitForWidgetInCanvas(
+      page,
+      '[data-gjs-type="screenshot-sim"], .screenshot-sim-widget, [data-widget="screenshot-sim"], div',
+      12_000,
+    )
+    if (await screenshot(page, '12-sim-recorder.png', 'Screenshot Simulation widget in canvas')) captured++
 
-    // ── 13: Simulation Editor (hotspot drawing) ───────────────────────────────
+    // ── 13: Simulation Editor (double-click to open) ──────────────────────────
     try {
-      const gjsFrame = page.frameLocator('iframe.gjs-frame')
+      const gjsFrame       = page.frameLocator('iframe.gjs-frame')
       const simPlaceholder = gjsFrame
-        .locator('[data-widget="screenshot-sim"], div:has-text("Double-click to edit")')
+        .locator('[data-gjs-type="screenshot-sim"], div:has-text("Double-click"), div:first-child')
         .first()
       if (await simPlaceholder.count() > 0) {
         await simPlaceholder.dblclick({ timeout: 8_000 })
-        // Wait for the simulation editor overlay/modal to open
         await page.locator('[data-testid="sim-editor"], .sim-editor-panel, canvas')
           .first()
           .waitFor({ state: 'visible', timeout: 10_000 })
@@ -435,20 +594,26 @@ async function main() {
       }
       if (await screenshot(page, '13-sim-editor-hotspot.png', 'Simulation Editor hotspot view')) captured++
 
-      // Close the simulation editor if it opened
-      const closeBtn = page
-        .locator('[data-testid="sim-editor-close"], button[title="Close"], [aria-label="Close"]')
-        .first()
-      if (await closeBtn.count() > 0) {
-        await closeBtn.click()
-        await page.locator('[data-testid="sim-editor"]').waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
+      // Close the sim editor — the toolbar shows "Save & Close" and "Cancel"
+      const cancelBtn = page.getByRole('button', { name: 'Cancel' })
+      if (await cancelBtn.count() > 0) {
+        await cancelBtn.click({ timeout: 8_000 })
+      } else {
+        const saveCloseBtn = page.getByRole('button', { name: /Save & Close/i })
+        if (await saveCloseBtn.count() > 0) await saveCloseBtn.click({ timeout: 8_000 })
       }
+      // Wait until the toolbar heading "Simulation Editor" is gone
+      await page.locator('text=Simulation Editor').waitFor({ state: 'hidden', timeout: 8_000 }).catch(() => {})
+      await waitNetworkIdle(page, 2_000)
     } catch (err) {
       warn(`13-sim-editor-hotspot: ${err}`)
-      if (await screenshot(page, '13-sim-editor-hotspot.png', 'Editor (fallback)')) captured++
+      if (await screenshot(page, '13-sim-editor-hotspot.png', 'Sim slide (fallback)')) captured++
+      // Still try to dismiss any open sim editor before continuing
+      await page.getByRole('button', { name: 'Cancel' }).click({ timeout: 5_000 }).catch(() => {})
+      await page.locator('text=Simulation Editor').waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
     }
 
-    // ── 14: Preview (Runtime Player) ──────────────────────────────────────────
+    // ── 14: Preview (Runtime Player) ─────────────────────────────────────────
     try {
       const previewBtn = page
         .locator('button[title="Preview"], button')
@@ -456,7 +621,6 @@ async function main() {
         .first()
       if (await previewBtn.count() > 0) {
         await previewBtn.click()
-        // Wait for the preview iframe/overlay to appear
         await page.locator('[data-testid="preview-player"], iframe[title*="preview" i], .preview-overlay')
           .first()
           .waitFor({ state: 'visible', timeout: 12_000 })
@@ -477,32 +641,22 @@ async function main() {
       if (await screenshot(page, '14-sim-player-practice.png', 'Editor (fallback)')) captured++
     }
 
-    // ── 15: Phaser Process Flow simulation ────────────────────────────────────
-    try {
-      await page.getByRole('tab', { name: 'Blocks', exact: true }).click()
-      await page.locator('.gjs-block').first().waitFor({ state: 'visible', timeout: 6_000 })
+    // ── Navigate to the Phaser slide ──────────────────────────────────────────
+    log('Navigating to Phaser slide...')
+    await navigateToSlide(page, 'Phaser Slide')
 
-      const phaserBlock = page.locator('.gjs-block')
-        .filter({ hasText: /Interactive.?Scenario|Phaser.?Sim/i })
-        .first()
-      if (await phaserBlock.count() > 0) {
-        const gjsFrame = page.frameLocator('iframe.gjs-frame')
-        await phaserBlock.dragTo(gjsFrame.locator('body'), { targetPosition: { x: 500, y: 200 } })
-        // [R3] Confirm Phaser widget injected
-        await waitForWidgetInCanvas(page, '[data-widget="phaser-sim"], .phaser-sim-widget')
-        await waitNetworkIdle(page, 5_000)
-      }
-      if (await screenshot(page, '15-phaser-processflow.png', 'Phaser Process Flow simulation authoring')) captured++
-    } catch (err) {
-      warn(`15-phaser-processflow: ${err}`)
-      if (await screenshot(page, '15-phaser-processflow.png', 'Editor (fallback)')) captured++
-    }
+    // ── 15: Phaser sim in canvas ──────────────────────────────────────────────
+    await waitForWidgetInCanvas(
+      page,
+      '[data-gjs-type="phaser-sim"], .phaser-sim-widget, [data-widget="phaser-sim"], div',
+      12_000,
+    )
+    if (await screenshot(page, '15-phaser-processflow.png', 'Phaser Process Flow simulation in canvas')) captured++
 
-    // ── 16: Phaser sim — Properties panel ────────────────────────────────────
+    // ── 16: Phaser sim Properties panel ──────────────────────────────────────
     try {
       await page.getByRole('tab', { name: 'Props', exact: true }).click()
-      // Wait for the extended-properties panel; Phaser props include a simType selector
-      await page.locator('[data-testid="phaser-props-panel"], [data-testid="extended-props"], select')
+      await page.locator('[data-testid="phaser-props-panel"], [data-testid="extended-props"], select, [class*="props"]')
         .first()
         .waitFor({ state: 'visible', timeout: 8_000 })
         .catch(() => {})
@@ -517,7 +671,6 @@ async function main() {
     try {
       const publishBtn = page.getByRole('button', { name: /Publish SCORM/i })
       await publishBtn.click()
-      // Wait for the modal to appear fully
       await page.locator('[role="dialog"], .modal, [data-testid="export-dialog"]')
         .first()
         .waitFor({ state: 'visible', timeout: 8_000 })
@@ -530,7 +683,7 @@ async function main() {
       skipped++
     }
 
-    // ── 18: Moodle — SKIP (service DOWN in dev) ───────────────────────────────
+    // ── 18: Moodle — SKIP (service not running in dev) ────────────────────────
     warn('18-moodle-course: Moodle service not running — skipped')
     skipped++
 
@@ -546,7 +699,6 @@ async function main() {
         await emailInput.fill('admin')
         await grafanaPage.locator('input[name="password"], input[type="password"]').fill('admin')
         await grafanaPage.getByRole('button', { name: /Log in|Sign in/i }).click()
-        // Wait for dashboard home to load
         await grafanaPage.waitForURL(/\/(\?|dashboard|home)/i, { timeout: 15_000 }).catch(() => {})
         await waitNetworkIdle(grafanaPage, 6_000)
       }
