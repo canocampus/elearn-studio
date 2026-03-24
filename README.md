@@ -20,47 +20,34 @@ Open-source, web-based e-learning authoring platform inspired by ToolBook 11.5 �
 
 ```mermaid
 graph LR
-  classDef frontend fill:#3B82F6,color:#fff
-  classDef backend fill:#10B981,color:#fff
-  classDef storage fill:#F59E0B,color:#fff
-  classDef pkg fill:#8B5CF6,color:#fff
-  classDef infra fill:#6B7280,color:#fff
+  UI[authoring-ui: GrapesJS + React]
+  SE[simulation-engine: Playwright]
+  AE[actions-editor: React]
+  
+  SP[scorm-packager: ZIP Builder]
+  RP[runtime-player: Vanilla JS]
+  PS[phaser-simulations: Phaser.js]
+  
+  API[backend/api: Express + TS]
+  DB[(MongoDB 7)]
+  GRG[(Garage S3)]
+  
+  GF[Grafana Dashboards]
+  LK[Loki Logs]
+  TM[Tempo Traces]
 
-  subgraph Authoring
-    UI[authoring-ui<br/>GrapesJS + React]:::frontend
-    SE[simulation-engine<br/>Playwright recorder]:::frontend
-    AE[actions-editor<br/>React]:::frontend
-  end
-
-  subgraph Packaging
-    SP[scorm-packager<br/>SCORM 1.2/2004/xAPI]:::pkg
-    RP[runtime-player<br/>Vanilla JS]:::pkg
-    PS[phaser-simulations<br/>Phaser.js 3]:::pkg
-  end
-
-  subgraph Backend
-    API[backend/api<br/>Express 5 + TypeScript]:::backend
-    DB[(MongoDB 7)]:::storage
-    GRG[(Garage S3)]:::storage
-  end
-
-  subgraph Observability
-    GF[Grafana]:::infra
-    LK[Loki]:::infra
-    TM[Tempo]:::infra
-  end
-
-  UI -->|REST + JWT| API
-  SE -->|screenshots| GRG
-  API -->|Mongoose| DB
-  API -->|AWS SDK S3| GRG
-  SP -->|reads| DB
-  SP -->|reads| GRG
-  SP -->|ZIP| LMS[Moodle LMS]:::infra
-  RP -.->|embeds in| LMS
-  PS -.->|lazy load| RP
-  API -->|logs| LK
-  API -->|traces| TM
+  UI --> API
+  AE --> UI
+  SE --> GRG
+  API --> DB
+  API --> GRG
+  SP --> DB
+  SP --> GRG
+  SP --> LMS[Moodle LMS]
+  RP --> LMS
+  PS --> RP
+  API --> LK
+  API --> TM
   LK --> GF
   TM --> GF
 ```
@@ -69,7 +56,7 @@ graph LR
 
 ## Quick Start
 
-**Prerequisites:** [Docker Desktop](https://docs.docker.com/desktop/) (Engine ≥ 24), [Node.js](https://nodejs.org/) ≥ 20 LTS, [pnpm](https://pnpm.io/) ≥ 9
+**Prerequisites:** [Docker Desktop](https://docs.docker.com/desktop/) (Engine >= 24), [Node.js](https://nodejs.org/) >= 20 LTS, [pnpm](https://pnpm.io/) >= 9
 
 ```bash
 git clone https://github.com/canocampus/elearn-studio
@@ -79,8 +66,6 @@ docker compose -f docker/docker-compose.dev.yml up -d
 pnpm install
 pnpm dev
 ```
-
-Services after startup:
 
 | Service | URL |
 |---|---|
@@ -92,17 +77,17 @@ Services after startup:
 
 ## Features
 
-- **Visual slide editor** — drag-and-drop canvas (GrapesJS), layer manager, style panel, 1024×768 fixed layout
+- **Visual slide editor** — drag-and-drop canvas (GrapesJS), layer manager, style panel, 1024x768 fixed layout
 - **Widget library** — text, image, button, shape, media player, score display, navigation controls
 - **Multiple Choice questions** — per-question scoring, weighted attempts, instant feedback
 - **True/False and Fill-in-the-Blank questions** — full scoring engine with partial credit support
 - **Screenshot simulations** — record any desktop workflow with Playwright; replay as hotspot-driven practice
 - **Phaser simulations** — process flows, physics demos, gamified quizzes, concept animators, interactive diagrams
-- **Action Sequences** — visual event→action builder (show/hide, navigate, score, branch on condition)
+- **Action Sequences** — visual event->action builder (show/hide, navigate, score, branch on condition)
 - **SCORM 1.2 and SCORM 2004 export** — compliant ZIP packages, imsmanifest.xml, sequencing rules
 - **AICC and xAPI export** — same packager pipeline, different manifest/statement formats
 - **Moodle 4.x validation** — local Docker LMS for smoke-testing packages before release
-- **Observability stack** — structured logs (Pino → Loki), distributed traces (OTel → Tempo), dashboards (Grafana)
+- **Observability stack** — structured logs (Pino -> Loki), distributed traces (OTel -> Tempo), dashboards (Grafana)
 - **Garage S3 asset storage** — all media, screenshots, and Phaser sprites stored in S3-compatible object store
 - **JWT authentication** — register/login, Bearer token on all API routes
 
@@ -142,32 +127,28 @@ elearn-studio/
 | **Backend** | Node.js 20, Express 5, TypeScript 5, Mongoose | REST API, route handling, data access layer |
 | **Storage** | MongoDB 7, Garage S3 | Course document store, asset and screenshot storage |
 | **Packaging** | scorm-again, SCORM 1.2/2004, AICC, xAPI | LMS-compliant ZIP output for all major standards |
-| **Observability** | Pino → Loki, OpenTelemetry → Tempo, Prometheus, Grafana | Structured logs, distributed traces, metrics, dashboards |
+| **Observability** | Pino -> Loki, OpenTelemetry -> Tempo, Prometheus, Grafana | Structured logs, distributed traces, metrics, dashboards |
 
 ---
 
 ## Course Authoring Workflow
 
 ```mermaid
-flowchart LR
-  classDef action fill:#3B82F6,color:#fff
-  classDef decision fill:#F59E0B,color:#000
-  classDef output fill:#10B981,color:#fff
-
-  A[Create Course]:::action --> B[Add Slides]:::action
-  B --> C[Place Widgets<br/>on Canvas]:::action
-  C --> D{Widget type?}:::decision
-  D -->|Question| E[Configure Scoring<br/>& Feedback]:::action
-  D -->|Simulation| F[Record or Build<br/>Simulation]:::action
-  D -->|Basic widget| G[Set Properties<br/>& Actions]:::action
-  E --> H[Preview in<br/>Runtime Player]:::action
+graph TD
+  A[Create Course] --> B[Add Slides]
+  B --> C[Place Widgets on Canvas]
+  C --> D{Widget type?}
+  D -->|Question| E[Configure Scoring & Feedback]
+  D -->|Simulation| F[Record or Build Simulation]
+  D -->|Basic widget| G[Set Properties & Actions]
+  E --> H[Preview in Runtime Player]
   F --> H
   G --> H
-  H --> I{Looks correct?}:::decision
+  H --> I{Looks correct?}
   I -->|No| B
-  I -->|Yes| J[Export SCORM ZIP]:::output
-  J --> K[Upload to Moodle]:::output
-  K --> L[Validate LMS<br/>Tracking]:::output
+  I -->|Yes| J[Export SCORM ZIP]
+  J --> K[Upload to Moodle]
+  K --> L[Validate LMS Tracking]
 ```
 
 ---
@@ -176,24 +157,18 @@ flowchart LR
 
 ```mermaid
 graph TD
-  classDef root fill:#1E3A5F,color:#fff
-  classDef branch fill:#3B82F6,color:#fff
-  classDef leaf fill:#93C5FD,color:#000
+  SIM[Simulation Types] --> SS[Screenshot Simulation]
+  SIM --> PS[Phaser Simulation]
 
-  SIM[Simulation Types]:::root
+  SS --> SS1[Record with Playwright]
+  SS --> SS2[Edit hotspots in Konva.js]
+  SS --> SS3[Replay: demo / practice / assessment]
 
-  SIM --> SS[Screenshot Simulation]:::branch
-  SIM --> PS[Phaser Simulation]:::branch
-
-  SS --> SS1[Record with<br/>Playwright]:::leaf
-  SS --> SS2[Edit hotspots<br/>in Konva.js]:::leaf
-  SS --> SS3[Replay: demo /<br/>practice / assessment]:::leaf
-
-  PS --> PS1[process-flow<br/>Animated node diagrams]:::leaf
-  PS --> PS2[physics-demo<br/>Matter.js simulation]:::leaf
-  PS --> PS3[gamified-quiz<br/>Timer + lives + combos]:::leaf
-  PS --> PS4[concept-animator<br/>Algorithm visualization]:::leaf
-  PS --> PS5[interactive-diagram<br/>Labeled sprite hotspots]:::leaf
+  PS --> PS1[Process Flow: Animated node diagrams]
+  PS --> PS2[Physics Demo: Matter.js simulation]
+  PS --> PS3[Gamified Quiz: Timer + lives + combos]
+  PS --> PS4[Concept Animator: Algorithm visualization]
+  PS --> PS5[Interactive Diagram: Labeled hotspots]
 ```
 
 ---

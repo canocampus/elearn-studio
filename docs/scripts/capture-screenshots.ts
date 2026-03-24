@@ -76,17 +76,22 @@ function mcQuestionWidget(id: string) {
     layer: 1,
     visible: true,
     actions: [],
-    bounds: { x: 50, y: 60, width: CANVAS_W - 100, height: 480 },
-    properties: {
+    bounds: { x: 50, y: 60, width: CANVAS_W - 100, height: 260 },
+    properties: {},
+    // extendedProperties must match MCExtendedProps (registerQuestionBlocks.ts)
+    // so that buildMCPreviewHTML() can render the question in the GrapesJS canvas
+    extendedProperties: {
       questionText: 'Which SCORM standard provides the most comprehensive sequencing support?',
-      options: ['SCORM 1.2', 'SCORM 2004', 'AICC', 'xAPI'],
-      correctIndex: 1,
-      feedback: {
-        correct: 'Correct! SCORM 2004 includes advanced sequencing and navigation rules.',
-        incorrect: 'Not quite — SCORM 2004 is the answer.',
-      },
+      options: [
+        { id: '1', text: 'SCORM 1.2',         isCorrect: false },
+        { id: '2', text: 'SCORM 2004',         isCorrect: true  },
+        { id: '3', text: 'AICC',               isCorrect: false },
+        { id: '4', text: 'xAPI / Tin Can',     isCorrect: false },
+      ],
+      feedbackCorrect:   'Correct! SCORM 2004 includes advanced sequencing and navigation rules.',
+      feedbackIncorrect: 'Not quite — SCORM 2004 is the answer.',
+      scoring: { weight: 100, attempts: 2 },
     },
-    extendedProperties: { scoring: { weight: 100, attempts: 2 } },
   }
 }
 
