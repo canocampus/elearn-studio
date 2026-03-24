@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "rollup -c --watch --configPlugin @rollup/plugin-typescript",
     "build": "rollup -c --configPlugin @rollup/plugin-typescript",
+    "build:prod": "rollup -c --configPlugin @rollup/plugin-typescript --environment NODE_ENV:production",
     "test": "vitest run"
   },
   "dependencies": {
     "lz-string": "^1.5.0"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",

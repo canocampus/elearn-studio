@@ -10,6 +10,7 @@
  */
 
 import type { Editor } from 'grapesjs'
+import type { CourseDoc } from '../types/course'
 import * as courseApi from '../api/courseApi'
 import { grapesjsFromWidgets, widgetsFromGrapesjs } from './converters'
 
@@ -21,6 +22,11 @@ export interface StorageOptions {
 // R-03: Module-level mutable context so the storage manager can access the current
 // slide without requiring a full editor re-init on every slide switch.
 const storageContext: StorageOptions = { courseId: '', slideId: '' }
+
+// T042.5: In-memory course cache to eliminate redundant API round-trips on slide
+// switches. Keyed by courseId; cleared whenever a successful store() updates the
+// slide data so the next load() reflects the latest saved state.
+let courseCache: { courseId: string; doc: CourseDoc } | null = null
 
 /**
  * Updates the active course/slide context that the storage manager reads.
@@ -40,6 +46,14 @@ export function getStorageContext(): Readonly<StorageOptions> {
 }
 
 /**
+ * Evicts the course cache. Exposed for testing and for explicit invalidation
+ * when the course structure changes (e.g. slide added/deleted via SlideList).
+ */
+export function invalidateCourseCache(): void {
+  courseCache = null
+}
+
+/**
  * Registers the `elearn-api` storage type with GrapesJS.
  * Must be called before `editor.load()`.
  */
@@ -48,6 +62,7 @@ export function registerStorageManager(editor: Editor): void {
     /**
      * Loads the slide content from the backend.
      * T011.3 — Implementation.
+     * T042.5 — Uses in-memory cache to skip redundant API fetches on slide switches.
      */
     async load() {
       const { courseId, slideId } = storageContext
@@ -57,7 +72,14 @@ export function registerStorageManager(editor: Editor): void {
       }
 
       try {
-        const course = await courseApi.getCourse(courseId)
+        let course: CourseDoc
+        if (courseCache?.courseId === courseId) {
+          course = courseCache.doc
+        } else {
+          course = await courseApi.getCourse(courseId)
+          courseCache = { courseId, doc: course }
+        }
+
         const slide = course.slides.find((s) => s.id === slideId)
 
         if (!slide) {
@@ -106,6 +128,9 @@ export function registerStorageManager(editor: Editor): void {
       } catch (err) {
         console.error('[StorageManager] store() failed:', err)
         throw err
+      } finally {
+        // Invalidate cache on all paths so stale data is never served after a save attempt
+        courseCache = null
       }
     },
   })

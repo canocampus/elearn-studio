@@ -105,26 +105,30 @@ export function estimateSuspendSize(questionWidgetIds: string[]): SuspendSizeEst
   return { compressed: size, percentage }
 }
 
-/** SCORM 1.2 API subset used by suspend helpers */
+/**
+ * Normalised SCORM API subset used by suspend helpers.
+ * Accepts both SCORM 1.2 and 2004 via the ScormAdapter in index.ts.
+ */
 interface ScormApi {
-  LMSGetValue(element: string): string
-  LMSSetValue(element: string, value: string): string
+  getValue(element: string): string
+  setValue(element: string, value: string): string
 }
 
 /**
  * Persist the current player state into cmi.suspend_data via the SCORM API.
  * Returns true if the LMS accepted the save, false otherwise.
  * No-op (returns false) if there is no SCORM API or if compression exceeds the limit.
+ * Note: cmi.suspend_data key is identical in SCORM 1.2 and SCORM 2004.
  */
 export function saveSuspendData(state: SuspendableState, api: ScormApi | null): boolean {
   if (!api) return false
   const compressed = serializeSuspend(state)
   if (compressed === null) return false
-  // C-01 fix: check LMSSetValue return value — 'true' means accepted by LMS
-  const result = api.LMSSetValue('cmi.suspend_data', compressed)
+  // C-01 fix: check setValue return value — 'true' means accepted by LMS
+  const result = api.setValue('cmi.suspend_data', compressed)
   if (result !== 'true') {
     console.error(
-      `[ELearnPlayer] LMSSetValue('cmi.suspend_data') failed — LMS returned: ${result}. Progress may not be saved.`,
+      `[ELearnPlayer] setValue('cmi.suspend_data') failed — LMS returned: ${result}. Progress may not be saved.`,
     )
     return false
   }
@@ -142,7 +146,7 @@ export function restoreSuspendData(
   slideCount: number,
 ): boolean {
   if (!api) return false
-  const raw = api.LMSGetValue('cmi.suspend_data')
+  const raw = api.getValue('cmi.suspend_data')
   const payload = deserializeSuspend(raw)
   if (!payload) return false
 

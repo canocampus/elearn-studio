@@ -24,8 +24,8 @@ function makeState(slide = 0, scores: [string, { score: number; weight: number; 
 
 function makeApi(suspendDataStore: Record<string, string> = {}) {
   return {
-    LMSGetValue: vi.fn((key: string) => suspendDataStore[key] ?? ''),
-    LMSSetValue: vi.fn((key: string, value: string) => { suspendDataStore[key] = value; return 'true' }),
+    getValue: vi.fn((key: string) => suspendDataStore[key] ?? ''),
+    setValue: vi.fn((key: string, value: string) => { suspendDataStore[key] = value; return 'true' }),
   }
 }
 
@@ -154,7 +154,7 @@ describe('saveSuspendData', () => {
     const api = makeApi(store)
     const state = makeState(2, [['w1', { score: 1, weight: 100, answered: true }]])
     saveSuspendData(state, api)
-    expect(api.LMSSetValue).toHaveBeenCalledWith('cmi.suspend_data', expect.any(String))
+    expect(api.setValue).toHaveBeenCalledWith('cmi.suspend_data', expect.any(String))
     expect(store['cmi.suspend_data']).toBeTruthy()
   })
 
@@ -170,8 +170,8 @@ describe('saveSuspendData', () => {
 
   it('returns false when LMSSetValue returns "false" (C-01 fix)', () => {
     const api = {
-      LMSGetValue: vi.fn(() => ''),
-      LMSSetValue: vi.fn(() => 'false'),
+      getValue: vi.fn(() => ''),
+      setValue: vi.fn(() => 'false'),
     }
     const ok = saveSuspendData(makeState(0), api)
     expect(ok).toBe(false)
@@ -188,7 +188,7 @@ describe('saveSuspendData', () => {
     ])
     const api = makeApi()
     saveSuspendData(makeState(0, bigScores), api)
-    expect(api.LMSSetValue).not.toHaveBeenCalled()
+    expect(api.setValue).not.toHaveBeenCalled()
   })
 })
 

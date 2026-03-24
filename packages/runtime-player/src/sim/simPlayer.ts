@@ -192,6 +192,16 @@ export function mountSimPlayer(
     screenshotEl.src = step.screenshotUrl
     screenshotEl.alt = step.description
 
+    // Prefetch the next screenshot so it's cached before the learner advances (T042.4)
+    const nextStep = steps[idx + 1]
+    if (nextStep) {
+      const prefetch = new Image()
+      prefetch.onerror = () => {
+        console.warn(`[SimPlayer] Failed to prefetch screenshot for step ${idx + 1}: ${nextStep.screenshotUrl}`)
+      }
+      prefetch.src = nextStep.screenshotUrl
+    }
+
     counterEl.textContent    = `Step ${idx + 1} / ${steps.length}`
     instructionEl.textContent = step.instruction || step.description
 

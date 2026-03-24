@@ -1,5 +1,6 @@
 import { defineConfig } from 'rollup'
 import resolve from '@rollup/plugin-node-resolve'
+import commonjs from '@rollup/plugin-commonjs'
 import typescript from '@rollup/plugin-typescript'
 import terser from '@rollup/plugin-terser'
 
@@ -13,5 +14,5 @@ export default defineConfig({
     name: 'ELearnPlayer',
     sourcemap: !production,
   },
-  plugins: [resolve(), typescript(), production && terser()],
+  plugins: [resolve(), commonjs(), typescript(), production && terser()],
 })

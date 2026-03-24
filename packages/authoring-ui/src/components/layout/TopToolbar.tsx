@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { addSlide, deleteSlide, nextSlideTitle } from '../../api/courseApi'
+import { invalidateCourseCache } from '../../editor/storageManager'
 import { useToast } from '../ui/Toast'
 import { useDebugMode } from '../../hooks/useDebugMode'
 import { saveUserTemplate } from '../../templates/courseTemplates'
@@ -41,6 +42,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
     setSaveError(null)
     try {
       const updated = await addSlide(course._id, nextSlideTitle(course.slides))
+      invalidateCourseCache()
       setCourse(updated)
       setCurrentSlideIndex(updated.slides.length - 1)
     } catch (err) {
@@ -85,6 +87,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
     setSaveError(null)
     try {
       const updated = await deleteSlide(course._id, currentSlide.id)
+      invalidateCourseCache()
       setCourse(updated)
       const newIndex = Math.min(currentSlideIndex, updated.slides.length - 1)
       setCurrentSlideIndex(newIndex)

@@ -20,7 +20,7 @@ vi.mock('../editor/converters', () => ({
   widgetsFromGrapesjs: vi.fn().mockReturnValue([]),
 }))
 
-import { updateStorageContext, registerStorageManager, getStorageContext } from '../editor/storageManager'
+import { updateStorageContext, registerStorageManager, getStorageContext, invalidateCourseCache } from '../editor/storageManager'
 import * as courseApi from '../api/courseApi'
 import { grapesjsFromWidgets, widgetsFromGrapesjs } from '../editor/converters'
 
@@ -138,6 +138,47 @@ describe('storageManager — registerStorageManager', () => {
       const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
       await expect(impl.load()).rejects.toThrow('Slide missing-slide not found')
     })
+
+    it('T042.5: reuses cached course on second load() for the same courseId', async () => {
+      invalidateCourseCache()
+      const mockCourse = {
+        slides: [
+          { id: 's1', title: 'Slide 1', widgets: [] },
+          { id: 's2', title: 'Slide 2', widgets: [] },
+        ],
+      }
+      vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
+
+      registerStorageManager(editor)
+      const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
+
+      updateStorageContext({ courseId: 'c1', slideId: 's1' })
+      await impl.load()
+
+      updateStorageContext({ courseId: 'c1', slideId: 's2' })
+      await impl.load()
+
+      // getCourse should only have been called once (cache hit on second load)
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
+    })
+
+    it('T042.5: fetches fresh course after invalidateCourseCache()', async () => {
+      invalidateCourseCache()
+      const mockCourse = {
+        slides: [{ id: 's1', title: 'Slide', widgets: [] }],
+      }
+      vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
+
+      registerStorageManager(editor)
+      const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
+
+      updateStorageContext({ courseId: 'c1', slideId: 's1' })
+      await impl.load()
+      invalidateCourseCache()
+      await impl.load()
+
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(2)
+    })
   })
 
   describe('store()', () => {
@@ -170,6 +211,59 @@ describe('storageManager — registerStorageManager', () => {
         's1',
         expect.objectContaining({ widgets: mockWidgets, thumbnail: expect.any(String) }),
       )
+    })
+
+    it('T042.5: invalidates course cache even when store() throws', async () => {
+      invalidateCourseCache()
+      const mockCourse = {
+        slides: [{ id: 's1', title: 'Slide', widgets: [] }],
+      }
+      vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
+      vi.mocked(courseApi.updateSlide).mockRejectedValue(new Error('save failed'))
+
+      updateStorageContext({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor)
+      const impl = addMock.mock.calls[0][1] as {
+        load: () => Promise<unknown>
+        store: (data: unknown) => Promise<void>
+      }
+
+      // First load populates cache
+      await impl.load()
+
+      // store() fails — cache must still be cleared
+      await expect(impl.store({})).rejects.toThrow('save failed')
+
+      // Next load must re-fetch (not use stale cache)
+      await impl.load()
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(2)
+    })
+
+    it('T042.5: invalidates course cache after successful store()', async () => {
+      invalidateCourseCache()
+      const mockCourse = {
+        slides: [{ id: 's1', title: 'Slide', widgets: [] }],
+      }
+      vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
+      vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
+
+      updateStorageContext({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor)
+      const impl = addMock.mock.calls[0][1] as {
+        load: () => Promise<unknown>
+        store: (data: unknown) => Promise<void>
+      }
+
+      // First load populates cache
+      await impl.load()
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
+
+      // store() should invalidate the cache
+      await impl.store({})
+
+      // Second load after store() must re-fetch
+      await impl.load()
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(2)
     })
   })
 })

@@ -72,7 +72,7 @@ interface CourseDoc {
 
 type FillMatchType = 'exact' | 'regex' | 'case-insensitive'
 
-// ─── SCORM 1.2 API ────────────────────────────────────────────────────────────
+// ─── SCORM APIs and adapter ───────────────────────────────────────────────────
 
 interface SCORM12API {
   LMSInitialize(s: string): string
@@ -83,12 +83,66 @@ interface SCORM12API {
   LMSGetLastError(): string
 }
 
-function findScormApi(win: Window): SCORM12API | null {
+interface SCORM2004API {
+  Initialize(s: string): string
+  Terminate(s: string): string
+  GetValue(element: string): string
+  SetValue(element: string, value: string): string
+  Commit(s: string): string
+  GetLastError(): string
+}
+
+/**
+ * Normalised SCORM adapter — wraps either SCORM 1.2 or SCORM 2004 API behind
+ * a single interface. Callers use version-agnostic methods; scormReport()
+ * dispatches the correct CMI keys based on `version`.
+ */
+interface ScormAdapter {
+  version: '1.2' | '2004'
+  initialize(): void
+  finish(): string
+  getValue(key: string): string
+  setValue(key: string, value: string): string
+  commit(): void
+}
+
+/**
+ * Traverse the window hierarchy looking for a SCORM API object.
+ * Checks SCORM 2004 (`window.API_1484_11`) first, then SCORM 1.2 (`window.API`).
+ * Returns null when neither is found.
+ */
+function createScormAdapter(win: Window): ScormAdapter | null {
   let w: Window | null = win
   let attempts = 0
   while (w && attempts < 10) {
+    // SCORM 2004 4th Edition: window.API_1484_11
     // @ts-expect-error dynamic LMS global
-    if (typeof w.API !== 'undefined') return w.API as SCORM12API
+    if (typeof w.API_1484_11 !== 'undefined') {
+      // @ts-expect-error dynamic LMS global
+      const raw = w.API_1484_11 as SCORM2004API
+      return {
+        version: '2004',
+        initialize: () => { raw.Initialize('') },
+        finish: () => raw.Terminate(''),
+        getValue: (key) => raw.GetValue(key),
+        setValue: (key, value) => raw.SetValue(key, value),
+        commit: () => { raw.Commit('') },
+      }
+    }
+    // SCORM 1.2: window.API
+    // @ts-expect-error dynamic LMS global
+    if (typeof w.API !== 'undefined') {
+      // @ts-expect-error dynamic LMS global
+      const raw = w.API as SCORM12API
+      return {
+        version: '1.2',
+        initialize: () => { raw.LMSInitialize('') },
+        finish: () => raw.LMSFinish(''),
+        getValue: (key) => raw.LMSGetValue(key),
+        setValue: (key, value) => raw.LMSSetValue(key, value),
+        commit: () => { raw.LMSCommit('') },
+      }
+    }
     try {
       w = w.parent === w ? null : w.parent
     } catch {
@@ -113,7 +167,7 @@ interface PlayerState {
   course: CourseDoc
   currentSlide: number
   questionStates: Map<string, QuestionState>
-  scormApi: SCORM12API | null
+  scormApi: ScormAdapter | null
   container: HTMLElement
   passMark: number
   remediationVisited: boolean
@@ -338,6 +392,36 @@ function renderWidget(w: BaseWidget): string {
   }
 }
 
+// ─── Slide asset prefetching (T042.3) ─────────────────────────────────────────
+
+/**
+ * Returns true for safe http(s) URLs that may be prefetched.
+ * Rejects data:, javascript:, and other non-http schemes.
+ */
+function isSafeUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url)
+}
+
+/**
+ * Prefetch image and video-poster assets for the next `count` slides so they
+ * are in the browser cache before the learner navigates to them.
+ * Only http(s) URLs are prefetched; data: and javascript: URIs are skipped.
+ */
+function prefetchSlideAssets(slides: Slide[], fromIndex: number, count = 2): void {
+  // count is bounded by the caller (default 2); guard here as well
+  const limit = Math.min(count, 3)
+  for (let i = fromIndex + 1; i <= fromIndex + limit && i < slides.length; i++) {
+    for (const w of slides[i]!.widgets) {
+      const src = (w.properties.src as string | undefined)
+        ?? (w.properties.poster as string | undefined)
+      if (src && isSafeUrl(src)) {
+        const img = new Image()
+        img.src = src
+      }
+    }
+  }
+}
+
 // ─── Slide rendering ──────────────────────────────────────────────────────────
 
 function renderSlide(slide: Slide, settings: CourseSettings): string {
@@ -363,16 +447,29 @@ function scormReport(state: PlayerState, status: 'passed' | 'failed' | 'incomple
   }
 
   const passMark = course.metadata?.masteryScore ?? course.settings?.passingScore ?? state.passMark
-  const lessonStatus = status === 'incomplete' ? 'incomplete' : (score >= passMark ? 'passed' : 'failed')
-
-  api.LMSSetValue('cmi.core.score.raw', String(score))
-  api.LMSSetValue('cmi.core.score.min', '0')
-  api.LMSSetValue('cmi.core.score.max', '100')
-  api.LMSSetValue('cmi.core.lesson_status', lessonStatus)
-
   const slideIndex = state.currentSlide
-  api.LMSSetValue('cmi.core.lesson_location', String(slideIndex))
-  api.LMSCommit('')
+
+  if (api.version === '2004') {
+    // SCORM 2004: separate completion_status and success_status; score fields under cmi.score.*
+    const completionStatus = status === 'incomplete' ? 'incomplete' : 'completed'
+    const successStatus = status === 'incomplete' ? 'unknown' : (score >= passMark ? 'passed' : 'failed')
+    api.setValue('cmi.score.raw', String(score))
+    api.setValue('cmi.score.min', '0')
+    api.setValue('cmi.score.max', '100') // always 100 per SCORM 2004 spec; mastery threshold is set via adlcp:completionThreshold in the manifest
+    api.setValue('cmi.score.scaled', (score / 100).toFixed(7))
+    api.setValue('cmi.completion_status', completionStatus)
+    api.setValue('cmi.success_status', successStatus)
+    api.setValue('cmi.location', String(slideIndex))
+  } else {
+    // SCORM 1.2: single lesson_status; score fields under cmi.core.*
+    const lessonStatus = status === 'incomplete' ? 'incomplete' : (score >= passMark ? 'passed' : 'failed')
+    api.setValue('cmi.core.score.raw', String(score))
+    api.setValue('cmi.core.score.min', '0')
+    api.setValue('cmi.core.score.max', '100')
+    api.setValue('cmi.core.lesson_status', lessonStatus)
+    api.setValue('cmi.core.lesson_location', String(slideIndex))
+  }
+  api.commit()
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -441,6 +538,9 @@ function goToSlide(state: PlayerState, index: number): void {
 
   updateScoreDisplays(state)
   scormReport(state, 'incomplete')
+
+  // Prefetch assets for the next 2 slides (T042.3)
+  prefetchSlideAssets(course.slides, index)
 }
 
 function goNext(state: PlayerState): void {
@@ -476,8 +576,8 @@ function finishCourse(state: PlayerState): void {
 
   const api = state.scormApi
   if (api) {
-    const ok = api.LMSFinish('')
-    if (ok !== 'true') console.warn('[ELearnPlayer] LMSFinish returned false — LMS may not have recorded session end.')
+    const ok = api.finish()
+    if (ok !== 'true') console.warn('[ELearnPlayer] finish() returned false — LMS may not have recorded session end.')
   }
 }
 
@@ -490,8 +590,8 @@ function suspendLesson(state: PlayerState): void {
   }
   const api = state.scormApi
   if (api) {
-    const ok = api.LMSFinish('')
-    if (ok !== 'true') console.warn('[ELearnPlayer] LMSFinish returned false — LMS may not have recorded session end.')
+    const ok = api.finish()
+    if (ok !== 'true') console.warn('[ELearnPlayer] finish() returned false — LMS may not have recorded session end.')
   }
 }
 
@@ -694,8 +794,8 @@ function init(
     return
   }
 
-  const scormApi = findScormApi(window)
-  if (scormApi) scormApi.LMSInitialize('')
+  const scormApi = createScormAdapter(window)
+  if (scormApi) scormApi.initialize()
 
   const state: PlayerState = {
     course,
@@ -710,12 +810,13 @@ function init(
   }
 
   // Attempt to restore full suspend state (slide + question scores) from cmi.suspend_data.
-  // Falls back to cmi.core.lesson_location if no suspend_data is present.
+  // Falls back to the version-appropriate location key if no suspend_data is present.
   if (scormApi) {
     const restored = restoreSuspendData(state, scormApi, course.slides.length)
     if (!restored) {
       // Legacy fallback: restore slide location only
-      const loc = scormApi.LMSGetValue('cmi.core.lesson_location')
+      const locationKey = scormApi.version === '2004' ? 'cmi.location' : 'cmi.core.lesson_location'
+      const loc = scormApi.getValue(locationKey)
       if (loc) {
         const idx = parseInt(loc, 10)
         if (!isNaN(idx) && idx >= 0 && idx < course.slides.length) {

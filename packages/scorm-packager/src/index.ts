@@ -1,7 +1,7 @@
 /**
  * SCORM Packager — T016
  *
- * Generates a SCORM 1.2-compliant ZIP package from a CourseDoc.
+ * Generates SCORM 1.2 and SCORM 2004 4th Edition ZIP packages from a CourseDoc.
  *
  * Output structure inside the ZIP:
  *   imsmanifest.xml
@@ -10,8 +10,9 @@
  *   assets/              (all course media assets, optional)
  *
  * Usage:
- *   import { packSCORM12 } from '@elearn-studio/scorm-packager'
+ *   import { packSCORM12, packSCORM2004 } from '@elearn-studio/scorm-packager'
  *   const zipPath = await packSCORM12(course, outputDir, { playerPath, assetPaths })
+ *   const zipPath = await packSCORM2004(course, outputDir, { playerPath, assetPaths })
  */
 
 import * as fs from 'fs'
@@ -51,13 +52,13 @@ export interface Slide {
 export interface CourseSettings {
   width: number
   height: number
-  passingScore: number
+  passingScore?: number
 }
 
 export interface SCORMMetadata {
   identifier?: string
-  version: string
-  masteryScore: number
+  version?: string
+  masteryScore?: number
 }
 
 export interface CourseDoc {
@@ -93,10 +94,95 @@ export interface PackSCORM12Options {
   fileName?: string
 }
 
-// ─── imsmanifest.xml builder ──────────────────────────────────────────────────
+export interface PackSCORM2004Options {
+  /** Absolute path to the compiled runtime-player bundle (player.js). */
+  playerPath?: string
+  /** Absolute path to the Phaser bundle. Only copied when course has phaser-sim widgets. */
+  phaserBundlePath?: string
+  /** Extra local asset files to include. Each entry: { localPath, zipPath } */
+  assetPaths?: Array<{ localPath: string; zipPath: string }>
+  /** Output ZIP file name (without directory). Defaults to `<safeTitle>_scorm2004.zip`. */
+  fileName?: string
+}
 
+// ─── imsmanifest.xml builders ─────────────────────────────────────────────────
+
+/** Sanitize a string to a valid XML NCName (replace invalid chars with '_', ensure starts with letter or '_'). */
+function toNCName(raw: string): string {
+  return raw
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/^[^a-zA-Z_]/, s => `_${s}`)
+}
+
+/** SCORM 2004 4th Edition imsmanifest.xml */
+function buildManifest2004(course: CourseDoc): string {
+  const identifier = toNCName(course.metadata?.identifier ?? `ELEARN_${course._id}`)
+  const title = course.title ?? 'Untitled Course'
+  const masteryScore = course.metadata?.masteryScore ?? course.settings?.passingScore ?? 80
+  // SCORM 2004 uses normalized threshold: 80% → "0.80"
+  const completionThreshold = (masteryScore / 100).toFixed(2)
+
+  const doc = xmlCreate({ version: '1.0', encoding: 'UTF-8' })
+    .ele('manifest', {
+      identifier,
+      version: '1',
+      'xmlns': 'http://www.imsglobal.org/xsd/imscp_v1p1',
+      'xmlns:adlcp': 'http://www.adlnet.org/xsd/adlcp_v1p3',
+      'xmlns:imsss': 'http://www.imsglobal.org/xsd/imssequencing_v1p0',
+      'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+      'xsi:schemaLocation':
+        'http://www.imsglobal.org/xsd/imscp_v1p1 imscp_v1p1.xsd ' +
+        'http://www.adlnet.org/xsd/adlcp_v1p3 adlcp_v1p3.xsd ' +
+        'http://www.imsglobal.org/xsd/imssequencing_v1p0 imssequencing_v1p0.xsd',
+    })
+
+  // <metadata>
+  doc
+    .ele('metadata')
+      .ele('schema').txt('ADL SCORM').up()
+      .ele('schemaversion').txt('2004 4th Edition').up()
+    .up()
+
+  // <organizations>
+  const org = doc
+    .ele('organizations', { default: 'ORG_1' })
+      .ele('organization', { identifier: 'ORG_1' })
+        .ele('title').txt(title).up()
+
+  const item = org
+    .ele('item', { identifier: 'ITEM_1', identifierref: 'RES_1', isvisible: 'true' })
+      .ele('title').txt(title).up()
+  // SCORM 2004 uses completionThreshold (normalized) instead of masteryscore
+  item.ele('adlcp:completionThreshold').txt(completionThreshold).up()
+  // Linear sequencing: allow choice navigation and flow, let content set completion/success
+  item
+    .ele('imsss:sequencing')
+      .ele('imsss:controlMode', { choice: 'true', flow: 'true' }).up()
+      .ele('imsss:deliveryControls', { completionSetByContent: 'true', objectiveSetByContent: 'true' }).up()
+    .up()
+  item.up() // close item
+  org.up()  // close organization
+  doc.up()  // close organizations (popping to manifest)
+
+  // <resources>
+  doc
+    .ele('resources')
+      .ele('resource', {
+        identifier: 'RES_1',
+        type: 'webcontent',
+        'adlcp:scormType': 'sco',  // camelCase in SCORM 2004
+        href: 'index.html',
+      })
+        .ele('file', { href: 'index.html' }).up()
+        .ele('file', { href: 'player.js' }).up()
+    .up()
+
+  return doc.end({ prettyPrint: true })
+}
+
+/** SCORM 1.2 imsmanifest.xml */
 function buildManifest(course: CourseDoc): string {
-  const identifier = course.metadata?.identifier ?? `ELEARN_${course._id}`
+  const identifier = toNCName(course.metadata?.identifier ?? `ELEARN_${course._id}`)
   const title = course.title ?? 'Untitled Course'
   const masteryScore = course.metadata?.masteryScore ?? course.settings?.passingScore ?? 80
 
@@ -292,6 +378,82 @@ export async function packSCORM12(
     archive.file(playerPath, { name: 'player.js' })
 
     // T035 — phaser-bundle.js: only included when the course has phaser-sim widgets
+    if (includePhaser && fs.existsSync(phaserBundlePath)) {
+      archive.file(phaserBundlePath, { name: 'phaser-bundle.js' })
+    }
+
+    // Optional extra assets
+    if (options.assetPaths) {
+      for (const { localPath, zipPath } of options.assetPaths) {
+        if (fs.existsSync(localPath)) {
+          archive.file(localPath, { name: zipPath })
+        }
+      }
+    }
+
+    archive.finalize()
+  })
+}
+
+// ─── SCORM 2004 packager function ─────────────────────────────────────────────
+
+/**
+ * Build a SCORM 2004 4th Edition ZIP package for the given course.
+ *
+ * Uses SCORM 2004 manifest namespaces, `adlcp:completionThreshold`, linear
+ * sequencing rules, and `adlcp:scormType` (camelCase). The runtime player
+ * auto-detects `window.API_1484_11` at runtime.
+ *
+ * @param course     CourseDoc to package
+ * @param outputDir  Directory where the ZIP will be written
+ * @param options    Optional overrides
+ * @returns          Absolute path to the generated ZIP file
+ */
+export async function packSCORM2004(
+  course: CourseDoc,
+  outputDir: string,
+  options: PackSCORM2004Options = {},
+): Promise<string> {
+  const playerPath = options.playerPath ?? defaultPlayerPath()
+
+  if (!fs.existsSync(playerPath)) {
+    throw new Error(
+      'Runtime player bundle not found. ' +
+      'Run: pnpm --filter @elearn-studio/runtime-player run build'
+    )
+  }
+
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true })
+  }
+
+  const safeTitle = course.title.replace(/[^a-z0-9_-]/gi, '_').slice(0, 64) || 'course'
+  const fileName = options.fileName ?? `${safeTitle}_scorm2004.zip`
+  const outputPath = path.join(outputDir, fileName)
+
+  const includePhaser = courseHasPhaserSim(course)
+  const phaserBundlePath = options.phaserBundlePath ?? defaultPhaserBundlePath()
+
+  return new Promise<string>((resolve, reject) => {
+    const output = fs.createWriteStream(outputPath)
+    const archive = archiver('zip', { zlib: { level: 9 } })
+
+    output.on('close', () => resolve(outputPath))
+    archive.on('error', reject)
+    archive.pipe(output)
+
+    // imsmanifest.xml (SCORM 2004 namespaces + sequencing)
+    const manifest = buildManifest2004(course)
+    archive.append(manifest, { name: 'imsmanifest.xml' })
+
+    // index.html (same as SCORM 1.2 — player auto-detects API version)
+    const indexHtml = buildIndexHtml(course)
+    archive.append(indexHtml, { name: 'index.html' })
+
+    // player.js
+    archive.file(playerPath, { name: 'player.js' })
+
+    // phaser-bundle.js: only when the course has phaser-sim widgets
     if (includePhaser && fs.existsSync(phaserBundlePath)) {
       archive.file(phaserBundlePath, { name: 'phaser-bundle.js' })
     }

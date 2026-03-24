@@ -3,8 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "rollup -c --watch",
-    "build": "rollup -c",
+    "dev": "rollup -c rollup.config.mjs --watch",
+    "build": "rollup -c rollup.config.mjs",
+    "build:prod": "cross-env NODE_ENV=production rollup -c rollup.config.mjs",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
@@ -14,6 +15,7 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
+    "cross-env": "^10.1.0",
     "jsdom": "^29.0.1",
     "rollup": "^4.18.0",
     "tslib": "^2.6.3",
