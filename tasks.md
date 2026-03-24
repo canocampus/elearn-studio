@@ -996,44 +996,44 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 
 ---
 
-### T503 — Developer & Contributor Guide (`docs/developer-guide/`)
+### T503 — Developer & Contributor Guide (`docs/developer-guide/`) ✅ 2026-03-24
 > Audience: developers who want to contribute or extend eLearn Studio.
-- [ ] T503.1 — `docs/developer-guide/index.md` — overview and navigation
-- [ ] T503.2 — `docs/developer-guide/01-architecture.md`:
+- [x] T503.1 — `docs/developer-guide/index.md` — overview and navigation
+- [x] T503.2 — `docs/developer-guide/01-architecture.md`:
   - **Mermaid diagram: Package Dependency Graph** — monorepo internal dependencies
   - **Mermaid diagram: Data Model (ER)** — Course → Slides → Widgets → ActionSequences
   - **Mermaid diagram: Runtime Player Widget Rendering Pipeline** — JSON → DOM
   - Package-by-package explanation: responsibility, key files, build output
-- [ ] T503.3 — `docs/developer-guide/02-local-setup.md`:
+- [x] T503.3 — `docs/developer-guide/02-local-setup.md`:
   - Prerequisites (Node.js 20, pnpm, Docker Desktop, Git)
   - Clone, install, configure `.env`
   - `docker compose up` — service URLs and port map (full table)
   - Running tests: unit, E2E, specific package
   - Hot reload in dev mode
-- [ ] T503.4 — `docs/developer-guide/03-adding-widget-types.md`:
+- [x] T503.4 — `docs/developer-guide/03-adding-widget-types.md`:
   - Step-by-step guide: GrapesJS Block + Component → Storage Manager converter → Runtime Player renderer
   - Code examples with the `text` widget as reference
   - Checklist: all places that must be updated when adding a widget
-- [ ] T503.5 — `docs/developer-guide/04-adding-phaser-simulations.md`:
+- [x] T503.5 — `docs/developer-guide/04-adding-phaser-simulations.md`:
   - How to add a new Phaser simulation type
   - Extending `PhaserSimWidget`, `ScoreTracker`, `ModeController`
   - Adding the authoring builder panel
   - Registering the new type in the runtime player
-- [ ] T503.6 — `docs/developer-guide/05-observability.md`:
+- [x] T503.6 — `docs/developer-guide/05-observability.md`:
   - **Mermaid diagram: Observability Stack** — full pipeline from app to Grafana
-  - Grafana at http://localhost:3002 — dashboards overview
+  - Grafana at http://localhost:3010 — dashboards overview
   - How to query logs in Loki for a specific request
   - How to view a distributed trace in Tempo
   - How to add a new metric or dashboard panel
   - Production deployment: connecting your own Grafana to the endpoints
-- [ ] T503.7 — `docs/developer-guide/06-contributing.md`:
+- [x] T503.7 — `docs/developer-guide/06-contributing.md`:
   - Branch naming convention (`feature/TXX-description`)
   - Commit format (conventional commits: feat/fix/docs/test/chore)
   - PR checklist: tests passing, lint clean, openapi regenerated, screenshots updated if UI changed
   - Issue templates and reviewer workflow
   - How to regenerate `openapi.json` and `generated.ts`
-- [ ] T503.8 — Refine the generated documentation
-- [ ] T503.9 — A reviewer will generate `docs/issues/issues-T503.md` with detected problems; resolve them before terminating this block
+- [x] T503.8 — Refine the generated documentation
+- [x] T503.9 — A reviewer will generate `docs/issues/issues-T503.md` with detected problems; resolve them before terminating this block
 
 ---
 

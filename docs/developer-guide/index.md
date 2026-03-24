@@ -1,0 +1,48 @@
+# Developer & Contributor Guide
+
+Technical reference for contributors and developers extending eLearn Studio.
+
+---
+
+## Contents
+
+| Document | Description |
+|---|---|
+| [01 — Architecture](./01-architecture.md) | Package dependency graph, data model, runtime rendering pipeline |
+| [02 — Local Setup](./02-local-setup.md) | Prerequisites, installation, service URLs, running tests |
+| [03 — Adding Widget Types](./03-adding-widget-types.md) | GrapesJS Block + Component → storage converter → runtime renderer |
+| [04 — Adding Phaser Simulations](./04-adding-phaser-simulations.md) | New Phaser simulation type from scene to runtime |
+| [05 — Observability](./05-observability.md) | Logs, traces, metrics — Loki, Tempo, Prometheus, Grafana |
+| [06 — Contributing](./06-contributing.md) | Branch naming, commit format, PR checklist, OpenAPI regeneration |
+
+---
+
+## Quick orientation
+
+```
+elearn-studio/
+├── packages/
+│   ├── authoring-ui/          # React 18 + Vite + GrapesJS — visual editor
+│   ├── simulation-engine/     # Playwright recorder + sim routes
+│   ├── question-engine/       # Pure TypeScript — scoring/evaluation
+│   ├── actions-editor/        # React — event→action visual builder
+│   ├── scorm-packager/        # SCORM 1.2 / 2004 / AICC / xAPI packager
+│   ├── runtime-player/        # Vanilla JS — embeds in LMS iframes
+│   └── phaser-simulations/    # Phaser.js 3 — advanced simulation widgets
+├── backend/
+│   ├── api/                   # Node.js 20 + Express 5 + TypeScript
+│   ├── models/                # Mongoose schemas
+│   └── storage/               # Garage S3-compatible asset storage
+└── docker/
+    ├── docker-compose.yml     # Production-like stack
+    └── docker-compose.dev.yml # Hot reload, volume mounts
+```
+
+## Key constraints
+
+- `runtime-player` is Vanilla JS only — no React, no framework bundles. It runs inside LMS iframes.
+- Phaser is loaded lazily in the runtime player — never bundled into the main player JS.
+- GrapesJS saves via a custom Storage Manager. Never let it write raw HTML to disk.
+- All binary assets go to Garage. MongoDB stores course JSON only.
+
+See [01 — Architecture](./01-architecture.md) for the full system diagram.
