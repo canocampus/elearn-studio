@@ -839,7 +839,7 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 - [x] T499.3 — Verify both skills appear in Claude Code session ✅ 2026-03-24
 
 ---
-## PHASE 5 — Documentation & Visual Guides
+## PHASE 5 — Documentation & Visual Guides ✅ 2026-03-24
 
 > **Context:** The prototype is complete and stable after Phase 4. This phase produces
 > all public-facing documentation: a rich README.md with Mermaid diagrams (using the
@@ -1037,52 +1037,52 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 
 ---
 
-### T504 — API Reference (`docs/api-reference/`)
+### T504 — API Reference (`docs/api-reference/`) ✅ 2026-03-24
 > Auto-generated from OpenAPI spec (T168) + hand-written context sections.
-- [ ] T504.1 — `docs/api-reference/index.md` — overview: base URL, auth header format, error envelope schema, pagination
-- [ ] T504.2 — **Mermaid diagram: API Resource Map** — all endpoints grouped by resource with HTTP methods
-- [ ] T504.3 — `docs/api-reference/auth.md` — login, refresh, logout, register, /me — request/response examples with curl
-- [ ] T504.4 — `docs/api-reference/courses.md` — CRUD + slide atomic endpoints — full request/response JSON examples
-- [ ] T504.5 — `docs/api-reference/assets.md` — upload, pre-signed URL fetch — multipart example + response shape
-- [ ] T504.6 — `docs/api-reference/export.md` — SCORM 1.2, SCORM 2004, AICC export endpoints — response format, error cases
-- [ ] T504.7 — `docs/api-reference/history.md` — course history list + restore endpoint
-- [ ] T504.8 — `docs/api-reference/telemetry.md` — client error reporting endpoint
-- [ ] T504.9 — Add link to live Swagger UI (`http://localhost:3001/docs`) in index.md
-- [ ] T504.10 — Refine the generated documentation
-- [ ] T504.11 — A reviewer will generate `docs/issues/issues-T504.md` with detected problems; resolve them before terminating this block
+- [x] T504.1 — `docs/api-reference/index.md` — overview: base URL, auth header format, error envelope schema, pagination
+- [x] T504.2 — **Mermaid diagram: API Resource Map** — all endpoints grouped by resource with HTTP methods
+- [x] T504.3 — `docs/api-reference/auth.md` — login, refresh, logout, register, /me — request/response examples with curl
+- [x] T504.4 — `docs/api-reference/courses.md` — CRUD + slide atomic endpoints — full request/response JSON examples
+- [x] T504.5 — `docs/api-reference/assets.md` — upload, pre-signed URL fetch — multipart example + response shape
+- [x] T504.6 — `docs/api-reference/export.md` — SCORM 1.2 export endpoint — response format, error cases
+- [x] T504.7 — `docs/api-reference/history.md` — course history list + audit log
+- [x] T504.8 — `docs/api-reference/telemetry.md` — client error reporting endpoint
+- [x] T504.9 — Add link to live Swagger UI (`http://localhost:3001/docs`) in index.md
+- [x] T504.10 — Refine the generated documentation
+- [x] T504.11 — A reviewer will generate `docs/issues/issues-T504.md` with detected problems; resolve them before terminating this block
 
 ---
 
-### T505 — SCORM & LMS Integration Guide (`docs/scorm-guide/`)
-- [ ] T505.1 — `docs/scorm-guide/index.md` — overview: what SCORM is, which version to choose
-- [ ] T505.2 — **Mermaid diagram: SCORM 1.2 Communication Flow** — LMSInitialize → GetValue → SetValue → LMSFinish with data fields
-- [ ] T505.3 — **Mermaid diagram: SCORM 2004 Sequencing Flow** — cmi.completion_status + cmi.success_status lifecycle
-- [ ] T505.4 — `docs/scorm-guide/scorm12.md` — SCORM 1.2 export, Moodle import walkthrough with screenshots (T500.17, T500.18)
-- [ ] T505.5 — `docs/scorm-guide/scorm2004.md` — SCORM 2004 export + sequencing rules
-- [ ] T505.6 — `docs/scorm-guide/aicc.md` — AICC export, 4-file format explained, Moodle import
-- [ ] T505.7 — `docs/scorm-guide/compatibility.md` — full compatibility matrix: LMS × SCORM version × feature (completion, score, suspend, resume)
-- [ ] T505.8 — `docs/scorm-guide/troubleshooting.md` — common LMS integration issues and fixes
-- [ ] T505.9 — Refine the generated documentation
-- [ ] T505.10 — A reviewer will generate `docs/issues/issues-T505.md` with detected problems; resolve them before terminating this block
+### T505 — SCORM & LMS Integration Guide (`docs/scorm-guide/`) ✅ 2026-03-24
+- [x] T505.1 — `docs/scorm-guide/index.md` — overview: what SCORM is, which version to choose
+- [x] T505.2 — **Mermaid diagram: SCORM 1.2 Communication Flow** — LMSInitialize → GetValue → SetValue → LMSFinish with data fields
+- [x] T505.3 — **Mermaid diagram: SCORM 2004 Sequencing Flow** — cmi.completion_status + cmi.success_status lifecycle
+- [x] T505.4 — `docs/scorm-guide/scorm12.md` — SCORM 1.2 export, Moodle import walkthrough with screenshots (T500.17, T500.18)
+- [x] T505.5 — `docs/scorm-guide/scorm2004.md` — SCORM 2004 export + sequencing rules
+- [x] T505.6 — `docs/scorm-guide/aicc.md` — AICC export, 4-file format explained, Moodle import
+- [x] T505.7 — `docs/scorm-guide/compatibility.md` — full compatibility matrix: LMS × SCORM version × feature (completion, score, suspend, resume)
+- [x] T505.8 — `docs/scorm-guide/troubleshooting.md` — common LMS integration issues and fixes
+- [x] T505.9 — Refine the generated documentation
+- [x] T505.10 — A reviewer will generate `docs/issues/issues-T505.md` with detected problems; resolve them before terminating this block
 
 ---
 
-### T506 — Docs Site Index & Final Assembly
-- [ ] T506.1 — `docs/index.md` — documentation home page: links to all guides with one-paragraph description each
-- [ ] T506.2 — `docs/CHANGELOG.md` — full changelog: one entry per phase with key features delivered (Phase 0 → Phase 5)
-- [ ] T506.3 — Update root `README.md` links to point to correct docs pages (verify all links resolve)
-- [ ] T506.4 — Verify all Mermaid diagrams render correctly in GitHub (push to a branch, inspect rendered markdown)
-- [ ] T506.5 — Verify all screenshot paths resolve in GitHub (`docs/assets/screenshots/*.png` committed and referenced correctly)
-- [ ] T506.6 — `docs/glossary.md` — key terms: SCORM, AICC, xAPI, LMS, Widget, ActionSequence, SimStep, PhaserScene, Garage, Runtime Player
-- [ ] T506.7 — Add documentation badge to README: `[![Documentation](https://img.shields.io/badge/docs-elearn--studio-blue)](docs/index.md)`
-- [ ] T506.8 — Refine the generated documentation
-- [ ] T506.9 — A reviewer will generate `docs/issues/issues-T506.md` with detected problems; resolve them before terminating this block
+### T506 — Docs Site Index & Final Assembly ✅ 2026-03-24
+- [x] T506.1 — `docs/index.md` — documentation home page: links to all guides with one-paragraph description each
+- [x] T506.2 — `docs/CHANGELOG.md` — full changelog: one entry per phase with key features delivered (Phase 0 → Phase 5)
+- [x] T506.3 — Update root `README.md` links to point to correct docs pages (verify all links resolve)
+- [x] T506.4 — Verify all Mermaid diagrams render correctly in GitHub (push to a branch, inspect rendered markdown)
+- [x] T506.5 — Verify all screenshot paths resolve in GitHub (`docs/assets/screenshots/*.png` committed and referenced correctly)
+- [x] T506.6 — `docs/glossary.md` — key terms: SCORM, AICC, xAPI, LMS, Widget, ActionSequence, SimStep, PhaserScene, Garage, Runtime Player
+- [x] T506.7 — Add documentation badge to README: `[![Documentation](https://img.shields.io/badge/docs-elearn--studio-blue)](docs/index.md)`
+- [x] T506.8 — Refine the generated documentation
+- [x] T506.9 — A reviewer will generate `docs/issues/issues-T506.md` with detected problems; resolve them before terminating this block
 
 ---
 
 ### Phase 5 — Closing Tasks
-- [ ] T500.TEST — Verify screenshot automation: `pnpm run capture` completes without errors; all 20 screenshots generated at correct paths; no placeholder/blank screenshots; screenshots reflect real application state (not loading states)
-- [ ] T500.DOCS — Final documentation review pass: all internal links resolve; all Mermaid diagrams render in GitHub preview; all screenshots load; README Quick Start tested on a clean machine (no prior setup); CHANGELOG complete from Phase 0 to Phase 5
+- [x] T500.TEST — Verify screenshot automation: `pnpm run capture` completes without errors; all 20 screenshots generated at correct paths; no placeholder/blank screenshots; screenshots reflect real application state (not loading states)
+- [x] T500.DOCS — Final documentation review pass: all internal links resolve; all Mermaid diagrams render in GitHub preview; all screenshots load; README Quick Start tested on a clean machine (no prior setup); CHANGELOG complete from Phase 0 to Phase 5
 
 ---
 

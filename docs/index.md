@@ -1,98 +1,109 @@
 # eLearn Studio Documentation
 
-Welcome to the eLearn Studio documentation hub. eLearn Studio is an open-source, web-based e-learning authoring platform inspired by ToolBook 11.5, designed to create rich interactive courses with software simulations, advanced question types, visual action programming, and Phaser.js-powered simulations, all packaged for SCORM/AICC/xAPI distribution to any LMS.
+Open-source, web-based e-learning authoring platform. Build software simulations, rich quizzes, visual action programming, and Phaser.js-powered simulations — then publish to any LMS via SCORM 1.2, SCORM 2004, or AICC.
 
 ---
 
 ## Getting Started
 
-New to eLearn Studio? Start here:
-
-- **[Setup Guide](setup-guide.md)** — Docker installation, environment variables, service URLs, first-run checklist
-- **[Contributing Guide](contributing-guide.md)** — How to contribute code, report bugs, submit PRs; code of conduct
+- **[Local Setup](developer-guide/02-local-setup.md)** — Prerequisites, Docker stack, environment variables, first-run checklist
+- **[Setup Guide (overview)](setup-guide.md)** — Quick reference: ports, service URLs, common startup issues
 
 ---
 
-## User Documentation
+## User Guide
 
 For course authors and instructional designers:
 
-- **[Authoring Guide](authoring-guide.md)** — Complete reference for building courses: GrapesJS editor overview, all widget types (text, image, button, questions), slide management, templates
-- **[Simulation Guide](simulation-guide.md)** — Screenshot simulations (recorder workflow, hotspot editor, 3 play modes) and Phaser advanced simulations (process flows, interactive diagrams, gamified quizzes)
-- **[Actions Editor Guide](actions-editor-guide.md)** — Visual action programming: 13 action types, event binding, variables, conditions, loops, shared sequences, expression evaluation
-- **[SCORM Notes](scorm-notes.md)** — SCORM 1.2 and SCORM 2004 compatibility matrix, suspend_data limits, AICC integration; what to expect when publishing to Moodle or other LMS platforms
+| Section | Description |
+|---|---|
+| [Getting Started](user-guide/01-getting-started.md) | First course walkthrough, interface tour |
+| [Editor Overview](user-guide/02-editor-overview.md) | GrapesJS canvas, panels, slide navigation |
+| [Working with Slides](user-guide/03-working-with-slides.md) | Add, duplicate, delete, reorder, templates |
+| [Widgets](user-guide/04-widgets.md) | All widget types: text, image, button, shape, media, nav controls |
+| [Questions](user-guide/05-questions.md) | MC, True/False, Fill-in-Blank, Match, Drag, Arrange, Hotspot |
+| [Actions Editor](user-guide/06-actions-editor.md) | 13 action types, events, variables, conditions, shared sequences |
+| [Screenshot Simulations](user-guide/07-screenshot-simulations.md) | Recorder workflow, hotspot editor, 3 play modes |
+| [Phaser Simulations](user-guide/08-phaser-simulations.md) | Process flows, interactive diagrams, gamified quizzes |
+| [Publishing](user-guide/09-publishing.md) | SCORM export, suspend data indicator, Moodle import |
+| [Course History](user-guide/10-course-history.md) | Version history, restore, comparison |
+
+→ **[User Guide index](user-guide/index.md)**
 
 ---
 
-## Developer Documentation
+## Developer Guide
 
 For developers extending or contributing to eLearn Studio:
 
-- **[Developer Guide](developer-guide.md)** — Monorepo structure, setting up dev environment, adding new widget types, creating custom Phaser simulation subtypes, package-by-package architecture overview
-- **[API Reference](api-reference.md)** — Complete REST API documentation: all endpoints with request/response examples, authentication, error handling, asset management, SCORM export
+| Section | Description |
+|---|---|
+| [Architecture](developer-guide/01-architecture.md) | System design, monorepo structure, data model |
+| [Local Setup](developer-guide/02-local-setup.md) | Full dev environment setup with Docker and pnpm |
+| [Adding Widget Types](developer-guide/03-adding-widget-types.md) | GrapesJS block registration, properties panel, runtime rendering |
+| [Adding Phaser Simulations](developer-guide/04-adding-phaser-simulations.md) | New sim subtypes, ScoreTracker, ModeController |
+| [Observability](developer-guide/05-observability.md) | Structured logs, traces, Grafana dashboards, alert rules |
+| [Contributing](developer-guide/06-contributing.md) | PR workflow, test requirements, commit conventions |
+
+→ **[Developer Guide index](developer-guide/index.md)**
 
 ---
 
-## Architecture & Operations
+## API Reference
 
-- **[Observability Guide](observability-guide.md)** — Grafana, Loki, Prometheus, Tempo integration; monitoring dashboards, logging, distributed tracing setup
-- **[Security Guide](security-guide.md)** — Authentication, authorization, input validation, CSRF protection, secret management, deployment security checklist
-- **[Phaser Simulations Guide](phaser-simulations-guide.md)** — Deep dive into advanced simulations: architecture, ScoreTracker, ModeController, all sim subtypes, bundle strategy, adding new sim types
+REST API documentation for all backend endpoints:
+
+| Section | Endpoints |
+|---|---|
+| [Overview](api-reference/index.md) | Auth pattern, response envelope, error codes |
+| [Auth](api-reference/auth.md) | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout` |
+| [Courses](api-reference/courses.md) | Course CRUD + atomic slide operations |
+| [Assets](api-reference/assets.md) | `POST /assets`, `GET /assets/:id` |
+| [Export](api-reference/export.md) | `POST /courses/:id/export/scorm12` |
+| [Simulations](api-reference/simulations.md) | Simulation import + screenshot proxy |
+| [History](api-reference/history.md) | Course version history endpoints |
+| [Telemetry](api-reference/telemetry.md) | OpenTelemetry + Prometheus metrics endpoint |
+| [Health](api-reference/health.md) | `GET /health` — MongoDB + Garage status |
+
+→ **[API Reference index](api-reference/index.md)**
+
+---
+
+## SCORM & LMS Integration Guide
+
+Packaging courses for LMS delivery:
+
+| Section | Description |
+|---|---|
+| [Overview](scorm-guide/index.md) | Which standard to choose, CMI data fields reference |
+| [SCORM 1.2](scorm-guide/scorm12.md) | Export via API, Moodle import walkthrough |
+| [SCORM 2004](scorm-guide/scorm2004.md) | Sequencing flow, manifest structure, differences from 1.2 |
+| [AICC](scorm-guide/aicc.md) | 4-file format, HACP bridge, Moodle import |
+| [Compatibility Matrix](scorm-guide/compatibility.md) | LMS × standard × feature support table |
+| [Troubleshooting](scorm-guide/troubleshooting.md) | Common LMS integration problems and fixes |
+
+→ **[SCORM Guide index](scorm-guide/index.md)**
 
 ---
 
 ## Reference
 
-Quick links to other reference materials:
-
-- **[Main README](../README.md)** — Project overview, quick start, feature highlights, tech stack
-- **[CLAUDE.md](../CLAUDE.md)** — Architecture notes, critical implementation details, licensing, ToolBook mapping
-- **[CHANGELOG.md](../CHANGELOG.md)** — Complete changelog by phase, all features delivered
+- **[Glossary](glossary.md)** — Key terms: SCORM, AICC, LMS, Widget, ActionSequence, Runtime Player, Garage, and more
+- **[Changelog](../CHANGELOG.md)** — Release history by version (Phase 0 → Phase 5)
+- **[Security Guide](security-guide.md)** — Authentication, authorization, secret management, deployment checklist
+- **[Contributing Guide](contributing-guide.md)** — Contribution workflow, code of conduct, issue templates
+- **[CLAUDE.md](../CLAUDE.md)** — Architecture notes, GrapesJS integration details, ToolBook mapping, licensing
 
 ---
 
-## Issue Documentation
+## Issue Reports
 
 Detailed problem reports and resolutions by phase (archived for reference):
 
-- Phase 0: [Setup & Backend Foundation](issues/issues-T010.md) through [API Completion](issues/issues-T017.md)
-- Phase 1: [GrapesJS Integration](issues/PHASE-1.5-REVIEW.md)
-- Phase 1.5: [Garage → Garage Migration](issues/issues-T150.md) through [Reference Update](issues/issues-T155.md)
-- Phase 2: [Actions](issues/issues-T020.md), [Simulations](issues/issues-T023.md), [Questions](issues/issues-T022.md)
-- Phase 3: [Phaser Setup](issues/issues-T030.md), [Authoring](issues/issues-T034.md), [Runtime](issues/issues-T035.md)
-- Phase 4: [Accessibility](issues/issues-T040.md), [SCORM 2004](issues/issues-T041.md), [Performance](issues/issues-T042.md), [Templates](issues/issues-T043.md)
-
----
-
-## FAQ & Troubleshooting
-
-**Q: How do I start eLearn Studio locally?**
-A: See [Setup Guide](setup-guide.md) — `docker compose up` then navigate to http://localhost:3000
-
-**Q: Can I export courses to Moodle?**
-A: Yes! See [SCORM Notes](scorm-notes.md) for SCORM 1.2 and SCORM 2004 export and Moodle import procedures
-
-**Q: What's the difference between screenshot simulations and Phaser simulations?**
-A: Screenshot simulations are Playwright-recorded software UI walkthroughs with hotspot editing. Phaser simulations are animated, interactive diagrams and gamified quizzes. See [Simulation Guide](simulation-guide.md)
-
-**Q: How do I add a new widget type?**
-A: See [Developer Guide](developer-guide.md) — register a GrapesJS block, create an extended properties panel, implement runtime rendering
-
-**Q: Can I use eLearn Studio in production?**
-A: Yes, but see [Security Guide](security-guide.md) for deployment checklist: authentication, HTTPS, secret management, rate limiting, firewall rules
-
----
-
-## Version & License
-
-- **Current Version**: 0.4.0 (stable)
-- **License**: MIT (see LICENSE file in repository root)
-- **Last Updated**: 2026-03-24
-
----
-
-## Community & Support
-
-- **GitHub Issues**: [Report bugs or feature requests](https://github.com/elearn-studio/elearn-studio/issues)
-- **Discussions**: [Ask questions and share ideas](https://github.com/elearn-studio/elearn-studio/discussions)
-- **Contributing**: See [Contributing Guide](contributing-guide.md)
+- Phase 0: [T010](issues/issues-T010.md) – [T017](issues/issues-T017.md)
+- Phase 1: [GrapesJS review](issues/PHASE-1.5-REVIEW.md)
+- Phase 1.5: [T150](issues/issues-T150.md) – [T155](issues/issues-T155.md)
+- Phase 2: [T020](issues/issues-T020.md), [T022](issues/issues-T022.md), [T023](issues/issues-T023.md)
+- Phase 3: [T030](issues/issues-T030.md), [T034](issues/issues-T034.md), [T035](issues/issues-T035.md)
+- Phase 4: [T041](issues/issues-T041.md), [T042](issues/issues-T042.md), [T043](issues/issues-T043.md)
+- Phase 5: [T500](issues/issues-T500.md), [T501](issues/issues-T501.md), [T502](issues/issues-T502.md), [T503](issues/issues-T503.md), [T504](issues/issues-T504.md), [T505](issues/issues-T505.md)

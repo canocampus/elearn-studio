@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] — 2026-03-24 — Documentation & Visual Guides
+
+### Added
+- **User Guide** — 10-section end-to-end guide for course authors: getting started, editor overview, all widget types, all question types, Actions Editor, screenshot simulations, Phaser simulations, publishing, and course history
+- **Developer Guide** — 6-section guide for contributors: system architecture (Mermaid diagrams), local setup walkthrough, adding widget types, adding Phaser simulation subtypes, observability stack, and contributing workflow
+- **API Reference** — Full REST API documentation for all 9 endpoint groups: auth, courses, assets, export, simulations, history, telemetry, health — with TypeScript interfaces, curl examples, status code tables, and error cases
+- **SCORM & LMS Integration Guide** — 6-section guide: which standard to choose (decision flowchart), SCORM 1.2 export + Moodle import walkthrough, SCORM 2004 sequencing flow + manifest structure, AICC 4-file format + HACP bridge, full LMS × standard × feature compatibility matrix, 9-scenario troubleshooting guide
+- **Documentation Home** (`docs/index.md`) — Updated hub page linking all structured guide directories
+- **Glossary** (`docs/glossary.md`) — Definitions for SCORM, AICC, xAPI, LMS, Widget, ActionSequence, SimStep, Phaser Simulation, Garage, Runtime Player, and more
+- **Playwright Screenshot Automation** — `docs/scripts/capture-screenshots.ts` captures 18 of 19 planned screenshots (screenshot 18 requires Moodle service); integrated as `pnpm --filter docs run capture`
+
+### Fixed
+- API reference: added missing `GET /health` and simulation endpoints documentation
+- API reference: clarified logout response envelope exception
+- All internal documentation cross-links verified and updated
+
+---
+
 ## [0.4.0] — 2026-03-24 — Polish & Accessibility
 
 ### Added

@@ -5,6 +5,7 @@
 [![pnpm](https://img.shields.io/badge/pnpm-9.x-orange)](https://pnpm.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-required-2496ED)](https://docs.docker.com/desktop/)
+[![Documentation](https://img.shields.io/badge/docs-elearn--studio-blue)](docs/index.md)
 
 Open-source, web-based e-learning authoring platform inspired by ToolBook 11.5 — build software simulations, rich quizzes, and interactive courses, then publish to any LMS via SCORM 1.2 / SCORM 2004 / AICC / xAPI.
 
@@ -109,7 +110,7 @@ Services after startup:
 
 ## Project Structure
 
-```
+```plaintext
 elearn-studio/
 ├── packages/
 │   ├── authoring-ui/          # React 18 + Vite + GrapesJS — visual slide editor
@@ -201,11 +202,12 @@ graph TD
 
 | Document | Audience | Description |
 |---|---|---|
-| [User Guide](docs/user-guide/index.md) | Course authors | End-to-end guide for building, previewing, and publishing courses |
-| [Setup Guide](docs/setup-guide.md) | All / first-time setup | Prerequisites, Docker setup, environment variables, first-run checklist |
-| [Contributing Guide](docs/contributing-guide.md) | Contributors | Development workflow, tests, CI requirements, OpenAPI client regeneration |
-| [API Reference](docs/api-reference.md) | Backend developers | REST endpoints, request/response schemas, authentication |
-| [Observability Guide](docs/observability-guide.md) | DevOps / operators | Grafana dashboards, LogQL examples, trace correlation |
+| [Documentation Hub](docs/index.md) | All | Index of all guides and reference material |
+| [User Guide](docs/user-guide/index.md) | Course authors | End-to-end guide: editor, widgets, questions, simulations, publishing |
+| [Developer Guide](docs/developer-guide/index.md) | Contributors | Architecture, local setup, adding widgets/sims, observability, contributing |
+| [API Reference](docs/api-reference/index.md) | Backend integrators | All REST endpoints with curl examples, TypeScript interfaces, error codes |
+| [SCORM Guide](docs/scorm-guide/index.md) | LMS integrators | SCORM 1.2/2004/AICC export, Moodle import, compatibility matrix, troubleshooting |
+| [Glossary](docs/glossary.md) | All | Key terms: SCORM, AICC, Widget, ActionSequence, Runtime Player, Garage |
 | [Architecture](CLAUDE.md) | Architects / senior devs | Full system architecture, data model, GrapesJS and Phaser integration details |
 
 ---
