@@ -76,8 +76,8 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Test (all packages)
-        run: pnpm -r run test
+      - name: Test (unit + integration, all packages)
+        run: pnpm --filter '!@elearn-studio/e2e' -r run test
 
       # T168: validate OpenAPI spec is up-to-date (enabled once gen:openapi script is added)
       - name: Check OpenAPI spec is up-to-date
