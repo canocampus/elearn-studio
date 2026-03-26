@@ -247,15 +247,25 @@ describe('registerBlocks', () => {
   // T012.5 — Components have sensible default styles for canvas preview
   // -------------------------------------------------------------------------
 
-  describe('T012.5 — Component default styles include position:absolute', () => {
+  describe('T012.5 — Component default styles are registered', () => {
+    // position:absolute is injected by grapesjsFromWidgets (converters.ts) at load time,
+    // not stored in component defaults — free-form drag & drop canvas intentional design.
     const STYLED_TYPES = ['text', 'image', 'button', 'rectangle', 'media-player']
 
     for (const type of STYLED_TYPES) {
-      it(`component "${type}" default style has position:absolute`, () => {
+      it(`component "${type}" default style has z-index`, () => {
         const comp = getComponent(editor, type)
         const defaults = (comp?.model as Record<string, unknown>)?.defaults as Record<string, unknown>
         const style = defaults?.style as Record<string, string>
-        expect(style?.position).toBe('absolute')
+        expect(style?.['z-index']).toBeDefined()
+      })
+
+      it(`component "${type}" default style has width and height`, () => {
+        const comp = getComponent(editor, type)
+        const defaults = (comp?.model as Record<string, unknown>)?.defaults as Record<string, unknown>
+        const style = defaults?.style as Record<string, string>
+        expect(style?.width).toBeDefined()
+        expect(style?.height).toBeDefined()
       })
     }
   })

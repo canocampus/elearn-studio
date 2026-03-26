@@ -48,7 +48,7 @@ function validateScreenshotSize(screenshot: Buffer): void {
 async function flushEvents(page: Page): Promise<CapturedEvent[]> {
   try {
     return await page.evaluate(() => {
-      const cap = (window as any).__elearnCapture
+      const cap = (window as Window & { __elearnCapture?: { events: unknown[] } }).__elearnCapture
       if (!cap) return []
       const events = [...cap.events]
       cap.events = []

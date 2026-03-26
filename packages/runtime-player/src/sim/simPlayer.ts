@@ -224,7 +224,7 @@ export function mountSimPlayer(
         clickLayerEl.style.pointerEvents = 'auto'
         clickLayerEl.style.cursor = 'default'
 
-        function onHover(e: MouseEvent): void {
+        const onHover = (e: MouseEvent): void => {
           const rect = clickLayerEl.getBoundingClientRect()
           if (rect.width === 0 || rect.height === 0) return
           const mx = ((e.clientX - rect.left) / rect.width) * REF_W
@@ -253,7 +253,7 @@ export function mountSimPlayer(
         typeInputEl.value = ''
         typeInputEl.focus()
 
-        function onTypeSubmit(e: KeyboardEvent): void {
+        const onTypeSubmit = (e: KeyboardEvent): void => {
           if (e.key !== 'Enter') return
           const typed = typeInputEl.value.trim().toLowerCase()
           const expected = (step.expectedText ?? '').trim().toLowerCase()

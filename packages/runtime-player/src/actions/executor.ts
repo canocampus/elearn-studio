@@ -102,12 +102,12 @@ export class ActionExecutor {
         executeSuspendLesson(action, this.ctx)
         break
       case 'condition':
-        await executeCondition(action, this.ctx, (a, c) =>
+        await executeCondition(action, this.ctx, (a, _c) =>
           this.run(a as Action[]),
         )
         break
       case 'loop':
-        await executeLoop(action, this.ctx, (a, c) =>
+        await executeLoop(action, this.ctx, (a, _c) =>
           this.run(a as Action[]),
         )
         break

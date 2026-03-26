@@ -17,6 +17,7 @@ module.exports = {
       plugins: ['react', 'react-hooks'],
       extends: [
         'plugin:react/recommended',
+        'plugin:react/jsx-runtime',
         'plugin:react-hooks/recommended',
       ],
       settings: {
@@ -24,5 +25,12 @@ module.exports = {
       },
     },
   ],
+  rules: {
+    '@typescript-eslint/no-unused-vars': ['error', {
+      varsIgnorePattern: '^_',
+      argsIgnorePattern: '^_',
+      ignoreRestSiblings: true,
+    }],
+  },
   ignorePatterns: ['dist/', 'node_modules/', '.venv/', 'coverage/'],
 }

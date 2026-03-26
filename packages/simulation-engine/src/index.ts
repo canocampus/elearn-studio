@@ -26,11 +26,11 @@ app.get('/health', async (_req, res) => {
       browsers: activeBrowserCount(),
       sessions: activeSessionCount(),
     })
-  } catch (err: any) {
+  } catch (err) {
     res.status(503).json({
       status:  'degraded',
       storage: 'error',
-      error:   err?.message ?? 'Storage unreachable',
+      error:   (err as { message?: string })?.message ?? 'Storage unreachable',
     })
   }
 })

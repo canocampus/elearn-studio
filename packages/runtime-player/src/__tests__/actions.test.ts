@@ -4,7 +4,7 @@
  * Uses vitest + jsdom environment.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { ActionExecutor } from '../actions/executor'
 import { EventDispatcher } from '../actions/dispatcher'
 import { createExecutionContext } from '../actions/context'
@@ -564,7 +564,7 @@ describe('EventDispatcher', () => {
   })
 
   it('fireSlideEvent runs enterSlide sequences for all widgets', async () => {
-    const setValue = vi.fn()
+    const _setValue = vi.fn()
     const ctx = makeCtx()
     ctx.variables.set('visited', '0')
 
@@ -590,7 +590,7 @@ describe('EventDispatcher', () => {
 
 describe('ActionExecutor — play-animation', () => {
   function makeAnimWidget(
-    animations: unknown[] = [],
+    _animations: unknown[] = [],
   ): { el: HTMLElement; animateSpy: ReturnType<typeof vi.fn> } {
     const el = document.createElement('div')
     const animateSpy = vi.fn().mockReturnValue({ cancel: vi.fn() } as unknown as Animation)

@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import { useActionsStore } from '../../store/actionsStore'
-import { WIDGET_EVENTS, SLIDE_EVENTS, type WidgetEvent, type SlideEvent } from '../../types/actions'
+import { WIDGET_EVENTS, SLIDE_EVENTS } from '../../types/actions'
 
 const ALL_EVENTS: string[] = [...WIDGET_EVENTS, ...SLIDE_EVENTS]
 

@@ -249,7 +249,7 @@ function buildIndexHtml(course: CourseDoc, bridge?: string): string {
     .replace(/&/g, '\\u0026')
     .replace(/<\/script>/gi, '<\\/script>')
 
-  const { width = 1024, height = 768 } = course.settings ?? {}
+  const { width = 1024, height: _height = 768 } = course.settings ?? {}
 
   // Validate that the bridge is a well-formed IIFE to prevent script injection.
   // The bridge must come from buildHACPBridge() — user-controlled input is not allowed.

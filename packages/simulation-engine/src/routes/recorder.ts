@@ -16,7 +16,7 @@ export const recorderRouter: ExpressRouter = Router()
 // ── M-01: SessionId format validation ─────────────────────────────────────────
 
 /** Session IDs: alphanumeric and hyphens only (UUID-like, no path traversal). */
-const SESSION_ID_PATTERN = /^[a-z0-9\-]+$/i
+const SESSION_ID_PATTERN = /^[a-z0-9-]+$/i
 
 /**
  * Validate that sessionId matches the expected format (alphanumeric + hyphens).
@@ -159,9 +159,10 @@ recorderRouter.post('/capture', async (req: Request, res: Response) => {
   try {
     const steps = await manualCapture(sessionId)
     res.json({ steps })
-  } catch (err: any) {
-    if (err?.message?.startsWith('Session not found') || err?.message?.startsWith('Browser not found')) {
-      res.status(404).json({ error: err.message })
+  } catch (err) {
+    const e = err as { message?: string }
+    if (e?.message?.startsWith('Session not found') || e?.message?.startsWith('Browser not found')) {
+      res.status(404).json({ error: e.message })
     } else {
       console.error('[recorder] capture failed:', err)
       res.status(500).json({ error: 'Failed to capture' })
@@ -202,9 +203,10 @@ recorderRouter.post('/stop', async (req: Request, res: Response) => {
     await putObject(key, Buffer.from(JSON.stringify(persistedSession), 'utf8'), 'application/json')
 
     res.json(persistedSession)
-  } catch (err: any) {
-    if (err?.message?.startsWith('Session not found')) {
-      res.status(404).json({ error: err.message })
+  } catch (err) {
+    const e = err as { message?: string }
+    if (e?.message?.startsWith('Session not found')) {
+      res.status(404).json({ error: e.message })
     } else {
       console.error('[recorder] stop failed:', err)
       res.status(500).json({ error: 'Failed to stop recording session' })
@@ -296,9 +298,10 @@ recorderRouter.get('/sessions/:id/screenshot', async (req: Request, res: Respons
     res.setHeader('Content-Type', 'image/jpeg')
     res.setHeader('Cache-Control', 'no-store')
     res.send(jpeg)
-  } catch (err: any) {
-    if (err?.message?.startsWith('Browser not found')) {
-      res.status(404).json({ error: err.message })
+  } catch (err) {
+    const e = err as { message?: string }
+    if (e?.message?.startsWith('Browser not found')) {
+      res.status(404).json({ error: e.message })
     } else {
       console.error('[recorder] screenshot failed:', err)
       res.status(500).json({ error: 'Failed to capture screenshot' })

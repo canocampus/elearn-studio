@@ -61,7 +61,7 @@ describe('ActionsDebugOverlay', () => {
     })
     const overlay = screen.getByTestId('actions-debug-overlay')
     // Each entry shows the action type; count rows
-    const rows = overlay.querySelectorAll('[style*="display: flex; justify-content"]')
+    const _rows = overlay.querySelectorAll('[style*="display: flex; justify-content"]')
     // The list container should have at most 20 items visible
     expect(screen.getAllByText(/^action-/).length).toBeLessThanOrEqual(20)
   })

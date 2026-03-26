@@ -102,9 +102,9 @@ describe('registerPhaserSimBlock', () => {
       expect(ep.passingScore).toBe(PHASER_SIM_DEFAULT_EXTENDED.passingScore)
     })
 
-    it('default style has position absolute', () => {
+    it('default style has z-index (position:absolute is injected by converters.ts at load time)', () => {
       const style = getDefaults().style as Record<string, string>
-      expect(style.position).toBe('absolute')
+      expect(style['z-index']).toBeDefined()
     })
 
     it('default width is 800px', () => {

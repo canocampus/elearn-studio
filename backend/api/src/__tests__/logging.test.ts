@@ -8,7 +8,7 @@
  * - global error handler logs structured error before responding
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import request from 'supertest'
 import express, { Request, Response, NextFunction } from 'express'
 import pinoHttp from 'pino-http'

@@ -275,6 +275,151 @@ describe('DELETE /courses/:id/slides/:slideId', () => {
     const res = await request(app).delete('/courses/bad-id/slides/s1').set(auth)
     expect(res.status).toBe(400)
   })
+
+  it('returns 200 with slide removed when slideId does not match any slide (no-op pull)', async () => {
+    // MongoDB $pull with no matching subdocument is a no-op — course returns 200 with slides unchanged
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'C' })
+    const id = created.data._id
+    await request(app).post(`/courses/${id}/slides`).set(auth).send({ title: 'S1' })
+
+    const res = await request(app).delete(`/courses/${id}/slides/non-existent-slide-id`).set(auth)
+    // The route returns 200 with unchanged slides (MongoDB $pull is a no-op)
+    expect(res.status).toBe(200)
+    expect(res.body.data.slides).toHaveLength(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// PATCH /courses/:id/slides/reorder — T603.5 atomic slide reordering
+// ---------------------------------------------------------------------------
+
+describe('PATCH /courses/:id/slides/reorder', () => {
+  it('reorders slides to the supplied order', async () => {
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'ReorderTest' })
+    const id = created.data._id
+    await request(app).post(`/courses/${id}/slides`).set(auth).send({ title: 'Slide A' })
+    await request(app).post(`/courses/${id}/slides`).set(auth).send({ title: 'Slide B' })
+    const { body: r3 } = await request(app).post(`/courses/${id}/slides`).set(auth).send({ title: 'Slide C' })
+    const ids = r3.data.slides.map((s: { id: string }) => s.id)
+    // Reverse the order
+    const reversed = [...ids].reverse()
+
+    const res = await request(app)
+      .patch(`/courses/${id}/slides/reorder`)
+      .set(auth)
+      .send({ orderedIds: reversed })
+    expect(res.status).toBe(200)
+    const resultIds = res.body.data.slides.map((s: { id: string }) => s.id)
+    expect(resultIds).toEqual(reversed)
+  })
+
+  it('returns 400 when orderedIds is empty', async () => {
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'C' })
+    const id = created.data._id
+
+    const res = await request(app)
+      .patch(`/courses/${id}/slides/reorder`)
+      .set(auth)
+      .send({ orderedIds: [] })
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when orderedIds is missing', async () => {
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'C' })
+    const id = created.data._id
+
+    const res = await request(app)
+      .patch(`/courses/${id}/slides/reorder`)
+      .set(auth)
+      .send({})
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when orderedIds does not match existing slides', async () => {
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'C' })
+    const id = created.data._id
+    await request(app).post(`/courses/${id}/slides`).set(auth).send({ title: 'S1' })
+
+    const res = await request(app)
+      .patch(`/courses/${id}/slides/reorder`)
+      .set(auth)
+      .send({ orderedIds: ['wrong-id-1', 'wrong-id-2'] })
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 404 for non-existent course', async () => {
+    const res = await request(app)
+      .patch('/courses/000000000000000000000001/slides/reorder')
+      .set(auth)
+      .send({ orderedIds: ['s1'] })
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 400 for invalid course id', async () => {
+    const res = await request(app)
+      .patch('/courses/bad-id/slides/reorder')
+      .set(auth)
+      .send({ orderedIds: ['s1'] })
+    expect(res.status).toBe(400)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T603.3 — Auth protection (401) on all protected routes
+// ---------------------------------------------------------------------------
+
+describe('T603.3 — 401 Unauthorized without auth token', () => {
+  it('GET /courses → 401', async () => {
+    const res = await request(app).get('/courses')
+    expect(res.status).toBe(401)
+  })
+
+  it('POST /courses → 401', async () => {
+    const res = await request(app).post('/courses').send({ title: 'X' })
+    expect(res.status).toBe(401)
+  })
+
+  it('GET /courses/:id → 401', async () => {
+    const res = await request(app).get('/courses/000000000000000000000001')
+    expect(res.status).toBe(401)
+  })
+
+  it('PUT /courses/:id → 401', async () => {
+    const res = await request(app).put('/courses/000000000000000000000001').send({ title: 'X' })
+    expect(res.status).toBe(401)
+  })
+
+  it('DELETE /courses/:id → 401', async () => {
+    const res = await request(app).delete('/courses/000000000000000000000001')
+    expect(res.status).toBe(401)
+  })
+
+  it('POST /courses/:id/slides → 401', async () => {
+    const res = await request(app).post('/courses/000000000000000000000001/slides').send({ title: 'S' })
+    expect(res.status).toBe(401)
+  })
+
+  it('PATCH /courses/:id/slides/:slideId → 401', async () => {
+    const res = await request(app).patch('/courses/000000000000000000000001/slides/s1').send({ title: 'S' })
+    expect(res.status).toBe(401)
+  })
+
+  it('DELETE /courses/:id/slides/:slideId → 401', async () => {
+    const res = await request(app).delete('/courses/000000000000000000000001/slides/s1')
+    expect(res.status).toBe(401)
+  })
+
+  it('PATCH /courses/:id/slides/reorder → 401', async () => {
+    const res = await request(app)
+      .patch('/courses/000000000000000000000001/slides/reorder')
+      .send({ orderedIds: ['s1'] })
+    expect(res.status).toBe(401)
+  })
+
+  it('GET /courses/:id/history → 401', async () => {
+    const res = await request(app).get('/courses/000000000000000000000001/history')
+    expect(res.status).toBe(401)
+  })
 })
 
 // ---------------------------------------------------------------------------

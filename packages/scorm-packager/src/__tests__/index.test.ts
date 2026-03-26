@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
@@ -6,8 +6,6 @@ import AdmZip from 'adm-zip'
 import {
   packSCORM12,
   CourseDoc,
-  SCORMMetadata,
-  CourseSettings,
 } from '../index'
 
 // ─── Test fixtures ────────────────────────────────────────────────────────
@@ -242,17 +240,16 @@ describe('imsmanifest.xml content', () => {
     const outputDir = path.join(tempDir, 'manifest-mastery-test-2')
     const zipPath = await packSCORM12(course, outputDir, { playerPath: fakePlayerPath })
 
-    const zip = new AdmZip(zipPath)
-    const entry = zip.getEntry('imsmanifest.xml')!
-    const content = entry.getData().toString('utf8')
-
     // Since masteryScore is 0, it should still use it (0 is falsy but valid)
-    // Let's test with undefined instead
+    // Let's test with undefined instead — no assertion needed here
+    expect(zipPath).toBeTruthy()
   })
 
   it('defaults to 80 when both masteryScore and passingScore are missing', async () => {
     const course = makeCourse({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       settings: { width: 1024, height: 768 } as any, // passingScore missing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       metadata: { version: '1.0' } as any, // masteryScore missing
     })
     const outputDir = path.join(tempDir, 'manifest-mastery-test-3')
@@ -541,10 +538,10 @@ describe('Player path resolution', () => {
       const zipPath = await packSCORM12(course, outputDir)
       // If it succeeds, that means the default path was found and used
       expect(fs.existsSync(zipPath)).toBe(true)
-    } catch (err: any) {
+    } catch (err) {
       // If it fails, it's because the default player doesn't exist
       // (which is expected in some test environments)
-      expect(err.message).toContain('Runtime player bundle not found')
+      expect((err as Error).message).toContain('Runtime player bundle not found')
     }
   })
 })
@@ -589,6 +586,7 @@ describe('Default title handling in imsmanifest', () => {
 
 describe('Settings destructuring defaults', () => {
   it('uses default width/height when settings is undefined', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const course = makeCourse({ settings: undefined as any })
     const outputDir = path.join(tempDir, 'settings-default-test')
 
@@ -607,6 +605,7 @@ describe('Mastery score fallback chain', () => {
   it('falls back to passingScore when masteryScore is undefined', async () => {
     const course = makeCourse({
       settings: { width: 1024, height: 768, passingScore: 92 },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       metadata: { version: '1.0' } as any, // masteryScore missing
     })
     const outputDir = path.join(tempDir, 'mastery-fallback-test')
@@ -622,7 +621,9 @@ describe('Mastery score fallback chain', () => {
 
   it('defaults to 80 when both masteryScore and passingScore are undefined', async () => {
     const course = makeCourse({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       settings: { width: 1024, height: 768 } as any, // passingScore missing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       metadata: { version: '1.0' } as any, // masteryScore missing
     })
     const outputDir = path.join(tempDir, 'mastery-double-fallback-test')

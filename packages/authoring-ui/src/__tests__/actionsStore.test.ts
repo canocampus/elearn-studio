@@ -1073,7 +1073,7 @@ describe('actionsStore — integration', () => {
 
     // Update action
     useActionsStore.getState().updateAction('click', 0, navAction('prev'))
-    expect((getState().sequences[0]?.actions[0] as any).params.target).toBe('prev')
+    expect((getState().sequences[0]?.actions[0] as Record<string, Record<string, string>>).params.target).toBe('prev')
 
     // Switch event
     useActionsStore.getState().selectEvent('mouseEnter')

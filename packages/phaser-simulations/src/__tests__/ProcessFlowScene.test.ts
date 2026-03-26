@@ -5,7 +5,7 @@
  * entirely and test only the scene's own logic: step sequencing, scoring,
  * mode-driven behaviour, and the sim-complete event.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import type { ProcessFlowSceneDef } from '../types'
 import { ScoreTracker } from '../ScoreTracker'
 import { ModeController } from '../ModeController'

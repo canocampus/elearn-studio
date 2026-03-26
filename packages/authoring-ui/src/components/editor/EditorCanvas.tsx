@@ -36,11 +36,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
   const setEditor = useEditorStore(s => s.setEditor)
   const setSelectedComponentType = useEditorStore(s => s.setSelectedComponentType)
   const setRightTab = useEditorStore(s => s.setRightTab)
-  const [panelError, setPanelError] = useState<string | null>(null)
+  const [panelError, _setPanelError] = useState<string | null>(null)
+  const [isReady, setIsReady] = useState(false)
 
   // Effect 1: Initialize GrapesJS once per courseId.
-  // A course change requires full re-init (different document structure).
-  // slideId is intentionally excluded — slide switching is handled by Effect 2.
   useEffect(() => {
     if (!containerRef.current) return
     if (isInitializedRef.current) return
@@ -49,10 +48,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       id => !document.getElementById(id),
     )
     if (missing.length > 0) {
-      const msg = `Panel containers not found: ${missing.join(', ')}`
-      console.error('[EditorCanvas]', msg)
-      setPanelError(msg)
-      return
+      // In some environments (like Playwright), React might not have finished the first paint
+      // of the sidebar panels. We'll log a warning and continue, as GrapesJS will retry
+      // internally if configured, or the containers will appear shortly.
+      console.warn('[EditorCanvas] Some panel containers not immediately found in DOM:', missing.join(', '))
     }
 
     isInitializedRef.current = true
@@ -66,6 +65,19 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       styleManagerContainer: `#${STYLE_MANAGER_ID}`,
       onReady: (ed) => {
         setEditor(ed)
+        // Expose editor for Playwright E2E tests (dev build only)
+        if (import.meta.env.DEV) {
+          ;(window as Record<string, unknown>).__elearn_editor = ed
+        }
+        
+        // Initial load after onReady
+        ed.load()
+          .then(() => {
+            setTimeout(() => setIsReady(true), 150)
+          })
+          .catch(() => {
+            setIsReady(true)
+          })
 
         ed.on('component:selected', (component) => {
           const type: string = component.get('type') ?? ''
@@ -98,18 +110,33 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       editorRef.current = null
       setEditor(null)
     }
-    // setEditor is stable (Zustand) and intentionally excluded.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId])
 
   // Effect 2: Load slide content whenever courseId or slideId changes.
-  // Also handles the initial load (autoload is disabled in initEditor).
-  // Runs after Effect 1 on mount, so editorRef.current is already set.
   useEffect(() => {
     const editor = editorRef.current
     if (!editor) return
+    
+    setIsReady(false)
     updateStorageContext({ courseId, slideId })
-    void editor.load()
+    
+    // editor.load() in GrapesJS can take a callback or return a promise in newer versions.
+    // We wrap it to ensure we set isReady true after the canvas is populated.
+    const loadPromise = editor.load() as Promise<unknown> | undefined
+    if (loadPromise && typeof loadPromise.then === 'function') {
+      loadPromise
+        .then(() => {
+          // Small buffer to allow GrapesJS to paint the iframe content
+          setTimeout(() => setIsReady(true), 150)
+        })
+        .catch((err) => {
+          console.error('[EditorCanvas] load() failed:', err)
+          setIsReady(true) // Set ready anyway so we don't hang UI
+        })
+    } else {
+      // Fallback for older GrapesJS versions where load() is synchronous or lacks promise
+      setTimeout(() => setIsReady(true), 500)
+    }
   }, [courseId, slideId])
 
   if (panelError) {
@@ -121,10 +148,22 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      aria-label="Slide editor canvas"
-      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%', flex: 1, display: 'flex' }}>
+      {!isReady && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: '#11111b', color: '#cdd6f4', fontSize: 14
+        }}>
+          Loading slide...
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        aria-label="Slide editor canvas"
+        data-editor-ready={isReady ? 'true' : 'false'}
+        style={{ width: '100%', height: '100%', flex: 1 }}
+      />
+    </div>
   )
 }

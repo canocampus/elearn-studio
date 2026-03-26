@@ -4,6 +4,7 @@ import type { UserRole } from '../models/User'
 
 // Extend Express Request to carry the authenticated user
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: AccessTokenPayload

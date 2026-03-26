@@ -26,7 +26,7 @@ test.describe('GrapesJS Integration: Positioning & Resizing', () => {
     await editorPage.waitForCanvas()
   })
 
-  test('dropped widgets land at the correct coordinates (X, Y)', async ({ editorPage, page }) => {
+  test('dropped widgets land at the correct coordinates (X, Y)', async ({ editorPage, page: _page }) => {
     const targetX = 350
     const targetY = 250
 
@@ -53,7 +53,7 @@ test.describe('GrapesJS Integration: Positioning & Resizing', () => {
     }
   })
 
-  test('widgets do not jump to (20, 20) on drop', async ({ editorPage, page }) => {
+  test('widgets do not jump to (20, 20) on drop', async ({ editorPage, page: _page }) => {
     const targetX = 400
     const targetY = 300
 

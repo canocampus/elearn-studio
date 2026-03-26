@@ -3,7 +3,8 @@
  * (serializeSuspend, deserializeSuspend, saveSuspendData, restoreSuspendData)
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import LZString from 'lz-string'
 import {
   serializeSuspend,
   deserializeSuspend,
@@ -116,19 +117,19 @@ describe('deserializeSuspend', () => {
 
   it('returns null for unknown schema version', () => {
     // Manually craft a payload with v:2
-    const LZString = require('lz-string')
+
     const bad = LZString.compressToEncodedURIComponent(JSON.stringify({ v: 2, slide: 0, scores: [] }))
     expect(deserializeSuspend(bad)).toBeNull()
   })
 
   it('returns null when slide field is missing', () => {
-    const LZString = require('lz-string')
+
     const bad = LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, scores: [] }))
     expect(deserializeSuspend(bad)).toBeNull()
   })
 
   it('returns null when scores field is not an array', () => {
-    const LZString = require('lz-string')
+
     const bad = LZString.compressToEncodedURIComponent(JSON.stringify({ v: 1, slide: 0, scores: null }))
     expect(deserializeSuspend(bad)).toBeNull()
   })
@@ -236,7 +237,7 @@ describe('restoreSuspendData', () => {
 
   it('returns false when restored slide is out of bounds (C-02 fix)', () => {
     // Manually craft payload with slide=99, slideCount=5
-    const LZString = require('lz-string')
+
     const compressed = LZString.compressToEncodedURIComponent(
       JSON.stringify({ v: 1, slide: 99, scores: [] }),
     )
@@ -262,7 +263,7 @@ describe('restoreSuspendData', () => {
   })
 
   it('clamps invalid score/weight values and rejects non-boolean answered (H-03 fix)', () => {
-    const LZString = require('lz-string')
+
     const bad = LZString.compressToEncodedURIComponent(
       JSON.stringify({ v: 1, slide: 0, scores: [['q1', { s: -999, w: 0, a: 'yes' }]] }),
     )
@@ -277,7 +278,7 @@ describe('restoreSuspendData', () => {
   })
 
   it('clamps score > 1 to 0 (H-03 fix)', () => {
-    const LZString = require('lz-string')
+
     const bad = LZString.compressToEncodedURIComponent(
       JSON.stringify({ v: 1, slide: 0, scores: [['q2', { s: 9999, w: 100, a: true }]] }),
     )

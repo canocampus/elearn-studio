@@ -1,5 +1,4 @@
 import { test, expect } from '../fixtures'
-import { EditorPage } from '../pages/EditorPage'
 
 /**
  * T169.6 — Course CRUD & slide management

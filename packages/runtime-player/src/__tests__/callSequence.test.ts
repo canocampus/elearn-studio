@@ -8,7 +8,7 @@
  *  - ExecutionContext factory initialises sharedSequences to []
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { ActionExecutor } from '../actions/executor'
 import { createExecutionContext } from '../actions/context'
 import type { Action } from '../actions/types'
@@ -35,7 +35,7 @@ describe('createExecutionContext — sharedSequences default', () => {
 
 describe('call-sequence via ActionExecutor', () => {
   it('runs the referenced shared sequence actions', async () => {
-    const log: string[] = []
+    const _log: string[] = []
     const ctx = makeCtx({
       sharedSequences: [
         {
