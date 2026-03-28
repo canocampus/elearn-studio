@@ -29,7 +29,7 @@ export const WIDGET_TYPES = [
 export type WidgetType = (typeof WIDGET_TYPES)[number]
 
 export interface Action {
-  id: string
+  id?: string
   type: string
   params: Record<string, unknown>
   children?: Action[]

@@ -14,7 +14,7 @@ const BoundsSchema = new Schema(
 
 const ActionSchema = new Schema(
   {
-    id: { type: String, required: true },
+    id: { type: String },
     type: { type: String, required: true },
     params: { type: Schema.Types.Mixed, default: {} },
     children: { type: [Schema.Types.Mixed], default: [] },
