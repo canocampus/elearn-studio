@@ -89,15 +89,24 @@ test.describe('Action Sequence Editor: Panel with widget selected (GAP-02)', () 
     const slides = page.locator('[data-testid="slide-item"]')
     const ourSlideIndex = (await slides.count()) - 1
 
-    // Add a button widget so the Actions panel activates
+    // Add a button widget so the Actions panel activates.
+    // This triggers a 2s debounced autosave PATCH (widget without actions).
     await editorPage.addComponentViaEditor('button')
     await page.waitForTimeout(300)
+
+    // Wait for the button widget's debounced PATCH to complete BEFORE adding
+    // actions, so the next patchPromise captures the actions-only PATCH.
+    await page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 10_000 },
+    ).catch(() => page.waitForTimeout(2500)) // fallback: wait out the 2s debounce
 
     // Open the Actions tab
     await editorPage.actionsTab.click()
     await page.waitForTimeout(300)
 
-    // Register waitForResponse BEFORE triggering actions autosave
+    // Register waitForResponse BEFORE triggering actions save.
+    // useActionsSave calls editor.store() immediately (no debounce) on action change.
     const patchPromise = page.waitForResponse(
       resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
       { timeout: 15_000 },
@@ -116,7 +125,7 @@ test.describe('Action Sequence Editor: Panel with widget selected (GAP-02)', () 
     // Verify the action row appeared in the panel
     await expect(page.locator('[data-testid="action-item"]').first()).toBeVisible({ timeout: 5_000 })
 
-    // Wait for the autosave PATCH to complete
+    // Wait for the actions PATCH to complete (useActionsSave fires immediately)
     await patchPromise.catch(() => page.waitForTimeout(3000))
 
     // Reload and restore editor state

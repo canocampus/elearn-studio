@@ -71,9 +71,29 @@ export function useActionsSave() {
 
       setCourse({ ...course, slides: updatedSlides })
 
-      // Trigger GrapesJS autosave (storage.store) if the editor is mounted
       const { editor } = useEditorStore.getState()
       if (editor) {
+        // Sync actions to the GrapesJS component model so storageManager's store()
+        // reads the updated value via widgetsFromGrapesjs (c.get('actions')).
+        // Without this, newly-added components never have 'actions' on their model
+        // and the storage manager always saves an empty array after reload.
+        //
+        // Try GrapesJS model ID first, then fall back to HTML attribute 'id'
+        // (set via grapesjsFromWidgets → attributes: { id: w.id }).
+        // Note: getById() declares Component (non-nullable) but returns undefined
+        // at runtime when not found, so we cast via unknown.
+        const byId = editor.Components.getById(widgetId) as unknown as
+          | ReturnType<typeof editor.Components.getById>
+          | undefined
+        const component =
+          byId ??
+          editor
+            .getComponents()
+            .toArray()
+            .find((c) => c.getAttributes().id === widgetId)
+        if (component) {
+          component.set('actions', sequences)
+        }
         void editor.store().catch((err: unknown) => {
           console.error('[useActionsSave] store() failed:', err)
         })
