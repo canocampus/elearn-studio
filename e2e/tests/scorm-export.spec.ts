@@ -48,7 +48,7 @@ test.describe('SCORM Export', () => {
     expect(download.suggestedFilename()).toMatch(/\.zip$/)
   })
 
-  test('GAP-04 — SCORM ZIP contains imsmanifest.xml and index_lms.html', async ({ editorPage, page }) => {
+  test('GAP-04 — SCORM ZIP contains imsmanifest.xml and index.html', async ({ editorPage, page }) => {
     test.setTimeout(60_000)
 
     await editorPage.openPublishDialog()
@@ -68,7 +68,7 @@ test.describe('SCORM Export', () => {
       const entries = zip.getEntries().map(e => e.entryName)
 
       expect(entries).toContain('imsmanifest.xml')
-      expect(entries.some(e => e === 'index_lms.html' || e.endsWith('/index_lms.html'))).toBe(true)
+      expect(entries).toContain('index.html')
     } finally {
       fs.rmSync(tmpDir, { recursive: true })
     }
