@@ -1,3 +1,7 @@
+import * as fs from 'fs'
+import * as os from 'os'
+import * as path from 'path'
+import AdmZip from 'adm-zip'
 import { test, expect } from '../fixtures'
 
 /**
@@ -42,5 +46,31 @@ test.describe('SCORM Export', () => {
 
     const download = await downloadPromise
     expect(download.suggestedFilename()).toMatch(/\.zip$/)
+  })
+
+  test('GAP-04 — SCORM ZIP contains imsmanifest.xml and index_lms.html', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    await editorPage.openPublishDialog()
+
+    const downloadPromise = page.waitForEvent('download', { timeout: 30_000 })
+    await editorPage.publishConfirmButton.click()
+
+    const download = await downloadPromise
+
+    // Save the download to a temp directory for inspection
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'elearn-scorm-'))
+    const zipPath = path.join(tmpDir, 'course.zip')
+    await download.saveAs(zipPath)
+
+    try {
+      const zip = new AdmZip(zipPath)
+      const entries = zip.getEntries().map(e => e.entryName)
+
+      expect(entries).toContain('imsmanifest.xml')
+      expect(entries.some(e => e === 'index_lms.html' || e.endsWith('/index_lms.html'))).toBe(true)
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true })
+    }
   })
 })

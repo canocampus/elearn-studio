@@ -27,3 +27,126 @@ test.describe('Action Sequence Editor', () => {
     await expect(editorPage.actionsTab).toBeVisible()
   })
 })
+
+// GAP-02 — Action sequence panel renders when a widget is selected
+// Verifies that the Actions panel is accessible and shows its container when a widget
+// is selected. Full add-action UI testing requires ActionsEditor implementation to
+// expose stable test IDs (see ActionsEditorPage.addEventButton).
+test.describe('Action Sequence Editor: Panel with widget selected (GAP-02)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.goto()
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('GAP-02.1 — Actions panel is accessible after widget is added to canvas', async ({ editorPage, page }) => {
+    // Add a widget so there is a selection in the editor
+    await editorPage.addComponentViaEditor('button')
+    await page.waitForTimeout(300)
+
+    // Open the Actions tab
+    const actionsPage = new ActionsEditorPage(page)
+    await actionsPage.open()
+
+    // The Actions tab must remain visible and selected
+    await expect(editorPage.actionsTab).toBeVisible()
+  })
+
+  test('GAP-02.2 — Actions panel persists after page reload', async ({ editorPage, page }) => {
+    // Add a widget and navigate to Actions tab
+    await editorPage.addComponentViaEditor('button')
+    await page.waitForTimeout(300)
+    await editorPage.actionsTab.click()
+
+    // Wait for autosave before reloading
+    await page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 10_000 },
+    ).catch(() => page.waitForTimeout(3000))
+
+    // Reload and verify the editor restores without error
+    await page.reload()
+    await editorPage.waitForReady()
+
+    // Editor toolbar must be visible — session and course state were restored
+    await expect(editorPage.publishScormButton).toBeVisible({ timeout: 20_000 })
+
+    // Navigating to the slide and opening Actions tab must still work
+    const slides = page.locator('[data-testid="slide-item"]')
+    await slides.last().click()
+    await editorPage.waitForCanvas()
+    await editorPage.actionsTab.click()
+    await expect(editorPage.actionsTab).toBeVisible()
+  })
+
+  test('GAP-02.3 — Navigate action persists in action sequence after page reload', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    // Capture our slide index before reload (ourSlideIndex pattern — stays stable)
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    // Add a button widget so the Actions panel activates
+    await editorPage.addComponentViaEditor('button')
+    await page.waitForTimeout(300)
+
+    // Open the Actions tab
+    await editorPage.actionsTab.click()
+    await page.waitForTimeout(300)
+
+    // Register waitForResponse BEFORE triggering actions autosave
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    )
+
+    // Add an onClick event via the EventSelector dropdown
+    await page.getByTitle('Add event').click()
+    await page.waitForTimeout(200)
+    await page.getByRole('menuitem', { name: /click/i }).first().click()
+    await page.waitForTimeout(300)
+
+    // Add a Navigate action from the ActionPalette
+    await page.getByRole('button', { name: 'Navigate' }).first().click()
+    await page.waitForTimeout(300)
+
+    // Verify the action row appeared in the panel
+    await expect(page.locator('[data-testid="action-item"]').first()).toBeVisible({ timeout: 5_000 })
+
+    // Wait for the autosave PATCH to complete
+    await patchPromise.catch(() => page.waitForTimeout(3000))
+
+    // Reload and restore editor state
+    await page.reload()
+    await editorPage.waitForReady()
+
+    // Return to our slide
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select the existing button widget via JS bridge (selects without adding)
+    await page.waitForFunction(
+      () => !!(window as unknown as Record<string, unknown>).__elearn_editor,
+      { timeout: 15_000 },
+    )
+    await page.evaluate(() => {
+      const ed = (window as unknown as Record<string, unknown>).__elearn_editor as {
+        getComponents: () => { first: () => unknown }
+        select: (c: unknown) => void
+      }
+      const first = ed.getComponents().first()
+      if (first) ed.select(first)
+    })
+    await page.waitForTimeout(500)
+
+    // Open Actions tab
+    await editorPage.actionsTab.click()
+    await page.waitForTimeout(300)
+
+    // The Navigate action must still be present — proves persistence across reload
+    await expect(page.locator('[data-testid="action-item"]').first()).toBeVisible({ timeout: 10_000 })
+  })
+})

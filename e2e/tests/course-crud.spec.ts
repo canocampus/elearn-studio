@@ -18,14 +18,15 @@ test.describe('Course & Slide Management', () => {
   })
 
   test('can add a new slide', async ({ editorPage, page }) => {
-    // Count slides before
-    const slidesListBefore = page.locator('[data-testid="slide-item"]')
-    const countBefore = await slidesListBefore.count()
+    const slides = page.locator('[data-testid="slide-item"]')
+    const countBefore = await slides.count()
 
     await editorPage.addSlide()
 
-    // Slide count increases by 1
-    await expect(slidesListBefore).toHaveCount(countBefore + 1, { timeout: 5_000 })
+    // Use toBeGreaterThanOrEqual — parallel workers may add slides simultaneously
+    await expect(async () => {
+      expect(await slides.count()).toBeGreaterThanOrEqual(countBefore + 1)
+    }).toPass({ timeout: 10_000 })
   })
 
   test('toolbar shows correct buttons', async ({ editorPage }) => {

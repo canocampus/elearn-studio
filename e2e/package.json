@@ -10,6 +10,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.43.0",
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^20.19.37",
+    "adm-zip": "^0.5.16",
     "typescript": "^5.5.0",
     "wait-on": "^7.2.0"
   }
