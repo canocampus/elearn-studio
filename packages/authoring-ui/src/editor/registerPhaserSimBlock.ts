@@ -55,9 +55,6 @@ export function registerPhaserSimBlock(editor: Editor): void {
         content: PLACEHOLDER_HTML,
         extendedProperties: { ...PHASER_SIM_DEFAULT_EXTENDED } as PhaserSimExtendedProps,
         style: {
-          position: 'absolute',
-          left: '112px',
-          top: '134px',
           width: '800px',
           height: '500px',
           background: '#0d0d1a',

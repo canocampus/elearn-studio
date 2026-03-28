@@ -470,7 +470,7 @@ export function QuestionPropertiesPanel() {
   const type = (selected.get('type') as string) || selectedComponentType
 
   return (
-    <div style={{ overflowY: 'auto', flex: 1 }}>
+    <div data-testid="question-properties-panel" style={{ overflowY: 'auto', flex: 1 }}>
       {type === 'question-mc' && <MCPropertiesForm component={selected} />}
       {type === 'question-tf' && <TFPropertiesForm component={selected} />}
       {type === 'question-fill' && <FillPropertiesForm component={selected} />}

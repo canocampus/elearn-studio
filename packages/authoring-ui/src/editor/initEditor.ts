@@ -122,6 +122,16 @@ export function initEditor(opts: InitEditorOptions): Editor {
           open: false,
           properties: ['border', 'border-radius'],
         },
+        {
+          name: 'Spacing',
+          open: false,
+          properties: [
+            { name: 'Padding Top',    property: 'padding-top',    type: 'integer', units: ['px'], default: '0' },
+            { name: 'Padding Right',  property: 'padding-right',  type: 'integer', units: ['px'], default: '0' },
+            { name: 'Padding Bottom', property: 'padding-bottom', type: 'integer', units: ['px'], default: '0' },
+            { name: 'Padding Left',   property: 'padding-left',   type: 'integer', units: ['px'], default: '0' },
+          ],
+        },
       ],
     },
 
@@ -131,18 +141,24 @@ export function initEditor(opts: InitEditorOptions): Editor {
     assetManager: buildAssetManagerConfig(),
 
     // ---------------------------------------------------------------------------
-    // Canvas: fixed layout, no margin, position:absolute for widgets
+    // Canvas: fixed layout, no margin, absolute positioning handled by GrapesJS
     // ---------------------------------------------------------------------------
     canvas: {
       styles: [
-        'body { margin: 0; overflow: hidden; background: white; }',
+        'body { margin: 0; overflow: hidden; background-color: white !important; }',
         '* { box-sizing: border-box; }',
-        '[data-gjs-type] { position: absolute; }',
       ],
     },
 
+    /**
+     * T010.11 / T012.6 — Free-form positioning
+     * Setting dragMode to 'absolute' tells GrapesJS to move components
+     * using top/left instead of trying to insert them into the DOM flow.
+     */
+    dragMode: 'absolute',
+
     // ---------------------------------------------------------------------------
-    // Component defaults: disable draggable text editing in canvas header bar
+    // Component defaults: Ensure absolute positioning and draggability
     // ---------------------------------------------------------------------------
     components: '',
     style: '',
@@ -161,8 +177,23 @@ export function initEditor(opts: InitEditorOptions): Editor {
   // Select default device
   editor.setDevice('slide')
 
-  // Force absolute positioning when a component is added via drag-drop
+  /**
+   * T010.11 / T012.6 — Fix Drag & Drop and Positioning
+   * 
+   * When a component is added (dragged from blocks), we must:
+   * 1. Ensure it's absolute.
+   * 2. If it's a fresh drop (no left/top style yet), GrapesJS's internal 
+   *    sorter logic won't have the coordinates. We can use the drag event
+   *    or rely on GrapesJS "absoluteMode" plugin if we had it. 
+   *    For now, we enforce absolute and draggable on every component.
+   */
   editor.on('component:add', (component) => {
+    // Force all components to be absolute, draggable and resizable
+    component.set({
+      draggable: true,
+      resizable: true,
+    })
+    
     if (!component.getStyle('position')) {
       component.addStyle({ position: 'absolute' })
     }

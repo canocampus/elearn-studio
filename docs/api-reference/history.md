@@ -106,3 +106,5 @@ curl "http://localhost:3001/courses/:id/history?limit=20&skip=20" \
 ```
 
 Use `meta.total` to determine the total number of pages: `Math.ceil(meta.total / limit)`.
+
+> The `meta` envelope shape (`total`, `limit`, `skip`) is the standard `PaginatedEnvelope` used across all paginated endpoints — see [Response Envelope](index.md#response-envelope) in the API reference index.

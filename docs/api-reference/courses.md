@@ -12,6 +12,13 @@ List all non-deleted courses, sorted by `updatedAt` descending.
 
 **Returns:** summary only — `_id`, `title`, `updatedAt`. Use `GET /courses/:id` for the full document.
 
+**Responses:**
+
+| Status | Body |
+|---|---|
+| `200` | `{ success: true, data: [...] }` — array of course summaries |
+| `401` | Unauthorized |
+
 **curl:**
 
 ```bash
@@ -202,7 +209,14 @@ interface CreateSlideRequest {
 }
 ```
 
-**Responses:** `201` updated course, `400` invalid id, `404` course not found.
+**Responses:**
+
+| Status | Body |
+|---|---|
+| `201` | Updated course document |
+| `400` | Invalid ObjectId |
+| `401` | Unauthorized |
+| `404` | Course not found |
 
 **curl:**
 
@@ -239,7 +253,14 @@ interface UpdateSlideRequest {
 
 At least one field must be provided.
 
-**Responses:** `200` updated course, `400` invalid id or no updatable fields, `404` course or slide not found.
+**Responses:**
+
+| Status | Body |
+|---|---|
+| `200` | Updated course document |
+| `400` | Invalid ObjectId or no updatable fields provided |
+| `401` | Unauthorized |
+| `404` | Course or slide not found |
 
 **curl:**
 
@@ -264,7 +285,14 @@ Remove a slide from a course.
 | `id` | string | Course ObjectId |
 | `slideId` | string | Slide UUID |
 
-**Responses:** `200` updated course, `400` invalid id, `404` course not found.
+**Responses:**
+
+| Status | Body |
+|---|---|
+| `200` | Updated course document |
+| `400` | Invalid ObjectId |
+| `401` | Unauthorized |
+| `404` | Course not found |
 
 **curl:**
 
@@ -294,7 +322,14 @@ interface ReorderSlidesRequest {
 }
 ```
 
-**Responses:** `200` updated course, `400` invalid id / empty array / IDs mismatch, `404` course not found.
+**Responses:**
+
+| Status | Body |
+|---|---|
+| `200` | Updated course document |
+| `400` | Invalid ObjectId, empty array, or slide IDs mismatch |
+| `401` | Unauthorized |
+| `404` | Course not found |
 
 **curl:**
 

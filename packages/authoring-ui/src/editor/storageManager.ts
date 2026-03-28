@@ -68,7 +68,7 @@ export function registerStorageManager(editor: Editor): void {
       const { courseId, slideId } = storageContext
       if (!courseId || !slideId) {
         console.warn('[StorageManager] load() skipped — missing context', { courseId, slideId })
-        return {}
+        return { components: [], styles: [] }
       }
 
       try {
@@ -91,8 +91,9 @@ export function registerStorageManager(editor: Editor): void {
 
         return {
           components,
-          // We don't use global CSS, all styles are inline in components (fixed layout)
-          css: '',
+          // GrapesJS loadData() expects a 'styles' array, not a 'css' string.
+          // All styles are inline in components (fixed layout) so this is always empty.
+          styles: [],
         }
       } catch (err) {
         console.error('[StorageManager] load() failed:', err)

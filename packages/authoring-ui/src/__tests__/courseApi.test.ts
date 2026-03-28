@@ -21,6 +21,7 @@ import {
   duplicateSlide,
   reorderSlides,
   uploadAsset,
+  resolveAssetUrl,
 } from '../api/courseApi'
 
 // ---------------------------------------------------------------------------
@@ -352,5 +353,66 @@ describe('courseApi — R-06 getMultipartHeaders', () => {
     const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit]
     const headers = init.headers as Record<string, string>
     expect(headers['X-Api-Key']).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T600.1 — resolveAssetUrl (presigned URL resolution)
+// ---------------------------------------------------------------------------
+
+describe('courseApi — T600 resolveAssetUrl', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('calls GET /assets/:objectName/presigned', async () => {
+    fetchSpy.mockResolvedValue(
+      makeResponse({ success: true, data: { presignedUrl: 'https://garage.example/img.png?sig=abc' } }),
+    )
+    await resolveAssetUrl('uuid-1234.png')
+    const [url] = fetchSpy.mock.calls[0] as [string]
+    expect(url).toContain('/assets/uuid-1234.png/presigned')
+  })
+
+  it('returns the presignedUrl from the response body', async () => {
+    const presignedUrl = 'https://garage.example/my-image.jpg?X-Amz-Signature=xyz'
+    fetchSpy.mockResolvedValue(
+      makeResponse({ success: true, data: { presignedUrl } }),
+    )
+    const result = await resolveAssetUrl('my-image.jpg')
+    expect(result).toBe(presignedUrl)
+  })
+
+  it('rejects when the endpoint returns a 4xx response', async () => {
+    fetchSpy.mockResolvedValue(makeResponse('Unauthorized', false, 401))
+    await expect(resolveAssetUrl('private.png')).rejects.toThrow('401')
+  })
+
+  it('rejects when the endpoint returns a 5xx response', async () => {
+    fetchSpy.mockResolvedValue(makeResponse('Internal Server Error', false, 500))
+    await expect(resolveAssetUrl('broken.png')).rejects.toThrow('500')
+  })
+
+  it('rejects on network error', async () => {
+    fetchSpy.mockRejectedValue(new Error('net::ERR_NAME_NOT_RESOLVED'))
+    await expect(resolveAssetUrl('any.png')).rejects.toThrow()
+  })
+
+  it('uses GET method (no request body)', async () => {
+    fetchSpy.mockResolvedValue(
+      makeResponse({ success: true, data: { presignedUrl: 'https://ok' } }),
+    )
+    await resolveAssetUrl('file.png')
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    // apiRequest defaults to GET — init.method may be undefined or 'GET'
+    expect((init?.method ?? 'GET').toUpperCase()).toBe('GET')
+    expect(init?.body).toBeUndefined()
   })
 })

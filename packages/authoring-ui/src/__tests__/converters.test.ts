@@ -367,6 +367,24 @@ describe('converters — T011.6 round-trip: BaseWidget → GrapesJS → BaseWidg
     expect(roundTrip(makeWidget({ extendedProperties: {} })).extendedProperties).toEqual({})
   })
 
+  // Regression: question types with empty extendedProperties fall back to MC_DEFAULT_EXTENDED
+  // for the HTML preview (def.content), but extendedProperties itself must remain {} (not the default).
+  // An AI refactor that accidentally writes def.extendedProperties = ep would break this.
+  it('question-mc with empty extendedProperties preserves {} (not MC_DEFAULT_EXTENDED)', () => {
+    const w = makeWidget({ type: 'question-mc', extendedProperties: {} })
+    expect(roundTrip(w).extendedProperties).toEqual({})
+  })
+
+  it('question-tf with empty extendedProperties preserves {}', () => {
+    const w = makeWidget({ type: 'question-tf', extendedProperties: {} })
+    expect(roundTrip(w).extendedProperties).toEqual({})
+  })
+
+  it('question-fill with empty extendedProperties preserves {}', () => {
+    const w = makeWidget({ type: 'question-fill', extendedProperties: {} })
+    expect(roundTrip(w).extendedProperties).toEqual({})
+  })
+
   it('full widget — all fields survive intact', () => {
     const original: BaseWidget = {
       id: 'full-widget-001',

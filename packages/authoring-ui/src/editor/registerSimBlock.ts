@@ -47,9 +47,6 @@ export function registerSimBlock(editor: Editor): void {
           simConfig: null as SimConfig | null,
         },
         style: {
-          position: 'absolute',
-          left: '20px',
-          top: '20px',
           width: '640px',
           height: '360px',
           background: '#0d0d1a',

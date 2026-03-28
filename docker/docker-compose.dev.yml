@@ -168,6 +168,58 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
+  # Moodle SCORM testing — start with: docker compose --profile moodle up -d
+  # Uses official Bitnami Moodle image. First run installs DB (~5 min).
+  # Access at http://localhost:8081
+  moodle:
+    image: bitnamilegacy/moodle
+    ports:
+      - "8081:8080"
+    environment:
+      - MOODLE_DATABASE_HOST=moodle-db
+      - MOODLE_DATABASE_PORT_NUMBER=3306
+      - MOODLE_DATABASE_NAME=moodle
+      - MOODLE_DATABASE_USER=moodle
+      - MOODLE_DATABASE_PASSWORD=${MOODLE_DB_PASSWORD:-moodle_pass}
+      - MOODLE_USERNAME=${MOODLE_ADMIN_USER:-admin}
+      - MOODLE_PASSWORD=${MOODLE_ADMIN_PASSWORD:-Admin1234!}
+      - MOODLE_SITE_NAME=eLearn Studio Test LMS
+      - MOODLE_EMAIL=admin@elearn.local
+      - ALLOW_EMPTY_PASSWORD=no
+      - BITNAMI_DEBUG=true
+    depends_on:
+      moodle-db:
+        condition: service_healthy
+    volumes:
+      - moodle_data:/bitnami/moodle
+      - moodle_moodledata:/bitnami/moodledata
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/login/index.php | grep -q 'login' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s  # first-run DB installation takes ~5 minutes
+    restart: unless-stopped
+
+  moodle-db:
+    image: mariadb:11
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: moodle
+      MYSQL_USER: moodle
+      MYSQL_PASSWORD: ${MOODLE_DB_PASSWORD:-moodle_pass}
+      MYSQL_ROOT_PASSWORD: ${MOODLE_DB_PASSWORD:-moodle_pass}
+    volumes:
+      - moodle_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+
+
 volumes:
   mongo_dev_data:
   garage_dev_meta:
@@ -176,3 +228,6 @@ volumes:
   loki_dev_data:
   prometheus_dev_data:
   tempo_dev_data:
+  moodle_data:
+  moodle_moodledata:
+  moodle_db_data:

@@ -1,14 +1,27 @@
 /**
- * Unit tests for registerBlocks.ts — T012.1 / T012.2 / T012.3
+ * Unit tests for registerBlocks.ts — T012.1 / T012.2 / T012.3 / T600.2
  *
  * Verifies that registerBlocks() correctly registers all widget block and
  * component types with GrapesJS without throwing, and that each type is
  * registered with the expected metadata.
+ *
+ * T600.2 — Image widget view: resolveAndSetSrc behavior
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { registerBlocks } from '../editor/registerBlocks'
 import type { Editor } from 'grapesjs'
+
+// ---------------------------------------------------------------------------
+// Mock courseApi so resolveAssetUrl is controllable in T600.2
+// ---------------------------------------------------------------------------
+
+vi.mock('../api/courseApi', () => ({
+  resolveAssetUrl: vi.fn(),
+}))
+
+import { resolveAssetUrl } from '../api/courseApi'
+const mockResolveAssetUrl = vi.mocked(resolveAssetUrl)
 
 // ---------------------------------------------------------------------------
 // Mock GrapesJS editor
@@ -268,5 +281,115 @@ describe('registerBlocks', () => {
         expect(style?.height).toBeDefined()
       })
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T600.2 — Image widget view: resolveAndSetSrc behavior
+// ---------------------------------------------------------------------------
+
+describe('T600.2 — image widget resolveAndSetSrc', () => {
+  let imageView: Record<string, unknown>
+  let mockEl: { setAttribute: ReturnType<typeof vi.fn>; src: string }
+  let mockModel: { get: ReturnType<typeof vi.fn> }
+
+  beforeEach(() => {
+    mockResolveAssetUrl.mockReset()
+
+    const localEditor = makeMockEditor()
+    registerBlocks(localEditor as unknown as Editor)
+    const comp = getComponent(localEditor, 'image')
+    imageView = (comp as Record<string, unknown>)?.view as Record<string, unknown>
+
+    mockEl = { setAttribute: vi.fn(), src: '' }
+    mockModel = { get: vi.fn() }
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('does nothing when src does not start with /assets/', () => {
+    mockModel.get.mockReturnValue('https://external.example.com/image.png')
+
+    const fakeThis = { model: mockModel, el: mockEl }
+    ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(fakeThis)
+
+    expect(mockResolveAssetUrl).not.toHaveBeenCalled()
+    expect(mockEl.setAttribute).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when src is empty string', () => {
+    mockModel.get.mockReturnValue('')
+
+    const fakeThis = { model: mockModel, el: mockEl }
+    ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(fakeThis)
+
+    expect(mockResolveAssetUrl).not.toHaveBeenCalled()
+  })
+
+  it('calls resolveAssetUrl with objectName and sets el src on success', async () => {
+    mockModel.get.mockReturnValue('/assets/my-folder/photo.jpg')
+    mockResolveAssetUrl.mockResolvedValue('https://s3.example.com/presigned-url?sig=abc')
+
+    const fakeThis = { model: mockModel, el: mockEl }
+    ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(fakeThis)
+
+    expect(mockResolveAssetUrl).toHaveBeenCalledWith('my-folder/photo.jpg')
+
+    // Wait for the promise microtask to resolve
+    await vi.waitFor(() => {
+      expect(mockEl.setAttribute).toHaveBeenCalledWith('src', 'https://s3.example.com/presigned-url?sig=abc')
+    })
+  })
+
+  it('does not throw when resolveAssetUrl rejects', async () => {
+    mockModel.get.mockReturnValue('/assets/broken.png')
+    mockResolveAssetUrl.mockRejectedValue(new Error('Network error'))
+
+    const fakeThis = { model: mockModel, el: mockEl }
+
+    await expect(async () => {
+      ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(fakeThis)
+      // Allow the rejected promise to settle without surfacing as unhandled
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }).not.toThrow()
+
+    expect(mockEl.setAttribute).not.toHaveBeenCalled()
+  })
+
+  it('initialize() registers a change:src listener that triggers resolveAndSetSrc', () => {
+    let capturedHandler: (() => void) | null = null
+    const mockListenTo = vi.fn((_model: unknown, _event: string, handler: () => void) => {
+      capturedHandler = handler
+    })
+    mockModel.get.mockReturnValue('/assets/slide/widget.png')
+    mockResolveAssetUrl.mockResolvedValue('https://s3.example.com/widget-presigned')
+
+    // The initialize() implementation calls Object.getPrototypeOf(Object.getPrototypeOf(this))
+    // to reach the grandparent prototype. A plain object literal would make that null.
+    // Create a two-level prototype chain so the lookup returns a non-null object.
+    const fakeThis = Object.assign(Object.create(Object.create({})), {
+      model: mockModel,
+      el: mockEl,
+      listenTo: mockListenTo,
+      resolveAndSetSrc: function (this: unknown) {
+        ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(this)
+      },
+    })
+
+    ;(imageView.initialize as (this: unknown, props: unknown) => void).call(fakeThis, {})
+
+    expect(mockListenTo).toHaveBeenCalledWith(
+      mockModel,
+      'change:src',
+      expect.any(Function),
+    )
+
+    // Simulate the model emitting change:src
+    expect(capturedHandler).not.toBeNull()
+    capturedHandler!()
+
+    expect(mockResolveAssetUrl).toHaveBeenCalledWith('slide/widget.png')
   })
 })

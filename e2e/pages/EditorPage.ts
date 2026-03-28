@@ -22,7 +22,9 @@ export class EditorPage {
   // ── Right Sidebar Tabs ─────────────────────────────────────────────────────
   readonly layersTab: Locator
   readonly stylesTab: Locator
+  readonly propsTab: Locator
   readonly actionsTab: Locator
+  readonly animTab: Locator
 
   // ── Publish Dialog ─────────────────────────────────────────────────────────
   readonly publishDialog: Locator
@@ -42,7 +44,9 @@ export class EditorPage {
     // Right sidebar tabs
     this.layersTab = page.getByRole('tab', { name: 'Layers', exact: true })
     this.stylesTab = page.getByRole('tab', { name: 'Styles', exact: true })
+    this.propsTab = page.getByRole('tab', { name: 'Props', exact: true })
     this.actionsTab = page.getByRole('tab', { name: 'Actions', exact: true })
+    this.animTab = page.getByRole('tab', { name: 'Anim', exact: true })
 
     // Publish dialog
     this.publishDialog = page.getByRole('dialog').filter({ hasText: 'Publish SCORM Package' })
@@ -51,7 +55,28 @@ export class EditorPage {
   }
 
   // ── GrapesJS Locators ──────────────────────────────────────────────────────
-  
+
+  /**
+   * Programmatically add a GrapesJS component and select it.
+   * Requires `window.__elearn_editor` (set in EditorCanvas.tsx in DEV builds).
+   */
+  async addComponentViaEditor(type: string): Promise<void> {
+    // Wait for the editor to be exposed on window (set in EditorCanvas.tsx onReady)
+    await this.page.waitForFunction(
+      () => !!(window as Record<string, unknown>).__elearn_editor,
+      { timeout: 15_000 },
+    )
+    await this.page.evaluate((componentType: string) => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        addComponents: (c: object[]) => unknown
+        select: (c: unknown) => void
+      }
+      const added = ed.addComponents([{ type: componentType }])
+      const comp = Array.isArray(added) ? added[0] : added
+      if (comp) ed.select(comp)
+    }, type)
+  }
+
   /** The GrapesJS iframe where components are rendered. */
   canvasFrame() {
     return this.page.frameLocator('iframe.gjs-frame')
@@ -88,10 +113,13 @@ export class EditorPage {
     await this.publishScormButton.waitFor({ state: 'visible', timeout: 30_000 })
   }
 
-  /** Wait for the GrapesJS canvas iframe to be visible (requires an active slide). */
+  /** Wait for the GrapesJS canvas iframe to be visible and the slide to be fully loaded. */
   async waitForCanvas() {
     const iframe = this.page.locator('iframe.gjs-frame')
     await iframe.waitFor({ state: 'visible', timeout: 30_000 })
+    // Also wait for the editor load() to complete so tests don't add components
+    // while a concurrent load() is still in progress (would wipe the canvas).
+    await this.page.locator('[data-editor-ready="true"]').waitFor({ state: 'attached', timeout: 30_000 })
   }
 
   /** 
@@ -105,7 +133,8 @@ export class EditorPage {
     // Try multiple ways to find the block (some GrapesJS versions wrap labels differently)
     const block = this.page.locator('.gjs-block').filter({ hasText: blockLabel }).first()
     await block.waitFor({ state: 'visible', timeout: 15_000 })
-
+    // Scroll the block into view in case its category is below the visible area of the sidebar
+    await block.scrollIntoViewIfNeeded()
 
     const iframe = this.page.locator('iframe.gjs-frame').first()
     const iframeBox = await iframe.boundingBox()
@@ -148,7 +177,21 @@ export class EditorPage {
   }
 
   async addSlide() {
+    const slidesBefore = await this.page.locator('[data-testid="slide-item"]').count()
     await this.addSlideButton.click()
+    // Ensure the Slides tab is active so slide items are visible.
+    // dragBlockToCanvas() switches to the Blocks tab; if addSlide() is called after a
+    // drag, the slide items are hidden (Blocks tab still active) and the waitFor below
+    // would time out waiting for a visible element that is actually just hidden.
+    await this.slidesTab.click()
+    // Wait for the new slide item to appear in the list. This confirms the API
+    // round-trip has completed and React has committed the new slideId to the store.
+    // Without this wait, waitForCanvas() can see data-editor-ready="true" from the
+    // *previous* slide's load and return early, causing a race where the test adds
+    // components that are wiped when the new slide's editor.load() fires later.
+    await this.page.locator('[data-testid="slide-item"]')
+      .nth(slidesBefore)
+      .waitFor({ state: 'visible', timeout: 30_000 })
   }
 
   async clickSlide(title: string) {

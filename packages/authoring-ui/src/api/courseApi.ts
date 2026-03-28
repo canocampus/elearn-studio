@@ -170,6 +170,17 @@ export function importSimulation(courseId: string, sessionId: string): Promise<S
 /** Generated from OpenAPI schema — do not edit manually. */
 export type AssetUploadResult = components['schemas']['Asset']
 
+/**
+ * Fetch a time-limited presigned URL for an asset object.
+ * Used when a Bearer-authenticated fetch is needed (e.g. canvas <img> rendering).
+ */
+export async function resolveAssetUrl(objectName: string): Promise<string> {
+  const result = await apiRequest<{ success: boolean; data: { presignedUrl: string } }>(
+    `/assets/${objectName}/presigned`,
+  )
+  return result.data.presignedUrl
+}
+
 export async function uploadAsset(file: File): Promise<AssetUploadResult> {
   const { useAuthStore } = await import('../store/authStore')
   const token = useAuthStore.getState().accessToken

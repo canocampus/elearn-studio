@@ -74,7 +74,7 @@ const HINT_STYLE = 'font-size:10px;color:#94a3b8;margin-top:8px;'
 // ---------------------------------------------------------------------------
 
 export function buildMCPreviewHTML(ep: MCExtendedProps): string {
-  const optionsHTML = ep.options
+  const optionsHTML = (ep.options ?? [])
     .map(
       opt =>
         `<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">` +
@@ -156,6 +156,9 @@ export function registerQuestionBlocks(editor: Editor): void {
 
 function registerMCWidget(editor: Editor): void {
   editor.Components.addType('question-mc', {
+    // extendFnView ensures ComponentView.prototype.initialize runs before ours,
+    // so setViewEl() sets data-gjs-type on the element (required for canvas selectors).
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Multiple Choice',
@@ -163,9 +166,6 @@ function registerMCWidget(editor: Editor): void {
         droppable: false,
         extendedProperties: { ...MC_DEFAULT_EXTENDED },
         style: {
-          position: 'absolute',
-          left: '20px',
-          top: '20px',
           width: '340px',
           height: '180px',
           'border-radius': '6px',
@@ -179,9 +179,15 @@ function registerMCWidget(editor: Editor): void {
     },
     view: ({
       initialize() {
-        this.listenTo(this.model, 'change:extendedProperties', () => this._refreshPreview())
+        // Parent ComponentView.prototype.initialize is called automatically before this
+        // via extendFnView. We only add our custom change listener here.
+        ;(this as any).listenTo(
+          (this as any).model,
+          'change:extendedProperties',
+          (this as any)._refreshPreview.bind(this as any),
+        )
       },
-      _refreshPreview() {
+      _refreshPreview(this: any) {
         try {
           const ep = (this.model.get('extendedProperties') as MCExtendedProps | undefined) ?? MC_DEFAULT_EXTENDED
           this.el.innerHTML = buildMCPreviewHTML(ep)
@@ -190,7 +196,7 @@ function registerMCWidget(editor: Editor): void {
         }
       },
       onRender() {
-        this._refreshPreview()
+        ;(this as any)._refreshPreview()
       },
     } as unknown) as object,
   })
@@ -209,6 +215,7 @@ function registerMCWidget(editor: Editor): void {
 
 function registerTFWidget(editor: Editor): void {
   editor.Components.addType('question-tf', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'True / False',
@@ -216,9 +223,6 @@ function registerTFWidget(editor: Editor): void {
         droppable: false,
         extendedProperties: { ...TF_DEFAULT_EXTENDED },
         style: {
-          position: 'absolute',
-          left: '20px',
-          top: '20px',
           width: '280px',
           height: '130px',
           'border-radius': '6px',
@@ -232,9 +236,13 @@ function registerTFWidget(editor: Editor): void {
     },
     view: ({
       initialize() {
-        this.listenTo(this.model, 'change:extendedProperties', () => this._refreshPreview())
+        ;(this as any).listenTo(
+          (this as any).model,
+          'change:extendedProperties',
+          (this as any)._refreshPreview.bind(this as any),
+        )
       },
-      _refreshPreview() {
+      _refreshPreview(this: any) {
         try {
           const ep = (this.model.get('extendedProperties') as TFExtendedProps | undefined) ?? TF_DEFAULT_EXTENDED
           this.el.innerHTML = buildTFPreviewHTML(ep)
@@ -243,7 +251,7 @@ function registerTFWidget(editor: Editor): void {
         }
       },
       onRender() {
-        this._refreshPreview()
+        ;(this as any)._refreshPreview()
       },
     } as unknown) as object,
   })
@@ -262,6 +270,7 @@ function registerTFWidget(editor: Editor): void {
 
 function registerFillWidget(editor: Editor): void {
   editor.Components.addType('question-fill', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Fill in the Blank',
@@ -269,9 +278,6 @@ function registerFillWidget(editor: Editor): void {
         droppable: false,
         extendedProperties: { ...FILL_DEFAULT_EXTENDED },
         style: {
-          position: 'absolute',
-          left: '20px',
-          top: '20px',
           width: '320px',
           height: '110px',
           'border-radius': '6px',
@@ -285,9 +291,13 @@ function registerFillWidget(editor: Editor): void {
     },
     view: ({
       initialize() {
-        this.listenTo(this.model, 'change:extendedProperties', () => this._refreshPreview())
+        ;(this as any).listenTo(
+          (this as any).model,
+          'change:extendedProperties',
+          (this as any)._refreshPreview.bind(this as any),
+        )
       },
-      _refreshPreview() {
+      _refreshPreview(this: any) {
         try {
           const ep = (this.model.get('extendedProperties') as FillExtendedProps | undefined) ?? FILL_DEFAULT_EXTENDED
           this.el.innerHTML = buildFillPreviewHTML(ep)
@@ -296,7 +306,7 @@ function registerFillWidget(editor: Editor): void {
         }
       },
       onRender() {
-        this._refreshPreview()
+        ;(this as any)._refreshPreview()
       },
     } as unknown) as object,
   })

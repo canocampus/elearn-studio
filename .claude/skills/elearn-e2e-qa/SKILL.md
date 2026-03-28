@@ -439,6 +439,104 @@ page.locator('[data-testid="question-properties-panel"]')
 
 ---
 
+## Visual Regression
+
+For critical components, always add a screenshot comparison step:
+
+```typescript
+// At the end of tests covering stable UI (not dynamic flow tests)
+await expect(page).toHaveScreenshot('editor-with-mc-widget.png', {
+  maxDiffPixels: 100  // tolerance for antialiasing
+})
+```
+
+Components that MUST have visual regression coverage:
+- Editor loaded with empty canvas
+- Canvas with MC widget selected (Props panel open)
+- Publish dialog open
+- Login page
+
+To update the baseline snapshots:
+```bash
+pnpm playwright test --update-snapshots
+```
+Snapshots are stored in: `e2e/snapshots/` — committed to git.
+
+---
+
+## Test Tags — Traceability
+
+Every test must have a tag indicating its criticality:
+
+```typescript
+test('@smoke — editor loads correctly', ...)      // critical flows, run on every PR
+test('@regression — FM-05 widget persistence', ...)  // specific fixed bugs
+test('@integration — SCORM ZIP content', ...)     // tests requiring the full stack
+```
+
+In CI, `@smoke` tests always run. `@regression` and `@integration` run on merge to main:
+
+```typescript
+// playwright.config.ts — run only smoke tests in CI for faster feedback
+grep: process.env.CI_FAST ? /@smoke/ : undefined
+```
+
+---
+
+## API Mocking with route.fulfill()
+
+When a test verifies UI behaviour that does not depend on real data,
+mocking the API makes the test faster and more stable:
+
+```typescript
+// Mock a save failure to verify the error toast (related to FM-05 gap)
+test('@regression — save failure shows error toast', async ({ page, editorPage }) => {
+  // Intercept the autosave PATCH call and force a server error
+  await page.route('**/courses/*/slides/*', route => {
+    route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) })
+  })
+
+  await editorPage.addSlide()
+  await editorPage.addComponentViaEditor('rectangle')
+  await page.waitForTimeout(3000)  // wait for autosave attempt
+
+  // Verify the error toast appears
+  await expect(page.locator('[role="alert"]')).toContainText('Save failed', { timeout: 5_000 })
+})
+
+// Mock login for auth tests without depending on the real backend
+await page.route('**/auth/login', route => {
+  route.fulfill({
+    status: 200,
+    body: JSON.stringify({ data: { accessToken: 'fake-token-for-test' } })
+  })
+})
+```
+
+Rule: use `route.fulfill()` when the test verifies UI behaviour.
+Do NOT use it when the test verifies real backend integration.
+
+---
+
+## playwright codegen as a Working Tool
+
+When unsure about the correct selectors for a new flow:
+
+```bash
+cd e2e
+npx playwright codegen http://localhost:3000
+```
+
+The codegen output is raw recorded code. NEVER commit it directly.
+Correct process:
+1. Use codegen to capture the sequence of actions
+2. Clean up: replace fragile selectors with `data-testid` or `getByRole`
+3. Refactor into a Page Object if the sequence is reused across tests
+4. Add meaningful assertions (codegen only records actions, it does not verify state)
+5. Tag with `@smoke`, `@regression`, or `@integration`
+
+---
+
 ## Checklist Before Marking Any UI Task Complete
 
 - [ ] Is there a Playwright test covering the primary user interaction?
@@ -447,6 +545,7 @@ page.locator('[data-testid="question-properties-panel"]')
 - [ ] If autosave is involved: does the test wait for the PATCH network request?
 - [ ] Does the test use the existing `editorPage` fixture and Page Object methods?
 - [ ] Does the test avoid `page.waitForTimeout()` except for documented debounce windows?
+- [ ] Is the test tagged with `@smoke`, `@regression`, or `@integration`?
 - [ ] Is the test added to the correct spec file per the table above?
-- [ ] Does the test FAIL when the behavior being guarded against is reintroduced?
+- [ ] Does the test FAIL when the behaviour being guarded against is reintroduced?
 - [ ] Do all GAP-01 through GAP-08 tests exist before Phase 2.5 is considered complete?

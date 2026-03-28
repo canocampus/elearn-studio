@@ -80,6 +80,8 @@ interface LoginRequest {
 
 **curl:**
 
+> `-c cookies.txt` tells curl to save the `refreshToken` httpOnly cookie the server sets. Pass this file to subsequent calls that need the cookie.
+
 ```bash
 curl -X POST http://localhost:3001/auth/login \
   -H "Content-Type: application/json" \
@@ -123,6 +125,8 @@ Exchange the `refreshToken` cookie for a new access token. In production the ref
 | `401` | Missing, invalid, or expired refresh token |
 
 **curl:**
+
+> `-b cookies.txt` reads the saved `refreshToken` cookie. `-c cookies.txt` writes the rotated token back to the same file.
 
 ```bash
 curl -X POST http://localhost:3001/auth/refresh \

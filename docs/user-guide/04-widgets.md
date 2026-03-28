@@ -23,6 +23,15 @@ The Text block adds a text box to your slide.
 3. Type your content. Use the formatting bar that appears above the text box to apply bold, italic, font size, and color.
 4. Click outside the text box to finish editing.
 
+**Adjusting padding (spacing from the border)**
+
+If you add a border with rounded corners, the text can appear clipped by the corner radius. To prevent this, open the **Spacing** sector in the Properties panel and increase the padding values:
+
+1. Select the text block.
+2. In the right sidebar, scroll down to the **Spacing** sector.
+3. Increase **Padding Top**, **Padding Right**, **Padding Bottom**, and/or **Padding Left** as needed.
+   New Text blocks start with `4 px` top/bottom and `8 px` left/right padding by default.
+
 > 💡 **Tip:** Keep text on slides brief — aim for 30–50 words per slide. Detailed information belongs in a downloadable job aid, not on the slide itself.
 
 ---

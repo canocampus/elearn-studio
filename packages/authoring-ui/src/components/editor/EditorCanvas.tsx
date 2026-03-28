@@ -33,6 +33,8 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
   const editorRef = useRef<Editor | null>(null)
   // Guard against React 18 StrictMode double-invocation of useEffect in development.
   const isInitializedRef = useRef(false)
+  // Track previous context to detect genuine slide switches (vs. initial mount).
+  const prevContextRef = useRef<{ courseId: string; slideId: string } | null>(null)
   const setEditor = useEditorStore(s => s.setEditor)
   const setSelectedComponentType = useEditorStore(s => s.setSelectedComponentType)
   const setRightTab = useEditorStore(s => s.setRightTab)
@@ -69,15 +71,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
         if (import.meta.env.DEV) {
           ;(window as Record<string, unknown>).__elearn_editor = ed
         }
-        
-        // Initial load after onReady
-        ed.load()
-          .then(() => {
-            setTimeout(() => setIsReady(true), 150)
-          })
-          .catch(() => {
-            setIsReady(true)
-          })
+        // NOTE: Do NOT call ed.load() here — Effect 2 handles all loads
+        // (initial mount and slide switches). Calling load() twice causes a
+        // race condition where the second loadProjectData() clears components
+        // added between the two calls.
 
         ed.on('component:selected', (component) => {
           const type: string = component.get('type') ?? ''
@@ -116,26 +113,76 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
   useEffect(() => {
     const editor = editorRef.current
     if (!editor) return
-    
+
+    const prev = prevContextRef.current
+    prevContextRef.current = { courseId, slideId }
+
+    // PERSISTENCE FIX: save the current slide before switching context.
+    // Without this, unsaved edits are lost when the user navigates to another slide
+    // within the autosave debounce window (2s): the CRITICAL-01 guard in initEditor.ts
+    // aborts the deferred autosave because the context has already moved to the new slide.
+    // We only save on a genuine slide switch within the same course (not on initial mount).
+    const isSlideSwitchWithinCourse =
+      prev !== null && prev.courseId === courseId && prev.slideId !== slideId
+
     setIsReady(false)
-    updateStorageContext({ courseId, slideId })
-    
-    // editor.load() in GrapesJS can take a callback or return a promise in newer versions.
-    // We wrap it to ensure we set isReady true after the canvas is populated.
-    const loadPromise = editor.load() as Promise<unknown> | undefined
-    if (loadPromise && typeof loadPromise.then === 'function') {
-      loadPromise
-        .then(() => {
-          // Small buffer to allow GrapesJS to paint the iframe content
-          setTimeout(() => setIsReady(true), 150)
-        })
-        .catch((err) => {
-          console.error('[EditorCanvas] load() failed:', err)
-          setIsReady(true) // Set ready anyway so we don't hang UI
-        })
-    } else {
-      // Fallback for older GrapesJS versions where load() is synchronous or lacks promise
-      setTimeout(() => setIsReady(true), 500)
+
+    // AbortController guards against:
+    //  1. Concurrent saveAndLoad() calls when Effect 2 fires rapidly (rapid slide clicks)
+    //  2. State updates (setIsReady) on an already-unmounted component
+    const controller = new AbortController()
+
+    const saveAndLoad = async () => {
+      try {
+        if (isSlideSwitchWithinCourse && !controller.signal.aborted) {
+          try {
+            // storageContext still points to the OLD slide here — store() saves the right data.
+            await editor.store()
+          } catch (err) {
+            // Log but don't block navigation — a failed save is better than a frozen UI.
+            console.error('[EditorCanvas] Failed to save slide before switching:', err)
+          }
+        }
+
+        if (controller.signal.aborted) return
+
+        updateStorageContext({ courseId, slideId })
+
+        // editor.load() in GrapesJS can take a callback or return a promise in newer versions.
+        // We wrap it to ensure we set isReady true after the canvas is populated.
+        const loadPromise = editor.load() as Promise<unknown> | undefined
+        if (loadPromise && typeof loadPromise.then === 'function') {
+          loadPromise
+            .then(() => {
+              if (!controller.signal.aborted) {
+                // Small buffer to allow GrapesJS to paint the iframe content
+                setTimeout(() => setIsReady(true), 150)
+              }
+            })
+            .catch((err) => {
+              console.error('[EditorCanvas] load() failed:', err)
+              if (!controller.signal.aborted) {
+                setIsReady(true) // Set ready anyway so we don't hang UI
+              }
+            })
+        } else {
+          // Fallback for older GrapesJS versions where load() is synchronous or lacks promise
+          if (!controller.signal.aborted) {
+            setTimeout(() => setIsReady(true), 500)
+          }
+        }
+      } catch (err) {
+        console.error('[EditorCanvas] Unexpected error during slide switch:', err)
+        if (!controller.signal.aborted) {
+          setIsReady(true)
+        }
+      }
+    }
+
+    void saveAndLoad()
+
+    return () => {
+      controller.abort()
     }
   }, [courseId, slideId])
 

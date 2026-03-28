@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    strictPort: true,
     // Proxy all API routes to the backend using 127.0.0.1 (IPv4) to avoid
     // Chromium's localhost→::1 (IPv6) resolution hitting the wrong interface.
     // Browser code uses relative URLs (API_BASE='') so requests stay same-origin

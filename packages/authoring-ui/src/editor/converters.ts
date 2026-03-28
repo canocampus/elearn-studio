@@ -110,13 +110,16 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
     // displays the question on load. onRender() may not fire during programmatic
     // loadProjectData(), but GrapesJS always renders def.content.
     if (w.type === 'question-mc') {
-      const ep = (w.extendedProperties as MCExtendedProps | undefined) ?? MC_DEFAULT_EXTENDED
+      const raw = w.extendedProperties as Partial<MCExtendedProps> | undefined
+      const ep: MCExtendedProps = raw?.options ? (raw as MCExtendedProps) : MC_DEFAULT_EXTENDED
       def.content = buildMCPreviewHTML(ep)
     } else if (w.type === 'question-tf') {
-      const ep = (w.extendedProperties as TFExtendedProps | undefined) ?? TF_DEFAULT_EXTENDED
+      const raw = w.extendedProperties as Partial<TFExtendedProps> | undefined
+      const ep: TFExtendedProps = raw?.scoring ? (raw as TFExtendedProps) : TF_DEFAULT_EXTENDED
       def.content = buildTFPreviewHTML(ep)
     } else if (w.type === 'question-fill') {
-      const ep = (w.extendedProperties as FillExtendedProps | undefined) ?? FILL_DEFAULT_EXTENDED
+      const raw = w.extendedProperties as Partial<FillExtendedProps> | undefined
+      const ep: FillExtendedProps = raw?.scoring ? (raw as FillExtendedProps) : FILL_DEFAULT_EXTENDED
       def.content = buildFillPreviewHTML(ep)
     }
     return def

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.2] — 2026-03-28 — Moodle Screenshot
+
+### Added
+- **`docs/assets/screenshots/18-moodle-course.png`** — Moodle 4.x course page screenshot showing a Safety Procedures Training course imported from eLearn Studio SCORM export.
+- **README.md** — Moodle screenshot embedded after the Course Authoring Workflow diagram with caption.
+
+---
+
+## [0.5.1] — 2026-03-27 — Slide Persistence, Text Padding & E2E Coverage
+
+### Added
+- **Text widget spacing controls** — Style Manager now includes a **Spacing** sector with individual Padding Top / Right / Bottom / Left controls (px) for all widgets. Text blocks ship with `4px 8px` default padding and `box-sizing: border-box` so content is never clipped by rounded-corner borders.
+- **`PATCH /courses/:id/slides/reorder`** — New atomic endpoint to reorder all slides by supplying the complete ordered array of slide UUIDs. Must be registered before `/:id/slides/:slideId` in the Express router to prevent Express treating the literal string `"reorder"` as a slide ID.
+- **Asset Manager Bearer auth** — `buildAssetManagerConfig()` now injects the JWT access token via `customFetch`, replacing the previous `uploadFile` override. GrapesJS `autoAdd: true` keeps uploaded assets visible in the picker immediately after upload.
+- **`GET /assets/:objectName/presigned`** — New endpoint returns the presigned URL as JSON (instead of a 302 redirect), enabling the GrapesJS image widget view to set `model.set('src', presignedUrl)` without browser CORS constraints on the redirect.
+- **E2E regression test suite expanded** — All 8 coverage gaps (GAP-01 through GAP-08) now have Playwright tests:
+  - `persistence.spec.ts` — widget survival on reload (GAP-03), autosave race condition (GAP-06), session restoration after F5 (GAP-05)
+  - `grapesjs-integration.spec.ts` — property persistence across slide navigation (FM-05 / GAP-01), widget repositioning within canvas (FM-02 / GAP-08)
+  - `question-widget.spec.ts` — Props panel edit reflected in canvas (GAP-07)
+  - `action-sequence.spec.ts` — Actions panel accessible with widget selected (GAP-02)
+
+### Fixed
+- **Slide persistence data loss** — Unsaved widget edits (position, size, style, content) were silently lost when the user navigated to a different slide before the 2-second autosave debounce fired. `EditorCanvas` now eagerly saves the current slide via `editor.store()` before switching `storageContext` and calling `editor.load()`. A `prevContextRef` guard prevents the redundant save on initial mount. An `AbortController` prevents race conditions on rapid slide switches.
+- **Question widget converter defensive check** — `grapesjsFromWidgets()` now guards against partially-populated `extendedProperties` objects (e.g., `{}` from an older save) falling through to the wrong default, preventing blank question previews after round-trip save/load.
+- **Free-form drag & drop** — `dragMode: 'absolute'` set at GrapesJS init level; `[data-gjs-type] { position: absolute }` canvas CSS removed (replaced by GrapesJS's own absolute mode); `position/left/top` removed from widget defaults so initial placement uses GrapesJS drop coordinates rather than a fixed `20px / 20px` origin.
+
+---
+
 ## [0.5.0] — 2026-03-24 — Documentation & Visual Guides
 
 ### Added

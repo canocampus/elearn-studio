@@ -124,6 +124,8 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
               <SlideList />
             </PanelErrorBoundary>
           </div>
+          
+          {/* T010.5 — BlockManagerPanel MUST be in DOM for GrapesJS init */}
           <div style={{ display: leftTab === 'blocks' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
             <PanelErrorBoundary name="BlockManagerPanel">
               <BlockManagerPanel />
@@ -157,6 +159,7 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
             <TabButton label="Anim" active={rightTab === 'animations'} onClick={() => setRightTab('animations')} />
           </div>
 
+          {/* GrapesJS Panels (Layer & Style) MUST be in DOM for init */}
           <div style={{ display: rightTab === 'layers' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
             <PanelErrorBoundary name="LayerManagerPanel">
               <LayerManagerPanel />
@@ -263,8 +266,7 @@ const styles: Record<string, React.CSSProperties> = {
   canvasArea: {
     flex: 1,
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'column',
     background: '#11111b',
     overflow: 'hidden',
     position: 'relative',

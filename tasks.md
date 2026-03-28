@@ -886,7 +886,7 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 - [x] T500.16 — Capture: **Phaser Process Flow simulation — authoring** (`15-phaser-processflow.png`)
 - [x] T500.17 — Capture: **Phaser Interactive Diagram — runtime** (`16-phaser-diagram.png`)
 - [x] T500.18 — Capture: **SCORM Export dialog / progress** (`17-scorm-export.png`)
-- [ ] T500.19 — Capture: **Moodle — imported course running** (`18-moodle-course.png`) — BLOCKED: Moodle service DOWN
+- [x] T500.19 — Capture: **Moodle — imported course running** (`18-moodle-course.png`) ✅ 2026-03-28
 - [x] T500.20 — Capture: **Grafana — eLearn overview dashboard** (`19-grafana-dashboard.png`)
 - [x] T500.21 — Add `pnpm --filter docs run capture` script to monorepo root; document in CONTRIBUTING.md
 - [x] T500.22 — Refine the generated code
@@ -910,7 +910,7 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 - [x] T501.4 — **Mermaid diagram: Course Authoring Workflow** — flowchart from "Create Course" to "SCORM Published in Moodle"
 - [x] T501.5 — **Mermaid diagram: Simulation Types** — graph showing Screenshot Sim vs Phaser Sim subtypes
 - [x] T501.6 — Screenshot: editor overview (from T500.5) embedded in README with caption
-- [ ] T501.7 — Screenshot: Moodle course running (from T500.19) embedded with caption — BLOCKED: Moodle DOWN (see issues-T500.md T500-I04)
+- [x] T501.7 — Screenshot: Moodle course running (from T500.19) embedded with caption ✅ 2026-03-28
 - [x] T501.8 — Quick Start section with prerequisites + service URL table
 - [x] T501.9 — Feature highlights section with one-line descriptions
 - [x] T501.10 — Project structure section: monorepo package tree with one-line descriptions per package
@@ -1112,13 +1112,13 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 ### T601 — E2E Tests: Question Widget Lifecycle (MC / TF / Fill-in)
 > Currently zero E2E coverage for the most business-critical feature.
 - [x] T601.1 — Drag a **Multiple Choice** question block onto the canvas; verify it renders with default question text and 3 options
-- [ ] T601.2 — Edit MC question text via properties panel; verify the canvas HTML updates
-- [ ] T601.3 — Add and remove answer options via the properties panel; verify option count changes in canvas
-- [ ] T601.4 — Mark a different option as correct; verify the model stores the right `correctIndex`
+- [x] T601.2 — Edit MC question text via properties panel; verify the canvas HTML updates
+- [x] T601.3 — Add and remove answer options via the properties panel; verify option count changes in canvas
+- [x] T601.4 — Mark a different option as correct; verify the model stores the right `correctIndex`
 - [x] T601.5 — Drag a **True/False** question block; verify it renders with two radio options
 - [x] T601.6 — Drag a **Fill-in** question block; verify the input field is present in the canvas
-- [ ] T601.7 — Verify that question widgets persist across save/reload (calls the storage manager)
-> **Implemented in** `e2e/tests/question-widget.spec.ts` — 14 tests covering T601.0 (block visibility), T601.1 (MC drag + content), T601.5 (TF drag + content), T601.6 (Fill drag + content), T601.7 (coexistence of all three). T601.2-T601.4 (properties panel editing) deferred to T606/future phase.
+- [x] T601.7 — Verify that question widgets persist across save/reload (calls the storage manager)
+> **Implemented in** `e2e/tests/question-widget.spec.ts` — covers T601.0 (block visibility), T601.1 (MC drag + content), T601.2 (question text via Props panel), T601.3 (add/remove options), T601.4 (mark correct), T601.5 (TF drag + content), T601.6 (Fill drag + content), T601.7 (persistence after reload + coexistence).
 
 ---
 

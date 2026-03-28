@@ -69,7 +69,7 @@ Closes T<number> — <task title from tasks.md>
 ## Test plan
 - [ ] Unit tests pass: `pnpm --filter <package> test`
 - [ ] Lint clean: `pnpm lint`
-- [ ] E2E tests pass (if UI changed): `pnpm --filter authoring-ui run test:e2e`
+- [ ] E2E tests pass (if UI changed): `pnpm --filter @elearn-studio/e2e test`
 - [ ] Tested manually against dev stack
 - [ ] Screenshots updated (if UI changed, see below)
 - [ ] `openapi.json` regenerated (if API changed, see below)

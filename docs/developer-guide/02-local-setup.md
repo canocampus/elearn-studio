@@ -97,8 +97,28 @@ pnpm --filter @elearn-studio/api test
 pnpm --filter question-engine test -- --watch
 
 # E2E tests (requires full dev stack running)
-pnpm --filter authoring-ui run test:e2e
+pnpm --filter @elearn-studio/e2e test
+
+# Run a specific spec file
+pnpm --filter @elearn-studio/e2e test -- grapesjs-integration
+
+# Open Playwright UI (interactive test runner)
+pnpm --filter @elearn-studio/e2e test:ui
 ```
+
+### E2E spec files
+
+| Spec file | What it covers |
+|---|---|
+| `auth.spec.ts` | Login flow, JWT issuance (runs unauthenticated — `setup` project) |
+| `grapesjs-integration.spec.ts` | Widget drag/drop coordinates, resize handles, property persistence (FM-05), in-canvas repositioning (FM-02) |
+| `persistence.spec.ts` | Widget survival on reload (GAP-03), autosave race condition (GAP-06), session restore after F5 (GAP-05) |
+| `question-widget.spec.ts` | Block panel visibility, drag-to-canvas, default content, Props panel edit reflected in canvas (GAP-07) |
+| `action-sequence.spec.ts` | Actions tab visibility, panel accessibility with widget selected (GAP-02) |
+| `image-upload.spec.ts` | Asset upload flow, presigned URL display in canvas (FM-04) |
+| `authoring-ui-layer.spec.ts` | Slide add/delete/reorder/rename |
+| `course-crud.spec.ts` | Course create/update/delete via UI |
+| `scorm-export.spec.ts` | SCORM export ZIP download |
 
 ### Coverage report
 

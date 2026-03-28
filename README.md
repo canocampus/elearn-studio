@@ -18,6 +18,8 @@ Open-source, web-based e-learning authoring platform inspired by ToolBook 11.5 �
 
 ## System Architecture
 
+**Core pipeline** — authoring to LMS delivery:
+
 ```mermaid
 graph LR
   UI["authoring-ui (GrapesJS + React)"]
@@ -30,20 +32,28 @@ graph LR
   DB[(MongoDB 7)]
   GRG[(Garage S3)]
   LMS[Moodle LMS]
-  GF[Grafana]
-  LK[Loki]
-  TM[Tempo]
 
-  UI --> API
   AE --> UI
+  UI --> API
   SE --> GRG
   API --> DB
   API --> GRG
   SP --> DB
   SP --> GRG
   SP --> LMS
-  RP --> LMS
   PS --> RP
+  RP --> LMS
+```
+
+**Observability** — structured logs and traces:
+
+```mermaid
+graph LR
+  API["backend/api (Express + TS)"]
+  LK[Loki]
+  TM[Tempo]
+  GF[Grafana]
+
   API --> LK
   API --> TM
   LK --> GF
@@ -148,6 +158,9 @@ graph TD
   J --> K[Upload to Moodle]
   K --> L[Validate LMS Tracking]
 ```
+
+![Moodle — Safety Procedures Training course imported from eLearn Studio SCORM export](docs/assets/screenshots/18-moodle-course.png)
+*SCORM 1.2 course imported into Moodle 4.x — ready to launch and track learner progress*
 
 ---
 

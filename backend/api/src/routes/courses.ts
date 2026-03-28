@@ -406,6 +406,106 @@ coursesRouter.post('/:id/slides', async (req, res) => {
 
 /**
  * @openapi
+ * /courses/{id}/slides/reorder:
+ *   patch:
+ *     summary: Reorder slides
+ *     description: Supply the complete ordered array of slide IDs. All existing slide IDs must be present.
+ *     tags: [Slides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [orderedIds]
+ *             properties:
+ *               orderedIds:
+ *                 type: array
+ *                 items: { type: string }
+ *                 example: [slide-uuid-1, slide-uuid-2]
+ *     responses:
+ *       200:
+ *         description: Updated course with slides in new order
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - type: object
+ *                   properties:
+ *                     data: { $ref: '#/components/schemas/Course' }
+ *       400:
+ *         description: Invalid ObjectId, empty orderedIds, or IDs do not match existing slides
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       404:
+ *         description: Course not found
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
+// PATCH /courses/:id/slides/reorder — MUST be registered before /:id/slides/:slideId to avoid
+// Express treating "reorder" as a slideId parameter.
+// Atomically reorder slides by supplying ordered ID array.
+// Uses $set on the entire slides subdocument to avoid the GET+PUT race condition of the old
+// reorderSlides client implementation.
+coursesRouter.patch('/:id/slides/reorder', async (req, res) => {
+  if (!validateId(req.params.id)) {
+    res.status(400).json({ success: false, error: 'Invalid course id' })
+    return
+  }
+  const body = req.body as { orderedIds?: unknown }
+  if (
+    !Array.isArray(body.orderedIds) ||
+    body.orderedIds.length === 0 ||
+    !body.orderedIds.every(id => typeof id === 'string')
+  ) {
+    res.status(400).json({ success: false, error: 'orderedIds must be a non-empty array of strings' })
+    return
+  }
+  const orderedIds = body.orderedIds as string[]
+
+  // Fetch the course once and reorder in-memory — atomic single write
+  const course = await Course.findOne({ _id: req.params.id, deletedAt: null })
+  if (!course) {
+    res.status(404).json({ success: false, error: 'Course not found' })
+    return
+  }
+  const slideMap = new Map(course.slides.map((s: { id: string }) => [s.id, s]))
+  const reordered = orderedIds.flatMap(id => {
+    const slide = slideMap.get(id)
+    return slide ? [slide] : []
+  })
+  if (reordered.length !== course.slides.length) {
+    res.status(400).json({ success: false, error: 'orderedIds does not match existing slides' })
+    return
+  }
+  const updated = await Course.findOneAndUpdate(
+    { _id: req.params.id, deletedAt: null },
+    { $set: { slides: reordered } },
+    { new: true },
+  )
+  if (req.user) {
+    void logAudit(req.params.id, 'slide.reorder', req.user, { orderedIds })
+  }
+  res.json({ success: true, data: updated })
+})
+
+/**
+ * @openapi
  * /courses/{id}/slides/{slideId}:
  *   patch:
  *     summary: Update a slide's fields
@@ -558,104 +658,6 @@ coursesRouter.delete('/:id/slides/:slideId', async (req, res) => {
     void logAudit(req.params.id, 'slide.delete', req.user, { slideId: req.params.slideId })
   }
   res.json({ success: true, data: course })
-})
-
-/**
- * @openapi
- * /courses/{id}/slides/reorder:
- *   patch:
- *     summary: Reorder slides
- *     description: Supply the complete ordered array of slide IDs. All existing slide IDs must be present.
- *     tags: [Slides]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [orderedIds]
- *             properties:
- *               orderedIds:
- *                 type: array
- *                 items: { type: string }
- *                 example: [slide-uuid-1, slide-uuid-2]
- *     responses:
- *       200:
- *         description: Updated course with slides in new order
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/SuccessEnvelope'
- *                 - type: object
- *                   properties:
- *                     data: { $ref: '#/components/schemas/Course' }
- *       400:
- *         description: Invalid ObjectId, empty orderedIds, or IDs do not match existing slides
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
- *       401:
- *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
- *       404:
- *         description: Course not found
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
- */
-// PATCH /courses/:id/slides/reorder — atomically reorder slides by supplying ordered ID array
-// Uses $set on the entire slides subdocument to avoid the GET+PUT race condition of the old
-// reorderSlides client implementation.
-coursesRouter.patch('/:id/slides/reorder', async (req, res) => {
-  if (!validateId(req.params.id)) {
-    res.status(400).json({ success: false, error: 'Invalid course id' })
-    return
-  }
-  const body = req.body as { orderedIds?: unknown }
-  if (
-    !Array.isArray(body.orderedIds) ||
-    body.orderedIds.length === 0 ||
-    !body.orderedIds.every(id => typeof id === 'string')
-  ) {
-    res.status(400).json({ success: false, error: 'orderedIds must be a non-empty array of strings' })
-    return
-  }
-  const orderedIds = body.orderedIds as string[]
-
-  // Fetch the course once and reorder in-memory — atomic single write
-  const course = await Course.findOne({ _id: req.params.id, deletedAt: null })
-  if (!course) {
-    res.status(404).json({ success: false, error: 'Course not found' })
-    return
-  }
-  const slideMap = new Map(course.slides.map((s: { id: string }) => [s.id, s]))
-  const reordered = orderedIds.flatMap(id => {
-    const slide = slideMap.get(id)
-    return slide ? [slide] : []
-  })
-  if (reordered.length !== course.slides.length) {
-    res.status(400).json({ success: false, error: 'orderedIds does not match existing slides' })
-    return
-  }
-  const updated = await Course.findOneAndUpdate(
-    { _id: req.params.id, deletedAt: null },
-    { $set: { slides: reordered } },
-    { new: true },
-  )
-  if (req.user) {
-    void logAudit(req.params.id, 'slide.reorder', req.user, { orderedIds })
-  }
-  res.json({ success: true, data: updated })
 })
 
 /**

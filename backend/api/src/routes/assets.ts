@@ -258,6 +258,36 @@ assetsRouter.post('/', uploadLimiter, (req, res, next) => {
 
 assetsRouter.use(multerErrorHandler)
 
+// ── GET /assets/:objectName/presigned — return presigned URL as JSON ──────────
+// Used by the authoring-UI canvas: browser <img> tags cannot send Bearer tokens,
+// so the canvas JS fetches the presigned URL via this endpoint (with auth header)
+// and then sets it directly on the <img> element.
+assetsRouter.get('/:objectName/presigned', async (req, res) => {
+  const { objectName } = req.params
+
+  if (!OBJECT_NAME_RE.test(objectName)) {
+    res.status(400).json({ success: false, error: 'Invalid asset name' })
+    return
+  }
+
+  const ext = path.extname(objectName).toLowerCase()
+  const contentDisposition = ATTACHMENT_EXTENSIONS.has(ext) ? 'attachment' : undefined
+  const canonicalMime = Object.entries(MIME_TO_EXTENSIONS).find(([, exts]) =>
+    exts.includes(ext)
+  )?.[0]
+
+  try {
+    const presignedUrl = await getPresignedUrl(objectName, {
+      contentDisposition,
+      contentType: canonicalMime,
+    })
+    res.json({ success: true, data: { presignedUrl } })
+  } catch (err) {
+    logger.error({ err }, 'Failed to generate presigned URL')
+    res.status(503).json({ success: false, error: 'Storage service unavailable' })
+  }
+})
+
 /**
  * @openapi
  * /assets/{objectName}:
