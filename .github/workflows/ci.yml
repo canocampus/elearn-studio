@@ -119,30 +119,41 @@ jobs:
           docker compose -f docker/docker-compose.test.yml wait garage-test-init
 
       - name: Start API server (background)
-        run: pnpm --filter @elearn-studio/api run start &
-        env:
-          PORT: 3001
-          MONGO_URI: mongodb://localhost:27017/elearn_e2e
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-jwt-secret-not-for-production' }}
-          JWT_EXPIRY: 15m
-          REFRESH_SECRET: ${{ secrets.REFRESH_SECRET || 'ci-refresh-secret-not-for-production' }}
-          GARAGE_ENDPOINT: localhost
-          GARAGE_PORT: "3910"
-          GARAGE_ACCESS_KEY: GKtestkey0000000000000000001
-          GARAGE_SECRET_KEY: "0000000000000000000000000000000000000000000000000000000000000002"
-          GARAGE_BUCKET: elearn-assets-test
-          ALLOW_REGISTRATION: "true"
-          NODE_ENV: test
+        # Use node directly (not pnpm) so crashes are not silently swallowed by pnpm's
+        # process management layer. Redirect stdout+stderr to a log file for diagnosis.
+        run: |
+          export PORT=3001
+          export MONGO_URI=mongodb://localhost:27017/elearn_e2e
+          export JWT_SECRET="${{ secrets.JWT_SECRET || 'ci-jwt-secret-not-for-production' }}"
+          export JWT_EXPIRY=15m
+          export REFRESH_SECRET="${{ secrets.REFRESH_SECRET || 'ci-refresh-secret-not-for-production' }}"
+          export GARAGE_ENDPOINT=localhost
+          export GARAGE_PORT=3910
+          export GARAGE_ACCESS_KEY=GKtestkey0000000000000000001
+          export GARAGE_SECRET_KEY=0000000000000000000000000000000000000000000000000000000000000002
+          export GARAGE_BUCKET=elearn-assets-test
+          export ALLOW_REGISTRATION=true
+          export NODE_ENV=test
+          nohup node backend/api/dist/index.js > /tmp/api-server.log 2>&1 &
+          echo "API server PID: $!"
 
       - name: Start authoring-ui (background)
-        run: pnpm --filter @elearn-studio/authoring-ui run preview --port 3000 &
-        env:
-          VITE_API_URL: http://localhost:3001
+        run: |
+          export VITE_API_URL=http://localhost:3001
+          nohup pnpm --filter @elearn-studio/authoring-ui run preview -- --port 3000 > /tmp/ui-server.log 2>&1 &
+          echo "UI server PID: $!"
 
       - name: Wait for services to be ready
         # /health may return 503 if Garage init is still in progress; use http-get:// prefix
         # to accept any HTTP response (not just 2xx) as "ready", then let E2E tests verify health.
-        run: pnpm --filter @elearn-studio/e2e exec wait-on http-get://localhost:3001/health http-get://localhost:3000 --timeout 60000
+        run: pnpm --filter @elearn-studio/e2e exec wait-on http-get://localhost:3001/health http-get://localhost:3000 --timeout 120000
+
+      - name: Show server logs on failure
+        if: failure()
+        run: |
+          echo "=== API server log ===" && cat /tmp/api-server.log || true
+          echo "=== UI server log ===" && cat /tmp/ui-server.log || true
+          echo "=== Garage logs ===" && docker compose -f docker/docker-compose.test.yml logs garage-test garage-test-init || true
 
       - name: Run E2E tests
         run: pnpm --filter @elearn-studio/e2e run test
