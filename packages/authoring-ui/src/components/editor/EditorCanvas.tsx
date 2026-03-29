@@ -111,6 +111,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       editorRef.current = null
       setEditor(null)
     }
+    // Effect 1 intentionally runs only when courseId changes.
+    // setEditor/setRightTab/setSelectedComponentType are stable Zustand actions.
+    // slideId is handled exclusively by Effect 2 below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId])
 
   // Effect 2: Load slide content whenever courseId or slideId changes.

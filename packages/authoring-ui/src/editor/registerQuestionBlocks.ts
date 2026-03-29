@@ -16,6 +16,20 @@ import {
 } from '../types/questions'
 import type { MCExtendedProps, TFExtendedProps, FillExtendedProps } from '../types/questions'
 
+/**
+ * Minimal typing for GrapesJS ComponentView `this` context.
+ * GrapesJS does not export a typed ComponentView class, so we declare
+ * only the members we actually use in view callbacks.
+ */
+interface GjsViewContext {
+  model: {
+    get: (key: string) => unknown
+  }
+  el: HTMLElement
+  listenTo: (obj: unknown, event: string, handler: () => void) => void
+  _refreshPreview: () => void
+}
+
 // ---------------------------------------------------------------------------
 // SVG block icons
 // ---------------------------------------------------------------------------
@@ -194,16 +208,16 @@ function registerMCWidget(editor: Editor): void {
       },
     },
     view: ({
-      initialize() {
+      initialize(this: GjsViewContext) {
         // Parent ComponentView.prototype.initialize is called automatically before this
         // via extendFnView. We only add our custom change listener here.
-        ;(this as any).listenTo(
-          (this as any).model,
+        this.listenTo(
+          this.model,
           'change:extendedProperties',
-          (this as any)._refreshPreview.bind(this as any),
+          this._refreshPreview.bind(this),
         )
       },
-      _refreshPreview(this: any) {
+      _refreshPreview(this: GjsViewContext) {
         try {
           const ep = (this.model.get('extendedProperties') as MCExtendedProps | undefined) ?? MC_DEFAULT_EXTENDED
           this.el.innerHTML = buildMCPreviewHTML(ep)
@@ -211,8 +225,8 @@ function registerMCWidget(editor: Editor): void {
           this.el.innerHTML = buildMCPreviewHTML(MC_DEFAULT_EXTENDED)
         }
       },
-      onRender() {
-        ;(this as any)._refreshPreview()
+      onRender(this: GjsViewContext) {
+        this._refreshPreview()
       },
     } as unknown) as object,
   })
@@ -253,14 +267,14 @@ function registerTFWidget(editor: Editor): void {
       },
     },
     view: ({
-      initialize() {
-        ;(this as any).listenTo(
-          (this as any).model,
+      initialize(this: GjsViewContext) {
+        this.listenTo(
+          this.model,
           'change:extendedProperties',
-          (this as any)._refreshPreview.bind(this as any),
+          this._refreshPreview.bind(this),
         )
       },
-      _refreshPreview(this: any) {
+      _refreshPreview(this: GjsViewContext) {
         try {
           const ep = (this.model.get('extendedProperties') as TFExtendedProps | undefined) ?? TF_DEFAULT_EXTENDED
           this.el.innerHTML = buildTFPreviewHTML(ep)
@@ -268,8 +282,8 @@ function registerTFWidget(editor: Editor): void {
           this.el.innerHTML = buildTFPreviewHTML(TF_DEFAULT_EXTENDED)
         }
       },
-      onRender() {
-        ;(this as any)._refreshPreview()
+      onRender(this: GjsViewContext) {
+        this._refreshPreview()
       },
     } as unknown) as object,
   })
@@ -310,14 +324,14 @@ function registerFillWidget(editor: Editor): void {
       },
     },
     view: ({
-      initialize() {
-        ;(this as any).listenTo(
-          (this as any).model,
+      initialize(this: GjsViewContext) {
+        this.listenTo(
+          this.model,
           'change:extendedProperties',
-          (this as any)._refreshPreview.bind(this as any),
+          this._refreshPreview.bind(this),
         )
       },
-      _refreshPreview(this: any) {
+      _refreshPreview(this: GjsViewContext) {
         try {
           const ep = (this.model.get('extendedProperties') as FillExtendedProps | undefined) ?? FILL_DEFAULT_EXTENDED
           this.el.innerHTML = buildFillPreviewHTML(ep)
@@ -325,8 +339,8 @@ function registerFillWidget(editor: Editor): void {
           this.el.innerHTML = buildFillPreviewHTML(FILL_DEFAULT_EXTENDED)
         }
       },
-      onRender() {
-        ;(this as any)._refreshPreview()
+      onRender(this: GjsViewContext) {
+        this._refreshPreview()
       },
     } as unknown) as object,
   })

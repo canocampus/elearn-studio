@@ -16,6 +16,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+type CustomFetchFn = (url: string, options: Record<string, unknown>) => Promise<string>
+
 // Mock authStore before importing module
 vi.mock('../store/authStore', () => ({
   useAuthStore: {
@@ -87,7 +89,7 @@ describe('customFetch — REGRESSION: return type must be a JSON string', () => 
     )
 
     const cfg = buildAssetManagerConfig()
-    const result = await (cfg.customFetch as Function)('/assets', {})
+    const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
 
     // CRITICAL: GrapesJS calls JSON.parse(result), then target.add(json.data)
     // If this is not a string, json.data is undefined and upload silently fails.
@@ -100,7 +102,7 @@ describe('customFetch — REGRESSION: return type must be a JSON string', () => 
     )
 
     const cfg = buildAssetManagerConfig()
-    const result = await (cfg.customFetch as Function)('/assets', {})
+    const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
     const parsed = JSON.parse(result)
 
     // GrapesJS expects json.data to be an array of src strings
@@ -115,7 +117,7 @@ describe('customFetch — REGRESSION: return type must be a JSON string', () => 
     )
 
     const cfg = buildAssetManagerConfig()
-    const result = await (cfg.customFetch as Function)('/assets', {})
+    const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
     const parsed = JSON.parse(result)
 
     // If backend renames "url" to "src" or "path", this test catches it.
@@ -139,7 +141,7 @@ describe('customFetch — Bearer token injection', () => {
 
   it('injects Authorization: Bearer header from authStore', async () => {
     const cfg = buildAssetManagerConfig()
-    await (cfg.customFetch as Function)('/assets', { headers: {} })
+    await (cfg.customFetch as unknown as CustomFetchFn)('/assets', { headers: {} })
 
     const calledOptions = fetchMock.mock.calls[0][1] as RequestInit
     const headers = calledOptions.headers as Record<string, string>
@@ -151,7 +153,7 @@ describe('customFetch — Bearer token injection', () => {
     vi.mocked(useAuthStore.getState).mockReturnValueOnce({ accessToken: null } as never)
 
     const cfg = buildAssetManagerConfig()
-    await (cfg.customFetch as Function)('/assets', { headers: {} })
+    await (cfg.customFetch as unknown as CustomFetchFn)('/assets', { headers: {} })
 
     const calledOptions = fetchMock.mock.calls[0][1] as RequestInit
     const headers = calledOptions.headers as Record<string, string>
@@ -174,7 +176,7 @@ describe('customFetch — non-2xx response handling', () => {
 
     const cfg = buildAssetManagerConfig()
     await expect(
-      (cfg.customFetch as Function)('/assets', {}),
+      (cfg.customFetch as unknown as CustomFetchFn)('/assets', {}),
     ).rejects.toBe(errorBody)
   })
 
@@ -188,7 +190,7 @@ describe('customFetch — non-2xx response handling', () => {
 
     const cfg = buildAssetManagerConfig()
     await expect(
-      (cfg.customFetch as Function)('/assets', {}),
+      (cfg.customFetch as unknown as CustomFetchFn)('/assets', {}),
     ).rejects.toBe(errorBody)
   })
 })

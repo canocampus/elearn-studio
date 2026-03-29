@@ -24,7 +24,7 @@ import {
  */
 export interface GrapesJsComponentDef {
   type: string
-  attributes: Record<string, any>
+  attributes: Record<string, unknown>
   /**
    * Full CSS style for this component.
    * Always contains the layout keys: position, left, top, width, height, z-index, display.
@@ -185,7 +185,7 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
     const savedStyle = (props?.style as Record<string, string | number> | undefined) ?? {}
 
     // T611: Restore all saved attributes from properties.
-    const attributes: Record<string, any> = { id: w.id }
+    const attributes: Record<string, unknown> = { id: w.id }
     for (const [key, value] of Object.entries(props)) {
       // Skip fields that are handled explicitly (content, src, style, actions)
       if (['content', 'src', 'style', 'actions'].includes(key)) continue
