@@ -33,7 +33,11 @@ fi
 # T153-007 fix: validate bucket name format before attempting creation.
 # Garage bucket aliases follow S3 naming rules: lowercase, alphanumeric + dash,
 # length 3–63, must start and end with alphanumeric character.
-if ! echo "$BUCKET" | grep -qE '^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$'; then
+# NOTE: use grep -E without interval syntax {n,m} — BusyBox grep (Alpine) does not
+# reliably support ERE intervals and will misparse them as literals, causing false failures.
+BUCKET_LEN=$(printf '%s' "$BUCKET" | wc -c | tr -d ' ')
+if ! echo "$BUCKET" | grep -qE '^[a-z0-9][a-z0-9-]*[a-z0-9]$' \
+    || [ "$BUCKET_LEN" -lt 3 ] || [ "$BUCKET_LEN" -gt 63 ]; then
   echo "ERROR: GARAGE_BUCKET '$BUCKET' is invalid. Bucket names must be 3-63 lowercase alphanumeric chars/dashes, start and end with alphanumeric." >&2
   exit 1
 fi
