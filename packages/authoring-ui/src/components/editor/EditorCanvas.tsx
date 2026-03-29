@@ -16,6 +16,7 @@ import { initEditor } from '../../editor/initEditor'
 import { updateStorageContext } from '../../editor/storageManager'
 import { useEditorStore } from '../../store/editorStore'
 import { useActionsStore } from '../../store/actionsStore'
+import type { ActionSequence } from '../../types/actions'
 import { isQuestionWidgetType } from '../../types/questions'
 import { isPhaserSimWidgetType } from '../../types/phaserSim'
 
@@ -92,7 +93,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
           if (widgetId) {
             const slide = useEditorStore.getState().currentSlide()
             const widget = slide?.widgets.find((w) => w.id === widgetId)
-            useActionsStore.getState().setWidget(widgetId, (widget?.actions ?? []) as unknown as any)
+            useActionsStore.getState().setWidget(widgetId, (widget?.actions ?? []) as ActionSequence[])
           }
         })
 
