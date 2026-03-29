@@ -146,9 +146,30 @@ export async function getPresignedUrl(
  * Called at startup and by the /health endpoint.
  * Bucket creation is handled by the garage-init Docker service — this function
  * only checks that the bucket already exists and the credentials are valid.
+ *
+ * Retries up to 5 times with 3-second intervals to handle the timing window
+ * between the garage-init container completing and the S3 API reflecting the
+ * layout + permissions (particularly relevant in CI).
  */
 export async function initStorage(): Promise<void> {
-  // C-03: HeadBucketCommand confirms endpoint reachable, credentials valid, bucket exists
-  await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET }))
-  logger.info({ bucket: BUCKET, endpoint: buildEndpoint() }, 'Connected to Garage storage')
+  const maxAttempts = 6
+  const retryDelayMs = 3_000
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      // C-03: HeadBucketCommand confirms endpoint reachable, credentials valid, bucket exists
+      await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET }))
+      logger.info({ bucket: BUCKET, endpoint: buildEndpoint() }, 'Connected to Garage storage')
+      return
+    } catch (err: unknown) {
+      if (attempt === maxAttempts) {
+        throw err
+      }
+      logger.warn(
+        { attempt, maxAttempts, retryDelayMs, err },
+        'Garage not yet ready — retrying...',
+      )
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs))
+    }
+  }
 }

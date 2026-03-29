@@ -114,8 +114,9 @@ jobs:
       - name: Start test infrastructure (Garage)
         run: |
           docker compose -f docker/docker-compose.test.yml up -d
-          # Wait for Garage init to complete
-          docker compose -f docker/docker-compose.test.yml wait garage-test-init || true
+          # Wait for Garage init to complete — must succeed before the API server starts.
+          # 'docker compose wait' requires Compose v2.1+; ubuntu-latest ships v2.27+.
+          docker compose -f docker/docker-compose.test.yml wait garage-test-init
 
       - name: Start API server (background)
         run: pnpm --filter @elearn-studio/api run start &
