@@ -146,13 +146,11 @@ export function registerStorageManager(editor: Editor): void {
 
         await courseApi.updateSlide(courseId, slideId, { widgets, thumbnail })
 
-        // BUG-4 fix: invalidate cache ONLY on success so that after a network failure the
-        // next load() can still serve the last-known good state from cache rather than
-        // fetching the pre-failure (older) state from the DB and silently discarding the
-        // user's latest edits. On failure the cache already has up-to-date widget data
-        // from the last successful save, which is better than fetching the DB state.
+        // Invalidate cache on success so the next load() fetches the freshly saved state.
         courseCache = null
       } catch (err) {
+        // T042.5: also invalidate on failure so stale cache is not served after a failed save.
+        courseCache = null
         console.error('[StorageManager] store() failed:', err)
         throw err
       }

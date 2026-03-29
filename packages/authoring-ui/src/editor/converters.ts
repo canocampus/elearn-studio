@@ -155,7 +155,11 @@ export function widgetsFromGrapesjs(components: Component[]): BaseWidget[] {
       id: attributes.id || c.getId(),
       type: (componentType as WidgetType) || 'rectangle',
       bounds,
-      layer: parsePx(typeof style['z-index'] === 'string' ? style['z-index'] : undefined, 1),
+      layer: (() => {
+        const zIdx = style['z-index']
+        if (typeof zIdx === 'number') return zIdx
+        return parsePx(typeof zIdx === 'string' ? zIdx : undefined, 1)
+      })(),
       visible: style.display !== 'none',
       properties: mergedProps,
       actions: c.get('elearnActions') || [],
