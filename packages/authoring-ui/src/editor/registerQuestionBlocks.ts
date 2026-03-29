@@ -74,7 +74,13 @@ const HINT_STYLE = 'font-size:10px;color:#94a3b8;margin-top:8px;'
 // ---------------------------------------------------------------------------
 
 export function buildMCPreviewHTML(ep: MCExtendedProps): string {
-  const optionsHTML = (ep.options ?? [])
+  // T701.1: guard all fields that may be absent when the component is created
+  // programmatically without a full extendedProperties object (e.g. via addComponentViaEditor).
+  const questionText = ep.questionText ?? 'Question'
+  const options = ep.options ?? []
+  const scoring = ep.scoring ?? { weight: 100, attempts: -1 }
+
+  const optionsHTML = options
     .map(
       opt =>
         `<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">` +
@@ -86,18 +92,22 @@ export function buildMCPreviewHTML(ep: MCExtendedProps): string {
     .join('')
 
   const attemptsLabel =
-    ep.scoring.attempts === -1 ? 'Unlimited attempts' : `${ep.scoring.attempts} attempt(s)`
+    scoring.attempts === -1 ? 'Unlimited attempts' : `${scoring.attempts} attempt(s)`
 
   return (
     `<div style="${PREVIEW_BASE_STYLE}">` +
-    `<div style="${Q_TEXT_STYLE}">${esc(ep.questionText)}</div>` +
+    `<div style="${Q_TEXT_STYLE}">${esc(questionText)}</div>` +
     optionsHTML +
-    `<div style="${HINT_STYLE}">Multiple Choice · ${ep.scoring.weight}pts · ${attemptsLabel}</div>` +
+    `<div style="${HINT_STYLE}">Multiple Choice · ${scoring.weight}pts · ${attemptsLabel}</div>` +
     `</div>`
   )
 }
 
 export function buildTFPreviewHTML(ep: TFExtendedProps): string {
+  // T701.1: guard fields that may be absent on programmatic creation
+  const questionText = ep.questionText ?? 'Question'
+  const scoring = ep.scoring ?? { weight: 100, attempts: -1 }
+
   const trueStyle =
     `padding:6px 14px;border:2px solid ${ep.correctAnswer ? '#16a34a' : '#e2e8f0'};` +
     `background:${ep.correctAnswer ? '#dcfce7' : 'transparent'};` +
@@ -108,34 +118,38 @@ export function buildTFPreviewHTML(ep: TFExtendedProps): string {
     'border-radius:4px;font-size:12px;cursor:default;color:#0f172a;'
 
   const attemptsLabel =
-    ep.scoring.attempts === -1 ? 'Unlimited attempts' : `${ep.scoring.attempts} attempt(s)`
+    scoring.attempts === -1 ? 'Unlimited attempts' : `${scoring.attempts} attempt(s)`
 
   return (
     `<div style="${PREVIEW_BASE_STYLE}">` +
-    `<div style="${Q_TEXT_STYLE}">${esc(ep.questionText)}</div>` +
+    `<div style="${Q_TEXT_STYLE}">${esc(questionText)}</div>` +
     `<div style="display:flex;gap:10px;margin-top:6px">` +
     `<button style="${trueStyle}">True</button>` +
     `<button style="${falseStyle}">False</button>` +
     `</div>` +
-    `<div style="${HINT_STYLE}">True / False · ${ep.scoring.weight}pts · ${attemptsLabel}</div>` +
+    `<div style="${HINT_STYLE}">True / False · ${scoring.weight}pts · ${attemptsLabel}</div>` +
     `</div>`
   )
 }
 
 export function buildFillPreviewHTML(ep: FillExtendedProps): string {
+  // T701.1: guard fields that may be absent on programmatic creation
+  const questionText = ep.questionText ?? 'Question'
+  const scoring = ep.scoring ?? { weight: 100, attempts: -1 }
+
   // Replace first ___ in question text with a blank underline, or append if none
-  const hasBlank = ep.questionText.includes('___')
+  const hasBlank = questionText.includes('___')
   const withBlank = hasBlank
-    ? esc(ep.questionText).replace('___', '<span style="display:inline-block;width:80px;border-bottom:2px solid #4f46e5;margin:0 4px">&nbsp;</span>')
-    : `${esc(ep.questionText)} <span style="display:inline-block;width:80px;border-bottom:2px solid #4f46e5;margin:0 4px">&nbsp;</span>`
+    ? esc(questionText).replace('___', '<span style="display:inline-block;width:80px;border-bottom:2px solid #4f46e5;margin:0 4px">&nbsp;</span>')
+    : `${esc(questionText)} <span style="display:inline-block;width:80px;border-bottom:2px solid #4f46e5;margin:0 4px">&nbsp;</span>`
 
   const attemptsLabel =
-    ep.scoring.attempts === -1 ? 'Unlimited attempts' : `${ep.scoring.attempts} attempt(s)`
+    scoring.attempts === -1 ? 'Unlimited attempts' : `${scoring.attempts} attempt(s)`
 
   return (
     `<div style="${PREVIEW_BASE_STYLE}">` +
     `<div style="font-size:13px;font-weight:600;color:#0f172a;margin-bottom:10px;line-height:1.6">${withBlank}</div>` +
-    `<div style="${HINT_STYLE}">Fill in the Blank · ${ep.scoring.weight}pts · ${attemptsLabel}</div>` +
+    `<div style="${HINT_STYLE}">Fill in the Blank · ${scoring.weight}pts · ${attemptsLabel}</div>` +
     `</div>`
   )
 }
@@ -164,6 +178,8 @@ function registerMCWidget(editor: Editor): void {
         name: 'Multiple Choice',
         tagName: 'div',
         droppable: false,
+        properties: {},
+        elearnActions: [],
         extendedProperties: { ...MC_DEFAULT_EXTENDED },
         style: {
           width: '340px',
@@ -221,6 +237,8 @@ function registerTFWidget(editor: Editor): void {
         name: 'True / False',
         tagName: 'div',
         droppable: false,
+        properties: {},
+        elearnActions: [],
         extendedProperties: { ...TF_DEFAULT_EXTENDED },
         style: {
           width: '280px',
@@ -276,6 +294,8 @@ function registerFillWidget(editor: Editor): void {
         name: 'Fill in the Blank',
         tagName: 'div',
         droppable: false,
+        properties: {},
+        elearnActions: [],
         extendedProperties: { ...FILL_DEFAULT_EXTENDED },
         style: {
           width: '320px',

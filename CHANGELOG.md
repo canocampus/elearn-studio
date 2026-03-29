@@ -7,6 +7,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.8] — 2026-03-29 — Persistence Race Condition Fixes (T800)
+
+### Fixed
+
+- **[BUG-T800-01] Concurrent PATCH requests overwriting question property edits** (`QuestionPropertiesPanel.tsx`) — `MCPropertiesForm`, `TFPropertiesForm`, and `FillPropertiesForm` each called `editor?.store()` directly inside their `update()` function, which fires on every `onChange` event. Typing "Hello" produced 5 simultaneous PATCH requests with snapshots `["H", "He", "Hel", "Hell", "Hello"]`. If request 5 completed before request 1, and request 1 landed last, the database was left with `"H"`. Fix: removed all direct `editor.store()` calls from these forms. `component.set('extendedProperties', ...)` already fires `component:update`, which triggers the 2-second debounced autosave in `initEditor.ts`. The debounce coalesces all keystrokes into a single PATCH.
+
+- **[BUG-T800-02] Text buffer not flushed before slide-switch save** (`EditorCanvas.tsx`) — the slide-switch save path in `saveAndLoad()` called `editor.store()` without first stopping the `text-edit` command. GrapesJS keeps an uncommitted text buffer while a text widget is in edit mode; calling `widgetsFromGrapesjs(editor.getComponents().toArray())` with the command active reads the pre-keystroke state, silently discarding the user's latest typing. The autosave debounce path in `initEditor.ts` already called `editor.stopCommand('text-edit')` correctly. Fix: added the same `stopCommand` call to the slide-switch path immediately before `editor.store()`.
+
+- **[BUG-T800-03] Course navigation did not trigger a save of the current slide** (`EditorCanvas.tsx`) — the condition guarding the pre-switch save was `prev.courseId === courseId && prev.slideId !== slideId`, which excluded cross-course navigations. If the user edited a slide and navigated to a different course before the 2-second debounce fired, the `CRITICAL-01` guard in `initEditor.ts` aborted the pending autosave (slide context had already changed) and the slide-switch save was also skipped. Changes were lost silently. Fix: condition simplified to `prev !== null && prev.slideId !== slideId` — any genuine slide change triggers the save regardless of whether the course also changed.
+
+- **[BUG-T800-04] Failed PATCH invalidated course cache, causing stale state on next load** (`storageManager.ts`) — `courseCache = null` was placed in the `finally` block of `store()`, so a failed PATCH also evicted the in-memory cache. The next `load()` call (e.g., returning to the slide after a failed save) fetched the older state from the backend, discarding the user's edits that had never reached the DB. Fix: `courseCache = null` moved into the success path (after `updateSlide` resolves). A failed PATCH leaves the cache intact so subsequent loads reflect the most recent known-good in-memory state.
+
+---
+
+## [0.5.7] — 2026-03-29 — Full Widget Attribute Persistence & Autosave Reliability
+
+### Fixed
+
+- **GrapesJS Trait attributes now persisted across reload** (`converters.ts`) — `widgetsFromGrapesjs` previously captured only `style`, `content`, and `src`. Any attribute stored by GrapesJS in the component model via Traits (e.g., `alt` on image widgets, `mediaType` on media-player, data-* attributes) was silently discarded on every save, reverting to defaults on reload. Fix: `widgetsFromGrapesjs` now iterates `c.getAttributes()` and copies all non-internal attributes into `properties`. A new `INTERNAL_GJS_ATTRS` constant (`id`, `class`, `style`, `src`) defines the exclusion list. `grapesjsFromWidgets` reconstructs `attributes` from `properties` on load, restoring Trait values to the GrapesJS model.
+
+- **Text/button widget content captured via `getInnerHTML()`** (`converters.ts`) — GrapesJS maintains text edits in a live DOM editable region. The Backbone model attribute `content` is not guaranteed to reflect DOM edits until after the edit command exits. Using `c.get('content')` could capture stale or empty text. Fix: `widgetsFromGrapesjs` now calls `c.getInnerHTML()` for `text` and `button` widget types, which reads directly from the rendered child component tree. A test-environment fallback to `c.get('content')` is retained for unit test compatibility.
+
+- **Inline text edit flushed before every `store()` call** (`initEditor.ts`) — when the autosave debounce timer fired while the user was actively editing text (cursor inside a text widget), GrapesJS had not yet propagated the DOM state back to the Backbone model. The serialised content was the pre-edit value. Fix: added `editor.stopCommand('text-edit')` immediately before every `editor.store()` call, forcing GrapesJS to commit the live DOM edit to the model before serialisation begins.
+
+- **Newly dropped widgets now trigger autosave** (`initEditor.ts`) — the autosave timer was wired only to `component:update`. Dragging a block from the Block Manager onto the canvas fires `component:add`, not `component:update`, so a freshly placed widget existed only in browser memory until the user moved or resized it. Fix: added event listeners for `component:add`, `component:remove`, and `component:update:content`, each invoking the same debounced `triggerAutosave` handler.
+
+- **React sidebar panel changes saved immediately, not just via debounce** (`QuestionPropertiesPanel.tsx`, `PhaserSimPropertiesPanel.tsx`, `SimulationEditor.tsx`) — all three panels called `component.set('extendedProperties', ...)` and relied on the 2-second autosave debounce to persist the change. If the user switched slides within that window, the debounce timer fired after the slide context had changed, and the update was lost. Fix: all three panels now call `editor.store()` immediately and synchronously after every significant `extendedProperties` mutation, eliminating the race condition with the slide-switch handler.
+
+### Tests Added
+
+- **`persistence.spec.ts`** — added automatic out-of-canvas click after text edits in E2E tests to simulate user behaviour (triggering the `blur` event that consolidates DOM edits before assertions), making text-content persistence tests deterministic.
+
+---
+
+## [0.5.6] — 2026-03-29 — GrapesJS Component Custom-Field Persistence Fix
+
+### Fixed
+- **`properties`, `elearnActions`, and `extendedProperties` now declared in `defaults` of all GrapesJS component types** — these three custom fields were absent from the Backbone.Model `defaults` of all basic, navigation, assessment, media, and simulation widget types. While Backbone.Model stores any `set()` attribute regardless of `defaults`, the absence from `defaults` meant GrapesJS could fail to restore these fields when processing component definitions via `loadProjectData`, causing widget properties, action sequences, and extended question config to be silently lost on every course reload.
+  - `registerBlocks.ts` — added `properties: {}`, `elearnActions: []`, `extendedProperties: {}` to `defaults` of all 9 widget types: `text`, `image`, `button`, `rectangle`, `nav-buttons`, `done-button`, `score-quiz`, `score-field`, `media-player`.
+  - `registerQuestionBlocks.ts` — added `properties: {}`, `elearnActions: []` to `defaults` of `question-mc`, `question-tf`, `question-fill` (these already declared `extendedProperties`).
+  - `registerSimBlock.ts` — added `properties: {}`, `elearnActions: []` to `defaults` of `screenshot-sim`.
+  - `registerPhaserSimBlock.ts` — added `properties: {}`, `elearnActions: []` to `defaults` of `phaser-sim`.
+
+### Tests Added
+- **`registerBlocks.test.ts`** — T012.11 suite: 42 new unit tests (14 component types × 3 fields) asserting that every registered component type declares `properties: {}`, `elearnActions: []`, and an object-typed `extendedProperties` in its `defaults`. Tests go from 531 → 573 total.
+
+---
+
+## [0.5.5] — 2026-03-29 — Full CSS Style Preservation (Decorative Styles)
+
+### Fixed
+- **All CSS decorative styles now survive the store→backend→load round-trip** (`converters.ts`) — previously only the 5 layout-specific properties (`left`, `top`, `width`, `height`, `z-index`) and `display` were persisted. Any styling applied via the GrapesJS Style Manager (font-family, color, background-color, border, padding, opacity, etc.) was silently dropped on every save cycle and reset to defaults on reload.
+  - `widgetsFromGrapesjs` now collects all non-layout CSS properties from `c.getStyle()` into `properties.style` before saving. The new `LAYOUT_STYLE_KEYS` set (`position`, `left`, `top`, `width`, `height`, `z-index`, `display`) defines the exclusion boundary.
+  - `grapesjsFromWidgets` now spreads `properties.style` at the start of the CSS definition object, then overwrites with the authoritative layout values derived from `bounds`/`layer`/`visible`. This guarantees layout always wins over any stale layout key that may have leaked into `properties.style`.
+  - `GrapesJsComponentDef.style` type broadened from a fixed-shape record to `Record<string, string | number>` to accommodate arbitrary decorative properties.
+
+### Tests Added
+- **`converters.test.ts`** — 8 new unit tests covering decorative style save and restore:
+  - `widgetsFromGrapesjs` saves font/color/background into `properties.style`
+  - `widgetsFromGrapesjs` excludes all layout keys from `properties.style`
+  - `widgetsFromGrapesjs` does not add `properties.style` when only layout CSS is present
+  - `widgetsFromGrapesjs` saves border and padding into `properties.style`
+  - `grapesjsFromWidgets` spreads `properties.style` into CSS definition
+  - `grapesjsFromWidgets` layout keys override stale values in `properties.style`
+  - Round-trip: font/color/background survive intact
+  - Round-trip: no layout key leaks back into `properties.style` after round-trip
+
+---
+
+## [0.5.4] — 2026-03-28 — Slide Data-Loss Bug Fix (FM-05)
+
+### Fixed
+- **Critical data-loss on slide navigation** (`converters.ts`) — navigating from Slide 1 (with text, image, nav-buttons widgets) to Slide 2 and back caused all widget content to disappear or corrupt. Three root causes fixed in `widgetsFromGrapesjs` / `grapesjsFromWidgets`:
+  1. **Text content lost** — `widgetsFromGrapesjs` only read `c.get('properties')` but GrapesJS stores user-edited text in `c.get('content')` (built-in model attribute). Fix: explicitly read `c.get('content')` and merge into `mergedProps.content` for non-question types.
+  2. **Image src lost** — image URL is stored as `c.get('src')` (root-level GrapesJS attribute), not inside `properties`. Fix: read `c.get('src')` and merge into `mergedProps.src`.
+  3. **Nav-buttons placed at (0,0) with broken layout** — `grapesjsFromWidgets` hardcoded `display: 'block'` for all visible widgets. Nav-buttons require `display: 'flex'` for their two inner buttons to lay out side-by-side. Fix: added `FLEX_DISPLAY_TYPES` set (`nav-buttons`, `score-field`) and conditional display value lookup.
+  - Added `GENERATED_CONTENT_TYPES` guard (`question-mc`, `question-tf`, `question-fill`) to prevent capturing generated HTML previews back into `properties.content`, which would corrupt question widget data.
+
+### Tests Added
+- **`converters.test.ts`** — 9 new unit tests covering the three converters fixes; renamed one existing test for accuracy; fixed one stale assertion (`def.actions` → `def.elearnActions` per the GrapesJS forEach crash guard comment).
+- **`persistence.spec.ts`** — 2 new FM-05 E2E regression tests:
+  - `FM-05 — text widget content survives slide switch and return` — verifies sentinel text placed in a text widget is still present after navigating to another slide and back.
+  - `FM-05 — nav-buttons widget is NOT placed at (0,0) after slide switch and return` — verifies the bounding box of nav-buttons does not jump to the top-left corner (≤50px delta).
+
+---
+
+## [0.5.3] — 2026-03-28 — GrapesJS Race Fix & Moodle SCORM Integration Tests
+
+### Added
+- **`e2e/tests/moodle-scorm.spec.ts`** — 2 new opt-in Moodle SCORM integration tests (both passing):
+  - **Step 1** — creates a 3-slide course via API (text, image, MC question widgets) and exports a SCORM 1.2 ZIP, asserting content-type and non-empty archive.
+  - **Step 2** — uploads the ZIP to a live Moodle instance, launches the SCORM player popup, and verifies each slide renders the expected widget DOM inside `iframe#scorm_object`. Compatible with Moodle 4.x and 5.x via dual-selector fallback for edit-mode toggle.
+  - Activation: `E2E_MOODLE=1 npx playwright test tests/moodle-scorm.spec.ts` (skipped by default to avoid requiring Moodle in standard CI).
+- **`docs/issues/issues-T609.md`** — root-cause analysis of the GrapesJS concurrent `editor.load()` race condition; documents BUG-T609-01 (CRITICAL) and BUG-T609-02 (HIGH), both fixed.
+- **`docs/issues/issues-T610.md`** — documents Moodle SCORM integration test suite creation; records BUG-T610-01 (Moodle admin password mismatch on persistent volume) and GAP-T610-01 (no prior E2E Moodle coverage), both resolved.
+
+### Fixed
+- **GrapesJS concurrent load race** (`e2e/pages/EditorPage.ts`, `EditorCanvas.tsx`) — `EditorPage.goto()` returned as soon as the toolbar appeared, before `editor.load()` completed. `beforeEach` hooks calling `addSlide()` immediately after triggered a second `editor.load()` on the same GrapesJS instance, causing an internal `TypeError: Cannot read properties of undefined (reading 'forEach')` crash and subsequent `waitForCanvas()` timeouts. Fix: `goto()` now probes for `iframe.gjs-frame` (3 s); if visible, waits for `[data-editor-ready="true"]` (15 s) before returning, guaranteeing the initial load has completed before any `beforeEach` side-effects run.
+- **`loadGenRef` generation counter blocking `waitForCanvas()`** (`EditorCanvas.tsx`) — when the concurrent crash occurred, neither the `.then()` nor the `.catch()` of the superseded generation called `setIsReady(true)`, leaving `waitForCanvas()` blocked until the 8 s fallback timer fired. The generation guard is retained as a safety layer for legitimate rapid slide-switch scenarios; the root cause is eliminated by the `goto()` fix above.
+- **E2E tests T601.0a and GAP-03 unblocked** — both tests were intermittently or consistently failing due to the race above; they now pass deterministically.
+
+---
+
 ## [0.5.2] — 2026-03-28 — Moodle Screenshot
 
 ### Added

@@ -13,7 +13,8 @@ import { packSCORM12 } from '@elearn-studio/scorm-packager'
 // Limit per-user SCORM export requests — exports are CPU/disk intensive
 const exportLimiter = rateLimit({
   windowMs:        15 * 60 * 1000, // 15 minutes
-  limit:           5,
+  // Relax the limit in development so E2E tests don't hit rate-limiting during repeated runs
+  limit:           process.env.NODE_ENV === 'production' ? 5 : 100,
   keyGenerator:    (req: Request) => req.user?.sub ?? 'unknown',
   standardHeaders: 'draft-7',
   legacyHeaders:   false,

@@ -97,6 +97,7 @@ export function AnimationPropertiesPanel() {
   // ── Persistence helper ──────────────────────────────────────────────────
   function save(updated: AnimationPath[]) {
     component.set('extendedProperties', { ...ep, animations: updated })
+    editor?.store().catch(err => console.error('[AnimationPropertiesPanel] store failed:', err))
   }
 
   // ── CRUD ────────────────────────────────────────────────────────────────

@@ -45,7 +45,6 @@ test.describe('Image Widget: Upload & Presigned URL Display', () => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
 
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })

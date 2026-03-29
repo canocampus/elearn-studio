@@ -29,6 +29,7 @@ export function SimulationEditor() {
       const component = editor.getWrapper()?.find(`#${editingComponentId}`)[0]
       if (component) {
         component.set('extendedProperties', { ...component.get('extendedProperties'), simConfig: config })
+        editor.store().catch(err => console.error('[SimulationEditor] store failed:', err))
       }
     }
     closePanel()

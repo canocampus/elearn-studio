@@ -45,6 +45,7 @@ function makeWidget(overrides: Partial<BaseWidget> = {}): BaseWidget {
  * GrapesJS stores the custom fields (properties, actions, extendedProperties)
  * in the component model and exposes them via c.get(key).
  * CSS styles come from getStyle(), HTML attributes from getAttributes().
+ * getInnerHTML() is the authoritative content source for text/button types in real GrapesJS.
  */
 function defToComponent(def: ReturnType<typeof grapesjsFromWidgets>[number]): Component {
   return {
@@ -52,6 +53,7 @@ function defToComponent(def: ReturnType<typeof grapesjsFromWidgets>[number]): Co
     getAttributes: () => ({ ...(def.attributes as Record<string, string>) }),
     getId: () => (def.attributes as Record<string, string>).id,
     get: (key: string) => (def as Record<string, unknown>)[key],
+    getInnerHTML: () => def.content as string | undefined,
   } as unknown as Component
 }
 
@@ -84,8 +86,8 @@ describe('grapesjsFromWidgets — Widget → GrapesJS definition', () => {
     expect(style['z-index']).toBe(7)
   })
 
-  it('maps visible:true to display:block', () => {
-    const [def] = grapesjsFromWidgets([makeWidget({ visible: true })])
+  it('maps visible:true to display:block for block-level widget types', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'text', visible: true })])
     const style = def.style as Record<string, unknown>
     expect(style.display).toBe('block')
   })
@@ -94,6 +96,39 @@ describe('grapesjsFromWidgets — Widget → GrapesJS definition', () => {
     const [def] = grapesjsFromWidgets([makeWidget({ visible: false })])
     const style = def.style as Record<string, unknown>
     expect(style.display).toBe('none')
+  })
+
+  it('maps nav-buttons visible:true to display:flex (flex layout required)', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'nav-buttons', visible: true })])
+    const style = def.style as Record<string, unknown>
+    expect(style.display).toBe('flex')
+  })
+
+  it('maps score-field visible:true to display:flex', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'score-field', visible: true })])
+    const style = def.style as Record<string, unknown>
+    expect(style.display).toBe('flex')
+  })
+
+  it('maps nav-buttons visible:false to display:none', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'nav-buttons', visible: false })])
+    const style = def.style as Record<string, unknown>
+    expect(style.display).toBe('none')
+  })
+
+  it('sets content from properties.content for text widgets', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'text', properties: { content: 'Hello World' } })])
+    expect(def.content).toBe('Hello World')
+  })
+
+  it('sets src from properties.src for image widgets', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'image', properties: { src: '/assets/photo.jpg' } })])
+    expect(def.src).toBe('/assets/photo.jpg')
+  })
+
+  it('does not set src for non-image widgets even if properties.src exists', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'text', properties: { src: '/assets/photo.jpg' } })])
+    expect(def.src).toBeUndefined()
   })
 
   it('always sets position:absolute (fixed-layout canvas)', () => {
@@ -113,16 +148,37 @@ describe('grapesjsFromWidgets — Widget → GrapesJS definition', () => {
     expect(def.properties).toEqual(props)
   })
 
-  it('preserves actions array intact', () => {
+  it('preserves actions in elearnActions (def.actions is always [] to prevent GrapesJS forEach crash)', () => {
     const actions = [{ event: 'click', actions: [{ id: 'a1', type: 'navigate', params: { slide: 2 } }] }]
     const [def] = grapesjsFromWidgets([makeWidget({ actions })])
-    expect(def.actions).toEqual(actions)
+    expect(def.actions).toEqual([])
+    expect(def.elearnActions).toEqual(actions)
   })
 
   it('preserves extendedProperties intact', () => {
     const ext = { simType: 'process-flow', mode: 'practice', passingScore: 80 }
     const [def] = grapesjsFromWidgets([makeWidget({ extendedProperties: ext })])
     expect(def.extendedProperties).toEqual(ext)
+  })
+
+  it('spreads properties.style into CSS definition (decorative style restored on load)', () => {
+    const savedStyle = { 'font-family': 'Georgia', color: '#222222', 'background-color': '#f5f5f5' }
+    const [def] = grapesjsFromWidgets([makeWidget({ properties: { style: savedStyle } })])
+    const style = def.style as Record<string, unknown>
+    expect(style['font-family']).toBe('Georgia')
+    expect(style.color).toBe('#222222')
+    expect(style['background-color']).toBe('#f5f5f5')
+  })
+
+  it('layout keys always override stale values in properties.style', () => {
+    // Even if a stale `left` was saved in properties.style, bounds must win
+    const savedStyle = { left: '999px', top: '999px', color: '#abc' }
+    const bounds = { x: 50, y: 75, width: 200, height: 100 }
+    const [def] = grapesjsFromWidgets([makeWidget({ bounds, properties: { style: savedStyle } })])
+    const style = def.style as Record<string, unknown>
+    expect(style.left).toBe('50px')
+    expect(style.top).toBe('75px')
+    expect(style.color).toBe('#abc')
   })
 
   it('converts multiple widgets independently', () => {
@@ -271,6 +327,302 @@ describe('widgetsFromGrapesjs — GrapesJS Component → Widget', () => {
     expect(widget.actions).toEqual([])
     expect(widget.extendedProperties).toEqual({})
   })
+
+  it('captures c.get("content") into properties.content for text widgets', () => {
+    const comp = {
+      getStyle: () => ({ left: '10px', top: '20px', width: '200px', height: '50px', 'z-index': '1', display: 'block' }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'text', content: 'User edited text', properties: {}, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect((widget.properties as Record<string, unknown>).content).toBe('User edited text')
+  })
+
+  it('merges c.get("content") with existing properties (does not overwrite other keys)', () => {
+    const comp = {
+      getStyle: () => ({ left: '0', top: '0', width: '200px', height: '50px', 'z-index': '1', display: 'block' }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'button', content: '<b>Click me</b>', properties: { fontSize: 16 }, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    const props = widget.properties as Record<string, unknown>
+    expect(props.content).toBe('<b>Click me</b>')
+    expect(props.fontSize).toBe(16)
+  })
+
+  it('does NOT capture content for question-mc (generated HTML preview, not user data)', () => {
+    const comp = {
+      getStyle: () => ({ left: '0', top: '0', width: '400px', height: '200px', 'z-index': '1', display: 'block' }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({
+        type: 'question-mc',
+        content: '<div class="mc-preview">...</div>',
+        properties: { questionText: 'What is 2+2?' },
+        actions: [],
+        extendedProperties: {},
+      }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    const props = widget.properties as Record<string, unknown>
+    expect(props.content).toBeUndefined()
+    expect(props.questionText).toBe('What is 2+2?')
+  })
+
+  it('does NOT capture content for question-tf', () => {
+    const comp = {
+      getStyle: () => ({ left: '0', top: '0', width: '300px', height: '100px', 'z-index': '1', display: 'block' }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'question-tf', content: '<div>True/False preview</div>', properties: {}, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect((widget.properties as Record<string, unknown>).content).toBeUndefined()
+  })
+
+  it('captures c.get("src") into properties.src for image widgets', () => {
+    const comp = {
+      getStyle: () => ({ left: '50px', top: '100px', width: '300px', height: '200px', 'z-index': '1', display: 'block' }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'image', src: '/assets/modamania.jpg', properties: {}, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect((widget.properties as Record<string, unknown>).src).toBe('/assets/modamania.jpg')
+  })
+
+  it('does not add src to properties when c.get("src") is undefined', () => {
+    const comp = {
+      getStyle: () => ({ left: '0', top: '0', width: '200px', height: '150px', 'z-index': '1', display: 'block' }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'image', properties: {}, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect('src' in (widget.properties as Record<string, unknown>)).toBe(false)
+  })
+
+  it('saves decorative CSS (font, color, background) into properties.style', () => {
+    const comp = {
+      getStyle: () => ({
+        left: '10px', top: '20px', width: '200px', height: '50px', 'z-index': '1', display: 'block',
+        'font-family': 'Arial', color: '#ff0000', 'background-color': '#ffffff',
+      }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'text', properties: {}, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    const style = (widget.properties as Record<string, unknown>).style as Record<string, unknown>
+    expect(style).toBeDefined()
+    expect(style['font-family']).toBe('Arial')
+    expect(style.color).toBe('#ff0000')
+    expect(style['background-color']).toBe('#ffffff')
+  })
+
+  it('does NOT include layout keys in saved properties.style', () => {
+    const comp = {
+      getStyle: () => ({
+        position: 'absolute', left: '10px', top: '20px', width: '200px', height: '50px',
+        'z-index': '3', display: 'block', color: '#333333',
+      }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'text', properties: {}, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    const style = (widget.properties as Record<string, unknown>).style as Record<string, unknown>
+    expect(style).toBeDefined()
+    expect('left' in style).toBe(false)
+    expect('top' in style).toBe(false)
+    expect('width' in style).toBe(false)
+    expect('height' in style).toBe(false)
+    expect('z-index' in style).toBe(false)
+    expect('position' in style).toBe(false)
+    expect('display' in style).toBe(false)
+    expect(style.color).toBe('#333333')
+  })
+
+  it('does NOT add properties.style when only layout CSS is present', () => {
+    const comp = {
+      getStyle: () => ({
+        position: 'absolute', left: '10px', top: '20px', width: '200px', height: '50px',
+        'z-index': '1', display: 'block',
+      }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'text', properties: {}, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect('style' in (widget.properties as Record<string, unknown>)).toBe(false)
+  })
+
+  it('saves border and padding CSS into properties.style', () => {
+    const comp = {
+      getStyle: () => ({
+        left: '0', top: '0', width: '100px', height: '50px', 'z-index': '1', display: 'block',
+        border: '1px solid #ccc', padding: '8px',
+      }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'rectangle', properties: {}, actions: [], extendedProperties: {} }[key]),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    const style = (widget.properties as Record<string, unknown>).style as Record<string, unknown>
+    expect(style.border).toBe('1px solid #ccc')
+    expect(style.padding).toBe('8px')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// BUG-T611-04 — Trait attributes from getAttributes() are persisted in properties
+// Root cause: early widgetsFromGrapesjs never called getAttributes() — fixed 2026-03-28.
+// These tests verify the fix cannot be silently reverted.
+// ---------------------------------------------------------------------------
+describe('BUG-T611-04 — Trait attributes from getAttributes() are persisted in properties', () => {
+  it('captures non-internal attributes (alt, mediaType) into widget.properties', () => {
+    const comp = {
+      getStyle: () => ({
+        position: 'absolute', left: '10px', top: '20px', width: '200px', height: '100px',
+        'z-index': '1', display: 'block',
+      }),
+      getAttributes: () => ({ id: 'w1', alt: 'A cat photo', mediaType: 'image/jpeg' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'image', properties: {}, actions: [], extendedProperties: {}, elearnActions: [] }[key]),
+      getInnerHTML: () => undefined as string | undefined,
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    const props = widget.properties as Record<string, unknown>
+    expect(props.alt).toBe('A cat photo')
+    expect(props.mediaType).toBe('image/jpeg')
+  })
+
+  it('does NOT capture internal GJS attributes (id, class, style, src) into properties', () => {
+    const comp = {
+      getStyle: () => ({
+        position: 'absolute', left: '0', top: '0', width: '100px', height: '50px',
+        'z-index': '1', display: 'block',
+      }),
+      getAttributes: () => ({ id: 'w1', class: 'gjs-selected', style: 'color:red', src: 'http://example.com/img.jpg' }),
+      getId: () => 'w1',
+      get: (key: string) => ({ type: 'image', properties: {}, actions: [], extendedProperties: {}, elearnActions: [] }[key]),
+      getInnerHTML: () => undefined as string | undefined,
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    const props = widget.properties as Record<string, unknown>
+    // id is captured as widget.id, not into properties
+    expect('class' in props).toBe(false)
+    expect('style' in props).toBe(false)
+    expect('src' in props).toBe(false)
+  })
+
+  it('alt attribute on image widget survives grapesjsFromWidgets → widgetsFromGrapesjs round-trip', () => {
+    const widget = makeWidget({ type: 'image', properties: { alt: 'Product screenshot', src: 'https://garage/img.jpg' } })
+    const [def] = grapesjsFromWidgets([widget])
+    const [restored] = widgetsFromGrapesjs([defToComponent(def)])
+    expect((restored.properties as Record<string, unknown>).alt).toBe('Product screenshot')
+  })
+
+  it('data-* custom attributes survive the round-trip', () => {
+    const widget = makeWidget({ type: 'button', properties: { 'data-action-id': 'btn-primary', 'data-track': 'click' } })
+    const [def] = grapesjsFromWidgets([widget])
+    const [restored] = widgetsFromGrapesjs([defToComponent(def)])
+    const props = restored.properties as Record<string, unknown>
+    expect(props['data-action-id']).toBe('btn-primary')
+    expect(props['data-track']).toBe('click')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// BUG-T611-05 — getInnerHTML() is preferred over get('content') for text/button
+// Root cause: early widgetsFromGrapesjs only used c.get('content'), losing formatted
+// HTML when GrapesJS moved rich children into its component tree. Fixed 2026-03-28.
+// Tests also guard the test-environment fallback (getInnerHTML not always available).
+// ---------------------------------------------------------------------------
+describe('BUG-T611-05 — getInnerHTML() preferred over get("content") for text/button', () => {
+  /** Component mock where getInnerHTML() returns a different value than get('content'). */
+  function makeContentComp(type: string, innerHtml: string | undefined, modelContent: string | undefined) {
+    return {
+      getStyle: () => ({
+        position: 'absolute', left: '0', top: '0', width: '300px', height: '100px',
+        'z-index': '1', display: 'block',
+      }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => {
+        const model: Record<string, unknown> = {
+          type, properties: {}, actions: [], extendedProperties: {}, elearnActions: [],
+          content: modelContent,
+        }
+        return model[key]
+      },
+      getInnerHTML: () => innerHtml,
+    } as unknown as Component
+  }
+
+  it('text widget: getInnerHTML() value is captured, not stale get("content")', () => {
+    // Simulates GrapesJS after user adds bold text — innerHTML diverges from model content.
+    const comp = makeContentComp('text', '<b>Rich text from getInnerHTML</b>', 'stale content from get()')
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect((widget.properties as Record<string, unknown>).content).toBe('<b>Rich text from getInnerHTML</b>')
+  })
+
+  it('button widget: getInnerHTML() value is captured, not stale get("content")', () => {
+    const comp = makeContentComp('button', '<span>Click here</span>', 'stale button content')
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect((widget.properties as Record<string, unknown>).content).toBe('<span>Click here</span>')
+  })
+
+  it('rectangle widget: uses get("content"), not getInnerHTML() (getInnerHTML only for text/button)', () => {
+    // For non-text/non-button types, get('content') is authoritative regardless of getInnerHTML.
+    const comp = makeContentComp('rectangle', 'value from getInnerHTML — should be ignored', 'rectangle content from model')
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect((widget.properties as Record<string, unknown>).content).toBe('rectangle content from model')
+  })
+
+  it('text widget WITHOUT getInnerHTML method falls back to get("content") (test-env safety)', () => {
+    // getInnerHTML() may not be available in all environments (unit tests, older GJS builds).
+    const comp = {
+      getStyle: () => ({ position: 'absolute', left: '0', top: '0', width: '200px', height: '80px', 'z-index': '1', display: 'block' }),
+      getAttributes: () => ({ id: 'w1' }),
+      getId: () => 'w1',
+      get: (key: string) => {
+        const model: Record<string, unknown> = {
+          type: 'text', properties: {}, actions: [], extendedProperties: {}, elearnActions: [],
+          content: 'fallback content via get(content)',
+        }
+        return model[key]
+      },
+      // deliberately omit getInnerHTML to simulate environments where it is unavailable
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect((widget.properties as Record<string, unknown>).content).toBe('fallback content via get(content)')
+  })
+
+  it('text widget formatted HTML round-trip: content from getInnerHTML is stored and restored', () => {
+    // Store a widget whose properties.content is rich HTML.
+    const richHtml = '<b>Bold</b> and <em>italic</em>'
+    const widget = makeWidget({ type: 'text', properties: { content: richHtml } })
+    const [def] = grapesjsFromWidgets([widget])
+    // defToComponent exposes def.content via getInnerHTML (updated fixture).
+    const [restored] = widgetsFromGrapesjs([defToComponent(def)])
+    expect((restored.properties as Record<string, unknown>).content).toBe(richHtml)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -385,6 +737,41 @@ describe('converters — T011.6 round-trip: BaseWidget → GrapesJS → BaseWidg
     expect(roundTrip(w).extendedProperties).toEqual({})
   })
 
+  it('decorative CSS styles survive the round-trip intact (font, color, background)', () => {
+    // Simulates a widget that had font/color applied via the GrapesJS Style Manager.
+    // The CSS is saved into properties.style on store and spread back on load.
+    const decorativeStyle = { 'font-family': 'Arial', color: '#ff0000', 'background-color': '#eeeeee' }
+
+    // Build a component that already has properties.style (as if previously saved)
+    // and also exposes those keys via getStyle (as GrapesJS would after loading).
+    const widget = makeWidget({ properties: { style: decorativeStyle } })
+    const [def] = grapesjsFromWidgets([widget])
+
+    // The component mock returns ALL keys from def.style via getStyle()
+    const comp = defToComponent(def)
+    const [restored] = widgetsFromGrapesjs([comp])
+
+    const restoredStyle = (restored.properties as Record<string, unknown>).style as Record<string, unknown>
+    expect(restoredStyle['font-family']).toBe('Arial')
+    expect(restoredStyle.color).toBe('#ff0000')
+    expect(restoredStyle['background-color']).toBe('#eeeeee')
+  })
+
+  it('decorative CSS does not bleed layout keys back into properties.style after round-trip', () => {
+    const decorativeStyle = { 'font-size': '16px', padding: '4px' }
+    const widget = makeWidget({ properties: { style: decorativeStyle } })
+    const [def] = grapesjsFromWidgets([widget])
+    const [restored] = widgetsFromGrapesjs([defToComponent(def)])
+
+    const restoredStyle = (restored.properties as Record<string, unknown>).style as Record<string, unknown>
+    expect('left' in restoredStyle).toBe(false)
+    expect('top' in restoredStyle).toBe(false)
+    expect('position' in restoredStyle).toBe(false)
+    expect('display' in restoredStyle).toBe(false)
+    expect(restoredStyle['font-size']).toBe('16px')
+    expect(restoredStyle.padding).toBe('4px')
+  })
+
   it('full widget — all fields survive intact', () => {
     const original: BaseWidget = {
       id: 'full-widget-001',
@@ -404,5 +791,48 @@ describe('converters — T011.6 round-trip: BaseWidget → GrapesJS → BaseWidg
       extendedProperties: { hints: ['Think about basic arithmetic'], showFeedback: true },
     }
     expect(roundTrip(original)).toEqual(original)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T701 — Null-guard edge cases: nested HTML and button label round-trip
+// ---------------------------------------------------------------------------
+
+describe('T701 — nested HTML and button label round-trip', () => {
+  it('T701.4: text widget with nested <em> content is not silently dropped (getInnerHTML fallback)', () => {
+    // Simulates the case where getInnerHTML is not available (unit-test environment or
+    // older GrapesJS build). The converter must fall back to c.get('content') and NOT
+    // silently return undefined/empty for a text widget containing italic markup.
+    const emContent = 'Learning <em>objectives</em> matter'
+    const comp = {
+      getStyle: () => ({
+        position: 'absolute', left: '50px', top: '80px', width: '400px', height: '60px',
+        'z-index': '2', display: 'block',
+      }),
+      getAttributes: () => ({ id: 'w-em' }),
+      getId: () => 'w-em',
+      get: (key: string) => {
+        const model: Record<string, unknown> = {
+          type: 'text', properties: {}, actions: [], extendedProperties: {}, elearnActions: [],
+          content: emContent,
+        }
+        return model[key]
+      },
+      // getInnerHTML deliberately absent — simulates unit-test / older GJS environment
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    // The <em> content must survive; must not be undefined or empty
+    expect((widget.properties as Record<string, unknown>).content).toBe(emContent)
+  })
+
+  it('T701.5: button widget custom label survives grapesjsFromWidgets → widgetsFromGrapesjs round-trip', () => {
+    // Verifies that a button widget whose label is stored in properties.content
+    // is faithfully restored after the full converter cycle.
+    const customLabel = 'Next Slide →'
+    const widget = makeWidget({ type: 'button', properties: { content: customLabel } })
+    const [def] = grapesjsFromWidgets([widget])
+    const [restored] = widgetsFromGrapesjs([defToComponent(def)])
+    expect((restored.properties as Record<string, unknown>).content).toBe(customLabel)
   })
 })

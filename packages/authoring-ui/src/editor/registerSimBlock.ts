@@ -43,6 +43,8 @@ export function registerSimBlock(editor: Editor): void {
         droppable: false,
         selectable: true,
         content: PLACEHOLDER_HTML,
+        properties: {},
+        elearnActions: [],
         extendedProperties: {
           simConfig: null as SimConfig | null,
         },

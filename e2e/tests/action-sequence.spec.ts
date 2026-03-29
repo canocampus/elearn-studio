@@ -37,7 +37,6 @@ test.describe('Action Sequence Editor: Panel with widget selected (GAP-02)', () 
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })

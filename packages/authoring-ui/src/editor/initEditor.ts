@@ -194,7 +194,7 @@ export function initEditor(opts: InitEditorOptions): Editor {
       resizable: true,
     })
     
-    if (!component.getStyle('position')) {
+    if (component.getStyle('position') !== 'absolute') {
       component.addStyle({ position: 'absolute' })
     }
   })
@@ -206,7 +206,7 @@ export function initEditor(opts: InitEditorOptions): Editor {
   // when the timer fires. If the user switched slides during the debounce window the
   // snapshot won't match the current context, so we abort instead of saving stale data.
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null
-  editor.on('component:update', () => {
+  const triggerAutosave = () => {
     if (autosaveTimer !== null) clearTimeout(autosaveTimer)
     const snapshot = getStorageContext()
     autosaveTimer = setTimeout(async () => {
@@ -216,6 +216,13 @@ export function initEditor(opts: InitEditorOptions): Editor {
         // Slide was switched during debounce — skip to avoid saving to the wrong slide.
         return
       }
+      
+      // T611: Force any active text editor to sync its content back to the model 
+      // before we trigger the store() cycle.
+      if (editor.Commands.isActive('text-edit')) {
+        editor.stopCommand('text-edit')
+      }
+
       const { setIsSaving, setSaveError } = useEditorStore.getState()
       setIsSaving(true)
       setSaveError(null)
@@ -227,7 +234,12 @@ export function initEditor(opts: InitEditorOptions): Editor {
         setIsSaving(false)
       }
     }, AUTOSAVE_DEBOUNCE_MS)
-  })
+  }
+
+  editor.on('component:update', triggerAutosave)
+  editor.on('component:update:content', triggerAutosave)
+  editor.on('component:add', triggerAutosave)
+  editor.on('component:remove', triggerAutosave)
 
   opts.onReady?.(editor)
 

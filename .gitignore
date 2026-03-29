@@ -13,3 +13,27 @@ coverage/
 *.tsbuildinfo
 backend/api/openapi.json
 packages/authoring-ui/src/api/generated.ts
+
+# Debug / scratch files (not part of source)
+*.php
+GEMINI.md
+design-guide.md
+test-claude.docx
+test.png
+test-results/
+img/
+docs-gestion-tiempo/
+
+# E2E auth state (contains tokens — never commit)
+e2e/.auth/
+
+# E2E debug artifacts
+e2e/e2e-setup-failure.png
+e2e/debug-*.js
+debug-*.js
+
+# Rollup temp configs emitted during watch mode
+rollup.config-*.mjs
+
+# Misc scratch
+docs/issues/external_issues_save.md

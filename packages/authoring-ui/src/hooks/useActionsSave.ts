@@ -92,7 +92,7 @@ export function useActionsSave() {
             .toArray()
             .find((c) => c.getAttributes().id === widgetId)
         if (component) {
-          component.set('actions', sequences)
+          component.set('elearnActions', sequences)
         }
         void editor.store().catch((err: unknown) => {
           console.error('[useActionsSave] store() failed:', err)

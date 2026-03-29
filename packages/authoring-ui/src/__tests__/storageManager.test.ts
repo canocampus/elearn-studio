@@ -20,9 +20,42 @@ vi.mock('../editor/converters', () => ({
   widgetsFromGrapesjs: vi.fn().mockReturnValue([]),
 }))
 
-import { updateStorageContext, registerStorageManager, getStorageContext, invalidateCourseCache } from '../editor/storageManager'
+import { updateStorageContext, registerStorageManager, getStorageContext, invalidateCourseCache, generateThumbnail } from '../editor/storageManager'
 import * as courseApi from '../api/courseApi'
 import { grapesjsFromWidgets, widgetsFromGrapesjs } from '../editor/converters'
+
+// ---------------------------------------------------------------------------
+// T700 — generateThumbnail unit tests
+// ---------------------------------------------------------------------------
+
+describe('generateThumbnail', () => {
+  it('returns an HTML string containing the editor HTML and CSS', () => {
+    const mockEditor = {
+      getHtml: vi.fn().mockReturnValue('<div class="slide">hello</div>'),
+      getCss: vi.fn().mockReturnValue('body{background:blue}'),
+    } as unknown as Editor
+
+    const result = generateThumbnail(mockEditor)
+
+    expect(result).toContain('<div class="slide">hello</div>')
+    expect(result).toContain('body{background:blue}')
+    expect(result).toContain('<!DOCTYPE html>')
+  })
+
+  it('returns a complete HTML document structure', () => {
+    const mockEditor = {
+      getHtml: vi.fn().mockReturnValue(''),
+      getCss: vi.fn().mockReturnValue(''),
+    } as unknown as Editor
+
+    const result = generateThumbnail(mockEditor)
+
+    expect(result).toContain('<html>')
+    expect(result).toContain('<head>')
+    expect(result).toContain('<body>')
+    expect(result).toContain('</html>')
+  })
+})
 
 // ---------------------------------------------------------------------------
 // R-03 — updateStorageContext
@@ -237,6 +270,57 @@ describe('storageManager — registerStorageManager', () => {
       // Next load must re-fetch (not use stale cache)
       await impl.load()
       expect(courseApi.getCourse).toHaveBeenCalledTimes(2)
+    })
+
+    it('T700.2: store() still resolves and calls updateSlide when generateThumbnail throws', async () => {
+      vi.mocked(editor.getHtml).mockImplementation(() => { throw new Error('canvas error') })
+      vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      updateStorageContext({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor)
+
+      const impl = addMock.mock.calls[0][1] as { store: (data: unknown) => Promise<void> }
+      await expect(impl.store({})).resolves.toBeUndefined()
+
+      expect(courseApi.updateSlide).toHaveBeenCalledWith(
+        'c1',
+        's1',
+        expect.objectContaining({ thumbnail: undefined }),
+      )
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[StorageManager] thumbnail generation failed'),
+        expect.any(Error),
+      )
+      warnSpy.mockRestore()
+    })
+
+    it('T700.3: updateSlide payload includes thumbnail string when generateThumbnail succeeds', async () => {
+      vi.mocked(editor.getHtml).mockReturnValue('<p>slide</p>')
+      vi.mocked(editor.getCss).mockReturnValue('p{color:red}')
+      vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
+
+      updateStorageContext({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor)
+
+      const impl = addMock.mock.calls[0][1] as { store: (data: unknown) => Promise<void> }
+      await impl.store({})
+
+      expect(courseApi.updateSlide).toHaveBeenCalledWith(
+        'c1',
+        's1',
+        expect.objectContaining({ thumbnail: expect.stringContaining('<p>slide</p>') }),
+      )
+    })
+
+    it('T700.4: store() rejects and propagates the API error (thumbnail isolation does not hide real failures)', async () => {
+      vi.mocked(courseApi.updateSlide).mockRejectedValue(new Error('network timeout'))
+
+      updateStorageContext({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor)
+
+      const impl = addMock.mock.calls[0][1] as { store: (data: unknown) => Promise<void> }
+      await expect(impl.store({})).rejects.toThrow('network timeout')
     })
 
     it('T042.5: invalidates course cache after successful store()', async () => {

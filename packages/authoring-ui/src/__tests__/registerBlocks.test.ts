@@ -257,6 +257,53 @@ describe('registerBlocks', () => {
   })
 
   // -------------------------------------------------------------------------
+  // T012.11 — All component types declare properties/elearnActions/extendedProperties
+  //           in defaults so GrapesJS Backbone.Model reliably persists them.
+  // -------------------------------------------------------------------------
+
+  describe('T012.11 — All component defaults declare custom persistence fields', () => {
+    const ALL_COMPONENT_TYPES = [
+      'text',
+      'image',
+      'button',
+      'rectangle',
+      'nav-buttons',
+      'done-button',
+      'score-quiz',
+      'score-field',
+      'media-player',
+      'screenshot-sim',
+      'phaser-sim',
+      'question-mc',
+      'question-tf',
+      'question-fill',
+    ]
+
+    for (const type of ALL_COMPONENT_TYPES) {
+      it(`component "${type}" defaults include properties: {}`, () => {
+        const comp = getComponent(editor, type)
+        const defaults = (comp?.model as Record<string, unknown>)?.defaults as Record<string, unknown>
+        expect(defaults).toHaveProperty('properties')
+        expect(defaults?.properties).toEqual({})
+      })
+
+      it(`component "${type}" defaults include elearnActions: []`, () => {
+        const comp = getComponent(editor, type)
+        const defaults = (comp?.model as Record<string, unknown>)?.defaults as Record<string, unknown>
+        expect(defaults).toHaveProperty('elearnActions')
+        expect(defaults?.elearnActions).toEqual([])
+      })
+
+      it(`component "${type}" defaults include extendedProperties`, () => {
+        const comp = getComponent(editor, type)
+        const defaults = (comp?.model as Record<string, unknown>)?.defaults as Record<string, unknown>
+        expect(defaults).toHaveProperty('extendedProperties')
+        expect(typeof defaults?.extendedProperties).toBe('object')
+      })
+    }
+  })
+
+  // -------------------------------------------------------------------------
   // T012.5 — Components have sensible default styles for canvas preview
   // -------------------------------------------------------------------------
 
@@ -301,7 +348,7 @@ describe('T600.2 — image widget resolveAndSetSrc', () => {
     const comp = getComponent(localEditor, 'image')
     imageView = (comp as Record<string, unknown>)?.view as Record<string, unknown>
 
-    mockEl = { setAttribute: vi.fn(), src: '' }
+    mockEl = { setAttribute: vi.fn(), src: '', isConnected: true }
     mockModel = { get: vi.fn() }
   })
 
@@ -358,6 +405,44 @@ describe('T600.2 — image widget resolveAndSetSrc', () => {
     expect(mockEl.setAttribute).not.toHaveBeenCalled()
   })
 
+  // ---- T702 ----
+
+  it('T702.1: does not call setAttribute when el is no longer connected to the DOM', async () => {
+    mockModel.get.mockReturnValue('/assets/photo.jpg')
+    mockResolveAssetUrl.mockResolvedValue('https://s3.example.com/presigned')
+    const disconnectedEl = { setAttribute: vi.fn(), isConnected: false }
+    const fakeThis = { model: mockModel, el: disconnectedEl }
+    ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(fakeThis)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(disconnectedEl.setAttribute).not.toHaveBeenCalled()
+  })
+
+  it('T702.2: calls setAttribute when el is still connected to the DOM', async () => {
+    mockModel.get.mockReturnValue('/assets/photo.jpg')
+    mockResolveAssetUrl.mockResolvedValue('https://s3.example.com/presigned')
+    const connectedEl = { setAttribute: vi.fn(), isConnected: true }
+    const fakeThis = { model: mockModel, el: connectedEl }
+    ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(fakeThis)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(connectedEl.setAttribute).toHaveBeenCalledWith('src', 'https://s3.example.com/presigned')
+  })
+
+  it('T702.3: logs console.warn with objectName and error when resolveAssetUrl rejects', async () => {
+    mockModel.get.mockReturnValue('/assets/broken.png')
+    const networkErr = new Error('Network error')
+    mockResolveAssetUrl.mockRejectedValue(networkErr)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fakeThis = { model: mockModel, el: { ...mockEl, isConnected: true } }
+    ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(fakeThis)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[registerBlocks] resolveAndSetSrc failed for'),
+      'broken.png',
+      networkErr,
+    )
+    warnSpy.mockRestore()
+  })
+
   it('initialize() registers a change:src listener that triggers resolveAndSetSrc', () => {
     let capturedHandler: (() => void) | null = null
     const mockListenTo = vi.fn((_model: unknown, _event: string, handler: () => void) => {
@@ -393,3 +478,77 @@ describe('T600.2 — image widget resolveAndSetSrc', () => {
     expect(mockResolveAssetUrl).toHaveBeenCalledWith('slide/widget.png')
   })
 })
+
+// ---------------------------------------------------------------------------
+// T701 — buildMCPreviewHTML / buildTFPreviewHTML / buildFillPreviewHTML
+//         null/content edge cases
+// ---------------------------------------------------------------------------
+
+import {
+  buildMCPreviewHTML,
+  buildTFPreviewHTML,
+  buildFillPreviewHTML,
+} from '../editor/registerQuestionBlocks'
+import type { MCExtendedProps, TFExtendedProps, FillExtendedProps } from '../types/questions'
+
+describe('T701 — buildMCPreviewHTML null/empty guards', () => {
+  it('T701.2: does not throw when extendedProperties is empty object (no answers, no questionText)', () => {
+    expect(() => buildMCPreviewHTML({} as MCExtendedProps)).not.toThrow()
+    const html = buildMCPreviewHTML({} as MCExtendedProps)
+    expect(html).toContain('</div>')
+  })
+
+  it('T701.3: does not throw when options is null', () => {
+    expect(() => buildMCPreviewHTML({ options: null } as unknown as MCExtendedProps)).not.toThrow()
+  })
+
+  it('renders fallback question text when questionText is absent', () => {
+    const html = buildMCPreviewHTML({} as MCExtendedProps)
+    expect(html).toContain('Question')
+  })
+
+  it('renders provided questionText and options when fully populated', () => {
+    const ep: MCExtendedProps = {
+      questionText: 'What is 2+2?',
+      options: [
+        { id: '1', text: 'Three', isCorrect: false },
+        { id: '2', text: 'Four', isCorrect: true },
+      ],
+      feedbackCorrect: 'Correct!',
+      feedbackIncorrect: 'Wrong.',
+      scoring: { weight: 50, attempts: 2 },
+    }
+    const html = buildMCPreviewHTML(ep)
+    expect(html).toContain('What is 2+2?')
+    expect(html).toContain('Four')
+    expect(html).toContain('50pts')
+    expect(html).toContain('2 attempt(s)')
+  })
+})
+
+describe('T701 — buildTFPreviewHTML null/empty guards', () => {
+  it('does not throw when extendedProperties is empty object', () => {
+    expect(() => buildTFPreviewHTML({} as TFExtendedProps)).not.toThrow()
+  })
+
+  it('renders fallback question text when questionText is absent', () => {
+    const html = buildTFPreviewHTML({} as TFExtendedProps)
+    expect(html).toContain('Question')
+  })
+})
+
+describe('T701 — buildFillPreviewHTML null/empty guards', () => {
+  it('does not throw when extendedProperties is empty object', () => {
+    expect(() => buildFillPreviewHTML({} as FillExtendedProps)).not.toThrow()
+  })
+
+  it('does not throw when answers is null', () => {
+    expect(() => buildFillPreviewHTML({ answers: null } as unknown as FillExtendedProps)).not.toThrow()
+  })
+
+  it('renders fallback question text when questionText is absent', () => {
+    const html = buildFillPreviewHTML({} as FillExtendedProps)
+    expect(html).toContain('Question')
+  })
+})
+

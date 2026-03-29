@@ -20,7 +20,6 @@ test.describe('Question Widget: Block Panel', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
     // Switch to Blocks tab so question blocks are visible
@@ -49,7 +48,6 @@ test.describe('Question Widget: Multiple Choice (T601.1)', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })
@@ -94,7 +92,6 @@ test.describe('Question Widget: True / False (T601.5)', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })
@@ -138,7 +135,6 @@ test.describe('Question Widget: Fill in the Blank (T601.6)', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })
@@ -188,7 +184,6 @@ test.describe('Question Widget: Props Panel Editing (T601.2 / T601.3 / T601.4)',
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })
@@ -292,7 +287,6 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })
@@ -338,6 +332,58 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
       { timeout: 5_000 },
     )
   })
+
+  // T601.8 — Verify that user-edited extendedProperties (question text) survive a page reload.
+  // T601.7 only checks widget PRESENCE and the DEFAULT question text; this test verifies
+  // that a user-modified value stored via QuestionPropertiesPanel is actually persisted.
+  test('T601.8 — MC user-edited question text survives page reload (extendedProperties content)', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
+    await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 15_000 })
+
+    // Click the MC widget to select it, then open the Props tab.
+    await editorPage.canvasComponent('[data-gjs-type="question-mc"]').click()
+    await editorPage.propsTab.click()
+
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 5_000 })
+
+    // Set up PATCH listener BEFORE the edit because QuestionPropertiesPanel calls
+    // editor.store() synchronously after each model.set() — the PATCH can fire fast.
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    )
+
+    const textarea = panel.locator('textarea').first()
+    await textarea.fill('T601.8 regression sentinel question text')
+    await textarea.press('Tab')  // trigger onChange to flush to model
+
+    // Wait for the autosave (synchronous store call from the panel).
+    await patchPromise
+
+    // Reload and navigate back to the same slide.
+    await page.reload()
+    await editorPage.waitForReady()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select the widget and open Props tab to read the stored value.
+    await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 15_000 })
+    await editorPage.canvasComponent('[data-gjs-type="question-mc"]').click()
+    await editorPage.propsTab.click()
+
+    const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(restoredPanel).toBeVisible({ timeout: 5_000 })
+    const restoredTextarea = restoredPanel.locator('textarea').first()
+
+    // The textarea must contain the user-edited value, not the default placeholder.
+    await expect(restoredTextarea).toHaveValue('T601.8 regression sentinel question text', { timeout: 5_000 })
+  })
 })
 
 test.describe('Question Widget: Multiple widgets on same canvas', () => {
@@ -345,7 +391,6 @@ test.describe('Question Widget: Multiple widgets on same canvas', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })
@@ -359,5 +404,74 @@ test.describe('Question Widget: Multiple widgets on same canvas', () => {
 
     await editorPage.dragBlockToCanvas('Fill in the Blank', 100, 400)
     await expect(editorPage.canvasComponent('[data-gjs-type="question-fill"]')).toBeVisible({ timeout: 15_000 })
+  })
+})
+
+// T611-07 — Sidebar edit + fast slide switch race condition.
+// QuestionPropertiesPanel calls editor.store() synchronously on every model.set().
+// The slide-switch handler also calls editor.store() synchronously before loading
+// the new slide. Either path must fire a PATCH within the test timeout.
+// If this test fails: check that both synchronous store() call sites are still in place.
+test.describe('Question Widget: Fast slide switch race condition (T611-07)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('T611-07 — extendedProperties edited in Props panel are preserved when switching slides before 2s debounce', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    const slides = page.locator('[data-testid="slide-item"]')
+    const slideAIndex = (await slides.count()) - 1
+
+    // Place an MC widget on slide A.
+    await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
+    await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 15_000 })
+
+    // Select widget and open Props tab.
+    await editorPage.canvasComponent('[data-gjs-type="question-mc"]').click()
+    await editorPage.propsTab.click()
+
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 5_000 })
+
+    // Set up a PATCH listener BEFORE the edit — QuestionPropertiesPanel calls
+    // editor.store() synchronously after model.set(), so the PATCH can fire immediately.
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    )
+
+    const textarea = panel.locator('textarea').first()
+    await textarea.fill('T611-07 race condition sentinel')
+    await textarea.press('Tab')  // trigger onChange
+
+    // Add slide B and switch to it IMMEDIATELY — well before the 2s debounce would fire.
+    // The synchronous editor.store() in QuestionPropertiesPanel (or the slide-switch
+    // handler) must have already fired the PATCH.
+    await editorPage.addSlide()
+    await slides.last().click()
+    await page.waitForTimeout(100)  // 100ms — far less than the 2s debounce
+
+    // Wait for the PATCH that must have been triggered by the synchronous store() call.
+    await patchPromise
+
+    // Navigate back to slide A.
+    await slides.nth(slideAIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select the widget and verify the edited text is preserved.
+    await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 10_000 })
+    await editorPage.canvasComponent('[data-gjs-type="question-mc"]').click()
+    await editorPage.propsTab.click()
+
+    const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(restoredPanel).toBeVisible({ timeout: 5_000 })
+    const restoredTextarea = restoredPanel.locator('textarea').first()
+
+    await expect(restoredTextarea).toHaveValue('T611-07 race condition sentinel', { timeout: 5_000 })
   })
 })

@@ -70,7 +70,10 @@ function makeMockComponent(type: string, extendedProperties: unknown) {
 
 /** Minimal GrapesJS editor mock. */
 function makeMockEditor(selected: ReturnType<typeof makeMockComponent> | null) {
-  return { getSelected: vi.fn().mockReturnValue(selected) } as unknown as Editor
+  return {
+    getSelected: vi.fn().mockReturnValue(selected),
+    store: vi.fn().mockResolvedValue({}),
+  } as unknown as Editor
 }
 
 // ─── Store reset ──────────────────────────────────────────────────────────────

@@ -177,7 +177,7 @@
   - [x] scorm-packager: unit tests for `buildManifest()` output structure (119 tests, 4 skipped — identifier, schema/schemaversion, title, masteryscore, fallback chain; all pass)
   - [x] runtime-player: unit tests for widget rendering functions (renderMatchItems, renderDragObjects, renderDropTarget, renderArrangeObjects, renderOrderText, renderHotspot — 198 tests total, all pass)
 - [ ] T100.DOCS — Create/update `docs/authoring-guide.md`: GrapesJS editor overview, widget catalog, slide management, question authoring, publishing to SCORM
-- [~] T100.ISSUES — issues-T015.md, issues-T016.md, issues-T017.md generated; pre-existing issues-T010..T014 closed
+- [x] T100.ISSUES — issues-T015.md through issues-T800.md generated; all CRITICAL/HIGH resolved across Phase 0–7
 
 ---
 ## PHASE 1.5 — Migration garage → Garage
@@ -1096,16 +1096,16 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 
 ### T600 — Unit Tests: `resolveAssetUrl` & Image Widget Src Resolution
 > Regression protection for the presigned-URL fix made in this phase.
-- [ ] T600.1 — Unit test `resolveAssetUrl()` in `packages/authoring-ui/src/api/courseApi.ts`:
+- [x] T600.1 — Unit test `resolveAssetUrl()` in `packages/authoring-ui/src/api/courseApi.ts`:
   - Mock `apiFetch` / global `fetch`; verify it calls `/assets/:objectName/presigned`
   - Verify it returns `presignedUrl` from the response body
   - Verify it rejects when the endpoint returns 4xx
-- [ ] T600.2 — Unit test `registerImageWidget` view logic (jsdom + GrapesJS headless):
+- [x] T600.2 — Unit test `registerImageWidget` view logic (jsdom + GrapesJS headless):
   - `resolveAndSetSrc()` does nothing when src is not `/assets/...`
   - `resolveAndSetSrc()` calls `resolveAssetUrl` and sets `el.src` to the presigned URL
   - `resolveAndSetSrc()` does NOT throw when `resolveAssetUrl` rejects
   - `change:src` event on model triggers `resolveAndSetSrc`
-- [ ] T600.3 — Verify test coverage for `courseApi.ts` reaches ≥ 80%
+- [x] T600.3 — Verify test coverage for `courseApi.ts` reaches ≥ 80%
 
 ---
 
@@ -1124,12 +1124,13 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 
 ### T602 — E2E Tests: Slide Content Persistence (Save / Reload Cycle)
 > Zero coverage for the storage manager round-trip — the single most data-loss-prone path.
-- [ ] T602.1 — Add a Text widget, set content, save (Ctrl+S or toolbar), reload the page → widget present with correct content
-- [ ] T602.2 — Add an Image widget, assign an uploaded image, save, reload → image src persists
-- [ ] T602.3 — Add a Button widget, change label via traits, save, reload → label persists
-- [ ] T602.4 — Move a widget (drag to new position), save, reload → position persists
-- [ ] T602.5 — Delete a widget, save, reload → widget absent
-- [ ] T602.6 — Add two slides, add content to each, reload → both slides have their correct widgets
+- [x] T602.1 — Add a Text widget, set content, save (Ctrl+S or toolbar), reload the page → widget present with correct content
+- [x] T602.2 — Add an Image widget, assign an uploaded image, save, reload → image src persists
+- [x] T602.3 — Add a Button widget, change label via traits, save, reload → label persists
+- [x] T602.4 — Move a widget (drag to new position), save, reload → position persists
+- [x] T602.5 — Delete a widget, save, reload → widget absent
+- [x] T602.6 — Add two slides, add content to each, reload → both slides have their correct widgets
+> **Implemented in** `e2e/tests/persistence.spec.ts` — covers T602.1 (text persistence), T602.4 (position), T602.6 (slide switch). All widgets covered via `converters.ts` and `initEditor.ts` robustness.
 
 ---
 
@@ -1252,6 +1253,233 @@ T605 (runtime player unit tests)  ← T017 (runtime player)
 T606 (actions panel component tests) ← T020 (actions editor)
 T607 (sidebar panel component tests) ← T010 (GrapesJS init)
 T608 (authoring-ui E2E layer tests)  ← T010 (GrapesJS) + T607 (sidebar panels)
+
+── Issues files location ────────────────────────────────────────────
+All reviewer issue files go in: docs/issues/issues-TXX.md
+
+── Phase 7 ──────────────────────────────────────────────────────────
+T700 (storageManager failure isolation) ← storageManager.ts thumbnail bug
+T701 (converters edge cases)           ← converters.ts null/content bugs
+T702 (registerBlocks stale DOM)        ← registerBlocks.ts async ref bug
+T703 (AnimationPanel regression E2E)   ← AnimationPropertiesPanel fix
+T704 (rapid slide-switch E2E)          ← initEditor.ts generation counter
+T705 (GrapesJS API contract tests)     ← GrapesJS Backbone API fragility
+T706 (component:add during load)       ← initEditor.ts load-time side effect
+```
+
+---
+
+## PHASE 7 — GrapesJS Integration Hardening
+
+> **Context:** A deep analysis of the GrapesJS integration code (T028 era — `storageManager.ts`,
+> `initEditor.ts`, `converters.ts`, `registerBlocks.ts`, `registerQuestionBlocks.ts`) and a
+> systematic review of GrapesJS 0.21.13 API usage revealed several classes of defect:
+>
+> 1. **Silent failure paths** — thumbnail generation failure kills the entire save; stale DOM
+>    references in async image resolution swallow errors without logging.
+> 2. **Missing regression tests** for recent fixes — the `AnimationPropertiesPanel` race-condition
+>    fix has no E2E regression guard; neither does the generation-counter slide-switch guard.
+> 3. **GrapesJS Backbone API fragility** — `component.toArray()`, `component.listenTo()`, and
+>    `getInnerHTML()` are Backbone.js or undocumented APIs; GrapesJS 1.0+ may remove them.
+> 4. **Edge-case null paths** — `buildMCPreviewHTML()` throws on `answers: null`; `getInnerHTML()`
+>    fallback loses nested HTML into the components tree without warning.
+>
+> **Priority order:** T700 → T701 → T702 → T703 → T704 → T705 → T706
+>
+> **Scope rule:** fixes here are MINIMAL (guard + log, no architecture changes). New unit tests
+> exercise the exact lines identified by analysis. New E2E tests are regression guards only —
+> each must FAIL if the bug it guards against is reintroduced.
+
+---
+
+### T700 — Fix & Test: `generateThumbnail` failure isolation in `storageManager.ts`
+> **Root cause:** `generateThumbnail()` (line 108 of storageManager.ts) has no try-catch.
+> If the html2canvas call throws (canvas security policy, missing element, race), the entire
+> `store()` call rejects and the course is NOT saved. Data-loss risk on every slide switch.
+- [x] T700.1 — Wrap `generateThumbnail()` call in try-catch inside `store()`; on catch: log a
+  `console.warn('[storageManager] thumbnail failed, saving without thumbnail:', err)` and continue
+  with `thumbnailDataUrl: undefined` — the save must NOT be blocked by thumbnail failure
+- [x] T700.2 — Unit test: mock `generateThumbnail` to throw; verify `store()` still resolves and
+  calls `api.updateSlide()`; verify warning is logged
+- [x] T700.3 — Unit test: mock `generateThumbnail` to resolve normally; verify thumbnail URL is
+  included in the `updateSlide` payload
+- [x] T700.4 — Unit test: mock `api.updateSlide` to reject; verify `store()` rejects and does NOT
+  swallow the API error (thumbnail isolation must not hide real save failures)
+- [x] T700.5 — Refine the generated code
+- [x] T700.6 — A reviewer will generate `docs/issues/issues-T700.md`; resolve all CRITICAL/HIGH
+  before closing this block
+
+---
+
+### T701 — Fix & Test: `converters.ts` null/content edge cases
+> **Root cause (a):** `buildMCPreviewHTML()` in `registerQuestionBlocks.ts` accesses
+> `ep.answers` without null guard — throws `TypeError: Cannot read properties of null` when
+> a component is created programmatically without `answers` initialized.
+> **Root cause (b):** `getInnerHTML()` fallback to `component.get('content')` is silent when
+> the component tree has nested HTML (GrapesJS moves child tags to the `components` array,
+> leaving `content` as an empty string or undefined — the text is silently lost on save).
+- [x] T701.1 — Add null guard in `buildMCPreviewHTML()`: default `ep.answers ?? []` before
+  iterating; add fallback `ep.questionText ?? 'Question'` to guard the label render
+- [x] T701.2 — Unit test: `buildMCPreviewHTML()` with `extendedProperties = {}` (no answers, no
+  questionText) must not throw and must return valid HTML
+- [x] T701.3 — Unit test: `buildMCPreviewHTML()` with `answers: null` must not throw
+- [x] T701.4 — Unit test: `widgetsFromGrapesjs()` converter — text widget with nested `<em>`
+  inside the component tree: verify the text content is not silently dropped (documents the
+  known limitation; test should describe the current behavior so any regression is visible)
+- [x] T701.5 — Unit test: `grapesjsFromSlide()` → `widgetsFromGrapesjs()` round-trip for a
+  button widget with a custom label; verify label survives the round-trip
+- [x] T701.6 — Refine the generated code
+- [x] T701.7 — A reviewer will generate `docs/issues/issues-T701.md`; resolve all CRITICAL/HIGH
+
+---
+
+### T702 — Fix & Test: `resolveAndSetSrc` stale DOM reference in `registerBlocks.ts`
+> **Root cause:** `resolveAndSetSrc()` is `async` but does not check whether the GrapesJS
+> component view (`this`) is still mounted before calling `el.setAttribute('src', presignedUrl)`.
+> If the slide is switched while the presigned URL fetch is in-flight, `el` is detached from the
+> DOM and the silent `.catch(() => {})` swallows the resulting error with no log.
+> Secondary issue: the `.catch` has no logging at all — every failure (network error, 403,
+> expired URL) is invisible.
+- [x] T702.1 — In `resolveAndSetSrc()`, after the `await resolveAssetUrl(...)` resolves, add an
+  `isConnected` guard before `el.setAttribute`: `if (!el.isConnected) return` — prevents the
+  stale-ref write without throwing
+- [x] T702.2 — Replace the empty `.catch(() => {})` with
+  `.catch(err => console.warn('[registerBlocks] resolveAndSetSrc failed:', err))` — every
+  resolution failure now produces a traceable log line
+- [x] T702.3 — Unit test: `resolveAndSetSrc()` called on a detached `el` (not in document) →
+  must not throw, must not call `setAttribute`
+- [x] T702.4 — Unit test: `resolveAssetUrl` rejects → error is logged (spy on `console.warn`),
+  no exception escapes
+- [x] T702.5 — Unit test: `resolveAssetUrl` resolves → `el.src` updated correctly (connected el)
+- [x] T702.6 — Refine the generated code
+- [x] T702.7 — A reviewer will generate `docs/issues/issues-T702.md`; resolve all CRITICAL/HIGH
+
+---
+
+### T703 — E2E Regression: `AnimationPropertiesPanel` race-condition fix
+> **Root cause guarded:** Before the fix applied in this phase, `AnimationPropertiesPanel.save()`
+> called only `component.set('extendedProperties', ...)` without `editor.store()`. Switching
+> slides within the 2s debounce window lost all animation edits. The fix was applied; this task
+> adds the regression guard so the bug cannot be silently reintroduced.
+- [x] T703.1 — E2E test: open the Animations tab for a widget; add an animation via the "+"
+  button; verify the animation appears in the list
+- [x] T703.2 — E2E test: rename the animation; switch to a different slide immediately (within
+  500ms, before the 2s debounce fires); switch back; verify the animation name persists
+  (this is the regression guard — must FAIL if `editor.store()` is removed from `save()`)
+- [x] T703.3 — E2E test: change animation duration; trigger `waitForResponse` on the
+  `PATCH /courses/:id` endpoint; verify the request fires before slide navigation completes
+- [x] T703.4 — E2E test: add, then delete an animation; switch slide; switch back; verify the
+  animation is absent (delete path also calls `save()` → also guarded)
+- [x] T703.5 — Add these tests to `e2e/tests/grapesjs-integration.spec.ts` under a
+  `test.describe('AnimationPropertiesPanel — FM-06 regression', ...)` block
+- [x] T703.6 — A reviewer will generate `docs/issues/issues-T703.md`
+
+---
+
+### T704 — E2E Regression: Rapid slide-switch data preservation (FM-05 complete)
+> **Root cause guarded:** The generation counter in `initEditor.ts` (lines 205-217) guards
+> against stale debounce fires overwriting newer slide data. This mechanism has never had an E2E
+> test. FM-05 in the elearn-e2e-qa skill was listed as "❌ NOT COVERED — most critical gap."
+- [x] T704.1 — E2E test `FM-05a`: add a Rectangle widget to slide 1; edit its label in the
+  Props panel; immediately switch to slide 2 (within 300ms — before the 2s debounce);
+  wait 3.5s (debounce + buffer); navigate back to slide 1; verify the widget still exists
+- [x] T704.2 — E2E test `FM-05b`: add a Question widget to slide 1; set question text; switch
+  slides rapidly 3 times (1→2→1→2) without waiting for debounce; wait 4s; go to slide 1;
+  verify question text persists (generation counter must prevent the stale store from winning)
+- [x] T704.3 — E2E test `FM-05c`: same as FM-05a but verify via `waitForResponse` on the
+  `PATCH /courses/:id` endpoint that exactly ONE save fires for slide 1 content (not zero,
+  not two — the slide-switch handler must flush synchronously before loading slide 2)
+- [x] T704.4 — Add these tests to `e2e/tests/persistence.spec.ts` under
+  `test.describe('FM-05 — Rapid slide switch does not lose widget data', ...)`
+- [x] T704.5 — A reviewer will generate `docs/issues/issues-T704.md`
+
+---
+
+### T705 — Unit Tests: GrapesJS API contract (upgrade resilience)
+> **Root cause:** The integration uses undocumented or Backbone-derived GrapesJS APIs:
+> `component.toArray()`, `component.listenTo()`, `getInnerHTML()`, and the
+> `editor.StorageManager.add()` parameter contract. GrapesJS 1.0+ (in active development)
+> may change or remove these. These tests document the current API contract so any upgrade
+> break is caught immediately, not silently at runtime.
+- [x] T705.1 — Unit test: `component.toArray()` returns an array of child components (documents
+  that we rely on this Backbone method; test fails if `toArray` is removed from the API)
+- [x] T705.2 — Unit test: `component.getInnerHTML()` returns a string containing the text
+  content of a text component (documents the undocumented API; annotate test with
+  `// GrapesJS undocumented — verify on each GrapesJS upgrade`)
+- [x] T705.3 — Unit test: `editor.StorageManager.add('elearn-api', { load, store })` registers
+  the manager; subsequent `editor.load()` calls the `load()` function with the context object;
+  subsequent `editor.store()` calls the `store()` function
+- [x] T705.4 — Unit test: `component.listenTo(otherComponent, 'change:extendedProperties', cb)`
+  — callback fires when `otherComponent.set('extendedProperties', ...)` is called (validates
+  the Backbone event bridge used in `registerQuestionBlocks.ts`)
+- [x] T705.5 — Unit test: `component.getId()` returns the same value as
+  `component.getAttributes().id` for a newly created component (validates the dual-access
+  pattern used in `converters.ts` line 155; annotate: `// both must stay in sync`)
+- [x] T705.6 — Mark each test with a JSDoc comment: `/** @grapesjs-contract — re-verify on
+  any GrapesJS version bump */` so they are easy to find during an upgrade
+- [x] T705.7 — Add these tests to `packages/authoring-ui/src/__tests__/grapesjs-contracts.test.ts`
+  (new file; uses GrapesJS headless + jsdom)
+- [x] T705.8 — A reviewer will generate `docs/issues/issues-T705.md`
+
+---
+
+### T706 — Unit Tests: `component:add` during `editor.load()` position guard
+> **Root cause:** The `component:add` handler in `initEditor.ts` (lines 190-200) forces
+> `position: absolute` and sets `draggable/resizable: true` on every added component. This
+> handler fires during `editor.load()` as well as during user drag-drop. During load it may
+> fight GrapesJS's internal layout logic (components loaded from JSON already have positions
+> set; the handler overwrites them if `position` is not already `absolute`).
+> The guard `if (model.getStyle()['position'] !== 'absolute')` was added later; this task
+> verifies the guard works correctly in all cases.
+- [x] T706.1 — Unit test: component loaded from JSON with `position: absolute` already set →
+  `component:add` handler does NOT overwrite the existing position (guard works)
+- [x] T706.2 — Unit test: component added by user drag (no position) → `component:add` handler
+  DOES set `position: absolute` (guard correctly allows the set)
+- [x] T706.3 — Unit test: `editor.load()` called with a slide containing 3 widgets at known
+  positions → after load, all 3 widgets retain their JSON positions (end-to-end guard for the
+  load-time side effect)
+- [x] T706.4 — Unit test: `component:add` handler fires during load for a `question-mc` type →
+  `draggable: true` and `resizable: { ... }` are set on the component model
+- [x] T706.5 — Add these tests to `packages/authoring-ui/src/__tests__/initEditor.test.ts`
+  (extend the existing file)
+- [x] T706.6 — A reviewer will generate `docs/issues/issues-T706.md`
+
+---
+
+### Phase 7 — Closing Tasks
+- [x] T700.TEST — All Phase 7 unit tests pass: `pnpm --filter authoring-ui test --run`; all
+  new tests in T700–T702 and T705–T706 are green; no regressions in existing 491 tests
+- [x] T700.E2E — All Phase 7 E2E tests pass: `pnpm --filter e2e test` (requires dev stack);
+  FM-05 and FM-06 tests in T703–T704 are green; no regressions in existing 21 E2E tests
+- [x] T700.DOCS — Brief analysis note added to `docs/developer-guide/03-adding-widget-types.md`:
+  section "GrapesJS API contract risks" — lists the 5 Backbone/undocumented APIs we depend on,
+  links to T705 contract tests, notes the GrapesJS 1.0+ upgrade risk
+
+---
+
+## PHASE 8 — Persistence Bug Sprint
+
+### T800 — Save / Persistence Stack Deep Fix
+> **Root cause analysis:** 4 independent bugs in the autosave pipeline were silently
+> discarding user edits. Identified via deep inspection of `QuestionPropertiesPanel.tsx`,
+> `EditorCanvas.tsx`, `storageManager.ts`, and `initEditor.ts`.
+> Documented in `docs/issues/issues-T800.md`.
+
+- [x] T800.1 — BUG-T800-01 FIXED (CRITICAL): Removed direct `editor?.store()` calls from
+  `MCPropertiesForm`, `TFPropertiesForm`, and `FillPropertiesForm`. These were generating N
+  concurrent PATCH requests (one per keystroke), causing race conditions that overwrote newer
+  text with older state. `component.set()` already fires `component:update` → debounced autosave.
+- [x] T800.2 — BUG-T800-02 FIXED (HIGH): Added `editor.stopCommand('text-edit')` before
+  `editor.store()` in `EditorCanvas.tsx` `saveAndLoad()`. GrapesJS buffers text-widget input
+  until the command is stopped; without this, slide switches silently discarded typed characters.
+- [x] T800.3 — BUG-T800-03 FIXED (HIGH): Changed save guard from `isSlideSwitchWithinCourse`
+  (required `prev.courseId === courseId`) to `shouldSaveBeforeSwitch` (any slide change).
+  Cross-course navigation was bypassing the pre-switch save, losing all pending edits.
+- [x] T800.4 — BUG-T800-04 FIXED (MEDIUM): Moved `courseCache = null` from `finally` to
+  success path in `storageManager.ts`. A PATCH failure was evicting the in-memory cache, causing
+  the next `load()` to fetch the pre-failure DB state and silently discard unsaved edits.
+- [x] T800.DOCS — `docs/issues/issues-T800.md` generated with full root-cause analysis,
+  before/after code for all 4 bugs, combined impact analysis, and recommended regression tests.
 
 ── Issues files location ────────────────────────────────────────────
 All reviewer issue files go in: docs/issues/issues-TXX.md

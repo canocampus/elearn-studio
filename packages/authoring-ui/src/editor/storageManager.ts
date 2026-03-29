@@ -54,6 +54,23 @@ export function invalidateCourseCache(): void {
 }
 
 /**
+ * Generates an inline HTML srcdoc string that represents the current slide canvas state.
+ * Used as the thumbnail payload sent to the backend on every save.
+ *
+ * T700: Extracted from store() so thumbnail failures can be isolated with a try-catch —
+ * a canvas API error must NOT block the widget data from being saved.
+ */
+export function generateThumbnail(editor: Editor): string {
+  const html = editor.getHtml()
+  const css = editor.getCss()
+  return (
+    `<!DOCTYPE html><html><head><style>` +
+    `*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#fff}${css}` +
+    `</style></head><body>${html}</body></html>`
+  )
+}
+
+/**
  * Registers the `elearn-api` storage type with GrapesJS.
  * Must be called before `editor.load()`.
  */
@@ -117,21 +134,27 @@ export function registerStorageManager(editor: Editor): void {
         // 'components' in data is the array of top-level component definitions
         const widgets = widgetsFromGrapesjs(editor.getComponents().toArray())
 
-        // T013.6: capture a thumbnail srcdoc string from the current canvas state
-        const html = editor.getHtml()
-        const css = editor.getCss()
-        const thumbnail =
-          `<!DOCTYPE html><html><head><style>` +
-          `*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#fff}${css}` +
-          `</style></head><body>${html}</body></html>`
+        // T700: Thumbnail generation is isolated in its own try-catch so that any
+        // canvas API failure (security policy, missing element, GrapesJS internal error)
+        // does NOT block the widget data from being saved. Data integrity > thumbnail.
+        let thumbnail: string | undefined
+        try {
+          thumbnail = generateThumbnail(editor)
+        } catch (thumbnailErr) {
+          console.warn('[StorageManager] thumbnail generation failed, saving without thumbnail:', thumbnailErr)
+        }
 
         await courseApi.updateSlide(courseId, slideId, { widgets, thumbnail })
+
+        // BUG-4 fix: invalidate cache ONLY on success so that after a network failure the
+        // next load() can still serve the last-known good state from cache rather than
+        // fetching the pre-failure (older) state from the DB and silently discarding the
+        // user's latest edits. On failure the cache already has up-to-date widget data
+        // from the last successful save, which is better than fetching the DB state.
+        courseCache = null
       } catch (err) {
         console.error('[StorageManager] store() failed:', err)
         throw err
-      } finally {
-        // Invalidate cache on all paths so stale data is never served after a save attempt
-        courseCache = null
       }
     },
   })

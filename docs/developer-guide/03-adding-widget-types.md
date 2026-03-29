@@ -219,3 +219,54 @@ Render this panel from `packages/authoring-ui/src/components/sidebar/PropertiesP
 - [ ] `packages/authoring-ui/src/components/sidebar/` — properties panel (if needed)
 - [ ] Unit test for the renderer in `packages/runtime-player/src/__tests__/`
 - [ ] Unit test for extended props in `packages/authoring-ui/src/__tests__/`
+
+---
+
+## GrapesJS API contract risks
+
+GrapesJS exposes a **Backbone.js-derived component model** that is not covered by
+TypeScript's type system at runtime. Several internal APIs are called throughout
+the codebase and must be re-verified on every GrapesJS major version upgrade.
+
+### Contract-tested APIs
+
+The following five APIs are explicitly exercised by
+`packages/authoring-ui/src/__tests__/grapesjs-contracts.test.ts` (tagged
+`@grapesjs-contract` in test names). If GrapesJS changes the signature or
+return type of any of these, those tests will fail before the breakage reaches
+production:
+
+| API | Used in | Risk |
+|---|---|---|
+| `component.toArray()` | `converters.ts` — iterating child components | Returns `Component[]`; may become an iterator or change shape |
+| `component.getInnerHTML()` | `converters.ts` — serialising text content | May return `undefined` instead of `''` in newer builds |
+| `editor.StorageManager.add(type, plugin)` | `storageManager.ts` — registering the custom storage driver | Signature changed between GrapesJS 0.20 and 0.21 |
+| `component.listenTo(target, event, cb)` | `registerBlocks.ts` — reactive property sync | Backbone `listenTo` may be removed in a future non-Backbone rewrite |
+| `component.getId()` | `converters.ts` — unique widget ID for `Widget.id` | Returns a string; could become `undefined` if component is detached |
+
+### What to do on a GrapesJS upgrade
+
+1. Run `pnpm --filter authoring-ui test --run` immediately after bumping the
+   version. The `@grapesjs-contract` tests will catch any broken API.
+2. If any contract test fails, **do not proceed** — the converters or storage
+   manager will silently corrupt slide data until fixed.
+3. Check the GrapesJS changelog for the specific API that failed. The fix is
+   usually a one-line call-site change in `converters.ts` or `storageManager.ts`.
+4. Update the contract test to match the new signature, then re-run to confirm
+   green.
+
+### Why these APIs are fragile
+
+GrapesJS uses Backbone.js internally. The TypeScript types published by
+`@types/grapesjs` are hand-maintained community types and **lag behind the
+actual GrapesJS releases by months**. This means:
+
+- TypeScript will not catch a removed method at compile time.
+- The component model APIs (`toArray`, `getInnerHTML`, `getId`) are not in the
+  official GrapesJS public API surface — they are Backbone model methods that
+  GrapesJS exposes informally.
+- `editor.StorageManager.add()` has a documented interface but its option bag
+  has changed in minor releases without a major version bump.
+
+The contract tests exist precisely because the TypeScript compiler cannot
+protect against these runtime changes.

@@ -175,15 +175,15 @@ test.describe('Moodle SCORM Integration', () => {
       },
     ]
 
-    // PATCH the course to add slides and settings
-    const patchRes = await request.patch(`${API_URL}/courses/${courseId}`, {
+    // PUT the course to add slides and settings (backend uses PUT for full course update)
+    const patchRes = await request.put(`${API_URL}/courses/${courseId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       data: {
         slides,
         settings: { width: 1024, height: 768, passingScore: 80 },
       },
     })
-    expect(patchRes.ok(), `Course PATCH failed: ${await patchRes.text()}`).toBeTruthy()
+    expect(patchRes.ok(), `Course PUT failed: ${await patchRes.text()}`).toBeTruthy()
 
     // Export as SCORM 1.2 ZIP
     const exportRes = await request.post(`${API_URL}/courses/${courseId}/export/scorm12`, {
@@ -217,11 +217,16 @@ test.describe('Moodle SCORM Integration', () => {
     try {
       // ── 1. Login to Moodle ─────────────────────────────────────────────────
       await page.goto(`${MOODLE_URL}/login/index.php`)
-      await page.fill('#username', MOODLE_ADMIN)
-      await page.fill('#password', MOODLE_PASSWORD)
+      // Use pressSequentially (not fill) for both fields — Moodle 5.x uses
+      // core_form/submit JS that clears password fields set via direct value
+      // assignment (page.fill). Simulating real keystrokes bypasses this.
+      await page.locator('#username').pressSequentially(MOODLE_ADMIN)
+      await page.locator('#password').pressSequentially(MOODLE_PASSWORD)
       await page.click('#loginbtn')
-      // Wait for post-login redirect (dashboard, my courses, or site home)
-      await page.waitForURL(/\/(my|dashboard|course)\//i, { timeout: 20_000 })
+      // Wait for post-login redirect — Moodle redirects to /my/ after login
+      // Avoid networkidle: Moodle has persistent background polling that prevents it
+      await page.waitForURL(url => !url.pathname.includes('/login/'), { timeout: 20_000 })
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 })
 
       // ── 2. Create a Moodle course ──────────────────────────────────────────
       const shortname = `elearn-e2e-${Date.now()}`
@@ -235,88 +240,61 @@ test.describe('Moodle SCORM Integration', () => {
       // Save the course URL for later navigation
       const courseViewUrl = page.url()
 
-      // ── 3. Enable editing mode ─────────────────────────────────────────────
-      // Moodle 4.x uses a toggle button labelled "Edit mode" in the top bar
-      const editModeToggle = page.locator('[data-key="editmode"], .editmode-switch-form button').first()
-      if (await editModeToggle.isVisible({ timeout: 5_000 }).catch(() => false)) {
-        // Check if editing is already on (aria-pressed="true" or text changes)
-        const pressed = await editModeToggle.getAttribute('aria-pressed').catch(() => null)
-        if (pressed !== 'true') {
-          await editModeToggle.click()
-          await page.waitForTimeout(1_500)
-        }
-      } else {
-        // Fallback for older Moodle or different themes
-        const turnOnBtn = page.locator('input[value="Turn editing on"], button:has-text("Turn editing on")').first()
-        if (await turnOnBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await turnOnBtn.click()
-          await page.waitForTimeout(1_500)
-        }
-      }
-
-      // ── 4. Add SCORM activity ──────────────────────────────────────────────
-      // Click "Add an activity or resource" in section 1
-      // Moodle 4.x: look for the add content link in the first topic section
-      const addContentBtn = page.locator(
-        '.section [data-action="addContent"], ' +
-        '[data-sectionid] .add-content, ' +
-        'a.section-modchooser-link, ' +
-        '[data-key="add-content-link"]'
-      ).first()
-      await expect(addContentBtn).toBeVisible({ timeout: 15_000 })
-      await addContentBtn.click()
-
-      // Activity chooser modal appears
-      await page.waitForTimeout(1_000)
-
-      // Search for "SCORM" in the activity chooser
-      const searchBox = page.locator(
-        '[data-region="search-input"], ' +
-        'input.modchooser-search, ' +
-        'input[placeholder*="Search"], ' +
-        '.modal-body input[type="search"]'
-      ).first()
-      if (await searchBox.isVisible({ timeout: 5_000 }).catch(() => false)) {
-        await searchBox.fill('SCORM')
+      // ── 3. Dismiss Moodle UI tour (appears on first course visit) ─────────────
+      const skipTourBtn = page.locator('button[data-action="end-tour"], button:has-text("Skip tour"), .btn:has-text("Skip tour")').first()
+      if (await skipTourBtn.isVisible({ timeout: 4_000 }).catch(() => false)) {
+        await skipTourBtn.click()
         await page.waitForTimeout(800)
       }
 
-      // Click on SCORM package in the chooser results
-      const scormChoice = page.locator(
-        '[data-activityname="scorm"] .option-name, ' +
-        '.option[data-activityname="scorm"], ' +
-        'a.option:has-text("SCORM"), ' +
-        '.modchooser-option:has-text("SCORM package")'
-      ).first()
-      await expect(scormChoice).toBeVisible({ timeout: 10_000 })
-      await scormChoice.click()
-      await page.waitForTimeout(500)
-
-      // Some Moodle versions show an "Add" button after selecting
-      const addActivityBtn = page.locator(
-        'button.submitbutton:has-text("Add"), ' +
-        '[data-action="add-chooser-option"]'
-      ).first()
-      if (await addActivityBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await addActivityBtn.click()
+      // ── 4. Enable editing mode ─────────────────────────────────────────────
+      // Moodle 5.x uses a checkbox input inside .editmode-switch-form
+      // Moodle 4.x used a button with data-key="editmode"
+      const editCheckbox = page.locator('.editmode-switch-form input[type="checkbox"]').first()
+      if (await editCheckbox.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        const checked = await editCheckbox.isChecked().catch(() => false)
+        if (!checked) {
+          await editCheckbox.click()
+          await page.waitForLoadState('domcontentloaded', { timeout: 10_000 })
+        }
+      } else {
+        // Fallback: Moodle 4.x button-based toggle
+        const editModeBtn = page.locator('[data-key="editmode"]').first()
+        if (await editModeBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          const pressed = await editModeBtn.getAttribute('aria-pressed').catch(() => null)
+          if (pressed !== 'true') {
+            await editModeBtn.click()
+            await page.waitForLoadState('domcontentloaded', { timeout: 10_000 })
+          }
+        }
       }
 
-      // Wait for the SCORM settings form
+      // Dismiss any tour that appears after enabling edit mode
+      const skipTourBtn2 = page.locator('button[data-action="end-tour"], button:has-text("Skip tour"), .btn:has-text("Skip tour")').first()
+      if (await skipTourBtn2.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await skipTourBtn2.click()
+        await page.waitForTimeout(800)
+      }
+
+      // ── 5. Add SCORM activity via direct URL ──────────────────────────────
+      // The Moodle 5.x activity chooser UI has changed significantly.
+      // Navigating directly to modedit.php bypasses the chooser entirely
+      // and works across all Moodle versions.
+      const courseId = courseViewUrl.match(/id=(\d+)/)?.[1]
+      expect(courseId, 'Could not extract course ID from course view URL').toBeTruthy()
+      await page.goto(
+        `${MOODLE_URL}/course/modedit.php?add=scorm&type=&course=${courseId}&section=1&return=0&sr=0`
+      )
       await page.waitForURL(/\/course\/modedit\.php/, { timeout: 20_000 })
       await page.waitForLoadState('domcontentloaded')
 
-      // ── 5. Fill in SCORM settings and upload ZIP ───────────────────────────
+      // ── 6. Fill in SCORM settings and upload ZIP ───────────────────────────
       await page.fill('#id_name', 'eLearn Studio SCORM Test')
 
       // Open the file picker for the SCORM package field
-      // The field is usually rendered as a filepicker widget with an "Add..." button
-      const addFileBtn = page.locator(
-        '#id_packagefile + .fp-btn-add, ' +
-        '[data-fieldname="packagefile"] .fp-btn-add, ' +
-        '.fitemid_id_packagefile .fp-btn-add, ' +
-        'fieldset.packagefile .fp-btn-add, ' +
-        '.form-group:has([id="id_packagefile"]) .fp-btn-add'
-      ).first()
+      // Moodle 5.x renders the filepicker inside #fitem_id_packagefile
+      // The "Add..." button is an <a role="button"> inside .fp-btn-add
+      const addFileBtn = page.locator('#fitem_id_packagefile .fp-btn-add a[role="button"]').first()
 
       // Wait for the filepicker to load
       await expect(addFileBtn).toBeVisible({ timeout: 10_000 })
@@ -357,7 +335,7 @@ test.describe('Moodle SCORM Integration', () => {
       await uploadThisFileBtn.click()
       await page.waitForTimeout(2_000)
 
-      // ── 6. Save the SCORM activity ─────────────────────────────────────────
+      // ── 7. Save the SCORM activity ─────────────────────────────────────────
       await page.locator('#id_submitbutton, [name="submitbutton"]').click()
       await page.waitForURL(
         /\/(mod\/scorm\/view|course\/view)\.php/,
@@ -373,7 +351,7 @@ test.describe('Moodle SCORM Integration', () => {
         await page.waitForURL(/\/mod\/scorm\/view\.php/, { timeout: 15_000 })
       }
 
-      // ── 7. Launch the SCORM player ─────────────────────────────────────────
+      // ── 8. Launch the SCORM player ─────────────────────────────────────────
       // Moodle shows an "Enter" button to launch the SCORM
       const enterBtn = page.locator(
         'button:has-text("Enter"), ' +
@@ -397,7 +375,7 @@ test.describe('Moodle SCORM Integration', () => {
         await popupPage.waitForLoadState('domcontentloaded', { timeout: 20_000 })
       }
 
-      // ── 8. Access the SCORM content iframe ────────────────────────────────
+      // ── 9. Access the SCORM content iframe ────────────────────────────────
       // Moodle wraps the SCORM content in an iframe named "scorm_object"
       await playerPage.waitForTimeout(2_000)
 
@@ -405,28 +383,28 @@ test.describe('Moodle SCORM Integration', () => {
         'iframe#scorm_object, iframe[name="scorm_object"]'
       )
 
-      // ── 9. Verify Slide 1 — text content ──────────────────────────────────
+      // ── 10. Verify Slide 1 — text content ──────────────────────────────────
       await expect(scormFrame.locator('.el-widget.el-text')).toBeVisible({ timeout: 20_000 })
       await expect(scormFrame.locator('.el-widget.el-text')).toContainText(
         'Welcome to eLearn Studio',
         { timeout: 10_000 }
       )
 
-      // ── 10. Navigate to Slide 2 ─────────────────────────────────────────
+      // ── 11. Navigate to Slide 2 ─────────────────────────────────────────
       await scormFrame.locator('[data-action="next"]').click()
       await playerPage.waitForTimeout(500)
 
-      // ── 11. Verify Slide 2 — image widget visible ────────────────────────
+      // ── 12. Verify Slide 2 — image widget visible ────────────────────────
       await expect(scormFrame.locator('.el-widget.el-image img')).toBeVisible({ timeout: 10_000 })
       // The image src attribute must not be empty
       const imgSrc = await scormFrame.locator('.el-widget.el-image img').getAttribute('src')
       expect(imgSrc, 'Image widget must have a non-empty src').toBeTruthy()
 
-      // ── 12. Navigate to Slide 3 ─────────────────────────────────────────
+      // ── 13. Navigate to Slide 3 ─────────────────────────────────────────
       await scormFrame.locator('[data-action="next"]').click()
       await playerPage.waitForTimeout(500)
 
-      // ── 13. Verify Slide 3 — MC question interactive widget ──────────────
+      // ── 14. Verify Slide 3 — MC question interactive widget ──────────────
       await expect(scormFrame.locator('.el-widget.el-question-mc')).toBeVisible({ timeout: 10_000 })
       await expect(scormFrame.locator('.el-widget.el-question-mc')).toContainText(
         'What is the capital of France?'

@@ -138,38 +138,35 @@ export function PhaserSimPropertiesPanel() {
 
   const ep = getExtendedProps(selected)
 
+  function update(patch: Partial<PhaserSimExtendedProps>) {
+    const component = editor.getSelected()
+    if (!component) return
+    setExtendedProps(component, patch)
+    editor.store().catch(err => console.error('[PhaserSimPropertiesPanel] store failed:', err))
+  }
+
   // Handlers re-fetch the selected component at call time to guard against the case where
   // the GrapesJS selection changes between the render that opened this panel and the user
   // clicking a control (e.g., rapid select/deselect while the panel is still mounted).
   function handleSimTypeChange(simType: PhaserSimExtendedProps['simType']): void {
-    const component = editor.getSelected()
-    if (!component) return
-    setExtendedProps(component, { simType })
+    update({ simType })
   }
 
   function handleModeChange(mode: PhaserSimMode): void {
-    const component = editor.getSelected()
-    if (!component) return
-    setExtendedProps(component, { mode })
+    update({ mode })
   }
 
   function handlePassingScoreChange(passingScore: number): void {
-    const component = editor.getSelected()
-    if (!component) return
     const clamped = Math.max(0, Math.min(100, passingScore))
-    setExtendedProps(component, { passingScore: clamped })
+    update({ passingScore: clamped })
   }
 
   function handleWidthChange(width: number): void {
-    const component = editor.getSelected()
-    if (!component) return
-    setExtendedProps(component, { width: Math.max(100, width) })
+    update({ width: Math.max(100, width) })
   }
 
   function handleHeightChange(height: number): void {
-    const component = editor.getSelected()
-    if (!component) return
-    setExtendedProps(component, { height: Math.max(100, height) })
+    update({ height: Math.max(100, height) })
   }
 
   function handleSceneDefBlur(): void {
@@ -177,21 +174,17 @@ export function PhaserSimPropertiesPanel() {
     if (sceneDefJson.trim() && !parsed) {
       setJsonError(true)
     } else {
-      const component = editor.getSelected()
-      if (!component) return
       setJsonError(false)
-      setExtendedProps(component, { sceneDef: parsed })
+      update({ sceneDef: parsed })
     }
   }
 
   function handleTypedSceneDefChange(
     newDef: ProcessFlowSceneDef | InteractiveDiagramSceneDef | GamifiedQuizSceneDef,
   ): void {
-    const component = editor.getSelected()
-    if (!component) return
     setJsonError(false)
     setSceneDefJson(JSON.stringify(newDef, null, 2))
-    setExtendedProps(component, { sceneDef: newDef as Record<string, unknown> })
+    update({ sceneDef: newDef as Record<string, unknown> })
   }
 
   function handlePreview(): void {

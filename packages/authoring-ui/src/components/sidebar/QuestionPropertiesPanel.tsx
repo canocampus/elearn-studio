@@ -152,6 +152,9 @@ function MCPropertiesForm({ component }: { component: Component }) {
 
   function update(patch: Partial<MCExtendedProps>) {
     component.set('extendedProperties', { ...ep, ...patch })
+    // NOTE: component.set() fires component:update, which triggers the debounced autosave
+    // in initEditor.ts. Do NOT call editor.store() here — calling it on every onChange
+    // keystroke creates racing PATCH requests that can overwrite newer data with older state.
   }
 
   function updateOption(id: string, patch: Partial<MCOption>) {
@@ -268,6 +271,9 @@ function TFPropertiesForm({ component }: { component: Component }) {
 
   function update(patch: Partial<TFExtendedProps>) {
     component.set('extendedProperties', { ...ep, ...patch })
+    // NOTE: component.set() fires component:update, which triggers the debounced autosave
+    // in initEditor.ts. Do NOT call editor.store() here — calling it on every onChange
+    // keystroke creates racing PATCH requests that can overwrite newer data with older state.
   }
 
   return (
@@ -331,6 +337,9 @@ function FillPropertiesForm({ component }: { component: Component }) {
 
   function update(patch: Partial<FillExtendedProps>) {
     component.set('extendedProperties', { ...ep, ...patch })
+    // NOTE: component.set() fires component:update, which triggers the debounced autosave
+    // in initEditor.ts. Do NOT call editor.store() here — calling it on every onChange
+    // keystroke creates racing PATCH requests that can overwrite newer data with older state.
   }
 
   function addAnswer() {

@@ -35,6 +35,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
   const isInitializedRef = useRef(false)
   // Track previous context to detect genuine slide switches (vs. initial mount).
   const prevContextRef = useRef<{ courseId: string; slideId: string } | null>(null)
+  // Monotonically increasing counter: each Effect 2 run captures its generation so that
+  // stale editor.load() .then()/.catch() callbacks from a previous run cannot call
+  // setIsReady(true) after a newer run has already called setIsReady(false).
+  const loadGenRef = useRef(0)
   const setEditor = useEditorStore(s => s.setEditor)
   const setSelectedComponentType = useEditorStore(s => s.setSelectedComponentType)
   const setRightTab = useEditorStore(s => s.setRightTab)
@@ -121,9 +125,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
     // Without this, unsaved edits are lost when the user navigates to another slide
     // within the autosave debounce window (2s): the CRITICAL-01 guard in initEditor.ts
     // aborts the deferred autosave because the context has already moved to the new slide.
-    // We only save on a genuine slide switch within the same course (not on initial mount).
-    const isSlideSwitchWithinCourse =
-      prev !== null && prev.courseId === courseId && prev.slideId !== slideId
+    // BUG-3 fix: save on ANY genuine navigation (including course switches), not just
+    // within-course slide switches. A course change leaves the old slide with unsaved edits
+    // if the 2s debounce has not yet fired.
+    const shouldSaveBeforeSwitch = prev !== null && prev.slideId !== slideId
 
     setIsReady(false)
 
@@ -132,19 +137,51 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
     //  2. State updates (setIsReady) on an already-unmounted component
     const controller = new AbortController()
 
+    // Fallback timer declared at effect scope so the cleanup function can clear it.
+    // Guarantees setIsReady(true) within 8s even if the Promise chain below hangs silently.
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined
+
     const saveAndLoad = async () => {
+      // Capture this run's generation. Any callback that sees a different loadGenRef.current
+      // is stale (a newer Effect 2 run has started) and must not call setIsReady(true).
+      const gen = ++loadGenRef.current
+
+      fallbackTimer = setTimeout(() => {
+        console.warn('[EditorCanvas] Fallback timer fired — forcing isReady=true after 8s')
+        if (loadGenRef.current === gen) setIsReady(true)
+      }, 8000)
+
       try {
-        if (isSlideSwitchWithinCourse && !controller.signal.aborted) {
+        if (shouldSaveBeforeSwitch && !controller.signal.aborted) {
           try {
+            // BUG-2 fix: stop any active text-edit command before storing.
+            // Without this, the text buffer for the currently focused text widget is not
+            // flushed to the GrapesJS model. widgetsFromGrapesjs() would then read
+            // the pre-keystroke text content, silently losing the user's latest typing.
+            // The autosave debounce path in initEditor.ts already does this correctly.
+            if (editor.Commands.isActive('text-edit')) {
+              editor.stopCommand('text-edit')
+            }
+
             // storageContext still points to the OLD slide here — store() saves the right data.
-            await editor.store()
+            // Timeout: if store() hangs (network stall, GrapesJS state corruption) we must
+            // not block slide navigation. 5s is generous for a local/fast API call.
+            await Promise.race([
+              editor.store() as Promise<unknown>,
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('[EditorCanvas] store() timed out after 5s')), 5000)
+              ),
+            ])
           } catch (err) {
             // Log but don't block navigation — a failed save is better than a frozen UI.
             console.error('[EditorCanvas] Failed to save slide before switching:', err)
           }
         }
 
-        if (controller.signal.aborted) return
+        if (controller.signal.aborted) {
+          clearTimeout(fallbackTimer)
+          return
+        }
 
         updateStorageContext({ courseId, slideId })
 
@@ -154,26 +191,36 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
         if (loadPromise && typeof loadPromise.then === 'function') {
           loadPromise
             .then(() => {
-              if (!controller.signal.aborted) {
-                // Small buffer to allow GrapesJS to paint the iframe content
+              clearTimeout(fallbackTimer)
+              // Guard with generation: a stale .then() (from a load that was superseded by a
+              // newer slide switch) must not call setIsReady(true) while the new load is still
+              // in-flight. Without this guard, waitForCanvas() can see a brief "true" from the
+              // stale load and return early, causing tests to interact with the wrong slide.
+              if (loadGenRef.current === gen) {
                 setTimeout(() => setIsReady(true), 150)
               }
             })
             .catch((err) => {
+              clearTimeout(fallbackTimer)
               console.error('[EditorCanvas] load() failed:', err)
-              if (!controller.signal.aborted) {
-                setIsReady(true) // Set ready anyway so we don't hang UI
+              // Guard with generation: only unblock the UI for the current load.
+              // The fallback timer (8s) covers the case where the current run's load
+              // hangs without resolving or rejecting.
+              if (loadGenRef.current === gen) {
+                setIsReady(true)
               }
             })
         } else {
-          // Fallback for older GrapesJS versions where load() is synchronous or lacks promise
-          if (!controller.signal.aborted) {
+          clearTimeout(fallbackTimer)
+          // Fallback for older GrapesJS versions where load() is synchronous or lacks promise.
+          if (loadGenRef.current === gen) {
             setTimeout(() => setIsReady(true), 500)
           }
         }
       } catch (err) {
+        clearTimeout(fallbackTimer)
         console.error('[EditorCanvas] Unexpected error during slide switch:', err)
-        if (!controller.signal.aborted) {
+        if (loadGenRef.current === gen) {
           setIsReady(true)
         }
       }
@@ -182,6 +229,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
     void saveAndLoad()
 
     return () => {
+      clearTimeout(fallbackTimer)
       controller.abort()
     }
   }, [courseId, slideId])

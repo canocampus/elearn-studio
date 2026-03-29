@@ -20,9 +20,6 @@ import { test, expect } from '../fixtures'
 // ─── T608.1 — Left sidebar tab switching ────────────────────────────────────
 
 test.describe('T608.1 — AppLayout left sidebar tab switching', () => {
-  test.beforeEach(async ({ editorPage }) => {
-    await editorPage.goto()
-  })
 
   test('Slides tab is selected by default and SlideList is visible', async ({ editorPage }) => {
     await expect(editorPage.slidesTab).toHaveAttribute('aria-selected', 'true')
@@ -50,7 +47,6 @@ test.describe('T608.1 — AppLayout left sidebar tab switching', () => {
 
 test.describe('T608.2 — AppLayout right sidebar tab switching', () => {
   test.beforeEach(async ({ editorPage }) => {
-    await editorPage.goto()
     // Add a slide so the canvas (and GrapesJS panels) are fully initialised
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -99,9 +95,6 @@ test.describe('T608.2 — AppLayout right sidebar tab switching', () => {
 // ─── T608.3 — TopToolbar: "+ New Slide" ─────────────────────────────────────
 
 test.describe('T608.3 — TopToolbar New Slide button', () => {
-  test.beforeEach(async ({ editorPage }) => {
-    await editorPage.goto()
-  })
 
   test('clicking + New Slide creates a new slide visible in SlideList', async ({ editorPage }) => {
     // Count slides before
@@ -145,9 +138,6 @@ test.describe('T608.3 — TopToolbar New Slide button', () => {
 // ─── T608.4 — TopToolbar: Publish SCORM dialog ──────────────────────────────
 
 test.describe('T608.4 — TopToolbar Publish SCORM dialog', () => {
-  test.beforeEach(async ({ editorPage }) => {
-    await editorPage.goto()
-  })
 
   test('clicking Publish SCORM opens the publish dialog', async ({ editorPage }) => {
     await editorPage.openPublishDialog()
@@ -171,7 +161,6 @@ test.describe('T608.4 — TopToolbar Publish SCORM dialog', () => {
 
 test.describe('T608.5 — QuestionPropertiesPanel synced to GrapesJS selection', () => {
   test.beforeEach(async ({ editorPage }) => {
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })
@@ -224,7 +213,6 @@ test.describe('T608.5 — QuestionPropertiesPanel synced to GrapesJS selection',
 
 test.describe('T608.6 — TopToolbar Delete Slide', () => {
   test.beforeEach(async ({ editorPage }) => {
-    await editorPage.goto()
     // SlideList.tsx blocks deletion when course.slides.length <= 1.
     // In an isolated run the course may start with 0 slides; ensure ≥ 2 exist so
     // deletion is always permitted. Add a background slide only when needed.

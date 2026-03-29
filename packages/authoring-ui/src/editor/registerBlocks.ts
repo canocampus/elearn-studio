@@ -46,6 +46,9 @@ function registerTextWidget(editor: Editor): void {
         editable: true,
         droppable: false,
         content: 'Double-click to edit text',
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         style: {
           width: '200px',
           height: '50px',
@@ -75,6 +78,9 @@ function registerImageWidget(editor: Editor): void {
         void: true,
         resizable: true,
         attributes: { src: '' },
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         style: {
           width: '200px',
           height: '150px',
@@ -122,10 +128,15 @@ function registerImageWidget(editor: Editor): void {
         const el = (this as any).el as HTMLElement
         resolveAssetUrl(objectName)
           .then((presignedUrl: string) => {
+            // T702: guard against stale DOM reference — the component may have been
+            // removed from the canvas while the presigned-URL request was in-flight.
+            if (!el.isConnected) return
             el.setAttribute('src', presignedUrl)
           })
-          .catch(() => {
-            // leave src as-is; canvas will show a broken-image placeholder
+          .catch((err: unknown) => {
+            // T702: log instead of silently swallowing so developers can diagnose
+            // Garage connectivity issues; canvas will show a broken-image placeholder.
+            console.warn('[registerBlocks] resolveAndSetSrc failed for', objectName, err)
           })
       },
 
@@ -156,6 +167,9 @@ function registerButtonWidget(editor: Editor): void {
         tagName: 'button',
         content: 'Button',
         droppable: false,
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         style: {
           width: '120px',
           height: '40px',
@@ -182,6 +196,9 @@ function registerRectangleWidget(editor: Editor): void {
         name: 'Rectangle',
         tagName: 'div',
         droppable: false,
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         style: {
           width: '200px',
           height: '100px',
@@ -204,6 +221,9 @@ function registerNavButtonsWidget(editor: Editor): void {
         name: 'Nav Buttons',
         tagName: 'div',
         droppable: false,
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         content: `
           <button style="padding:8px 16px;margin-right:8px;background:#64748b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">← Previous</button>
           <button style="padding:8px 16px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Next →</button>
@@ -230,6 +250,9 @@ function registerDoneButtonWidget(editor: Editor): void {
         tagName: 'button',
         content: '✓ Done',
         droppable: false,
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         style: {
           width: '120px',
           height: '40px',
@@ -256,6 +279,9 @@ function registerScoreQuizWidget(editor: Editor): void {
         name: 'Quiz Score',
         tagName: 'div',
         droppable: false,
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         content: `
           <div style="font-size:13px;color:#64748b;margin-bottom:4px;">Quiz Score</div>
           <div style="font-size:28px;font-weight:bold;color:#4f46e5;">0 / 0</div>
@@ -285,6 +311,9 @@ function registerScoreFieldWidget(editor: Editor): void {
         name: 'Score Field',
         tagName: 'div',
         droppable: false,
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         content: `
           <span style="font-size:13px;color:#64748b;">Score: </span>
           <span style="font-size:13px;font-weight:bold;color:#0f172a;">—</span>
@@ -315,6 +344,9 @@ function registerMediaPlayerWidget(editor: Editor): void {
         name: 'Media Player',
         tagName: 'div',
         droppable: false,
+        properties: {},
+        elearnActions: [],
+        extendedProperties: {},
         content: `
           <div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;color:#94a3b8;font-size:13px;gap:8px;">
             <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21" fill="currentColor" stroke="none"/></svg>

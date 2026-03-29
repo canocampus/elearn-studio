@@ -15,14 +15,12 @@ test.describe('GrapesJS Integration: Positioning & Resizing', () => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
 
-    // 2. Navigate and wait for toolbar only (canvas may not exist yet)
-    await editorPage.goto()
-
-    // 3. Always add a fresh slide so each test starts with an empty canvas.
+    // 2. Always add a fresh slide so each test starts with an empty canvas.
     // This gives test isolation — no leftover widgets from previous tests.
+    // (The editorPage fixture already navigated to / and waited for the toolbar.)
     await editorPage.addSlide()
 
-    // 4. Wait for the GrapesJS canvas iframe — guaranteed after addSlide()
+    // 3. Wait for the GrapesJS canvas iframe — guaranteed after addSlide()
     await editorPage.waitForCanvas()
   })
 
@@ -116,7 +114,6 @@ test.describe('GrapesJS Integration: Property Persistence (FM-05)', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })
@@ -168,6 +165,139 @@ test.describe('GrapesJS Integration: Property Persistence (FM-05)', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// T703 — AnimationPropertiesPanel FM-06 regression guard
+// Guards against reintroduction of the bug where AnimationPropertiesPanel.save()
+// did not call editor.store(), causing animations edited within the 2s debounce
+// window to be silently lost on slide switch.
+// ---------------------------------------------------------------------------
+test.describe('AnimationPropertiesPanel — FM-06 regression', () => {
+
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+    // Place a widget so animations panel is activatable
+    await editorPage.addComponentViaEditor('text')
+    await page.waitForTimeout(300)
+    // Select the widget by clicking it
+    await editorPage.canvasComponent('[data-gjs-type="text"]').click()
+    await page.waitForTimeout(200)
+  })
+
+  test('T703.1 — adding an animation via "+" button shows it in the list', async ({ editorPage, page }) => {
+    await editorPage.animTab.click()
+
+    // The panel should show the "no animations" placeholder initially
+    const panel = page.locator('text=No animations. Click + to add one.')
+    // Click + to add
+    await page.getByTitle('Add animation').click()
+    await page.waitForTimeout(200)
+
+    // New animation should appear in the list
+    await expect(page.locator('text=New Animation')).toBeVisible({ timeout: 5_000 })
+    // The placeholder must be gone
+    await expect(panel).not.toBeVisible()
+  })
+
+  test('T703.2 — renamed animation persists after rapid slide switch (FM-06 regression guard)', async ({ editorPage, page }) => {
+    // This test MUST FAIL if editor.store() is removed from AnimationPropertiesPanel.save()
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = await slides.count() - 1
+
+    await editorPage.animTab.click()
+
+    // Add an animation
+    await page.getByTitle('Add animation').click()
+    await page.waitForTimeout(200)
+
+    // Rename it
+    const nameInput = page.locator('input[value="New Animation"]')
+    await nameInput.click({ clickCount: 3 })
+    await nameInput.fill('FM-06 sentinel name')
+    await nameInput.press('Tab')
+    // Immediately switch slides — well within the 2s debounce window
+    // AnimationPropertiesPanel.save() must call editor.store() synchronously
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+    await slides.last().click()
+    await page.waitForTimeout(500)
+
+    // Navigate back to our slide
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+    await page.waitForTimeout(300)
+
+    // Re-select the widget and switch to Anim tab
+    await editorPage.canvasComponent('[data-gjs-type="text"]').click()
+    await editorPage.animTab.click()
+    await page.waitForTimeout(200)
+
+    // The renamed animation must be present
+    await expect(page.locator('text=FM-06 sentinel name')).toBeVisible({ timeout: 8_000 })
+  })
+
+  test('T703.3 — changing animation duration fires a PATCH request', async ({ editorPage, page }) => {
+    await editorPage.animTab.click()
+
+    // Add animation
+    await page.getByTitle('Add animation').click()
+    await page.waitForTimeout(200)
+
+    // Set up PATCH listener BEFORE the change that triggers it
+    const patchPromise = page.waitForResponse(
+      res => res.url().includes('/courses/') && res.request().method() === 'PATCH',
+      { timeout: 8_000 },
+    )
+
+    // Change duration
+    const durationInput = page.locator('input[type="number"]').first()
+    await durationInput.click({ clickCount: 3 })
+    await durationInput.fill('2500')
+    await durationInput.press('Tab')
+
+    // The PATCH must fire (duration change calls save() → editor.store() → backend)
+    await patchPromise
+  })
+
+  test('T703.4 — deleted animation is absent after slide switch and return', async ({ editorPage, page }) => {
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = await slides.count() - 1
+
+    await editorPage.animTab.click()
+
+    // Add animation
+    await page.getByTitle('Add animation').click()
+    await page.waitForTimeout(200)
+    await expect(page.locator('text=New Animation')).toBeVisible({ timeout: 5_000 })
+
+    // Delete it
+    await page.getByTitle('Delete animation').click()
+    await page.waitForTimeout(200)
+
+    // Switch slide and back
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+    await slides.last().click()
+    await page.waitForTimeout(500)
+
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+    await page.waitForTimeout(300)
+
+    // Re-select widget and check animations panel
+    await editorPage.canvasComponent('[data-gjs-type="text"]').click()
+    await editorPage.animTab.click()
+    await page.waitForTimeout(200)
+
+    // Animation list must be empty — delete path also calls save() → editor.store()
+    await expect(page.locator('text=No animations. Click + to add one.')).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('text=New Animation')).not.toBeVisible()
+  })
+})
+
 // GAP-08 (FM-02) — Widget can be dragged to a new position within the canvas
 // Verifies that widgets are not frozen after being placed; they must remain draggable.
 test.describe('GrapesJS Integration: Widget Repositioning (FM-02)', () => {
@@ -176,7 +306,6 @@ test.describe('GrapesJS Integration: Widget Repositioning (FM-02)', () => {
     page.on('console', msg => {
       if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
     })
-    await editorPage.goto()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
   })

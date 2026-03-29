@@ -106,6 +106,17 @@ export class EditorPage {
   async goto() {
     await this.page.goto('/')
     await this.waitForReady()
+    // If the course already has slides, the GrapesJS canvas iframe appears and
+    // editor.load() starts immediately. Wait for the initial load to complete before
+    // returning so that beforeEach hooks (e.g. addSlide()) don't trigger a second
+    // editor.load() while the first is still in-flight — concurrent loads crash GrapesJS.
+    const iframe = this.page.locator('iframe.gjs-frame')
+    const appeared = await iframe.waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true).catch(() => false)
+    if (appeared) {
+      await this.page.locator('[data-editor-ready="true"]')
+        .waitFor({ state: 'attached', timeout: 15_000 })
+    }
   }
 
   async waitForReady() {
