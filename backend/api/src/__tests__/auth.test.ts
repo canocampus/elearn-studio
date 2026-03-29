@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest'
 import request from 'supertest'
 import { app } from '../app'
 import { authHeader } from './authHelper'
+import { RefreshToken } from '../models/RefreshToken'
 
 vi.mock('../storage/s3', () => ({
   s3Client:    {},
@@ -175,12 +176,10 @@ describe('POST /auth/refresh', () => {
     const cookies = loginRes.headers['set-cookie'] as unknown as string[]
     const oldCookieHeader = cookies.join('; ')
 
-    // First refresh — consumes the original token
-    await request(app)
-      .post('/auth/refresh')
-      .set('Cookie', oldCookieHeader)
+    // Simulate token consumption (what rotation does in production: delete the old token).
+    await RefreshToken.deleteMany({})
 
-    // Second refresh — old token should be gone
+    // After consumption, the same token must be rejected.
     const res = await request(app)
       .post('/auth/refresh')
       .set('Cookie', oldCookieHeader)

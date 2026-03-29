@@ -10,6 +10,11 @@ export const healthRouter: express.Router = Router()
 const STORAGE_CACHE_TTL_MS = 30_000 // 30 seconds
 let storageHealthCache: { status: 'ok' | 'error'; ts: number } | null = null
 
+/** Exposed for tests only — resets the module-level storage health cache. */
+export function resetStorageHealthCache(): void {
+  storageHealthCache = null
+}
+
 /**
  * @openapi
  * /health:

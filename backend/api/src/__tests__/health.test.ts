@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 import { app } from '../app'
+import { resetStorageHealthCache } from '../routes/health'
 
 const { mockInitStorage } = vi.hoisted(() => ({
   mockInitStorage: vi.fn().mockResolvedValue(undefined),
@@ -16,6 +17,11 @@ vi.mock('../storage/s3', () => ({
 }))
 
 describe('GET /health', () => {
+  beforeEach(() => {
+    // Reset the module-level cache so each test gets a fresh initStorage call.
+    resetStorageHealthCache()
+  })
+
   it('returns 200 with status ok when both services are healthy', async () => {
     const res = await request(app).get('/health')
     expect(res.status).toBe(200)

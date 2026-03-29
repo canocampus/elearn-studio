@@ -103,7 +103,7 @@ describe('GET /assets/:objectName — pre-signed URL redirect', () => {
 
     expect(res.status).toBe(302)
     expect(res.headers.location).toBe(presignedUrl)
-    expect(mockGetPresignedUrl).toHaveBeenCalledWith(objectName, { contentDisposition: undefined })
+    expect(mockGetPresignedUrl).toHaveBeenCalledWith(objectName, { contentDisposition: undefined, contentType: 'image/jpeg' })
   })
 
   it('requests Content-Disposition: attachment for PDF assets', async () => {
@@ -115,7 +115,7 @@ describe('GET /assets/:objectName — pre-signed URL redirect', () => {
       .redirects(0)
 
     expect(res.status).toBe(302)
-    expect(mockGetPresignedUrl).toHaveBeenCalledWith(objectName, { contentDisposition: 'attachment' })
+    expect(mockGetPresignedUrl).toHaveBeenCalledWith(objectName, { contentDisposition: 'attachment', contentType: 'application/pdf' })
   })
 
   it('requests Content-Disposition: attachment for SVG assets (prevents stored XSS)', async () => {
@@ -123,7 +123,7 @@ describe('GET /assets/:objectName — pre-signed URL redirect', () => {
 
     await request(app).get(`/assets/${objectName}`).set(auth).redirects(0)
 
-    expect(mockGetPresignedUrl).toHaveBeenCalledWith(objectName, { contentDisposition: 'attachment' })
+    expect(mockGetPresignedUrl).toHaveBeenCalledWith(objectName, { contentDisposition: 'attachment', contentType: 'image/svg+xml' })
   })
 
   it('rejects path traversal attempt ../../etc/passwd', async () => {

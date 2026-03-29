@@ -1,6 +1,17 @@
 import { defineConfig } from 'vitest/config'
+import path from 'path'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      // Resolve workspace packages from their TypeScript source so tests run without
+      // a pre-built dist/ folder (dist/ is gitignored and not present in CI).
+      '@elearn-studio/scorm-packager': path.resolve(
+        __dirname,
+        '../../packages/scorm-packager/src/index.ts'
+      ),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
