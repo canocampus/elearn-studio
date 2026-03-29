@@ -10,7 +10,7 @@ db_engine    = "lmdb"
 replication_factor = 1
 
 rpc_bind_addr   = "[::]:3901"
-rpc_public_addr = "garage:3901"
+rpc_public_addr = "garage-test:3901"
 
 # Fixed RPC secret for test environment
 rpc_secret = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
