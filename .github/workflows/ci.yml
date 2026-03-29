@@ -116,7 +116,13 @@ jobs:
           docker compose -f docker/docker-compose.test.yml up -d
           # Wait for Garage init to complete — must succeed before the API server starts.
           # 'docker compose wait' requires Compose v2.1+; ubuntu-latest ships v2.27+.
-          docker compose -f docker/docker-compose.test.yml wait garage-test-init
+          if ! docker compose -f docker/docker-compose.test.yml wait garage-test-init; then
+            echo "=== garage-test-init logs ===" >&2
+            docker compose -f docker/docker-compose.test.yml logs garage-test-init >&2 || true
+            echo "=== garage-test logs ===" >&2
+            docker compose -f docker/docker-compose.test.yml logs garage-test >&2 || true
+            exit 1
+          fi
 
       - name: Start API server (background)
         # Use node directly (not pnpm) so crashes are not silently swallowed by pnpm's
