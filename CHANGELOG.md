@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.1-beta] — 2026-03-29 — First Public Beta
+
+First tagged release. Delivers a functional end-to-end authoring pipeline: visual slide editor (GrapesJS), question widgets, screenshot and Phaser simulations, SCORM 1.2/2004 export, Moodle validation, JWT auth, S3 asset storage, and a 73-test E2E suite. All CRITICAL and HIGH issues resolved. Known deferred items documented in `docs/issues/`.
+
+### Included (cumulative from v0.0.1 through v0.5.8)
+
+- Visual slide editor — GrapesJS canvas with drag-and-drop block placement, Layer Manager, Style Manager, Asset Manager
+- Widget library — text, image, button, shape, media player, score display, navigation, Multiple Choice, True/False, Fill-in-the-Blank
+- Screenshot simulation — Playwright-based recorder + hotspot-driven Konva.js replay player
+- Phaser simulation — process flows, physics demos, gamified quizzes, concept animators, interactive diagrams
+- Action Sequences — visual event→action builder with branching, show/hide, navigate, score
+- SCORM 1.2 and SCORM 2004 export — compliant ZIP with imsmanifest.xml, sequencing
+- AICC and xAPI export pipeline
+- Moodle 4.x Docker validation target
+- JWT authentication — register/login, refresh tokens, Bearer on all API routes
+- Garage S3 asset storage — presigned upload/download, Asset Manager integration
+- Observability stack — Pino→Loki, OTel→Tempo, Prometheus, Grafana
+- 73-test Playwright E2E suite covering editor, persistence, questions, image upload, authoring UI layer
+- Persistence fixes (BUG-T800-01 through BUG-T800-04) — race condition, text buffer, cross-course save, cache eviction
+- Full documentation: User Guide (10 sections), Developer Guide (6 sections), API Reference (9 groups), SCORM Guide (6 sections), Glossary
+
+---
+
 ## [0.5.8] — 2026-03-29 — Persistence Race Condition Fixes (T800)
 
 ### Fixed

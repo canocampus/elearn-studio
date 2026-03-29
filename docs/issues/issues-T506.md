@@ -13,51 +13,23 @@
 
 The T506 documentation assembly is substantially complete with all required guides, glossary, and API reference in place. Four main files (index.md, glossary.md, CHANGELOG.md, README.md) were reviewed against T506 acceptance criteria (terminology consistency, internal link validity, code block language specifiers, Mermaid diagram syntax, and factual accuracy).
 
-**Issues found: 2 MEDIUM, 1 LOW**
+**Issues found: 2 MEDIUM, 1 LOW — all RESOLVED**
 
 ---
 
 ## Issues
 
-### MEDIUM: Code block without language specifier
+### ~~MEDIUM: Code block without language specifier~~ — RESOLVED
 
-**File:** `README.md` (line 113)
-**Issue:** The project structure code block lacks a language specifier
-**Current:**
-```
-```
-elearn-studio/
-├── packages/
-...
-```
-```
-**Recommendation:** Add language specifier `plaintext`:
-```
-```plaintext
-elearn-studio/
-├── packages/
-...
-```
-```
+**File:** `README.md` (line 106)
+**Resolution:** Language specifier `plaintext` added to project structure code block.
 
 ---
 
-### MEDIUM: Mermaid diagram exceeds 12-node guideline
+### ~~MEDIUM: Mermaid diagram exceeds 12-node guideline~~ — RESOLVED
 
-**File:** `README.md` (lines 21-66, "System Architecture" diagram)
-**Issue:** System architecture diagram contains 13 nodes, exceeding the 12-node recommendation
-**Current:** Graph has:
-- 6 named subgraph containers
-- Authoring (3 nodes: UI, SE, AE)
-- Packaging (3 nodes: SP, RP, PS)
-- Backend (3 nodes: API, DB, GRG)
-- Observability (3 nodes: GF, LK, TM)
-- 1 unnamed external node (LMS)
-= 13 total
-
-**Recommendation:** Consider splitting into two focused diagrams:
-1. Core architecture (Authoring → Backend → Packaging pipeline)
-2. Observability integration (Backend → Observability stack)
+**File:** `README.md`
+**Resolution:** Diagram split into two focused diagrams — "Core pipeline" (10 nodes: UI, SE, AE, SP, RP, PS, API, DB, GRG, LMS) and "Observability" (4 nodes: API, LK, TM, GF). Both within the 12-node guideline.
 
 ---
 
@@ -189,25 +161,17 @@ Verified all three Mermaid diagrams:
 |----------|-------|--------|
 | CRITICAL | 0 | None |
 | HIGH | 0 | None |
-| MEDIUM | 2 | Missing language specifier on code block (line 113); Mermaid diagram exceeds 12-node guideline (line 21-66) |
+| MEDIUM | 2 | ~~Missing language specifier on code block~~ RESOLVED; ~~Mermaid diagram exceeds 12-node guideline~~ RESOLVED |
 | LOW | 1 | "Frontend" terminology context in tech stack layer (line 140) — informational only |
 
 ---
 
 ## Recommended Actions
 
-### Required for Merge (MEDIUM)
+### ~~Required for Merge (MEDIUM)~~ — DONE
 
-1. **Add language specifier to project structure code block** (line 113)
-   - Change: `\`\`\`` → `\`\`\`plaintext`
-   - Impact: Markdown renders more clearly; consistent with other code blocks
-
-### Recommended for Future Releases (MEDIUM)
-
-2. **Consider splitting System Architecture diagram into two**
-   - Current: 13 nodes in single graph
-   - Suggested: Separate core pipeline (Authoring → API → Packaging) from observability layer
-   - Benefit: Better adherence to guideline; easier to reason about each aspect
+1. ~~**Add language specifier to project structure code block**~~ — RESOLVED (`plaintext` added)
+2. ~~**Split System Architecture diagram into two**~~ — RESOLVED (Core pipeline + Observability)
 
 ### Informational (LOW)
 
