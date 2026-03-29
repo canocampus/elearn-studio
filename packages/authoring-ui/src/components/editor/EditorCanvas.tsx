@@ -93,7 +93,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
           if (widgetId) {
             const slide = useEditorStore.getState().currentSlide()
             const widget = slide?.widgets.find((w) => w.id === widgetId)
-            useActionsStore.getState().setWidget(widgetId, (widget?.actions ?? []) as ActionSequence[])
+            useActionsStore.getState().setWidget(widgetId, (widget?.actions ?? []) as unknown as ActionSequence[])
           }
         })
 

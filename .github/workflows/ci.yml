@@ -88,6 +88,9 @@ jobs:
             echo "gen:openapi script not yet implemented (T168) — skipping"
           fi
 
+      - name: Generate API types (authoring-ui)
+        run: pnpm --filter @elearn-studio/authoring-ui run gen:api-client
+
       - name: Build (all packages)
         run: pnpm -r run build
 
