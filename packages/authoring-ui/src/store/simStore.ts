@@ -32,7 +32,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   editingComponentId: null,
 
   openPanel: (config, componentId) =>
-    set({ config, componentId, panelOpen: true, selectedStepIndex: 0, editingComponentId: componentId }),
+    set({ config, panelOpen: true, selectedStepIndex: 0, editingComponentId: componentId }),
 
   closePanel: () =>
     set({ panelOpen: false, config: null, editingComponentId: null }),

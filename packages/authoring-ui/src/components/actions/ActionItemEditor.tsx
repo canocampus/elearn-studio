@@ -96,8 +96,8 @@ function ParamEditor({ action, onChange }: ActionItemEditorProps) {
     case 'loop':
       return (
         <LoopParams
-          params={action.params}
-          onChange={(params) => onChange({ ...action, params })}
+          params={action.params as { mode: 'count' | 'while'; count?: number; condition?: string }}
+          onChange={(params) => onChange({ ...action, params } as Action)}
         />
       )
     case 'play-animation':
@@ -123,7 +123,7 @@ function ParamEditor({ action, onChange }: ActionItemEditorProps) {
 
 interface NavigateParamsProps {
   params: { target: NavigateTarget; slideName?: string; slideNumber?: number }
-  onChange: (p: typeof params) => void
+  onChange: (p: { target: NavigateTarget; slideName?: string; slideNumber?: number }) => void
 }
 
 function NavigateParams({ params, onChange }: NavigateParamsProps) {
@@ -209,7 +209,7 @@ function WidgetIdParam({ label, widgetId, onChange }: WidgetIdParamProps) {
 
 interface SetVariableParamsProps {
   params: { name: string; value: string; valueType: 'literal' | 'expression' }
-  onChange: (p: typeof params) => void
+  onChange: (p: { name: string; value: string; valueType: 'literal' | 'expression' }) => void
 }
 
 function SetVariableParams({ params, onChange }: SetVariableParamsProps) {
@@ -244,7 +244,7 @@ function SetVariableParams({ params, onChange }: SetVariableParamsProps) {
 
 interface MessageParamsProps {
   params: { message: string; title?: string }
-  onChange: (p: typeof params) => void
+  onChange: (p: { message: string; title?: string }) => void
 }
 
 function MessageParams({ params, onChange }: MessageParamsProps) {
@@ -296,7 +296,7 @@ function ExpressionParam({ label, expression, onChange }: ExpressionParamProps) 
 
 interface LoopParamsProps {
   params: { mode: 'count' | 'while'; count?: number; condition?: string }
-  onChange: (p: typeof params) => void
+  onChange: (p: { mode: 'count' | 'while'; count?: number; condition?: string }) => void
 }
 
 function LoopParams({ params, onChange }: LoopParamsProps) {
@@ -336,7 +336,7 @@ function LoopParams({ params, onChange }: LoopParamsProps) {
 
 interface PlayAnimationParamsProps {
   params: { widgetId: string; animationName?: string }
-  onChange: (p: typeof params) => void
+  onChange: (p: { widgetId: string; animationName?: string }) => void
 }
 
 function PlayAnimationParams({ params, onChange }: PlayAnimationParamsProps) {
@@ -361,7 +361,7 @@ function PlayAnimationParams({ params, onChange }: PlayAnimationParamsProps) {
 
 interface CallSequenceParamsProps {
   params: { sequenceName: string }
-  onChange: (p: typeof params) => void
+  onChange: (p: { sequenceName: string }) => void
 }
 
 function CallSequenceParams({ params, onChange }: CallSequenceParamsProps) {

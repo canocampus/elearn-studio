@@ -139,10 +139,10 @@ export function PhaserSimPropertiesPanel() {
   const ep = getExtendedProps(selected)
 
   function update(patch: Partial<PhaserSimExtendedProps>) {
-    const component = editor.getSelected()
+    const component = editor!.getSelected()
     if (!component) return
     setExtendedProps(component, patch)
-    editor.store().catch(err => console.error('[PhaserSimPropertiesPanel] store failed:', err))
+    editor!.store().catch(err => console.error('[PhaserSimPropertiesPanel] store failed:', err))
   }
 
   // Handlers re-fetch the selected component at call time to guard against the case where
@@ -184,11 +184,11 @@ export function PhaserSimPropertiesPanel() {
   ): void {
     setJsonError(false)
     setSceneDefJson(JSON.stringify(newDef, null, 2))
-    update({ sceneDef: newDef as Record<string, unknown> })
+    update({ sceneDef: newDef as unknown as Record<string, unknown> })
   }
 
   function handlePreview(): void {
-    const component = editor.getSelected()
+    const component = editor!.getSelected()
     if (!component) return
     const componentId = component.getId()
     if (!componentId) {

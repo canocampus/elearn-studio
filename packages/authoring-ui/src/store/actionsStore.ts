@@ -176,7 +176,7 @@ export const useActionsStore = create<ActionsState>()(devtools((set, get) => ({
       sequences: updateSequence(get().sequences, event, (seq) => {
         const actions = [...seq.actions]
         // Deep-clone the target action before mutating
-        const target = structuredClone(actions[actionIndex]) as Record<string, unknown>
+        const target = structuredClone(actions[actionIndex]) as unknown as Record<string, unknown>
         let cursor = target.params as Record<string, unknown>
         for (const key of path) {
           cursor = cursor[key] as Record<string, unknown>

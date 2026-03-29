@@ -33,9 +33,9 @@ export function useActionsSave() {
         lastSharedRef.current = sharedSequences
         const { course, setCourse } = useEditorStore.getState()
         if (course) {
-          const updated = { ...course, sharedSequences }
+          const updated = { ...course, sharedSequences: sharedSequences as unknown as typeof course.sharedSequences }
           setCourse(updated)
-          updateCourse(course._id, { sharedSequences }).catch((err: unknown) => {
+          updateCourse(course._id, { sharedSequences: sharedSequences as unknown as typeof course.sharedSequences }).catch((err: unknown) => {
             console.error('[useActionsSave] updateCourse(sharedSequences) failed:', err)
           })
         }
@@ -62,7 +62,7 @@ export function useActionsSave() {
       if (!slide) return
 
       const updatedWidgets = slide.widgets.map((w) =>
-        w.id === widgetId ? { ...w, actions: sequences } : w,
+        w.id === widgetId ? { ...w, actions: sequences as unknown as typeof w.actions } : w,
       )
 
       const updatedSlides = course.slides.map((s, i) =>

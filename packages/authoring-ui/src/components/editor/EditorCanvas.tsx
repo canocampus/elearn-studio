@@ -73,7 +73,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
         setEditor(ed)
         // Expose editor for Playwright E2E tests (dev build only)
         if (import.meta.env.DEV) {
-          ;(window as Record<string, unknown>).__elearn_editor = ed
+          ;(window as unknown as Record<string, unknown>).__elearn_editor = ed
         }
         // NOTE: Do NOT call ed.load() here — Effect 2 handles all loads
         // (initial mount and slide switches). Calling load() twice causes a
@@ -92,7 +92,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
           if (widgetId) {
             const slide = useEditorStore.getState().currentSlide()
             const widget = slide?.widgets.find((w) => w.id === widgetId)
-            useActionsStore.getState().setWidget(widgetId, widget?.actions ?? [])
+            useActionsStore.getState().setWidget(widgetId, (widget?.actions ?? []) as unknown as any)
           }
         })
 

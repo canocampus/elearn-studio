@@ -115,10 +115,11 @@ function registerImageWidget(editor: Editor): void {
 
       onRender() {
         // Called once on initial mount; handle the case where src is already set.
-        this.resolveAndSetSrc()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this as any).resolveAndSetSrc()
       },
 
-      resolveAndSetSrc() {
+      resolveAndSetSrc(this: unknown) {
         // Read from the root-level src property (set via model.set('src', ...)).
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const src: string = ((this as any).model.get('src') as string) ?? ''

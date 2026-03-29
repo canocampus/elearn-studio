@@ -11,7 +11,7 @@
 import type { AssetManagerConfig } from 'grapesjs'
 import { useAuthStore } from '../store/authStore'
 
-const API_BASE: string = (import.meta as Record<string, { VITE_API_URL?: string }>).env?.VITE_API_URL ?? ''
+const API_BASE: string = (import.meta as unknown as Record<string, { VITE_API_URL?: string }>).env?.VITE_API_URL ?? ''
 
 /**
  * Returns GrapesJS AssetManager config that proxies through the backend API.

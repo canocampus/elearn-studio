@@ -47,6 +47,7 @@ function formatTime(iso: string): string {
 }
 
 function DetailBadge({ detail }: { detail?: Record<string, unknown> }) {
+  if (!detail) return null
   const parts: string[] = []
   if (typeof detail.slideId === 'string') parts.push(`slide: ${detail.slideId.slice(0, 8)}…`)
   if (Array.isArray(detail.fields) && detail.fields.length > 0) parts.push(detail.fields.join(', '))

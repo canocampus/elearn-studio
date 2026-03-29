@@ -94,10 +94,10 @@ export function widgetsFromGrapesjs(components: Component[]): BaseWidget[] {
 
     // Parse bounds from CSS styles; parsePx guards against NaN from malformed values
     const bounds: Bounds = {
-      x: parsePx(style.left, 0),
-      y: parsePx(style.top, 0),
-      width: parsePx(style.width, 100),
-      height: parsePx(style.height, 50),
+      x: parsePx(typeof style.left === 'string' ? style.left : undefined, 0),
+      y: parsePx(typeof style.top === 'string' ? style.top : undefined, 0),
+      width: parsePx(typeof style.width === 'string' ? style.width : undefined, 100),
+      height: parsePx(typeof style.height === 'string' ? style.height : undefined, 50),
     }
 
     const componentType = (c.get('type') as string) || ''
@@ -155,7 +155,7 @@ export function widgetsFromGrapesjs(components: Component[]): BaseWidget[] {
       id: attributes.id || c.getId(),
       type: (componentType as WidgetType) || 'rectangle',
       bounds,
-      layer: parsePx(style['z-index'], 1),
+      layer: parsePx(typeof style['z-index'] === 'string' ? style['z-index'] : undefined, 1),
       visible: style.display !== 'none',
       properties: mergedProps,
       actions: c.get('elearnActions') || [],

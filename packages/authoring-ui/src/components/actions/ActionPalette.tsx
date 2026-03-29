@@ -77,6 +77,8 @@ export function defaultAction(type: ActionType): Action {
       return { type: 'show', params: { widgetId: '' } }
     case 'hide':
       return { type: 'hide', params: { widgetId: '' } }
+    case 'bring-to-front':
+      return { type: 'bring-to-front', params: { widgetId: '' } }
     case 'set-variable':
       return { type: 'set-variable', params: { name: '', value: '', valueType: 'literal' } }
     case 'display-message':
@@ -97,6 +99,10 @@ export function defaultAction(type: ActionType): Action {
       return { type: 'condition', params: { expression: '', then: [], else: [] } }
     case 'loop':
       return { type: 'loop', params: { mode: 'count', count: 1, body: [] } }
+    case 'play-animation':
+      return { type: 'play-animation', params: { widgetId: '' } }
+    case 'call-sequence':
+      return { type: 'call-sequence', params: { sequenceName: '' } }
   }
 }
 

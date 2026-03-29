@@ -53,7 +53,7 @@ async function flushEvents(page: Page): Promise<CapturedEvent[]> {
       const events = [...cap.events]
       cap.events = []
       return events
-    })
+    }) as CapturedEvent[]
   } catch {
     // Page may have navigated away; swallow the error
     return []
