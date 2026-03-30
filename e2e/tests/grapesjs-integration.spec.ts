@@ -58,6 +58,7 @@ test.describe('GrapesJS Integration: Positioning & Resizing', () => {
     await editorPage.dragBlockToCanvas('Button', targetX, targetY)
 
     const btn = editorPage.canvasComponent('[data-gjs-type="button"]')
+    await expect(btn).toBeVisible({ timeout: 15_000 })
     const box = await btn.boundingBox()
     expect(box).not.toBeNull()
     if (box) {

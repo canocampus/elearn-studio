@@ -72,8 +72,8 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       styleManagerContainer: `#${STYLE_MANAGER_ID}`,
       onReady: (ed) => {
         setEditor(ed)
-        // Expose editor for Playwright E2E tests (dev build only)
-        if (import.meta.env.DEV) {
+        // Expose editor for Playwright E2E tests (dev build and E2E mode)
+        if (import.meta.env.DEV || import.meta.env.VITE_E2E_MODE === 'true') {
           ;(window as unknown as Record<string, unknown>).__elearn_editor = ed
         }
         // NOTE: Do NOT call ed.load() here — Effect 2 handles all loads

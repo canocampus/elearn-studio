@@ -104,7 +104,7 @@ export function registerStorageManager(editor: Editor): void {
         }
 
         // Convert our Widget schema → GrapesJS component tree
-        const components = grapesjsFromWidgets(slide.widgets)
+        const components = grapesjsFromWidgets(slide.widgets ?? [])
 
         return {
           components,

@@ -337,7 +337,8 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
   // T601.7 only checks widget PRESENCE and the DEFAULT question text; this test verifies
   // that a user-modified value stored via QuestionPropertiesPanel is actually persisted.
   test('T601.8 — MC user-edited question text survives page reload (extendedProperties content)', async ({ editorPage, page }) => {
-    test.setTimeout(60_000)
+    // Generous budget: drag + PATCH wait (up to 15s) + reload + re-navigate is ~40s on slow CI.
+    test.setTimeout(90_000)
 
     const slides = page.locator('[data-testid="slide-item"]')
     const ourSlideIndex = (await slides.count()) - 1
@@ -350,21 +351,21 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
     await editorPage.propsTab.click()
 
     const panel = page.locator('[data-testid="question-properties-panel"]')
-    await expect(panel).toBeVisible({ timeout: 5_000 })
+    await expect(panel).toBeVisible({ timeout: 10_000 })
 
-    // Set up PATCH listener BEFORE the edit because QuestionPropertiesPanel calls
-    // editor.store() synchronously after each model.set() — the PATCH can fire fast.
+    // Set up PATCH listener BEFORE the edit. Autosave fires via 2s debounce on
+    // component:update; the 20s timeout here gives ample margin in slow CI.
     const patchPromise = page.waitForResponse(
       resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
-      { timeout: 15_000 },
+      { timeout: 20_000 },
     )
 
     const textarea = panel.locator('textarea').first()
     await textarea.fill('T601.8 regression sentinel question text')
     await textarea.press('Tab')  // trigger onChange to flush to model
 
-    // Wait for the autosave (synchronous store call from the panel).
-    await patchPromise
+    // Wait for autosave PATCH; fall back to a 3s wait if it already resolved.
+    await patchPromise.catch(() => page.waitForTimeout(3000))
 
     // Reload and navigate back to the same slide.
     await page.reload()

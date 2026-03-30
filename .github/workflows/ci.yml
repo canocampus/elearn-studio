@@ -97,6 +97,7 @@ jobs:
         run: pnpm -r run build
         env:
           VITE_API_URL: http://localhost:3001
+          VITE_E2E_MODE: 'true'
 
       - name: Upload coverage reports
         if: always()
