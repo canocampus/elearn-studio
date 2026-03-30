@@ -5,6 +5,7 @@
  * T010.11 — Canvas uses position:absolute layout for ToolBook-style fixed positioning
  */
 
+import 'grapesjs/dist/css/grapes.min.css'
 import grapesjs, { type Editor } from 'grapesjs'
 import { buildAssetManagerConfig } from './assetManager'
 import { registerStorageManager, updateStorageContext, getStorageContext } from './storageManager'
