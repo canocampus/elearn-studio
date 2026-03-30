@@ -22,6 +22,11 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     strictPort: true,
+    // Vite 5 falls back to server.proxy when preview.proxy is unset.
+    // server.proxy includes '/assets' → backend, which intercepts the built
+    // JS/CSS bundle at /assets/index-*.js returning 401 from the API.
+    // The built app uses VITE_API_URL (absolute URL) so no proxying is needed.
+    proxy: {},
   },
   build: {
     outDir: 'dist',
