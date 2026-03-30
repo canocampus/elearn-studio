@@ -8,7 +8,8 @@ import * as path from 'path'
  * 1. Creates a test user via POST /auth/register (only works when NODE_ENV=test)
  * 2. Logs in to obtain a refresh cookie
  * 3. Creates a seed course so the editor opens in 'ready' state
- * 4. Saves the browser auth state (cookies) to .auth/state.json for reuse
+ * 4. Injects the refresh cookie into a browser context (avoids UI login flow)
+ * 5. Saves the browser auth state (cookies) to .auth/state.json for reuse
  *
  * E2E_API_URL  — backend API URL  (default: http://localhost:3001)
  * E2E_BASE_URL — authoring-ui URL (default: http://localhost:3000)
@@ -63,36 +64,81 @@ export default async function globalSetup() {
       throw new Error(`Failed to create seed course: ${body}`)
     }
   }
+
+  // ── 4. Inject refresh cookie into browser context ──────────────────────────
+  //
+  // Problem: in CI the app is served via `vite preview` (no dev-server proxy),
+  // so React fetches `http://localhost:3001/auth/refresh` cross-origin. If that
+  // fetch hangs — e.g. due to Chromium resolving `localhost` to ::1 while the
+  // server only bound IPv4, or a brief startup race — the app stays in
+  // 'initialising' forever and the login form never renders, causing the old
+  // `getByLabel('Email').waitFor({ timeout: 15_000 })` to time out.
+  //
+  // Fix: get the httpOnly refresh cookie from the API request context (already
+  // obtained in step 2) and inject it into the browser context BEFORE navigation.
+  // With the cookie present the app calls /auth/refresh, gets 200, and loads the
+  // editor directly — no login form needed, no UI auth race.
+  //
+  // Fallback: if the cookie injection somehow fails (e.g. cross-origin cookie
+  // policy blocks it), the login form will appear instead. We detect this and
+  // complete the UI login flow before saving storageState.
+  const apiState = await apiCtx.storageState()
   await apiCtx.dispose()
 
-  // ── 4. Capture browser auth state (cookies) via a real browser session ─────
-  // The app uses httpOnly refresh cookie. We must open a real browser context,
-  // navigate so the cookie is set on the right origin, then save storageState.
   const browser = await chromium.launch()
   const context = await browser.newContext({ baseURL: BASE_URL })
 
-  // Set the refresh token cookie on the API origin so the app's /auth/refresh
-  // fetch succeeds when it loads. We achieve this by logging in through the
-  // login page so the browser cookie jar is populated normally.
+  // Normalise cookie domain to bare 'localhost' (no port).
+  // HTTP cookies are port-agnostic; the browser will send the cookie to both
+  // localhost:3000 (UI) and localhost:3001 (API) so /auth/refresh succeeds.
+  // SameSite=Strict is satisfied: localhost:3000 → localhost:3001 is same-site.
+  if (apiState.cookies.length > 0) {
+    await context.addCookies(
+      apiState.cookies.map(cookie => ({ ...cookie, domain: 'localhost' }))
+    )
+  }
+
   const page = await context.newPage()
   await page.goto('/')
 
-  // Wait for login form then fill with semantic locators
-  await page.getByLabel('Email').waitFor({ timeout: 15_000 })
-  await page.getByLabel('Email').fill(E2E_USER_EMAIL)
-  await page.getByLabel('Password').fill(E2E_USER_PASSWORD)
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  // Wait for EITHER the editor (cookie worked → session restored instantly) OR
+  // the login form (cookie injection was blocked → fall back to UI login).
+  // Using Playwright's .or() locator avoids Promise.race unhandled-rejection issues.
+  const publishButton = page.getByRole('button', { name: /Publish SCORM/i })
+  const emailInput = page.getByLabel('Email')
+  const firstVisible = publishButton.or(emailInput).first()
 
-  // Wait for editor to be ready (TopToolbar "Publish SCORM" visible)
   try {
-    await page.getByRole('button', { name: /Publish SCORM/i }).waitFor({ timeout: 20_000 })
+    await firstVisible.waitFor({ timeout: 45_000 })
   } catch (err) {
+    // Neither editor nor login form appeared — capture diagnostics and fail.
     await page.screenshot({ path: 'e2e-setup-failure.png', fullPage: true })
     const url = page.url()
     const html = await page.content()
-    console.error('[globalSetup] Timed out. URL:', url)
-    console.error('[globalSetup] Page HTML snippet:', html.slice(0, 2000))
+    console.error('[globalSetup] Timed out (45 s) waiting for editor or login form.')
+    console.error('[globalSetup] URL:', url)
+    console.error('[globalSetup] HTML snippet:', html.slice(0, 2000))
     throw err
+  }
+
+  // If the login form appeared, complete the UI login flow.
+  if (await emailInput.isVisible()) {
+    console.warn('[globalSetup] Cookie injection did not restore session — using UI login fallback')
+    await emailInput.fill(E2E_USER_EMAIL)
+    await page.getByLabel('Password').fill(E2E_USER_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+
+    try {
+      await publishButton.waitFor({ timeout: 30_000 })
+    } catch (err) {
+      await page.screenshot({ path: 'e2e-setup-failure.png', fullPage: true })
+      const url = page.url()
+      const html = await page.content()
+      console.error('[globalSetup] UI login fallback timed out after Sign-in click.')
+      console.error('[globalSetup] URL:', url)
+      console.error('[globalSetup] HTML snippet:', html.slice(0, 2000))
+      throw err
+    }
   }
 
   // Save storageState (cookies + localStorage)

@@ -365,6 +365,24 @@ pnpm lint
 
 8. **Phaser MIT license** — Phaser 3 is MIT. Do not use Phaser Nano or any paid variants.
 
+9. **Decisions** - When choosing between alternatives that affect more than today's task — a library, an architecture pattern, an API design, or deciding NOT to do something — log it:
+
+    File: /decisions/YYYY-MM-DD-{topic}.md
+    
+    Format:
+ 
+      ***## Decision: {what you decided}***
+
+      ***## Context: {why this came up}***
+ 
+      ***## Alternatives considered: {what else was on the table}***
+
+      ***## Reasoning: {why this option won}***
+
+      ***## Trade-offs accepted: {what you gave up}***
+    
+When about to make a similar decision, grep /decisions/ for prior choices. Follow them unless new information invalidates the reasoning.
+
 ---
 
 ## Licensing Notes
