@@ -99,6 +99,22 @@ export default async function globalSetup() {
   }
 
   const page = await context.newPage()
+
+  // ── Diagnostics: capture JS errors and failed network requests ─────────────
+  const pageErrors: string[] = []
+  const failedRequests: string[] = []
+  page.on('pageerror', (err) => {
+    pageErrors.push(`[JS Error] ${err.message}\n${err.stack ?? ''}`)
+  })
+  page.on('requestfailed', (req) => {
+    failedRequests.push(`[Request Failed] ${req.method()} ${req.url()} — ${req.failure()?.errorText ?? 'unknown'}`)
+  })
+  page.on('response', (res) => {
+    if (res.status() >= 400) {
+      failedRequests.push(`[HTTP ${res.status()}] ${res.request().method()} ${res.url()}`)
+    }
+  })
+
   await page.goto('/')
 
   // Wait for EITHER the editor (cookie worked → session restored instantly) OR
@@ -118,6 +134,18 @@ export default async function globalSetup() {
     console.error('[globalSetup] Timed out (45 s) waiting for editor or login form.')
     console.error('[globalSetup] URL:', url)
     console.error('[globalSetup] HTML snippet:', html.slice(0, 2000))
+    if (pageErrors.length > 0) {
+      console.error('[globalSetup] JS errors captured:')
+      pageErrors.forEach(e => console.error(' ', e))
+    } else {
+      console.error('[globalSetup] No JS errors captured (pageerror events).')
+    }
+    if (failedRequests.length > 0) {
+      console.error('[globalSetup] Failed/error requests:')
+      failedRequests.forEach(r => console.error(' ', r))
+    } else {
+      console.error('[globalSetup] No failed/error requests captured.')
+    }
     throw err
   }
 
