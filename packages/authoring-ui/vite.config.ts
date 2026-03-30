@@ -18,6 +18,11 @@ export default defineConfig({
       '/telemetry': 'http://127.0.0.1:3001',
     },
   },
+  preview: {
+    port: 3000,
+    host: 'localhost',
+    strictPort: true,
+  },
   build: {
     outDir: 'dist',
   },

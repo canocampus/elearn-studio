@@ -92,7 +92,11 @@ jobs:
         run: pnpm --filter @elearn-studio/authoring-ui run gen:api-client
 
       - name: Build (all packages)
+        # VITE_API_URL must be set at build time — Vite bakes VITE_* env vars
+        # into the static bundle; setting it only at preview-serve time has no effect.
         run: pnpm -r run build
+        env:
+          VITE_API_URL: http://localhost:3001
 
       - name: Upload coverage reports
         if: always()
@@ -144,10 +148,20 @@ jobs:
           echo "API server PID: $!"
 
       - name: Start authoring-ui (background)
+        # Port and host are set in vite.config.ts preview section — no CLI flags needed.
         run: |
-          export VITE_API_URL=http://localhost:3001
-          nohup pnpm --filter @elearn-studio/authoring-ui run preview -- --port 3000 > /tmp/ui-server.log 2>&1 &
+          nohup pnpm --filter @elearn-studio/authoring-ui run preview > /tmp/ui-server.log 2>&1 &
           echo "UI server PID: $!"
+
+      - name: Dump startup logs (diagnostic — runs before wait-on)
+        run: |
+          sleep 5
+          echo "=== Listening ports ==="
+          ss -tlnp | grep -E ':300[01]' || echo "(no ports 3000/3001 yet)"
+          echo "=== API server log (first 30 lines) ==="
+          head -30 /tmp/api-server.log || echo "(log not found)"
+          echo "=== UI server log (first 30 lines) ==="
+          head -30 /tmp/ui-server.log || echo "(log not found)"
 
       - name: Wait for services to be ready
         # /health may return 503 if Garage init is still in progress; use http-get:// prefix
