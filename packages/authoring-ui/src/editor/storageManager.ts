@@ -85,7 +85,7 @@ export function registerStorageManager(editor: Editor): void {
       const { courseId, slideId } = storageContext
       if (!courseId || !slideId) {
         console.warn('[StorageManager] load() skipped — missing context', { courseId, slideId })
-        return { components: [], styles: [] }
+        return { pages: [{ component: { components: [] } }], styles: [] }
       }
 
       try {
@@ -106,10 +106,18 @@ export function registerStorageManager(editor: Editor): void {
         // Convert our Widget schema → GrapesJS component tree
         const components = grapesjsFromWidgets(slide.widgets ?? [])
 
+        // GrapesJS loadData() requires project data in { pages: [...] } format.
+        // Returning { components: [...] } directly causes a TypeError in loadData because
+        // PageManager.clear() empties the pages collection before ComponentManager.load()
+        // tries to call getWrapper() — which returns null when no pages exist.
+        // Wrapping in a page with a component object creates the frame + wrapper correctly.
         return {
-          components,
-          // GrapesJS loadData() expects a 'styles' array, not a 'css' string.
-          // All styles are inline in components (fixed layout) so this is always empty.
+          pages: [
+            {
+              id: slideId,
+              component: { components },
+            },
+          ],
           styles: [],
         }
       } catch (err) {
