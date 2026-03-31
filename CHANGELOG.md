@@ -30,6 +30,29 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.10] — 2026-03-31 — GrapesJS Converter Defensive Guard for Missing Widget Fields
+
+### Fixed
+
+- **`w.bounds` unguarded access in `grapesjsFromWidgets`** (`packages/authoring-ui/src/editor/converters.ts`) — `w.bounds.x/y/width/height` were accessed directly without optional chaining. If an old or corrupt MongoDB document has `bounds: undefined`, this threw `TypeError: Cannot read properties of undefined (reading 'x')` during `loadData()`, crashing the GrapesJS canvas on slide load. Fixed with `w.bounds?.x ?? 0`, `w.bounds?.y ?? 0`, `w.bounds?.width ?? 100`, `w.bounds?.height ?? 50`.
+
+### Why Mongoose `default` does not protect reads
+
+Mongoose `default: []` (or `default: {}`) on a schema field applies only at **document creation time** — it does not backfill missing fields when hydrating existing documents from MongoDB. Any document written before a schema field was added will return `undefined` for that field via the API. Code-level guards (`?.` and `??`) are the only reliable protection for data read from old documents.
+
+### Other `grapesjsFromWidgets` guards (pre-existing, confirmed present)
+
+| Field | Guard | Fallback |
+|---|---|---|
+| `w.actions` | hardcoded `actions: []` | GrapesJS crash prevention |
+| `w.actions` (elearnActions) | `w.actions ?? []` | empty sequence |
+| `w.properties` | `(w.properties as ...) ?? {}` | empty object |
+| `w.extendedProperties` | `w.extendedProperties ?? {}` | empty object |
+| `w.visible` | read as `style.display !== 'none'` | inherited from CSS |
+| `w.bounds` | **`w.bounds?.x ?? 0` (NEW)** | defaults: x=0, y=0, w=100, h=50 |
+
+---
+
 ## [0.5.9] — 2026-03-31 — E2E Suite Expansion to 90 Tests + Moodle SCORM Hardening
 
 ### Added

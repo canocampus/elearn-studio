@@ -159,6 +159,57 @@ TOTAL                           90
 
 ---
 
+### BUG-T900-03 — `w.bounds` unguarded access in `grapesjsFromWidgets` (HIGH — FIXED)
+
+**File:** `packages/authoring-ui/src/editor/converters.ts` (function `grapesjsFromWidgets`)
+
+**Symptom:** Loading a course slide that contains a widget created by an older API version
+(before `bounds` was added to the Mongoose schema as `required: true`) caused the GrapesJS
+canvas to crash with:
+
+```
+TypeError: Cannot read properties of undefined (reading 'x')
+  at grapesjsFromWidgets (converters.ts)
+```
+
+The canvas went blank and `editor.loadProjectData()` did not complete.
+
+**Root cause:** `grapesjsFromWidgets` accessed `w.bounds.x`, `w.bounds.y`, `w.bounds.width`,
+and `w.bounds.height` directly without optional chaining. Although the Mongoose schema has
+`bounds: { type: BoundsSchema, required: true }`, the `required` constraint only applies at
+**write time** (Mongoose validation before save). It does NOT backfill the field when
+hydrating existing documents from MongoDB. Any widget document written before `bounds` was
+added to the schema — or any document that bypassed Mongoose validation — returns
+`bounds: undefined` from the API. The direct property access then throws.
+
+This is the same class of bug as the pre-existing `actions` guard: GrapesJS's `loadData`
+calls `.forEach` on `componentDef.actions` — if `undefined`, it crashes. That was fixed by
+hardcoding `actions: []`; the `bounds` issue required optional chaining + fallback defaults.
+
+**Fix:**
+```typescript
+// BEFORE (throws TypeError if w.bounds is undefined):
+left: `${w.bounds.x}px`,
+top: `${w.bounds.y}px`,
+width: `${w.bounds.width}px`,
+height: `${w.bounds.height}px`,
+
+// AFTER (safe for old/corrupt documents):
+left: `${w.bounds?.x ?? 0}px`,
+top: `${w.bounds?.y ?? 0}px`,
+width: `${w.bounds?.width ?? 100}px`,
+height: `${w.bounds?.height ?? 50}px`,
+```
+
+Fallback values (`x=0, y=0, width=100, height=50`) match the defaults used by `widgetsFromGrapesjs`
+when parsing CSS, so a round-trip through load→edit→save produces a valid widget geometry.
+
+**Verification:** Unit test in `packages/authoring-ui/src/__tests__/converters.test.ts` —
+`grapesjsFromWidgets` called with a widget where `bounds` is `undefined`; confirmed no crash
+and fallback geometry applied. Commit: `6964d9d`.
+
+---
+
 ## Recommendations for Future Sessions
 
 1. **Always run with `E2E_MOODLE=1` before closing a Moodle-related task** — the Moodle tests are opt-in and easy to forget.

@@ -1516,6 +1516,10 @@ T706 (component:add during load)       ← initEditor.ts load-time side effect
   bugs, coverage gap closure table, test count reference, and recommendations
 - [x] T900.E2E — All 90 E2E tests pass: 86 via `npx playwright test --project=chromium` +
   4 via `npx playwright test --project=setup`; Moodle tests pass with `E2E_MOODLE=1`
+- [x] T900.12 — `w.bounds` defensive guard added to `grapesjsFromWidgets` in `converters.ts`:
+  optional chaining + fallback defaults (`x=0, y=0, w=100, h=50`) prevent `TypeError` when
+  old/corrupt MongoDB documents have `bounds: undefined`. Root cause: Mongoose `required:true`
+  protects writes but does NOT backfill missing fields on reads of old documents. Commit: `6964d9d`.
 
 ── Issues files location ────────────────────────────────────────────
 All reviewer issue files go in: docs/issues/issues-TXX.md
