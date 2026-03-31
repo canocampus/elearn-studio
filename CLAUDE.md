@@ -1,5 +1,58 @@
 # eLearn Studio — Claude Code Instructions
 
+## Session Protocol — Read This First Every Session
+
+> These rules exist because without them: documentation gets skipped, context is
+> lost between sessions, and the same bugs get reintroduced.
+
+### 1. Start of session — always do this first
+
+```
+1. Read WORKING_CONTEXT.md — current state, known broken things, what NOT to retry
+2. Read docs/tasks.md — find the active block and its current status
+3. Do NOT start coding until both files are read
+```
+
+### 2. During work — visual verification is mandatory for UI tasks
+
+Any task that touches GrapesJS, widgets, slides, the canvas iframe, or the runtime
+player requires a Playwright verification before it can be marked done:
+
+- Run the relevant E2E spec (see `.claude/commands/task-complete.md` for the mapping)
+- If the spec fails → fix the regression, do not mark the task done
+- If the task adds new UI behavior → add a new E2E test covering it
+- Read `.claude/skills/elearn-e2e-qa/SKILL.md` before writing any test
+
+### 3. End of every task block — run /task-complete
+
+After completing any task block (TXX), run `/task-complete` and follow every step.
+The command is in `.claude/commands/task-complete.md`.
+
+**Do NOT mark a task [x] without running /task-complete.**
+
+The 6 steps are:
+1. Update `docs/tasks.md`
+2. Update `docs/issues/issues-TXX.md`
+3. Update `CHANGELOG.md` with version bump
+4. Update `WORKING_CONTEXT.md`
+5. Run relevant E2E spec and confirm passing
+6. Commit with conventional format
+
+### 4. Context window management
+
+When approaching 70% of the context window:
+- Update `WORKING_CONTEXT.md` with current state before compacting
+- Run `/compact`
+- After compact: re-read `WORKING_CONTEXT.md` to restore context
+
+### 5. Never repeat failed approaches
+
+Before starting any implementation, check `WORKING_CONTEXT.md` section
+"What Was Attempted and Failed". Do not retry any listed approach
+without an explicit instruction to do so.
+
+
+
 ## Project Overview
 
 **eLearn Studio** is an open-source, web-based e-learning authoring platform inspired by
