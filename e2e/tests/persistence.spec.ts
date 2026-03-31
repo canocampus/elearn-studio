@@ -28,6 +28,12 @@ test.describe('FM-05 — Widget data persists across slide navigation', () => {
     // 1. Add slide and place a text widget via programmatic API
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
+
+    // Capture slideAIndex immediately after canvas is ready, before any other
+    // async operations where parallel workers could add slides and shift the count.
+    const slides = page.locator('[data-testid="slide-item"]')
+    const slideAIndex = (await slides.count()) - 1
+
     await editorPage.addComponentViaEditor('text')
     await page.waitForTimeout(300)
 
@@ -49,8 +55,6 @@ test.describe('FM-05 — Widget data persists across slide navigation', () => {
     await page.waitForTimeout(300)
 
     // 5. Wait for autosave PATCH to confirm text is persisted (2s debounce + margin)
-    const slides = page.locator('[data-testid="slide-item"]')
-    const slideAIndex = (await slides.count()) - 1
 
     await page.waitForResponse(
       resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
@@ -80,11 +84,13 @@ test.describe('FM-05 — Widget data persists across slide navigation', () => {
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
 
-    // Place nav-buttons at a non-origin position
-    await editorPage.dragBlockToCanvas('Nav Buttons', 400, 500)
-
+    // Capture slideAIndex immediately after canvas is ready, before dragBlockToCanvas
+    // where parallel workers could add slides and shift the count.
     const slides = page.locator('[data-testid="slide-item"]')
     const slideAIndex = (await slides.count()) - 1
+
+    // Place nav-buttons at a non-origin position
+    await editorPage.dragBlockToCanvas('Nav Buttons', 400, 500)
 
     const navBtn = editorPage.canvasComponent('[data-gjs-type="nav-buttons"]')
     await expect(navBtn).toBeVisible({ timeout: 15_000 })

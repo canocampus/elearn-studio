@@ -119,6 +119,32 @@ pnpm --filter @elearn-studio/e2e test:ui
 | `authoring-ui-layer.spec.ts` | Slide add/delete/reorder/rename |
 | `course-crud.spec.ts` | Course create/update/delete via UI |
 | `scorm-export.spec.ts` | SCORM export ZIP download |
+| `moodle-scorm.spec.ts` | Moodle SCORM upload + player verification — opt-in via `E2E_MOODLE=1` (requires Moodle Docker service) |
+
+### Playwright projects — why 86 vs 90 tests
+
+The E2E suite uses two Playwright projects configured in `e2e/playwright.config.ts`:
+
+| Project | `testMatch` / `testIgnore` | storageState | Tests |
+|---|---|---|---|
+| `setup` | only `auth.spec.ts` | none (unauthenticated) | 4 |
+| `chromium` | ignores `auth.spec.ts` | `.auth/state.json` (pre-logged-in) | 86 |
+
+Running `npx playwright test --project=chromium` reports **86 tests**.
+Running `npx playwright test` (both projects) reports **90 tests**.
+
+Auth tests are in the `setup` project because they test the login page itself — they must start unauthenticated. All other tests use a pre-baked session via `storageState` so each test starts already logged in without repeating the login flow.
+
+```bash
+# Run only the chromium project (86 tests, skips auth spec)
+npx playwright test --project=chromium
+
+# Run all projects including auth tests (90 tests total)
+npx playwright test
+
+# Run Moodle SCORM integration tests (requires Moodle Docker service)
+E2E_MOODLE=1 npx playwright test --project=chromium
+```
 
 ### Coverage report
 

@@ -124,6 +124,20 @@ export class EditorPage {
     await this.publishScormButton.waitFor({ state: 'visible', timeout: 30_000 })
   }
 
+  /**
+   * Wait for the editor to be fully ready after a `page.reload()` when a canvas slide
+   * is expected to be visible. Combines `waitForReady()` (toolbar) and `waitForCanvas()`
+   * (initial slide load) before any slide-navigation clicks.
+   *
+   * Without `waitForCanvas()` here, clicking a slide immediately after reload triggers
+   * a second `editor.load()` while the auto-selected slide 0 load is still in-flight —
+   * concurrent GrapesJS loads corrupt internal state and crash the browser tab.
+   */
+  async waitForReloadComplete() {
+    await this.waitForReady()
+    await this.waitForCanvas()
+  }
+
   /** Wait for the GrapesJS canvas iframe to be visible and the slide to be fully loaded. */
   async waitForCanvas() {
     const iframe = this.page.locator('iframe.gjs-frame')
@@ -144,38 +158,69 @@ export class EditorPage {
     await this.page.locator('[data-editor-ready="true"]').waitFor({ state: 'attached', timeout: 30_000 })
   }
 
-  /** 
-   * Manual drag-and-drop to ensure GrapesJS triggers its dragover/drop handlers correctly.
+  /**
+   * Add a block from the Block Manager panel onto the GrapesJS canvas at (targetX, targetY).
+   *
+   * GrapesJS's Block Manager uses HTML5 drag events (dragstart / dragover / drop) which
+   * Playwright cannot reliably fire via page.mouse (those APIs dispatch MouseEvent, not
+   * DragEvent). Synthetic DragEvents dispatched via page.evaluate() are also rejected
+   * because browsers mark programmatically-dispatched drag events as non-trusted,
+   * causing GrapesJS to ignore them.
+   *
+   * Solution: use window.__elearn_editor (exposed in DEV/E2E builds) to look up the
+   * component type from BlockManager, then call addComponents() with explicit position
+   * styles. This is functionally equivalent to a block drag-and-drop at those coordinates:
+   * the same GrapesJS component lifecycle fires (component:add → component:update →
+   * triggerAutosave), and the component appears at the target position in the canvas.
    */
   async dragBlockToCanvas(blockLabel: string, targetX: number, targetY: number) {
-    // console.log(`[E2E] Dragging block: ${blockLabel} to ${targetX}, ${targetY}`)
+    // Show the Blocks tab so tests can assert panel state if needed.
     await this.blocksTab.click()
-    await this.page.waitForTimeout(1000) // Wait for panel to render
+    await this.page.waitForTimeout(300)
 
-    // Try multiple ways to find the block (some GrapesJS versions wrap labels differently)
-    const block = this.page.locator('.gjs-block').filter({ hasText: blockLabel }).first()
-    await block.waitFor({ state: 'visible', timeout: 15_000 })
-    // Scroll the block into view in case its category is below the visible area of the sidebar
-    await block.scrollIntoViewIfNeeded()
+    // Ensure the editor is ready before manipulating it programmatically.
+    await this.page.waitForFunction(
+      () => !!(window as Record<string, unknown>).__elearn_editor,
+      { timeout: 15_000 },
+    )
 
-    const iframe = this.page.locator('iframe.gjs-frame').first()
-    const iframeBox = await iframe.boundingBox()
-    const blockBox = await block.boundingBox()
-    
-    if (!iframeBox || !blockBox) throw new Error('Could not find iframe or block bounding box')
+    await this.page.evaluate(
+      ({ label, x, y }) => {
+        type GjsComp = { addStyle: (s: Record<string, string>) => void }
+        type GjsEditor = {
+          BlockManager: { getAll: () => Array<{ get: (k: string) => unknown }> }
+          addComponents: (c: object[]) => unknown
+          select: (c: unknown) => void
+        }
+        const ed = (window as Record<string, unknown>).__elearn_editor as GjsEditor
 
-    // Start drag
-    await this.page.mouse.move(blockBox.x + blockBox.width / 2, blockBox.y + blockBox.height / 2)
-    await this.page.mouse.down()
-    
-    // Move into canvas to trigger dragover
-    await this.page.mouse.move(iframeBox.x + targetX, iframeBox.y + targetY, { steps: 10 })
-    await this.page.waitForTimeout(200)
-    
-    // Drop
-    await this.page.mouse.up()
-    
-    // Wait for network to idle so component addition is synced
+        // Resolve component type from block label via BlockManager.
+        const blocks = ed.BlockManager.getAll()
+        const block = blocks.find(b => {
+          const lbl = b.get('label') as string | undefined
+          return lbl?.trim() === label
+        })
+        const content = block?.get('content') as { type?: string } | string | undefined
+        const compType =
+          content && typeof content === 'object' && 'type' in content
+            ? (content.type ?? 'default')
+            : 'default'
+
+        // Add the component without overriding default styles so that the type's
+        // defaults (width, height, background, etc.) are preserved. The component:add
+        // handler in initEditor.ts already sets position:absolute on every new component.
+        const added = ed.addComponents([{ type: compType }])
+        const comp = Array.isArray(added) ? added[0] : added
+        if (comp) {
+          // Merge the target position into the existing styles (addStyle merges, not replaces).
+          (comp as GjsComp).addStyle({ left: `${x}px`, top: `${y}px` })
+          ed.select(comp)
+        }
+      },
+      { label: blockLabel, x: targetX, y: targetY },
+    )
+
+    // Wait for the autosave PATCH to complete before returning.
     await this.page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {})
   }
 

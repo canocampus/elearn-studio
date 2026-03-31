@@ -4,10 +4,11 @@ import { app } from '../app'
 import { authHeader } from './authHelper'
 
 // vi.hoisted lets us reference these variables inside the vi.mock factory (which is hoisted)
-const { mockPutObject, mockGetPresignedUrl, mockStatObject, mockInitStorage } = vi.hoisted(() => ({
+const { mockPutObject, mockGetPresignedUrl, mockStatObject, mockDeleteObject, mockInitStorage } = vi.hoisted(() => ({
   mockPutObject:       vi.fn().mockResolvedValue(undefined),
   mockGetPresignedUrl: vi.fn().mockResolvedValue('http://garage:3900/presigned?sig=test'),
   mockStatObject:      vi.fn(),
+  mockDeleteObject:    vi.fn().mockResolvedValue(undefined),
   mockInitStorage:     vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -18,6 +19,7 @@ vi.mock('../storage/s3', () => ({
   putObject:       mockPutObject,
   getPresignedUrl: mockGetPresignedUrl,
   statObject:      mockStatObject,
+  deleteObject:    mockDeleteObject,
 }))
 
 const auth = authHeader()
@@ -156,5 +158,73 @@ describe('GET /assets/:objectName — pre-signed URL redirect', () => {
       .redirects(0)
 
     expect(res.status).toBe(503)
+  })
+})
+
+describe('DELETE /assets/:objectName — T603.6', () => {
+  beforeEach(() => {
+    mockDeleteObject.mockReset()
+    mockDeleteObject.mockResolvedValue(undefined)
+  })
+
+  it('returns 204 and calls deleteObject for a valid object name', async () => {
+    const objectName = '550e8400-e29b-41d4-a716-446655440000.png'
+
+    const res = await request(app)
+      .delete(`/assets/${objectName}`)
+      .set(auth)
+
+    expect(res.status).toBe(204)
+    expect(mockDeleteObject).toHaveBeenCalledOnce()
+    expect(mockDeleteObject).toHaveBeenCalledWith(objectName)
+  })
+
+  it('returns 204 for all whitelisted extensions', async () => {
+    const extensions = ['jpg', 'png', 'gif', 'webp', 'svg', 'bmp', 'mp4', 'webm', 'mp3', 'ogg', 'wav', 'pdf']
+    for (const ext of extensions) {
+      const objectName = `550e8400-e29b-41d4-a716-446655440000.${ext}`
+      const res = await request(app).delete(`/assets/${objectName}`).set(auth)
+      expect(res.status).toBe(204)
+    }
+  })
+
+  it('returns 400 for an object name without UUID format', async () => {
+    const res = await request(app)
+      .delete('/assets/not-a-uuid.png')
+      .set(auth)
+
+    expect(res.status).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(mockDeleteObject).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for an object name with no extension', async () => {
+    const res = await request(app)
+      .delete('/assets/550e8400-e29b-41d4-a716-446655440000')
+      .set(auth)
+
+    expect(res.status).toBe(400)
+    expect(mockDeleteObject).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for a disallowed extension (path traversal / php)', async () => {
+    const res = await request(app)
+      .delete('/assets/550e8400-e29b-41d4-a716-446655440000.php')
+      .set(auth)
+
+    expect(res.status).toBe(400)
+    expect(mockDeleteObject).not.toHaveBeenCalled()
+  })
+
+  it('returns 503 when storage deleteObject throws', async () => {
+    const objectName = '550e8400-e29b-41d4-a716-446655440000.jpg'
+    mockDeleteObject.mockRejectedValue(new Error('Storage connection refused'))
+
+    const res = await request(app)
+      .delete(`/assets/${objectName}`)
+      .set(auth)
+
+    expect(res.status).toBe(503)
+    expect(res.body.success).toBe(false)
   })
 })

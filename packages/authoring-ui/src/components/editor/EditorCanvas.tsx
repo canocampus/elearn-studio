@@ -153,7 +153,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
       fallbackTimer = setTimeout(() => {
         console.warn('[EditorCanvas] Fallback timer fired — forcing isReady=true after 8s')
-        if (loadGenRef.current === gen) setIsReady(true)
+        if (loadGenRef.current === gen && editorRef.current === editor) setIsReady(true)
       }, 8000)
 
       try {
@@ -197,35 +197,39 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
           loadPromise
             .then(() => {
               clearTimeout(fallbackTimer)
-              // Guard with generation: a stale .then() (from a load that was superseded by a
-              // newer slide switch) must not call setIsReady(true) while the new load is still
-              // in-flight. Without this guard, waitForCanvas() can see a brief "true" from the
-              // stale load and return early, causing tests to interact with the wrong slide.
-              if (loadGenRef.current === gen) {
+              // Guard with generation AND editor identity: a stale .then() (from a load that
+              // was superseded by a newer slide switch) must not call setIsReady(true) while
+              // the new load is still in-flight. The editor identity check prevents this
+              // callback from firing after editor.destroy() replaced editorRef.current with a
+              // new instance — which would cause waitForCanvas() to see "true" on a broken canvas
+              // (TypeError: Cannot read properties of undefined (reading 'forEach') at loadData).
+              if (loadGenRef.current === gen && editorRef.current === editor) {
                 setTimeout(() => setIsReady(true), 150)
               }
             })
             .catch((err) => {
               clearTimeout(fallbackTimer)
               console.error('[EditorCanvas] load() failed:', err)
-              // Guard with generation: only unblock the UI for the current load.
-              // The fallback timer (8s) covers the case where the current run's load
-              // hangs without resolving or rejecting.
-              if (loadGenRef.current === gen) {
+              // Guard with generation AND editor identity: only unblock the UI if this is still
+              // the active editor. If editor.destroy() was called (editorRef.current !== editor),
+              // a new editor is being initialized — its own Effect 2 run will set isReady when
+              // its load completes successfully. Calling setIsReady(true) here on a destroyed
+              // editor would expose a broken canvas to waitForCanvas().
+              if (loadGenRef.current === gen && editorRef.current === editor) {
                 setIsReady(true)
               }
             })
         } else {
           clearTimeout(fallbackTimer)
           // Fallback for older GrapesJS versions where load() is synchronous or lacks promise.
-          if (loadGenRef.current === gen) {
+          if (loadGenRef.current === gen && editorRef.current === editor) {
             setTimeout(() => setIsReady(true), 500)
           }
         }
       } catch (err) {
         clearTimeout(fallbackTimer)
         console.error('[EditorCanvas] Unexpected error during slide switch:', err)
-        if (loadGenRef.current === gen) {
+        if (loadGenRef.current === gen && editorRef.current === editor) {
           setIsReady(true)
         }
       }

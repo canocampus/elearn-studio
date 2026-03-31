@@ -317,7 +317,7 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
 
     // Reload — session is restored via refresh token (httpOnly cookie)
     await page.reload()
-    await editorPage.waitForReady()
+    await editorPage.waitForReloadComplete()
 
     // Navigate to our slide using the stable index captured before drag.
     // Slides are append-only; other workers' slides land at higher indices,
@@ -369,7 +369,7 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
 
     // Reload and navigate back to the same slide.
     await page.reload()
-    await editorPage.waitForReady()
+    await editorPage.waitForReloadComplete()
     await slides.nth(ourSlideIndex).click()
     await editorPage.waitForCanvas()
 
@@ -450,11 +450,11 @@ test.describe('Question Widget: Fast slide switch race condition (T611-07)', () 
     await textarea.fill('T611-07 race condition sentinel')
     await textarea.press('Tab')  // trigger onChange
 
-    // Add slide B and switch to it IMMEDIATELY — well before the 2s debounce would fire.
-    // The synchronous editor.store() in QuestionPropertiesPanel (or the slide-switch
-    // handler) must have already fired the PATCH.
+    // Add slide B — addSlide() auto-navigates to the new slide, which is the rapid
+    // switch being tested. Do NOT click slides.last() afterwards: addSlide() already
+    // triggers editor.load() for slide B; a second click would cause a concurrent load
+    // that corrupts GrapesJS internal state and crashes the editor.
     await editorPage.addSlide()
-    await slides.last().click()
     await page.waitForTimeout(100)  // 100ms — far less than the 2s debounce
 
     // Wait for the PATCH that must have been triggered by the synchronous store() call.
@@ -463,6 +463,9 @@ test.describe('Question Widget: Fast slide switch race condition (T611-07)', () 
     // Navigate back to slide A.
     await slides.nth(slideAIndex).click()
     await editorPage.waitForCanvas()
+    // Give GrapesJS a moment to be fully interactive after the ready signal fires —
+    // without this, click events inside the canvas iframe don't register as selections.
+    await page.waitForTimeout(300)
 
     // Re-select the widget and verify the edited text is preserved.
     await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 10_000 })

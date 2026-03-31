@@ -30,6 +30,32 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.9] — 2026-03-31 — E2E Suite Expansion to 90 Tests + Moodle SCORM Hardening
+
+### Added
+
+- **90-test Playwright E2E suite** — expanded from 73 tests to 90 across two projects:
+  - `setup` project: 4 tests in `auth.spec.ts` (unauthenticated login flow)
+  - `chromium` project: 86 tests (all other spec files)
+  - Coverage gaps filled: `persistence.spec.ts` (10 tests), `grapesjs-integration.spec.ts` (9 tests), `question-widget.spec.ts` (23 tests), `authoring-ui-layer.spec.ts` (21 tests), `action-sequence.spec.ts` (6 tests), `scorm-export.spec.ts` (7 tests), `course-crud.spec.ts` (5 tests), `image-upload.spec.ts` (3 tests), `moodle-scorm.spec.ts` (2 tests)
+
+- **Moodle SCORM integration tests** (`e2e/tests/moodle-scorm.spec.ts`) — opt-in via `E2E_MOODLE=1` or `MOODLE_URL` env var. Two serial tests:
+  - Step 1: create 3-slide course via API, export SCORM 1.2 ZIP, assert content-type and non-empty archive
+  - Step 2: authenticate to live Moodle 4.x, create course, upload SCORM ZIP via file picker, launch player popup, verify each slide renders expected widget DOM inside `iframe#scorm_object`
+
+### Fixed
+
+- **Moodle `modedit.php` ERR_ABORTED** (`moodle-scorm.spec.ts`) — when running in the full 86-test suite, Playwright aborted the `page.goto()` to `modedit.php` due to Moodle's edit-mode JavaScript still in-flight. Fix: added `page.waitForLoadState('networkidle', { timeout: 8_000 })` before navigation to let Moodle settle, plus a catch-and-retry wrapper that pauses 2 seconds and retries once if the first navigation is aborted.
+
+- **Moodle login unreliable under CPU load** (`moodle-scorm.spec.ts`) — `pressSequentially` typed credentials character-by-character; under load (after 84 preceding tests), characters were dropped and Moodle received an incomplete password, returning "Invalid login". Fix: replaced `pressSequentially` with `page.fill()` (atomic value assignment) for both username and password fields, with `expect(locator).toHaveValue()` verification before submitting.
+
+### Notes
+
+- Running `npx playwright test --project=chromium` reports 86 tests — auth.spec.ts is excluded via `testIgnore` because auth tests require an unauthenticated context. Running `npx playwright test` (both projects) reports 90 tests. This is intentional: the `setup` project runs auth.spec.ts without storageState; the `chromium` project runs everything else with a pre-baked authenticated session.
+- Moodle tests require the Docker stack running with Moodle (`docker compose ... up -d moodle`) and credentials set via env vars `MOODLE_URL`, `MOODLE_ADMIN`, `MOODLE_PASSWORD`.
+
+---
+
 ## [0.5.8] — 2026-03-29 — Persistence Race Condition Fixes (T800)
 
 ### Fixed

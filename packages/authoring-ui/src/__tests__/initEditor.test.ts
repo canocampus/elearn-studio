@@ -9,7 +9,7 @@
  * (no position set) must receive `{ position: 'absolute' }`.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { Editor } from 'grapesjs'
 
 // ---------------------------------------------------------------------------
@@ -251,5 +251,133 @@ describe('T706 — initEditor component:add position guard', () => {
     const result = initEditor(defaultOpts())
 
     expect(result).toBe(fakeEditor)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T800 — triggerAutosave: stopCommand before store
+// ---------------------------------------------------------------------------
+
+import { getStorageContext } from '../editor/storageManager'
+
+/**
+ * Extends the base mock editor with `stopCommand` and a configurable
+ * `Commands.isActive` for testing the T800.2 text-edit flush behaviour.
+ */
+function makeMockEditorWithStopCommand(
+  eventCapture: ReturnType<typeof makeEventCapture>,
+  textEditActive = false,
+): Editor {
+  return {
+    on: eventCapture.on,
+    setDevice: vi.fn(),
+    StorageManager: { add: vi.fn() },
+    Commands: { isActive: vi.fn().mockReturnValue(textEditActive) },
+    stopCommand: vi.fn(),
+    store: vi.fn().mockResolvedValue(undefined),
+  } as unknown as Editor
+}
+
+describe('T800 — triggerAutosave: stopCommand before store', () => {
+  let eventCapture: ReturnType<typeof makeEventCapture>
+  let fakeEditor: Editor
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+    // Default: text-edit NOT active, context stable
+    eventCapture = makeEventCapture()
+    fakeEditor = makeMockEditorWithStopCommand(eventCapture, false)
+    vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+    vi.mocked(getStorageContext).mockReturnValue({ courseId: 'c1', slideId: 's1' })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /** Fire one autosave-triggering event and advance past the 2 s debounce. */
+  async function runAutosaveCycle() {
+    initEditor(defaultOpts())
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+    if (updateHandlers.length === 0) throw new Error('component:update handler not registered')
+    updateHandlers.forEach(h => h({}))
+    await vi.advanceTimersByTimeAsync(2001)
+  }
+
+  // ---- T800.1 — stopCommand called when text-edit is active ----
+
+  it('T800.1: calls stopCommand("text-edit") before store() when text-edit is active', async () => {
+    fakeEditor = makeMockEditorWithStopCommand(eventCapture, true)
+    vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+
+    await runAutosaveCycle()
+
+    expect(fakeEditor.stopCommand).toHaveBeenCalledWith('text-edit')
+    expect(fakeEditor.store).toHaveBeenCalledOnce()
+
+    // stopCommand must precede store() — verify call order
+    const stopOrder = vi.mocked(fakeEditor.stopCommand).mock.invocationCallOrder[0]
+    const storeOrder = vi.mocked(fakeEditor.store).mock.invocationCallOrder[0]
+    expect(stopOrder).toBeLessThan(storeOrder)
+  })
+
+  // ---- T800.2 — stopCommand NOT called when text-edit is inactive ----
+
+  it('T800.2: does NOT call stopCommand when text-edit is not active', async () => {
+    // fakeEditor was created with textEditActive = false (default in beforeEach)
+    await runAutosaveCycle()
+
+    expect(fakeEditor.stopCommand).not.toHaveBeenCalled()
+    expect(fakeEditor.store).toHaveBeenCalledOnce()
+  })
+
+  // ---- CRITICAL-01 — context mismatch aborts autosave ----
+
+  it('CRITICAL-01: store() is NOT called when courseId changes during debounce', async () => {
+    initEditor(defaultOpts())
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+    updateHandlers.forEach(h => h({}))
+
+    // Simulate slide switch mid-debounce: context changes before timer fires
+    vi.mocked(getStorageContext).mockReturnValue({ courseId: 'c1', slideId: 's2' })
+
+    await vi.advanceTimersByTimeAsync(2001)
+
+    expect(fakeEditor.store).not.toHaveBeenCalled()
+    expect(fakeEditor.stopCommand).not.toHaveBeenCalled()
+  })
+
+  it('CRITICAL-01b: store() is NOT called when slideId changes during debounce', async () => {
+    initEditor(defaultOpts())
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+    updateHandlers.forEach(h => h({}))
+
+    vi.mocked(getStorageContext).mockReturnValue({ courseId: 'c2', slideId: 's1' })
+
+    await vi.advanceTimersByTimeAsync(2001)
+
+    expect(fakeEditor.store).not.toHaveBeenCalled()
+  })
+
+  // ---- debounce resets on rapid events ----
+
+  it('T800.3: rapid events debounce to a single store() call', async () => {
+    initEditor(defaultOpts())
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+
+    // Fire 5 events in quick succession (each resets the timer)
+    for (let i = 0; i < 5; i++) {
+      updateHandlers.forEach(h => h({}))
+      await vi.advanceTimersByTimeAsync(500)
+    }
+
+    // Not yet fired (still within debounce window after last event)
+    expect(fakeEditor.store).not.toHaveBeenCalled()
+
+    // Advance past debounce window
+    await vi.advanceTimersByTimeAsync(2001)
+
+    expect(fakeEditor.store).toHaveBeenCalledOnce()
   })
 })

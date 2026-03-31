@@ -3,7 +3,7 @@ import multer from 'multer'
 import rateLimit from 'express-rate-limit'
 import { randomUUID } from 'crypto'
 import path from 'path'
-import { putObject, getPresignedUrl, statObject } from '../storage/s3'
+import { putObject, getPresignedUrl, statObject, deleteObject } from '../storage/s3'
 import { logger } from '../lib/logger'
 
 export const assetsRouter: express.Router = Router()
@@ -363,6 +363,56 @@ assetsRouter.get('/:objectName', async (req, res) => {
     res.redirect(302, presignedUrl)
   } catch (err) {
     logger.error({ err }, 'Failed to generate presigned URL')
+    res.status(503).json({ success: false, error: 'Storage service unavailable' })
+  }
+})
+
+/**
+ * @openapi
+ * /assets/{objectName}:
+ *   delete:
+ *     summary: Delete an asset from storage
+ *     description: Removes an object from Garage S3. objectName must match UUID + whitelisted extension pattern. Returns 204 on success (idempotent — Garage returns success even if the object does not exist).
+ *     tags: [Assets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: objectName
+ *         required: true
+ *         schema: { type: string, example: a1b2c3d4-e5f6-4789-abcd-ef0123456789.png }
+ *     responses:
+ *       204:
+ *         description: Asset deleted (or did not exist)
+ *       400:
+ *         description: Invalid asset name
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ *       503:
+ *         description: Storage service unavailable
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+ */
+assetsRouter.delete('/:objectName', async (req, res) => {
+  const { objectName } = req.params
+
+  if (!OBJECT_NAME_RE.test(objectName)) {
+    res.status(400).json({ success: false, error: 'Invalid asset name' })
+    return
+  }
+
+  try {
+    await deleteObject(objectName)
+    res.status(204).end()
+  } catch (err) {
+    logger.error({ err }, 'Storage delete failed')
     res.status(503).json({ success: false, error: 'Storage service unavailable' })
   }
 })

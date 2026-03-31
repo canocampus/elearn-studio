@@ -176,7 +176,7 @@
   - [x] authoring-ui: tests from T011/T012/T013/T014 (111+ tests passing)
   - [x] scorm-packager: unit tests for `buildManifest()` output structure (119 tests, 4 skipped — identifier, schema/schemaversion, title, masteryscore, fallback chain; all pass)
   - [x] runtime-player: unit tests for widget rendering functions (renderMatchItems, renderDragObjects, renderDropTarget, renderArrangeObjects, renderOrderText, renderHotspot — 198 tests total, all pass)
-- [ ] T100.DOCS — Create/update `docs/authoring-guide.md`: GrapesJS editor overview, widget catalog, slide management, question authoring, publishing to SCORM
+- [x] T100.DOCS — Create/update `docs/authoring-guide.md`: GrapesJS editor overview, widget catalog, slide management, question authoring, publishing to SCORM
 - [x] T100.ISSUES — issues-T015.md through issues-T800.md generated; all CRITICAL/HIGH resolved across Phase 0–7
 
 ---
@@ -1141,7 +1141,7 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 - [x] T603.3 — 401 Unauthorized without auth token — 10 tests covering all protected routes (GET/POST/PUT/DELETE/PATCH)
 - [x] T603.4 — Slide ordering: slides come from `GET /courses/:id`; covered by existing tests in T000.TEST.1
 - [x] T603.5 — `PATCH /courses/:id/slides/reorder` — 6 tests: success, empty orderedIds (400), missing orderedIds (400), mismatched IDs (400), unknown course (404), invalid id (400). Also fixed production routing bug: reorder route was shadowed by `/:slideId` handler — moved before the parameterized route.
-- [!] T603.6 — `DELETE /assets/:objectName` — blocked: route not yet implemented in courses.ts
+- [x] T603.6 — `DELETE /assets/:objectName` — implemented: `deleteObject` added to `s3.ts`, DELETE route added to `assets.ts` (UUID+extension validation, 204 on success, 503 on storage error); 6 unit tests in `assets.test.ts` (valid name, all whitelisted extensions, no UUID, no extension, disallowed extension, storage throws)
 - [x] T603.7 — Duplicate filename uniqueness: UUID-based objectName generation inherently prevents overwrite; no additional test needed
 
 ---
@@ -1480,7 +1480,42 @@ T706 (component:add during load)       ← initEditor.ts load-time side effect
   the next `load()` to fetch the pre-failure DB state and silently discard unsaved edits.
 - [x] T800.DOCS — `docs/issues/issues-T800.md` generated with full root-cause analysis,
   before/after code for all 4 bugs, combined impact analysis, and recommended regression tests.
+- [x] T800.TESTS — Unit tests added to `initEditor.test.ts` covering T800 behaviors: T800.1
+  (`stopCommand('text-edit')` called before `store()` when text-edit active, call-order verified),
+  T800.2 (`stopCommand` NOT called when text-edit inactive), CRITICAL-01a/b (store aborted when
+  courseId or slideId changes during debounce), T800.3 (rapid events collapse to single store()
+  call). All 13 `initEditor.test.ts` tests pass.
+
+── Issues files location ────────────────────────────────────────────
+
+---
+
+## PHASE 9 — E2E Suite Expansion & Moodle SCORM Hardening
+
+### T900 — E2E Suite: 73 → 90 Tests + Moodle Integration Hardening
+> **Scope:** Close all 8 coverage gaps (GAP-01 through GAP-08) from the elearn-e2e-qa skill,
+> expand coverage to 90 tests, and make the Moodle SCORM integration tests (moodle-scorm.spec.ts)
+> pass reliably in the full suite context.
+> Documented in `docs/issues/issues-T900.md`.
+
+- [x] T900.1 — Coverage gap GAP-01 (FM-05 slide property persistence) covered in `grapesjs-integration.spec.ts`
+- [x] T900.2 — Coverage gap GAP-02 (action sequence save/reload) covered in `action-sequence.spec.ts`
+- [x] T900.3 — Coverage gap GAP-03 (widget survival on full page reload) covered in `persistence.spec.ts`
+- [x] T900.4 — Coverage gap GAP-04 (SCORM ZIP content: imsmanifest.xml + index.html) covered in `scorm-export.spec.ts`
+- [x] T900.5 — Coverage gap GAP-05 (auth token refresh on F5 reload) covered in `persistence.spec.ts`
+- [x] T900.6 — Coverage gap GAP-06 (autosave race condition — fast slide switch) covered in `persistence.spec.ts`
+- [x] T900.7 — Coverage gap GAP-07 (question props panel edit reflected in canvas) covered in `question-widget.spec.ts`
+- [x] T900.8 — Coverage gap GAP-08 (FM-02 widget drag within canvas) covered in `grapesjs-integration.spec.ts`
+- [x] T900.9 — Moodle login hardened: replaced `pressSequentially` with `page.fill()` — atomic
+  assignment immune to CPU-load keystroke drops in full suite context
+- [x] T900.10 — Moodle `modedit.php` ERR_ABORTED fixed: added `waitForLoadState('networkidle')`
+  before navigation + catch-and-retry wrapper for the `page.goto()` call
+- [x] T900.11 — Playwright two-project architecture documented: `setup` project (4 auth tests,
+  unauthenticated) + `chromium` project (86 tests, pre-logged-in storageState); total 90 tests
+- [x] T900.DOCS — `docs/issues/issues-T900.md` generated with root-cause analysis for both Moodle
+  bugs, coverage gap closure table, test count reference, and recommendations
+- [x] T900.E2E — All 90 E2E tests pass: 86 via `npx playwright test --project=chromium` +
+  4 via `npx playwright test --project=setup`; Moodle tests pass with `E2E_MOODLE=1`
 
 ── Issues files location ────────────────────────────────────────────
 All reviewer issue files go in: docs/issues/issues-TXX.md
-```

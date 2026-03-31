@@ -84,40 +84,45 @@ function clearRefreshCookie(res: Response): void {
  * Only available when ALLOW_REGISTRATION=true (or in test env).
  */
 authRouter.post('/register', async (req: Request, res: Response): Promise<void> => {
-  if (
-    process.env.ALLOW_REGISTRATION !== 'true' &&
-    process.env.NODE_ENV !== 'test'
-  ) {
-    res.status(403).json({ success: false, error: 'Registration is disabled' })
-    return
-  }
+  try {
+    if (
+      process.env.ALLOW_REGISTRATION !== 'true' &&
+      process.env.NODE_ENV !== 'test'
+    ) {
+      res.status(403).json({ success: false, error: 'Registration is disabled' })
+      return
+    }
 
-  const { email, password } = req.body as { email?: string; password?: string }
+    const { email, password } = req.body as { email?: string; password?: string }
 
-  if (!email || !password) {
-    res.status(400).json({ success: false, error: 'email and password are required' })
-    return
-  }
-  if (typeof email !== 'string' || typeof password !== 'string') {
-    res.status(400).json({ success: false, error: 'email and password must be strings' })
-    return
-  }
-  if (password.length < 8) {
-    res.status(400).json({ success: false, error: 'password must be at least 8 characters' })
-    return
-  }
+    if (!email || !password) {
+      res.status(400).json({ success: false, error: 'email and password are required' })
+      return
+    }
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      res.status(400).json({ success: false, error: 'email and password must be strings' })
+      return
+    }
+    if (password.length < 8) {
+      res.status(400).json({ success: false, error: 'password must be at least 8 characters' })
+      return
+    }
 
-  const existing = await User.findOne({ email: email.toLowerCase().trim() })
-  if (existing) {
-    res.status(409).json({ success: false, error: 'Email already registered' })
-    return
+    const existing = await User.findOne({ email: email.toLowerCase().trim() })
+    if (existing) {
+      res.status(409).json({ success: false, error: 'Email already registered' })
+      return
+    }
+
+    const passwordHash = await hashPassword(password)
+    const user = await User.create({ email, passwordHash })
+
+    logger.info({ userId: user.id }, 'User registered')
+    res.status(201).json({ success: true, data: { id: user.id, email: user.email, role: user.role } })
+  } catch (error: unknown) {
+    logger.error({ error }, 'User registration failed')
+    res.status(500).json({ success: false, error: 'Internal server error' })
   }
-
-  const passwordHash = await hashPassword(password)
-  const user = await User.create({ email, passwordHash })
-
-  logger.info({ userId: user.id }, 'User registered')
-  res.status(201).json({ success: true, data: { id: user.id, email: user.email, role: user.role } })
 })
 
 /**
@@ -167,43 +172,49 @@ authRouter.post('/register', async (req: Request, res: Response): Promise<void> 
  * POST /auth/login
  */
 authRouter.post('/login', async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body as { email?: string; password?: string }
+  try {
+    const { email, password } = req.body as { email?: string; password?: string }
 
-  if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
-    res.status(400).json({ success: false, error: 'email and password are required' })
-    return
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+      res.status(400).json({ success: false, error: 'email and password are required' })
+      return
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() })
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Invalid credentials' })
+      return
+    }
+
+    const valid = await verifyPassword(password, user.passwordHash)
+    if (!valid) {
+      res.status(401).json({ success: false, error: 'Invalid credentials' })
+      return
+    }
+
+    // Issue tokens
+    const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role })
+    const rawRefresh = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex')
+    const expiresAt = new Date(Date.now() + REFRESH_TTL_MS)
+
+    await RefreshToken.create({
+      userId: user._id,
+      hashedToken: hashRefreshToken(rawRefresh),
+      expiresAt,
+    })
+
+    setRefreshCookie(res, rawRefresh)
+
+    logger.info({ userId: user.id }, 'User logged in')
+    res.json({
+      success: true,
+      data: { accessToken, user: { id: user.id, email: user.email, role: user.role } },
+    })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    logger.error({ error }, 'User login failed')
+    res.status(500).json({ success: false, error: `Internal server error: ${msg}` })
   }
-
-  const user = await User.findOne({ email: email.toLowerCase().trim() })
-  if (!user) {
-    res.status(401).json({ success: false, error: 'Invalid credentials' })
-    return
-  }
-
-  const valid = await verifyPassword(password, user.passwordHash)
-  if (!valid) {
-    res.status(401).json({ success: false, error: 'Invalid credentials' })
-    return
-  }
-
-  // Issue tokens
-  const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role })
-  const rawRefresh = crypto.randomBytes(REFRESH_TOKEN_BYTES).toString('hex')
-  const expiresAt = new Date(Date.now() + REFRESH_TTL_MS)
-
-  await RefreshToken.create({
-    userId: user._id,
-    hashedToken: hashRefreshToken(rawRefresh),
-    expiresAt,
-  })
-
-  setRefreshCookie(res, rawRefresh)
-
-  logger.info({ userId: user.id }, 'User logged in')
-  res.json({
-    success: true,
-    data: { accessToken, user: { id: user.id, email: user.email, role: user.role } },
-  })
 })
 
 /**

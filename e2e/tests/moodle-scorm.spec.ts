@@ -216,16 +216,17 @@ test.describe('Moodle SCORM Integration', () => {
 
     try {
       // ── 1. Login to Moodle ─────────────────────────────────────────────────
-      await page.goto(`${MOODLE_URL}/login/index.php`)
-      // Use pressSequentially (not fill) for both fields — Moodle 5.x uses
-      // core_form/submit JS that clears password fields set via direct value
-      // assignment (page.fill). Simulating real keystrokes bypasses this.
-      await page.locator('#username').pressSequentially(MOODLE_ADMIN)
-      await page.locator('#password').pressSequentially(MOODLE_PASSWORD)
+      await page.goto(`${MOODLE_URL}/login/index.php`, { waitUntil: 'domcontentloaded' })
+      // Use fill() — atomic value assignment that works reliably for Moodle 4.x (bitnami legacy).
+      // pressSequentially is unreliable under load (characters dropped when CPU is saturated).
+      await page.fill('#username', MOODLE_ADMIN)
+      await page.fill('#password', MOODLE_PASSWORD)
+      // Verify values were set before submitting
+      await expect(page.locator('#username')).toHaveValue(MOODLE_ADMIN)
       await page.click('#loginbtn')
       // Wait for post-login redirect — Moodle redirects to /my/ after login
       // Avoid networkidle: Moodle has persistent background polling that prevents it
-      await page.waitForURL(url => !url.pathname.includes('/login/'), { timeout: 20_000 })
+      await page.waitForURL(url => !url.pathname.includes('/login/'), { timeout: 30_000 })
       await page.waitForLoadState('domcontentloaded', { timeout: 10_000 })
 
       // ── 2. Create a Moodle course ──────────────────────────────────────────
@@ -277,16 +278,23 @@ test.describe('Moodle SCORM Integration', () => {
       }
 
       // ── 5. Add SCORM activity via direct URL ──────────────────────────────
-      // The Moodle 5.x activity chooser UI has changed significantly.
-      // Navigating directly to modedit.php bypasses the chooser entirely
+      // Navigating directly to modedit.php bypasses the activity chooser UI
       // and works across all Moodle versions.
+      // Wait for Moodle edit-mode JS to settle before navigating — prevents ERR_ABORTED
+      // when running in full suite context (CPU/resource contention after 84 other tests).
+      await page.waitForLoadState('networkidle', { timeout: 8_000 }).catch(() => {})
+
       const courseId = courseViewUrl.match(/id=(\d+)/)?.[1]
       expect(courseId, 'Could not extract course ID from course view URL').toBeTruthy()
-      await page.goto(
-        `${MOODLE_URL}/course/modedit.php?add=scorm&type=&course=${courseId}&section=1&return=0&sr=0`
-      )
-      await page.waitForURL(/\/course\/modedit\.php/, { timeout: 20_000 })
-      await page.waitForLoadState('domcontentloaded')
+
+      const modeditUrl = `${MOODLE_URL}/course/modedit.php?add=scorm&type=&course=${courseId}&section=1&return=0&sr=0`
+      // ERR_ABORTED is intermittent under load — catch and retry once after a brief pause
+      await page.goto(modeditUrl, { waitUntil: 'domcontentloaded' }).catch(async () => {
+        await page.waitForTimeout(2_000)
+        await page.goto(modeditUrl, { waitUntil: 'domcontentloaded' })
+      })
+      // Confirm we landed on the SCORM settings form
+      await expect(page.locator('#id_name')).toBeVisible({ timeout: 15_000 })
 
       // ── 6. Fill in SCORM settings and upload ZIP ───────────────────────────
       await page.fill('#id_name', 'eLearn Studio SCORM Test')
