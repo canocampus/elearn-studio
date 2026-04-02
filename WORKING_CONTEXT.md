@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-02 — after T603
+> Last updated: 2026-04-02 — after T604
 
 ---
 
@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.14 |
+| **Current version** | v0.5.15 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
-| **Active block** | T604 — Fix Media Player properties panel |
-| **E2E test count** | 97 tests |
+| **Active block** | T605 — Image widget placeholder hint |
+| **E2E test count** | 102 tests |
 
 ---
 
 ## What Was Last Done
 
+- **T604 / v0.5.15** — Fixed BETA-10: new `MediaPlayerPropertiesPanel` with Media Source URL (+ AM picker), Media Type selector, and Playback Options (autoplay/controls/loop checkboxes). `useTrait` and `useExtendedBool` hooks with `isLocalRef` loop prevention. Props tab auto-opens on widget select. 6 new E2E tests; full 102-test suite passes.
 - **T603 / v0.5.14** — Fixed BETA-04/05/11: new `ButtonPropertiesPanel` component for `button`, `done-button`, `nav-buttons`. Caption editable via `component.get/set('content')`; background image via Asset Manager + `component.setStyle()`. Nav buttons: separate prev/next caption fields writing to child components. Props tab auto-opens on widget select. 2 new E2E tests; all 15 grapesjs-integration tests pass.
 - **T602 / v0.5.13** — Fixed BETA-01/02/03/08/09/13: all question property forms (MC, TF, Fill) now correctly persist text edits, correct-answer selections, and feedback fields. Root cause: forms read `extendedProperties` as a plain variable with no `useState` — React never re-rendered. Fix: `useExtendedProperties<T>` hook (useState + GrapesJS model subscription + isLocalRef loop prevention). All 23 question-widget E2E tests pass.
 - **T601 / v0.5.12** — Fixed BETA-07 (AM thumbnail: generic icon → presigned URL) and BETA-12 (AM filename: UUID → original filename). `customFetch` in `assetManager.ts` now resolves presigned URL post-upload and passes `{ src, name: originalName, type: 'image' }` to GrapesJS. Added T601 E2E regression test; all 4 image-upload tests pass.
@@ -55,7 +56,7 @@ Full history: `CHANGELOG.md`
 | ~~BETA-07~~ | ~~Asset Manager: generic icon instead of image thumbnail~~ | ✅ Fixed in T601 |
 | ~~BETA-08~~ | ~~TF: correct answer selection broken~~ | ✅ Fixed in T602 |
 | ~~BETA-09~~ | ~~Fill: accepted answer not editable~~ | ✅ Fixed in T602 |
-| BETA-10 | Media Player: no properties panel, cannot assign media | T604 |
+| ~~BETA-10~~ | ~~Media Player: no properties panel, cannot assign media~~ | ✅ Fixed in T604 |
 | ~~BETA-11~~ | ~~Nav buttons: individual captions not changeable~~ | ✅ Fixed in T603 |
 
 ### 🟡 MEDIUM
@@ -119,7 +120,7 @@ assignment is not calling `component.setStyle()` correctly.
 2. ~~**T601** — Fix Asset Manager preview + filename~~ ✅ Done
 3. ~~**T602** — Fix question properties panel (all 3 types)~~ ✅ Done
 4. ~~**T603** — Fix button caption + background image~~ ✅ Done
-5. **T604** — Fix Media Player properties panel
+5. ~~**T604** — Fix Media Player properties panel~~ ✅ Done
 6. **T605** — Image widget placeholder hint
 7. **T606** — SCORM export loading feedback
 8. **T607** — New: Audio narration widget
@@ -140,7 +141,7 @@ assignment is not calling `component.setStyle()` correctly.
 | Multiple Choice | ✅ Working | Text, options, correct answer, feedback all editable (T602) |
 | True/False | ✅ Working | Positioning (T600) + correct answer selection (T602) fixed |
 | Fill in Blank | ✅ Working | Positioning (T600) + accepted answer editable (T602) |
-| Media Player | ⚠️ Partial | Positioning fixed (T600); no props panel (BETA-10) |
+| Media Player | ✅ Working | Positioning (T600) + Media Source/Type/Playback props panel (T604) |
 
 ---
 

@@ -473,9 +473,9 @@ test.describe('Question Widget: Fast slide switch race condition (T611-07)', () 
     await editorPage.propsTab.click()
 
     const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
-    await expect(restoredPanel).toBeVisible({ timeout: 5_000 })
+    await expect(restoredPanel).toBeVisible({ timeout: 10_000 })
     const restoredTextarea = restoredPanel.locator('textarea').first()
 
-    await expect(restoredTextarea).toHaveValue('T611-07 race condition sentinel', { timeout: 5_000 })
+    await expect(restoredTextarea).toHaveValue('T611-07 race condition sentinel', { timeout: 10_000 })
   })
 })

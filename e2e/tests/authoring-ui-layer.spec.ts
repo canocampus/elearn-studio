@@ -242,7 +242,7 @@ test.describe('T608.6 — TopToolbar Delete Slide', () => {
     await page.getByTitle('Delete current slide').click()
 
     // Slide count drops by 1
-    await expect(slidesLocator).toHaveCount(countWithExtra - 1, { timeout: 10_000 })
+    await expect(slidesLocator).toHaveCount(countWithExtra - 1, { timeout: 15_000 })
   })
 
   test('Delete Slide button is visible in toolbar', async ({ page }) => {

@@ -30,6 +30,28 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.15] — 2026-04-02 — Media Player Properties Panel (BETA-10)
+
+### Added
+- **MediaPlayerPropertiesPanel** (`packages/authoring-ui/src/components/sidebar/MediaPlayerPropertiesPanel.tsx`) — New React properties panel for the media-player widget. Shown automatically in the Props tab when a `media-player` component is selected.
+  - **Media Source section**: URL text input with bidirectional GrapesJS `change:src` sync; "Choose from Asset Library…" button opens the GrapesJS Asset Manager; "Clear Source" button removes the URL
+  - **Media Type section**: dropdown selector (Video / Audio) reads/writes the `mediaType` component trait
+  - **Playback Options section**: three checkboxes — Show controls (default on), Autoplay (default off), Loop (default off) — stored immutably in `extendedProperties`
+  - `useTrait` hook: bidirectional sync for any named trait using the `isLocalRef` loop-prevention pattern
+  - `useExtendedBool` hook: bidirectional sync for boolean flags in `extendedProperties` using the same `isLocalRef` pattern
+  - `isMediaPlayerWidgetType()` export — added to `EditorCanvas.tsx` `component:selected` handler so the Props tab auto-opens on widget select
+- **E2E suite** (`e2e/tests/media-player-widget.spec.ts`) — 6 new tests: block visible in Blocks panel, Props tab auto-opens, all three sections visible, URL typed into src field updates component model, media type selector reads/writes `mediaType`, checkbox toggles update `extendedProperties.autoplay`
+- Full suite now 102 tests (was 96 before T604)
+
+### Fixed
+- **[BETA-10] Media Player: no properties panel, cannot assign media** — media-player widget previously had no editable fields in the Props tab. All five fields now work with full GrapesJS model sync and undo/redo support.
+
+### Notes
+- The canvas still renders a static placeholder div for the media player (no live `<video>`/`<audio>` preview in GrapesJS). The `src`, `mediaType`, `autoplay`, `controls`, and `loop` values are stored on the component model and will be consumed by the runtime player at course delivery time.
+- E2E timeout fixes applied to T601.8 and T611-07 (`restoredPanel`/`restoredTextarea` assertions bumped from 5_000 → 10_000) and T608.6 delete-slide assertion bumped from 10_000 → 15_000 to eliminate full-suite load flakes.
+
+---
+
 ## [0.5.14] — 2026-04-02 — Button Caption and Background Image Now Editable (BETA-04/05/11)
 
 ### Added

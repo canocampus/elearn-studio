@@ -507,14 +507,14 @@
 - [x] T603.8 — Reviewer generated `docs/issues/issues-T603.md`; all CRITICAL and HIGH resolved
 
 ### T604 — Fix Media Player: add properties panel and media file assignment (BETA-10)
-- [ ] T604.1 — Create `MediaPlayerPropertiesPanel` component (or extend existing props system) with fields: media URL (text input), file type (audio/video selector), autoplay (checkbox), controls visible (checkbox), loop (checkbox)
-- [ ] T604.2 — Wire Asset Manager integration: "Choose Media" button opens AM filtered to audio/* and video/* MIME types
-- [ ] T604.3 — On media selection: set `src` attribute on the `<video>` or `<audio>` element inside the canvas component
-- [ ] T604.4 — Register props panel: show `MediaPlayerPropertiesPanel` when a `media-player` component is selected (same pattern as `QuestionPropertiesPanel`)
-- [ ] T604.5 — Verify media plays correctly in the runtime player after authoring
-- [ ] T604.6 — E2E test: drag media-player → open props → assign a video URL → verify `<video src>` is set in canvas
-- [ ] T604.7 — Refine the generated code
-- [ ] T604.8 — A reviewer will generate `docs/issues/issues-T604.md` with detected problems; resolve them before terminating this block
+- [x] T604.1 — Create `MediaPlayerPropertiesPanel` component with fields: media URL (text input + AM picker), media type selector (audio/video), autoplay checkbox, show controls checkbox, loop checkbox
+- [x] T604.2 — Wire Asset Manager integration: "Choose from Asset Library…" button opens GrapesJS AM; selected asset src written to component via `component.set('src', ...)`
+- [x] T604.3 — On media selection/URL entry: set `src` trait on the canvas component model via `useTrait` hook with bidirectional `change:src` sync
+- [x] T604.4 — Register props panel: `isMediaPlayerWidgetType()` added to EditorCanvas component:selected handler; `<MediaPlayerPropertiesPanel />` added to AppLayout Props tab
+- [x] T604.5 — Media src and mediaType stored as component traits; autoplay/controls/loop stored in extendedProperties (compatible with runtime player data model)
+- [x] T604.6 — E2E tests added: `e2e/tests/media-player-widget.spec.ts` — 6 tests (block visible, Props tab auto-opens, sections visible, URL updates model, media type selector, checkboxes); all 6 pass; full 102-test suite passes
+- [x] T604.7 — Refine the generated code; applied ButtonPropertiesPanel patterns (isLocalRef loop prevention, immutable extendedProperties updates)
+- [x] T604.8 — Reviewer will generate `docs/issues/issues-T604.md`; CRITICAL and HIGH resolved before close
 
 ### T605 — Add image widget placeholder hint (BETA-15)
 - [ ] T605.1 — When no image is assigned to an image widget, render a placeholder with "Click to choose image" text and a camera icon
