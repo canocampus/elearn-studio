@@ -47,9 +47,9 @@ function registerTextWidget(editor: Editor): void {
         droppable: false,
         content: 'Double-click to edit text',
         properties: {},
+        actions: [],
         elearnActions: [],
-        extendedProperties: {},
-        style: {
+        extendedProperties: {},        style: {
           width: '200px',
           height: '50px',
           'font-size': '16px',
@@ -79,6 +79,7 @@ function registerImageWidget(editor: Editor): void {
         resizable: true,
         attributes: { src: '' },
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {},
         style: {
@@ -169,6 +170,7 @@ function registerButtonWidget(editor: Editor): void {
         content: 'Button',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {},
         style: {
@@ -198,6 +200,7 @@ function registerRectangleWidget(editor: Editor): void {
         tagName: 'div',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {},
         style: {
@@ -223,6 +226,7 @@ function registerNavButtonsWidget(editor: Editor): void {
         tagName: 'div',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {},
         content: `
@@ -252,6 +256,7 @@ function registerDoneButtonWidget(editor: Editor): void {
         content: '✓ Done',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {},
         style: {
@@ -270,7 +275,15 @@ function registerDoneButtonWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('done-button', { label: 'Done Button', category: 'Navigation', media: ICONS.doneButton, content: { type: 'done-button' } })
+  editor.BlockManager.add('done-button', {
+    label: 'Done Button',
+    category: 'Navigation',
+    media: ICONS.doneButton,
+    content: {
+      type: 'done-button',
+      style: { position: 'absolute', left: '100px', top: '100px', width: '120px', height: '40px' },
+    },
+  })
 }
 
 function registerScoreQuizWidget(editor: Editor): void {
@@ -281,6 +294,7 @@ function registerScoreQuizWidget(editor: Editor): void {
         tagName: 'div',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {},
         content: `
@@ -313,6 +327,7 @@ function registerScoreFieldWidget(editor: Editor): void {
         tagName: 'div',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {},
         content: `
@@ -346,6 +361,7 @@ function registerMediaPlayerWidget(editor: Editor): void {
         tagName: 'div',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {},
         content: `
@@ -367,6 +383,14 @@ function registerMediaPlayerWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('media-player', { label: 'Media Player', category: 'Media', media: ICONS.mediaPlayer, content: { type: 'media-player' } })
+  editor.BlockManager.add('media-player', {
+    label: 'Media Player',
+    category: 'Media',
+    media: ICONS.mediaPlayer,
+    content: {
+      type: 'media-player',
+      style: { position: 'absolute', left: '100px', top: '100px', width: '320px', height: '200px' },
+    },
+  })
   registerQuestionBlocks(editor)
 }

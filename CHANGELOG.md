@@ -30,6 +30,18 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.11] — 2026-04-02 — Fix Initial Drag Positioning for 4 Broken Block Types (BETA-06)
+
+### Fixed
+
+- **[BETA-06] Initial drag positioning: done-button, question-tf, question-fill, media-player** (`registerBlocks.ts`, `registerQuestionBlocks.ts`) — When dragged from the BlockManager onto the GrapesJS canvas, these four widgets landed at canvas origin (0,0) instead of at the drop target. Root cause: GrapesJS `dragMode: 'absolute'` requires the block `content` definition to include `style: { position: 'absolute', left, top, width, height }` to prime the drag-coordinate system. The `component:add` handler in `initEditor.ts` adds `position: absolute` after drop but not `left/top`, which is insufficient. Fixed by adding the missing initial style to each broken block's `BlockManager.add()` call. GrapesJS overrides `left/top` with actual drop coordinates at runtime.
+
+### Tests
+
+- Added T600 regression describe block in `e2e/tests/grapesjs-integration.spec.ts` — 4 parameterized tests (one per fixed widget) verify each block lands with canvas-relative X, Y > 50px after drop. All 13 grapesjs-integration tests pass.
+
+---
+
 ## [0.5.10] — 2026-03-31 — GrapesJS Converter Defensive Guard for Missing Widget Fields
 
 ### Fixed

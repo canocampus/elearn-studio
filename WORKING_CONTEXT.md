@@ -2,10 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> It is the single source of truth for current project state.
->
-> Last updated: 2026-03-31
-> Updated by: Claude Code after v0.5.10
+> Last updated: 2026-04-02 — after T600
 
 ---
 
@@ -13,95 +10,147 @@
 
 | Field | Value |
 |---|---|
-| **Latest release** | v0.0.1-beta (2026-03-29) |
-| **Current version** | v0.5.10 |
-| **Active phase** | Phase 2 — Interactivity + Screenshot Simulations |
-| **Active block** | — (between tasks, review period) |
-| **E2E test count** | 90 tests (73 chromium + 4 setup + 13 new) |
+| **Latest release** | v0.0.1-beta (2026-03-31) |
+| **Current version** | v0.5.11 |
+| **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
+| **Active block** | T601 — Fix Asset Manager image preview |
+| **E2E test count** | 94 tests |
 
 ---
 
 ## What Was Last Done
 
-- **v0.5.10** — Defensive guards for missing `w.bounds` fields in `grapesjsFromWidgets` (converters.ts)
-- **v0.5.9** — E2E suite expanded from 73 → 90 tests; Moodle SCORM integration tests added
+- **T600 / v0.5.11** — Fixed BETA-06: `done-button`, `question-tf`, `question-fill`, `media-player` now land at the correct position on drag (not at canvas origin 0,0). Added 4 E2E regression tests; all 13 grapesjs-integration tests pass.
+- **Beta Review Round 1** — Full manual authoring test by project owner. 15 bugs found, 3 missing features identified. Full details: `docs/issues/issues-BETA-R1.md`
+- **v0.5.10** — Defensive guards for missing `w.bounds` in `grapesjsFromWidgets`
+- **v0.5.9** — E2E suite expanded 73 → 90 tests; Moodle SCORM integration tests
 - **v0.5.8** — Four persistence race condition fixes (BUG-T800-01 through BUG-T800-04)
-- **v0.5.7** — Full widget attribute persistence and autosave reliability
 
-Full history: see `CHANGELOG.md`
+Full history: `CHANGELOG.md`
 
 ---
 
 ## Known Issues Right Now
 
-> Issues marked 🔴 are blocking. 🟡 are deferred. ✅ are resolved but kept for reference.
+> Full details in `docs/issues/issues-BETA-R1.md`. Fix order: T600 → T601 → T602 → T603 → T604 → T605 → T606 → T607 → T608 → T609
 
-| ID | Severity | Description | File / Location |
-|---|---|---|---|
-| — | — | *No blocking issues at this version* | — |
+### 🔴 CRITICAL
 
-### Deferred (non-blocking, known)
-- **Firefox arrow rendering** — match-items drag arrows misaligned in Firefox (not blocking for Chromium-first)
-- **Safari presigned URL timing** — occasional race on first image load in Safari (issue #47)
-- **TipTap inside GrapesJS iframe** — not possible without React context; native contenteditable used instead. Do not retry.
+| ID | Description | Task |
+|---|---|---|
+| BETA-01 | MC question: no way to mark correct answer | T602 |
+| BETA-02 | All questions: question text + option text not editable | T602 |
+| BETA-03 | All questions: feedback text not editable | T602 |
+
+### 🟠 HIGH
+
+| ID | Description | Task |
+|---|---|---|
+| BETA-04 | Button caption cannot be changed | T603 |
+| BETA-05 | Button background image cannot be assigned | T603 |
+| ~~BETA-06~~ | ~~Positioning bug on initial drag: done-button, question-tf, question-fill, media-player~~ | ✅ Fixed in T600 |
+| BETA-07 | Asset Manager: generic icon instead of image thumbnail | T601 |
+| BETA-08 | TF: correct answer selection broken | T602 |
+| BETA-09 | Fill: accepted answer not editable | T602 |
+| BETA-10 | Media Player: no properties panel, cannot assign media | T604 |
+| BETA-11 | Nav buttons: individual captions not changeable | T603 |
+
+### 🟡 MEDIUM
+
+| ID | Description | Task |
+|---|---|---|
+| BETA-12 | Asset Manager: UUID shown instead of original filename | T601 |
+| BETA-13 | MC props panel doesn't refresh when options added/removed | T602 |
+| BETA-14 | No loading feedback during SCORM export | T606 |
+| BETA-15 | Image widget: no placeholder hint | T605 |
+
+### 🔵 MISSING FEATURES
+
+| ID | Description | Task |
+|---|---|---|
+| MISSING-01 | Audio narration component | T607 |
+| MISSING-02 | Global volume control | T609 |
+| MISSING-03 | Course progress bar | T608 |
+
+---
+
+## Root Cause Summary for Phase 2.6
+
+### BETA-06 (positioning on 4 widgets)
+`done-button`, `question-tf`, `question-fill`, `media-player` block `content`
+definitions are missing `style: { position: 'absolute', left, top, width, height }`.
+Working widgets (rectangle, question-mc) have it. Fix in `registerBlocks.ts`.
+
+### BETA-01/02/03/08/09 (question props not persisting)
+`onChange` handlers in `MCPropertiesForm`, `TFPropertiesForm`, `FillPropertiesForm`
+are likely not calling `component.set('extendedProperties', ...)` correctly.
+**Diagnostic first:** add `console.log` in each onChange before fixing.
+
+### BETA-07/12 (Asset Manager preview)
+`src` passed to GrapesJS AM after upload is raw Garage path, not presigned URL.
+Original filename not stored — only UUID key returned from backend.
+
+### BETA-04/05/11 (button caption + background)
+Button components lack a `label` trait wired to content, and background image
+assignment is not calling `component.setStyle()` correctly.
 
 ---
 
 ## What Was Attempted and Failed — DO NOT RETRY
 
-> These approaches were tried and explicitly rejected. Do not attempt them again
-> without a specific instruction to reconsider.
-
-| Approach | Why it failed | Alternative used |
+| Approach | Why it failed | Alternative |
 |---|---|---|
-| `component:update` for immediate save | Causes infinite save loop in GrapesJS | 2s debounced autosave in `initEditor.ts` |
-| TipTap inside GrapesJS canvas iframe | No React context available inside iframe | Native GrapesJS `contenteditable` |
-| `minio/minio` Docker image | Project discontinued; replaced in Phase 1.5 | `dxflrs/garage:v1.0.0` |
-| `@opentelemetry/auto-instrumentations-node` (full bundle) | Adds Redis, gRPC, AWS instrumentation not needed; increases startup time | Selective: `instrumentation-http`, `instrumentation-express`, `instrumentation-mongoose` |
-| Storing JWT access token in localStorage | LMS iframe compatibility — localStorage blocked in sandboxed iframes | Memory-only (Zustand state) |
-| `pressSequentially` for Moodle login in E2E | Characters dropped under CPU load in CI | `page.fill()` (atomic assignment) |
-| GrapesJS Studio SDK (enterprise) | Paid product — project uses MIT `grapesjs` only | Open-source `grapesjs` npm package |
+| `component:update` for immediate save | Infinite save loop in GrapesJS | 2s debounced autosave in `initEditor.ts` |
+| TipTap inside GrapesJS canvas iframe | No React context inside iframe | Native GrapesJS `contenteditable` |
+| `minio/minio` Docker image | Discontinued | `dxflrs/garage:v1.0.0` |
+| `@opentelemetry/auto-instrumentations-node` full bundle | Unused instrumentations, slow startup | Selective packages only |
+| JWT in localStorage | LMS iframe blocks it | Memory-only via Zustand |
+| `pressSequentially` for Moodle login | Characters dropped under CPU load | `page.fill()` |
+| GrapesJS Studio SDK | Paid product | Open-source `grapesjs` npm only |
 
 ---
 
 ## Next Steps (Ordered)
 
-> Update this list at the end of every task block.
-
-1. Review phase 2 remaining tasks in `docs/tasks.md` (T022–T028)
-2. Begin tanda 2 — visual polish of the authoring UI
-3. Phase 2.5 cross-cutting concerns (T160–T171) when visual polish is stable
+1. ~~**T600** — Fix positioning bug (4 widgets)~~ ✅ Done
+2. **T601** — Fix Asset Manager preview + filename
+3. **T602** — Fix question properties panel (all 3 types)
+4. **T603** — Fix button caption + background image
+5. **T604** — Fix Media Player properties panel
+6. **T605** — Image widget placeholder hint
+7. **T606** — SCORM export loading feedback
+8. **T607** — New: Audio narration widget
+9. **T608** — New: Course progress bar
+10. **T609** — New: Volume control widget
 
 ---
 
 ## Visual Verification Status
 
-> Track components that need visual review before the next release.
-
-| Component | Status | Last verified |
+| Component | Status | Notes |
 |---|---|---|
-| GrapesJS editor — empty canvas load | ✅ Verified | v0.5.9 |
-| Widget drag & drop placement | ✅ Verified (FM-01 E2E) | v0.5.9 |
-| Widget resize via handles | ✅ Verified (FM-03 E2E) | v0.5.9 |
-| Image widget presigned URL display | ✅ Verified (FM-04 E2E) | v0.5.9 |
-| Question properties panel sync | ✅ Verified (T608.5 E2E) | v0.5.9 |
-| Slide navigation with persistence | ✅ Verified (persistence.spec.ts) | v0.5.9 |
-| SCORM ZIP download | ✅ Verified (scorm-export.spec.ts) | v0.5.9 |
-| Moodle SCORM import + player | ✅ Verified (moodle-scorm.spec.ts) | v0.5.9 |
+| Text widget | ✅ Working | No issues |
+| Image widget | ⚠️ Partial | Loads correctly, AM preview broken (BETA-07) |
+| Button | ❌ Broken | Caption + background not working (BETA-04/05) |
+| Done button | ⚠️ Partial | Positioning fixed (T600); caption + background still broken (BETA-04/05) |
+| Nav buttons | ❌ Broken | Individual captions not changeable (BETA-11) |
+| Multiple Choice | ❌ Broken | No correct answer marking, text not editable (BETA-01/02) |
+| True/False | ⚠️ Partial | Positioning fixed (T600); correct answer selection still broken (BETA-08) |
+| Fill in Blank | ⚠️ Partial | Positioning fixed (T600); accepted answer not editable (BETA-09) |
+| Media Player | ⚠️ Partial | Positioning fixed (T600); no props panel (BETA-10) |
 
 ---
 
 ## Architecture Reminders
 
-> Quick reference for the most commonly forgotten constraints.
-
-- **GrapesJS canvas = iframe** — use `editorPage.canvasComponent()` or `editorPage.canvasFrame()`, never `page.locator()` directly on canvas elements
-- **Phaser = lazy load only** — never bundle Phaser into the main runtime player; always dynamic `import()`
-- **Runtime player = Vanilla JS** — no React/Vue/Angular; it runs inside LMS iframes
+- **GrapesJS canvas = iframe** — use `editorPage.canvasComponent()` / `canvasFrame()`, never `page.locator()` on canvas elements directly
+- **Phaser = lazy load only** — never bundle into runtime player; dynamic `import()` only
+- **Runtime player = Vanilla JS** — no React/Vue/Angular; runs inside LMS iframes
 - **No localStorage in player** — SCORM `suspend_data` via `LMSSetValue` only
-- **All assets → Garage** — never MongoDB for binary data; Garage S3 only
-- **Storage Manager is CRITICAL** — never let GrapesJS save raw HTML; always use the `elearn-api` custom storage type
-- **MinIO does not exist** in this project — Garage only, everywhere
+- **All assets → Garage** — never MongoDB for binary data
+- **Storage Manager is CRITICAL** — never let GrapesJS save raw HTML
+- **MinIO does not exist** — Garage only, everywhere
+- **`forcePathStyle: true`** — required for all Garage S3 client calls
 
 ---
 
@@ -109,13 +158,13 @@ Full history: see `CHANGELOG.md`
 
 | What | Where |
 |---|---|
-| Task list with status | `docs/tasks.md` |
-| Feature spec | `docs/features.md` |
-| Architecture plans | `docs/plans.md` |
+| Task list | `docs/tasks.md` |
+| Beta review issues | `docs/issues/issues-BETA-R1.md` |
+| Per-task issues | `docs/issues/issues-TXX.md` |
 | Change history | `CHANGELOG.md` |
-| Known issues per task block | `docs/issues/issues-TXX.md` |
 | E2E tests | `e2e/tests/*.spec.ts` |
-| Page Objects | `e2e/pages/` |
-| E2E skill (patterns + gaps) | `.claude/skills/elearn-e2e-qa/SKILL.md` |
-| Technical docs skill | `.claude/skills/elearn-docs-technical/SKILL.md` |
-| User guide skill | `.claude/skills/elearn-docs-user/SKILL.md` |
+| Block definitions | `packages/authoring-ui/src/editor/registerBlocks.ts` |
+| Question props forms | `packages/authoring-ui/src/components/panels/` |
+| GrapesJS init | `packages/authoring-ui/src/editor/initEditor.ts` |
+| Storage converter | `packages/authoring-ui/src/editor/converters.ts` |
+| E2E QA skill | `.claude/skills/elearn-e2e-qa/SKILL.md` |

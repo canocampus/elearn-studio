@@ -437,6 +437,132 @@
 
 ---
 
+## PHASE 2.6 — Beta Review Fixes (Round 1)
+
+> **Context:** Bugs and missing features identified during first complete manual authoring
+> test of the prototype. Reviewer: project owner. Date: 2026-03-31.
+> Full issue details in `docs/issues/issues-BETA-R1.md`.
+>
+> **Fix order follows root cause grouping** — fixes that share a root cause are grouped
+> together to avoid repeated context switches.
+>
+> **Before starting any task in this phase:** Read `docs/issues/issues-BETA-R1.md`
+> in full. Understand the root cause analysis section before touching any file.
+
+---
+
+### T600 — Fix initial drag positioning bug (BETA-06)
+> Affects: `done-button`, `question-tf`, `question-fill`, `media-player`
+> Root cause: block `content` definition missing explicit `style` with position/size.
+> Reference: compare working blocks (rectangle, question-mc) vs broken ones.
+- [x] T600.1 — Audit all block definitions in `registerBlocks.ts`: log which ones include `style: { position: 'absolute', left, top, width, height }` and which don't
+- [x] T600.2 — Add explicit initial position style to `done-button` block content
+- [x] T600.3 — Add explicit initial position style to `question-tf` block content
+- [x] T600.4 — Add explicit initial position style to `question-fill` block content
+- [x] T600.5 — Add explicit initial position style to `media-player` block content
+- [x] T600.6 — E2E test: drag each fixed block → verify it does NOT land at (0,0); add to `grapesjs-integration.spec.ts`
+- [x] T600.7 — Refine the generated code
+- [x] T600.8 — A reviewer will generate `docs/issues/issues-T600.md` with detected problems; resolve them before terminating this block
+
+### T601 — Fix Asset Manager image preview (BETA-07 + BETA-12)
+> Asset Manager shows generic icon + UUID filename instead of thumbnail + original name.
+- [ ] T601.1 — Investigate how uploaded assets are registered back into GrapesJS Asset Manager after upload (trace: `POST /assets` response → AM `add()` call)
+- [ ] T601.2 — Fix thumbnail: ensure the asset `src` field passed to GrapesJS AM is the presigned URL or a `/assets/:id/thumbnail` endpoint, not a raw path
+- [ ] T601.3 — Fix filename display: store original filename in the asset metadata; pass it as the `name` field to GrapesJS AM `add()`
+- [ ] T601.4 — Backend: if needed, add original filename storage to the `POST /assets` handler (store as Garage object metadata or in MongoDB)
+- [ ] T601.5 — E2E test: upload image → open Asset Manager → verify thumbnail is visible and filename matches original; update `image-upload.spec.ts`
+- [ ] T601.6 — Refine the generated code
+- [ ] T601.7 — A reviewer will generate `docs/issues/issues-T601.md` with detected problems; resolve them before terminating this block
+
+### T602 — Fix question properties panel: text fields and correct answer not editable (BETA-01/02/03/08/09)
+> Root cause: `onChange` handlers in question form components likely not wiring
+> `component.set('extendedProperties', ...)` correctly, or GrapesJS component:update
+> not firing after the set call.
+- [ ] T602.1 — Add diagnostic: `console.log` in `MCPropertiesForm` onChange to confirm handler fires and log the value being set
+- [ ] T602.2 — Verify `component.get('extendedProperties')` reflects the change after `component.set()` is called
+- [ ] T602.3 — Fix `MCPropertiesForm`: question text field persists to `extendedProperties.questionText`
+- [ ] T602.4 — Fix `MCPropertiesForm`: option text fields persist to `extendedProperties.options[i].text`
+- [ ] T602.5 — Fix `MCPropertiesForm`: correct answer marking — radio/checkbox per option that sets `extendedProperties.options[i].isCorrect`
+- [ ] T602.6 — Fix `MCPropertiesForm`: props panel re-renders when options are added/removed (subscribe to component update event — BETA-13)
+- [ ] T602.7 — Fix `MCPropertiesForm`: correct/incorrect feedback text fields persist
+- [ ] T602.8 — Fix `TFPropertiesForm`: correct answer selection (True/False radio) persists to `extendedProperties.correctAnswer`
+- [ ] T602.9 — Fix `TFPropertiesForm`: feedback text fields persist
+- [ ] T602.10 — Fix `FillPropertiesForm`: question text persists
+- [ ] T602.11 — Fix `FillPropertiesForm`: accepted answer field persists to `extendedProperties.acceptedAnswers`
+- [ ] T602.12 — Fix `FillPropertiesForm`: feedback text fields persist
+- [ ] T602.13 — E2E test: `question-widget.spec.ts` — fill question text → switch slide → return → verify text persisted (GAP-07 from elearn-e2e-qa skill)
+- [ ] T602.14 — E2E test: mark correct answer in MC → export SCORM → verify `extendedProperties.options` in exported course JSON has `isCorrect: true` on expected option
+- [ ] T602.15 — Refine the generated code
+- [ ] T602.16 — A reviewer will generate `docs/issues/issues-T602.md` with detected problems; resolve them before terminating this block
+
+### T603 — Fix button caption and background image (BETA-04/05/11)
+> Affects: `button`, `done-button`, `nav-buttons`
+- [ ] T603.1 — Fix `button` widget: caption (label) editable via Style Manager trait or dedicated props panel field; persists to component content
+- [ ] T603.2 — Fix `done-button` widget: same caption fix
+- [ ] T603.3 — Fix `nav-buttons` grouped widget: expose individual button caption traits for each button in the group (prev/next/first/last labels)
+- [ ] T603.4 — Fix background image assignment: when an image is selected from the Asset Manager for a button, apply it as `background-image` CSS property via `component.setStyle({ 'background-image': 'url(...)' })`
+- [ ] T603.5 — Fix `done-button` and `nav-buttons` background image (same fix as T603.4)
+- [ ] T603.6 — E2E test: drag button → change caption → verify canvas shows new label; add to `authoring-ui-layer.spec.ts`
+- [ ] T603.7 — Refine the generated code
+- [ ] T603.8 — A reviewer will generate `docs/issues/issues-T603.md` with detected problems; resolve them before terminating this block
+
+### T604 — Fix Media Player: add properties panel and media file assignment (BETA-10)
+- [ ] T604.1 — Create `MediaPlayerPropertiesPanel` component (or extend existing props system) with fields: media URL (text input), file type (audio/video selector), autoplay (checkbox), controls visible (checkbox), loop (checkbox)
+- [ ] T604.2 — Wire Asset Manager integration: "Choose Media" button opens AM filtered to audio/* and video/* MIME types
+- [ ] T604.3 — On media selection: set `src` attribute on the `<video>` or `<audio>` element inside the canvas component
+- [ ] T604.4 — Register props panel: show `MediaPlayerPropertiesPanel` when a `media-player` component is selected (same pattern as `QuestionPropertiesPanel`)
+- [ ] T604.5 — Verify media plays correctly in the runtime player after authoring
+- [ ] T604.6 — E2E test: drag media-player → open props → assign a video URL → verify `<video src>` is set in canvas
+- [ ] T604.7 — Refine the generated code
+- [ ] T604.8 — A reviewer will generate `docs/issues/issues-T604.md` with detected problems; resolve them before terminating this block
+
+### T605 — Add image widget placeholder hint (BETA-15)
+- [ ] T605.1 — When no image is assigned to an image widget, render a placeholder with "Click to choose image" text and a camera icon
+- [ ] T605.2 — Add tooltip to image widget: "Double-click to open image selector"
+- [ ] T605.3 — Refine the generated code
+- [ ] T605.4 — A reviewer will generate `docs/issues/issues-T605.md` with detected problems; resolve them before terminating this block
+
+### T606 — Add SCORM export loading feedback (BETA-14)
+- [ ] T606.1 — Show loading spinner/state on Publish button while export is in progress
+- [ ] T606.2 — Show status message in Publish dialog: "Generating SCORM package..." → "Download ready"
+- [ ] T606.3 — On error: show error message in dialog instead of silently failing
+- [ ] T606.4 — Refine the generated code
+- [ ] T606.5 — A reviewer will generate `docs/issues/issues-T606.md` with detected problems; resolve them before terminating this block
+
+### T607 — New widget: Audio Narration component (MISSING-01)
+- [ ] T607.1 — Register GrapesJS Block + Component for `audio-narration` widget
+- [ ] T607.2 — Props panel: audio file selector (opens AM filtered to audio/*), autoplay toggle, show/hide player controls toggle
+- [ ] T607.3 — Canvas preview: shows audio player UI or a microphone icon placeholder
+- [ ] T607.4 — Runtime player: renders `<audio>` element; autoplay on slide load if configured; respects global volume control (T608)
+- [ ] T607.5 — Storage Manager: bidirectional converter handles `audio-narration` type
+- [ ] T607.6 — E2E test: drag audio-narration block → assign audio file → verify `<audio src>` set in canvas
+- [ ] T607.7 — Refine the generated code
+- [ ] T607.8 — A reviewer will generate `docs/issues/issues-T607.md` with detected problems; resolve them before terminating this block
+
+### T608 — New widget: Course Progress Bar (MISSING-03)
+- [ ] T608.1 — Register GrapesJS Block + Component for `progress-bar` widget
+- [ ] T608.2 — Props panel: style options (color, height, show percentage text toggle)
+- [ ] T608.3 — Runtime player: calculates progress as (slides visited / total slides) × 100; updates on every slide navigation
+- [ ] T608.4 — Designed to be placed on background (shared across slides) for persistent display
+- [ ] T608.5 — Reports progress via `LMSSetValue('cmi.core.lesson_location', slideIndex)` for SCORM bookmark support
+- [ ] T608.6 — E2E test: course with progress bar → navigate slides → verify bar width changes
+- [ ] T608.7 — Refine the generated code
+- [ ] T608.8 — A reviewer will generate `docs/issues/issues-T608.md` with detected problems; resolve them before terminating this block
+
+### T609 — New widget: Global Volume Control (MISSING-02)
+- [ ] T609.1 — Register GrapesJS Block + Component for `volume-control` widget
+- [ ] T609.2 — Props panel: default volume (0–100), show mute button toggle
+- [ ] T609.3 — Runtime player: renders a volume slider and/or mute toggle; controls all `<audio>` and `<video>` elements in the current slide
+- [ ] T609.4 — Volume preference persists across slides via a module-level variable in the runtime player (not SCORM suspend_data — too heavy for this)
+- [ ] T609.5 — Refine the generated code
+- [ ] T609.6 — A reviewer will generate `docs/issues/issues-T609.md` with detected problems; resolve them before terminating this block
+
+### Phase 2.6 — Closing Tasks
+- [ ] T260.TEST — Full E2E suite passes with all bug fixes applied; FM-01 regression test covers all 4 previously broken widgets (done-button, question-tf, question-fill, media-player); question property persistence verified for all 3 question types; new widgets (audio-narration, progress-bar, volume-control) have at least one E2E test each
+- [ ] T260.DOCS — Update `docs/user-guide/04-widgets.md` with new widgets; update `docs/user-guide/05-questions.md` with correct-answer marking instructions; update `CHANGELOG.md` with all fixes as a new version entry
+
+---
+
 ## PHASE 2.5 — Cross-Cutting Concerns & Production Readiness
 
 > **Context:** Phase 0–2 delivered the core authoring loop. This phase closes the gaps that

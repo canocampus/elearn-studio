@@ -193,6 +193,7 @@ function registerMCWidget(editor: Editor): void {
         tagName: 'div',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: { ...MC_DEFAULT_EXTENDED },
         style: {
@@ -252,6 +253,7 @@ function registerTFWidget(editor: Editor): void {
         tagName: 'div',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: { ...TF_DEFAULT_EXTENDED },
         style: {
@@ -292,7 +294,10 @@ function registerTFWidget(editor: Editor): void {
     label: 'True / False',
     category: 'Questions',
     media: ICONS.questionTF,
-    content: { type: 'question-tf' },
+    content: {
+      type: 'question-tf',
+      style: { position: 'absolute', left: '100px', top: '100px', width: '280px', height: '130px' },
+    },
   })
 }
 
@@ -309,6 +314,7 @@ function registerFillWidget(editor: Editor): void {
         tagName: 'div',
         droppable: false,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: { ...FILL_DEFAULT_EXTENDED },
         style: {
@@ -349,6 +355,9 @@ function registerFillWidget(editor: Editor): void {
     label: 'Fill in the Blank',
     category: 'Questions',
     media: ICONS.questionFill,
-    content: { type: 'question-fill' },
+    content: {
+      type: 'question-fill',
+      style: { position: 'absolute', left: '100px', top: '100px', width: '320px', height: '110px' },
+    },
   })
 }

@@ -299,6 +299,51 @@ test.describe('AnimationPropertiesPanel — FM-06 regression', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// T600 — BETA-06 regression guard: initial drag positioning
+// Guards against reintroduction of the bug where done-button, question-tf,
+// question-fill, and media-player were missing position/size in their block
+// content definitions, causing them to land at canvas origin (0,0) on drop.
+// ---------------------------------------------------------------------------
+test.describe('T600 — Initial drag positioning (BETA-06 regression)', () => {
+
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  const WIDGETS: Array<{ label: string; type: string }> = [
+    { label: 'Done Button',      type: 'done-button'    },
+    { label: 'True / False',     type: 'question-tf'    },
+    { label: 'Fill in the Blank',type: 'question-fill'  },
+    { label: 'Media Player',     type: 'media-player'   },
+  ]
+
+  for (const { label, type } of WIDGETS) {
+    test(`${label} does NOT land at canvas origin (0,0) on drop (BETA-06 regression)`, async ({ editorPage, page: _page }) => {
+      await editorPage.dragBlockToCanvas(label, 300, 200)
+
+      const widget = editorPage.canvasComponent(`[data-gjs-type="${type}"]`).first()
+      await expect(widget).toBeVisible({ timeout: 15_000 })
+
+      const box = await widget.boundingBox()
+      const iframeBox = await editorPage.getCanvasIframeBox()
+      expect(box).not.toBeNull()
+      expect(iframeBox).not.toBeNull()
+      if (box && iframeBox) {
+        const relX = box.x - iframeBox.x
+        const relY = box.y - iframeBox.y
+        // Must NOT be at canvas origin — a 50px threshold rules out a stuck-at-0,0 drop
+        expect(relX).toBeGreaterThan(50)
+        expect(relY).toBeGreaterThan(50)
+      }
+    })
+  }
+})
+
 // GAP-08 (FM-02) — Widget can be dragged to a new position within the canvas
 // Verifies that widgets are not frozen after being placed; they must remain draggable.
 test.describe('GrapesJS Integration: Widget Repositioning (FM-02)', () => {
