@@ -517,10 +517,10 @@
 - [x] T604.8 — Reviewer will generate `docs/issues/issues-T604.md`; CRITICAL and HIGH resolved before close
 
 ### T605 — Add image widget placeholder hint (BETA-15)
-- [ ] T605.1 — When no image is assigned to an image widget, render a placeholder with "Click to choose image" text and a camera icon
-- [ ] T605.2 — Add tooltip to image widget: "Double-click to open image selector"
-- [ ] T605.3 — Refine the generated code
-- [ ] T605.4 — A reviewer will generate `docs/issues/issues-T605.md` with detected problems; resolve them before terminating this block
+- [x] T605.1 — When no image is assigned to an image widget, render a placeholder with "Click to choose image" text and a camera icon; SVG data URI background on `img.gjs-plh-image` injected via `canvas.styles` in `initEditor.ts`
+- [x] T605.2 — Add tooltip to image widget: "Double-click to open image selector"; `title` attr set in `onRender()`; changed `click` → `dblclick` for Asset Manager so single-click selects, double-click opens AM
+- [x] T605.3 — Refine the generated code; SVG background-size, dashed border, cursor:pointer; URL-encoded `%23` for hex colors; `void: true` confirms no dblclick conflict with text-edit
+- [x] T605.4 — Reviewer generated `docs/issues/issues-T605.md`; 0 CRITICAL / 0 HIGH / 0 MEDIUM / 0 LOW — APPROVED; 4 E2E tests added and passing
 
 ### T606 — Add SCORM export loading feedback (BETA-14)
 - [ ] T606.1 — Show loading spinner/state on Publish button while export is in progress

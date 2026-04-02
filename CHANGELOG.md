@@ -30,6 +30,23 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.16] — 2026-04-02 — Image Widget Placeholder Hint + Double-Click UX (BETA-15)
+
+### Added
+- **Image widget placeholder** (`packages/authoring-ui/src/editor/initEditor.ts`) — When an image widget has no `src`, GrapesJS auto-adds the `.gjs-plh-image` class. New canvas CSS injects an SVG data URI background showing a camera icon + "Click to choose image" hint text. Works on `<img>` (void element) via `background-image`; `::before`/`::after` pseudo-elements do not work on void elements.
+- **Double-click to open Asset Manager** (`packages/authoring-ui/src/editor/registerBlocks.ts`) — Image widget event changed from `click` to `dblclick` to open the Asset Manager. Single-click now correctly selects the component (GrapesJS default). Tooltip `title="Double-click to open image selector"` set in `onRender()`.
+- **E2E suite** (`e2e/tests/image-widget-placeholder.spec.ts`) — 4 new tests: block visible (T605.1), `gjs-plh-image` class present on empty widget (T605.2), tooltip attribute present (T605.3), class removed after `src` assigned (T605.4).
+- Full suite now 106 tests (was 102 before T605).
+
+### Fixed
+- **[BETA-15] Image widget: no placeholder hint** — image widgets with no source showed a blank white box with no affordance. Authors now see a clear camera icon + hint text guide.
+
+### Notes
+- SVG data URI is hardcoded (no user input interpolated) — XSS-safe per code review in `docs/issues/issues-T605.md`.
+- `dblclick` does not conflict with GrapesJS text-editing because image components have `void: true` (no inline edit mode applies).
+
+---
+
 ## [0.5.15] — 2026-04-02 — Media Player Properties Panel (BETA-10)
 
 ### Added

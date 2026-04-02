@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-02 — after T604
+> Last updated: 2026-04-02 — after T605
 
 ---
 
@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.15 |
+| **Current version** | v0.5.16 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
-| **Active block** | T605 — Image widget placeholder hint |
-| **E2E test count** | 102 tests |
+| **Active block** | T606 — SCORM export loading feedback |
+| **E2E test count** | 106 tests |
 
 ---
 
 ## What Was Last Done
 
+- **T605 / v0.5.16** — Fixed BETA-15: image widget placeholder via SVG data URI on `img.gjs-plh-image` (camera icon + "Click to choose image" text). Changed `click` → `dblclick` for Asset Manager open; tooltip `title="Double-click to open image selector"` set in `onRender()`. 4 new E2E tests; full 106-test suite passes.
 - **T604 / v0.5.15** — Fixed BETA-10: new `MediaPlayerPropertiesPanel` with Media Source URL (+ AM picker), Media Type selector, and Playback Options (autoplay/controls/loop checkboxes). `useTrait` and `useExtendedBool` hooks with `isLocalRef` loop prevention. Props tab auto-opens on widget select. 6 new E2E tests; full 102-test suite passes.
 - **T603 / v0.5.14** — Fixed BETA-04/05/11: new `ButtonPropertiesPanel` component for `button`, `done-button`, `nav-buttons`. Caption editable via `component.get/set('content')`; background image via Asset Manager + `component.setStyle()`. Nav buttons: separate prev/next caption fields writing to child components. Props tab auto-opens on widget select. 2 new E2E tests; all 15 grapesjs-integration tests pass.
 - **T602 / v0.5.13** — Fixed BETA-01/02/03/08/09/13: all question property forms (MC, TF, Fill) now correctly persist text edits, correct-answer selections, and feedback fields. Root cause: forms read `extendedProperties` as a plain variable with no `useState` — React never re-rendered. Fix: `useExtendedProperties<T>` hook (useState + GrapesJS model subscription + isLocalRef loop prevention). All 23 question-widget E2E tests pass.
@@ -66,7 +67,7 @@ Full history: `CHANGELOG.md`
 | ~~BETA-12~~ | ~~Asset Manager: UUID shown instead of original filename~~ | ✅ Fixed in T601 |
 | ~~BETA-13~~ | ~~MC props panel doesn't refresh when options added/removed~~ | ✅ Fixed in T602 |
 | BETA-14 | No loading feedback during SCORM export | T606 |
-| BETA-15 | Image widget: no placeholder hint | T605 |
+| ~~BETA-15~~ | ~~Image widget: no placeholder hint~~ | ✅ Fixed in T605 |
 
 ### 🔵 MISSING FEATURES
 
@@ -121,7 +122,7 @@ assignment is not calling `component.setStyle()` correctly.
 3. ~~**T602** — Fix question properties panel (all 3 types)~~ ✅ Done
 4. ~~**T603** — Fix button caption + background image~~ ✅ Done
 5. ~~**T604** — Fix Media Player properties panel~~ ✅ Done
-6. **T605** — Image widget placeholder hint
+6. ~~**T605** — Image widget placeholder hint~~ ✅ Done
 7. **T606** — SCORM export loading feedback
 8. **T607** — New: Audio narration widget
 9. **T608** — New: Course progress bar
@@ -134,7 +135,7 @@ assignment is not calling `component.setStyle()` correctly.
 | Component | Status | Notes |
 |---|---|---|
 | Text widget | ✅ Working | No issues |
-| Image widget | ✅ Working | AM thumbnail and filename fixed (T601) |
+| Image widget | ✅ Working | AM thumbnail and filename fixed (T601); placeholder hint + dblclick AM (T605) |
 | Button | ✅ Working | Caption + background image editable (T603) |
 | Done button | ✅ Working | Positioning (T600) + caption + background image (T603) |
 | Nav buttons | ✅ Working | Individual prev/next captions editable (T603) |

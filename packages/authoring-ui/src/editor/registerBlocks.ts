@@ -93,7 +93,8 @@ function registerImageWidget(editor: Editor): void {
       },
     },
     view: ({
-      events: { click: 'onImageClick' },
+      // T605.2 — Double-click opens the Asset Manager (single-click just selects).
+      events: { dblclick: 'onImageClick' },
 
       initialize(props: unknown) {
         // Call GrapesJS ComponentImageView parent initialize.
@@ -118,6 +119,9 @@ function registerImageWidget(editor: Editor): void {
         // Called once on initial mount; handle the case where src is already set.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (this as any).resolveAndSetSrc()
+        // T605.2 — Tooltip guides authors to open the image selector on double-click.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(this as any).el.title = 'Double-click to open image selector'
       },
 
       resolveAndSetSrc(this: unknown) {

@@ -148,6 +148,18 @@ export function initEditor(opts: InitEditorOptions): Editor {
       styles: [
         'body { margin: 0; overflow: hidden; background-color: white !important; }',
         '* { box-sizing: border-box; }',
+        // T605 — Image widget placeholder: GrapesJS adds .gjs-plh-image when src is empty.
+        // SVG background provides camera icon + hint text without needing child elements
+        // (img is a void element; ::before/::after do not work on it).
+        `img.gjs-plh-image {
+  background-color: #f8fafc;
+  background-image: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 110'><rect x='60' y='28' width='100' height='65' rx='8' fill='none' stroke='%2394a3b8' stroke-width='2.5'/><circle cx='110' cy='60' r='18' fill='none' stroke='%2394a3b8' stroke-width='2.5'/><circle cx='110' cy='60' r='8' fill='%23c8d4e0'/><path d='M93,28 L97,20 L123,20 L127,28' fill='%2394a3b8'/><rect x='70' y='34' width='15' height='10' rx='2' fill='%23c8d4e0'/><text x='110' y='108' text-anchor='middle' font-family='Arial,sans-serif' font-size='14' fill='%2364748b'>Click to choose image</text></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 70%;
+  border: 2px dashed #94a3b8 !important;
+  cursor: pointer;
+}`,
       ],
     },
 
