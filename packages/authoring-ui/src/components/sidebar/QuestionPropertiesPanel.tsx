@@ -70,12 +70,14 @@ function useExtendedProperties<T extends object>(
     component.on('change:extendedProperties', onExternalChange)
     return () => { component.off('change:extendedProperties', onExternalChange) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Intentional: `defaults` is a stable module-level constant and never changes;
+  // only `component` can change (different widget selected), triggering re-subscription.
   }, [component])
 
   function update(patch: Partial<T>) {
     const next = { ...ep, ...patch }
+    isLocalRef.current = true  // Arm guard BEFORE component.set() — GrapesJS may fire synchronously
     setEp(next)
-    isLocalRef.current = true
     component.set('extendedProperties', next)
     // NOTE: component.set() fires component:update, which triggers the debounced
     // autosave in initEditor.ts. Do NOT call editor.store() here — calling it on
