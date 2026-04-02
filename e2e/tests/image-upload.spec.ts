@@ -156,10 +156,12 @@ test.describe('Image Widget: Upload & Presigned URL Display', () => {
   // ── H-01 Test: presigned endpoint failure degrades gracefully ────────────────
 
   test('H-01 — asset is added to AM even when /presigned endpoint fails (graceful degradation)', async ({ editorPage, page }) => {
-    // Intercept presigned URL requests and return 500 to simulate Garage downtime.
-    await page.route(/\/assets\/[^/]+\/presigned/, route =>
-      route.fulfill({ status: 500, body: 'Internal Server Error' }),
-    )
+    // Abort presigned URL requests to simulate a network failure (connection refused).
+    // route.abort() causes fetch() to reject (TypeError: Failed to fetch), which triggers
+    // the catch block in customFetch → console.warn('[assetManager] ...').
+    // route.fulfill({status:500}) returns a valid HTTP response — fetch resolves with ok=false
+    // and the catch block never runs, so the warn is never emitted.
+    await page.route(/\/assets\/[^/]+\/presigned/, route => route.abort())
 
     // Capture console.warn to verify the failure is logged (not silently swallowed).
     const warnings: string[] = []

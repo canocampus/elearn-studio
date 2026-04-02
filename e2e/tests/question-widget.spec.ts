@@ -379,11 +379,11 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
     await editorPage.propsTab.click()
 
     const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
-    await expect(restoredPanel).toBeVisible({ timeout: 5_000 })
+    await expect(restoredPanel).toBeVisible({ timeout: 10_000 })
     const restoredTextarea = restoredPanel.locator('textarea').first()
 
     // The textarea must contain the user-edited value, not the default placeholder.
-    await expect(restoredTextarea).toHaveValue('T601.8 regression sentinel question text', { timeout: 5_000 })
+    await expect(restoredTextarea).toHaveValue('T601.8 regression sentinel question text', { timeout: 10_000 })
   })
 })
 

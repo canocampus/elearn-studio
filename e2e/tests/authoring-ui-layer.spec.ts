@@ -227,7 +227,6 @@ test.describe('T608.6 — TopToolbar Delete Slide', () => {
     const slidesLocator = editorPage.page.locator('[data-testid="slide-item"]')
     const countWithExtra = await slidesLocator.count()
 
-    // Dismiss the window.confirm() dialog
     page.once('dialog', dialog => dialog.dismiss())
     await page.getByTitle('Delete current slide').click()
 
@@ -239,7 +238,6 @@ test.describe('T608.6 — TopToolbar Delete Slide', () => {
     const slidesLocator = editorPage.page.locator('[data-testid="slide-item"]')
     const countWithExtra = await slidesLocator.count()
 
-    // Accept the window.confirm() dialog
     page.once('dialog', dialog => dialog.accept())
     await page.getByTitle('Delete current slide').click()
 
