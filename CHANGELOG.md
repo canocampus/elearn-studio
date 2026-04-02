@@ -30,6 +30,24 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.17] — 2026-04-02 — SCORM Export Loading Feedback (BETA-14)
+
+### Added
+- **Publish dialog status section** (`PublishDialog.tsx`) — new feedback area that appears when export starts; shows CSS spinner + "Generating SCORM package…" during packaging, green ✓ + "Download ready — check your Downloads folder" on success, red ✗ + error message on failure.
+- **Inline error display** (`PublishDialog.tsx`) — export errors now shown inside the dialog with `role="alert"` in addition to the existing toast, so the user can read the error and retry without reopening the dialog.
+- **Close vs Cancel button** (`PublishDialog.tsx`) — Cancel relabels to "Close" after export completes (success or error); Publish button is hidden on success (no double-export risk).
+- **E2E coverage** (`scorm-export.spec.ts`) — 3 new T606 tests: "Download ready" appears after export, Close button replaces Cancel, Close dismisses dialog. SCORM suite now 10 tests.
+- **`PublishStatus` type** (`PublishDialog.tsx`) — exported `'idle' | 'packaging' | 'done' | 'error'` union for state tracking.
+
+### Fixed
+- **[BETA-14] No loading feedback during SCORM export** — previously the dialog showed only a static "Packaging…" label on the button with no progress indication and errors were swallowed into a toast that disappeared. Users had no way to confirm the download succeeded or retry from the dialog.
+
+### Changed
+- **AppLayout `handleConfirmPublish`** — dialog no longer auto-closes on success; stays open to show "Download ready" state. User explicitly closes it with the "Close" button.
+- **AppLayout `handleCancelPublish`** — new handler that resets `publishStatus` and `publishError` when dialog is dismissed, preventing stale state on re-open.
+
+---
+
 ## [0.5.16] — 2026-04-02 — Image Widget Placeholder Hint + Double-Click UX (BETA-15)
 
 ### Added

@@ -18,7 +18,7 @@ import { useEditorStore } from '../../store/editorStore'
 import { exportSCORM12 } from '../../api/courseApi'
 import { ToastProvider, useToast } from '../ui/Toast'
 import { TopToolbar } from './TopToolbar'
-import { PublishDialog } from './PublishDialog'
+import { PublishDialog, type PublishStatus } from './PublishDialog'
 import { SlideList } from '../sidebar/SlideList'
 import { BlockManagerPanel } from '../sidebar/BlockManagerPanel'
 import { LayerManagerPanel } from '../sidebar/LayerManagerPanel'
@@ -53,6 +53,8 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
 
   const [publishing, setPublishing] = useState(false)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [publishStatus, setPublishStatus] = useState<PublishStatus>('idle')
+  const [publishError, setPublishError] = useState('')
   const [showInspector, setShowInspector] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const isDebug = useDebugMode()
@@ -65,21 +67,33 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
 
   function handlePublish() {
     if (!course) return
+    setPublishStatus('idle')
+    setPublishError('')
     setShowPublishDialog(true)
   }
 
   async function handleConfirmPublish() {
     if (!course) return
     setPublishing(true)
+    setPublishStatus('packaging')
+    setPublishError('')
     try {
       await exportSCORM12(course._id, course.title)
-      setShowPublishDialog(false)
+      setPublishStatus('done')
       toast.success('SCORM package ready')
     } catch (err) {
-      toast.error(`Export failed: ${err instanceof Error ? err.message : String(err)}`)
+      const msg = err instanceof Error ? err.message : String(err)
+      setPublishStatus('error')
+      setPublishError(msg)
     } finally {
       setPublishing(false)
     }
+  }
+
+  function handleCancelPublish() {
+    setShowPublishDialog(false)
+    setPublishStatus('idle')
+    setPublishError('')
   }
 
   return (
@@ -92,8 +106,10 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
         <PublishDialog
           course={course}
           onConfirm={handleConfirmPublish}
-          onCancel={() => setShowPublishDialog(false)}
+          onCancel={handleCancelPublish}
           publishing={publishing}
+          publishStatus={publishStatus}
+          publishError={publishError}
         />
       )}
       <TopToolbar

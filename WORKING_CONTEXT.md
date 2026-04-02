@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-02 — after T605
+> Last updated: 2026-04-02 — after T606
 
 ---
 
@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.16 |
+| **Current version** | v0.5.17 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
-| **Active block** | T606 — SCORM export loading feedback |
-| **E2E test count** | 106 tests |
+| **Active block** | T607 — Audio narration widget |
+| **E2E test count** | 109 tests |
 
 ---
 
 ## What Was Last Done
 
+- **T606 / v0.5.17** — Fixed BETA-14: SCORM export loading feedback. `PublishDialog` now shows a status section (spinner → "Generating SCORM package…" → "Download ready" / error message inline). Error state shows in dialog with `role="alert"`. Cancel relabels to "Close" after export. 3 new E2E tests; 10 SCORM tests pass.
 - **T605 / v0.5.16** — Fixed BETA-15: image widget placeholder via SVG data URI on `img.gjs-plh-image` (camera icon + "Click to choose image" text). Changed `click` → `dblclick` for Asset Manager open; tooltip `title="Double-click to open image selector"` set in `onRender()`. 4 new E2E tests; full 106-test suite passes.
 - **T604 / v0.5.15** — Fixed BETA-10: new `MediaPlayerPropertiesPanel` with Media Source URL (+ AM picker), Media Type selector, and Playback Options (autoplay/controls/loop checkboxes). `useTrait` and `useExtendedBool` hooks with `isLocalRef` loop prevention. Props tab auto-opens on widget select. 6 new E2E tests; full 102-test suite passes.
 - **T603 / v0.5.14** — Fixed BETA-04/05/11: new `ButtonPropertiesPanel` component for `button`, `done-button`, `nav-buttons`. Caption editable via `component.get/set('content')`; background image via Asset Manager + `component.setStyle()`. Nav buttons: separate prev/next caption fields writing to child components. Props tab auto-opens on widget select. 2 new E2E tests; all 15 grapesjs-integration tests pass.
@@ -66,7 +67,7 @@ Full history: `CHANGELOG.md`
 |---|---|---|
 | ~~BETA-12~~ | ~~Asset Manager: UUID shown instead of original filename~~ | ✅ Fixed in T601 |
 | ~~BETA-13~~ | ~~MC props panel doesn't refresh when options added/removed~~ | ✅ Fixed in T602 |
-| BETA-14 | No loading feedback during SCORM export | T606 |
+| ~~BETA-14~~ | ~~No loading feedback during SCORM export~~ | ✅ Fixed in T606 |
 | ~~BETA-15~~ | ~~Image widget: no placeholder hint~~ | ✅ Fixed in T605 |
 
 ### 🔵 MISSING FEATURES
@@ -123,7 +124,7 @@ assignment is not calling `component.setStyle()` correctly.
 4. ~~**T603** — Fix button caption + background image~~ ✅ Done
 5. ~~**T604** — Fix Media Player properties panel~~ ✅ Done
 6. ~~**T605** — Image widget placeholder hint~~ ✅ Done
-7. **T606** — SCORM export loading feedback
+7. ~~**T606** — SCORM export loading feedback~~ ✅ Done
 8. **T607** — New: Audio narration widget
 9. **T608** — New: Course progress bar
 10. **T609** — New: Volume control widget

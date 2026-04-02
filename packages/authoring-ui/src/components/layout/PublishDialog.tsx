@@ -1,7 +1,13 @@
 /**
- * PublishDialog — T204
+ * PublishDialog — T204 / T606
  * Shows suspend data usage estimate before packaging SCORM.
  * Color coding: green <75%, amber 75–90%, red >90%
+ *
+ * T606: Added publishStatus + publishError props for loading feedback:
+ *   idle     → default state, Publish button enabled
+ *   packaging → spinner + "Generating SCORM package…", buttons disabled
+ *   done     → green checkmark + "Download ready", Publish button hidden
+ *   error    → red error message inline, Publish button re-enabled
  */
 
 import { useMemo, useEffect, useRef } from 'react'
@@ -48,14 +54,18 @@ function getMeterColor(percentage: number): string {
   return '#a6e3a1'                       // green
 }
 
+export type PublishStatus = 'idle' | 'packaging' | 'done' | 'error'
+
 interface PublishDialogProps {
   course: CourseDoc
   onConfirm: () => void
   onCancel: () => void
   publishing: boolean
+  publishStatus: PublishStatus
+  publishError: string
 }
 
-export function PublishDialog({ course, onConfirm, onCancel, publishing }: PublishDialogProps) {
+export function PublishDialog({ course, onConfirm, onCancel, publishing, publishStatus, publishError }: PublishDialogProps) {
   const { compressed, percentage } = useMemo(() => {
     const ids = getQuestionWidgetIds(course)
     return estimateSuspendSize(ids)
@@ -124,13 +134,67 @@ export function PublishDialog({ course, onConfirm, onCancel, publishing }: Publi
           )}
         </section>
 
+        {/* T606 — Status feedback section */}
+        {publishStatus !== 'idle' && (
+          <>
+            <style>{`@keyframes t606spin { to { transform: rotate(360deg) } }`}</style>
+            <div
+              role={publishStatus === 'error' ? 'alert' : 'status'}
+              aria-live="polite"
+              data-testid="publish-status"
+              style={{
+                ...styles.statusBox,
+                borderColor: publishStatus === 'done' ? '#a6e3a1'
+                  : publishStatus === 'error' ? '#f38ba8'
+                  : '#45475a',
+              }}
+            >
+              {publishStatus === 'packaging' && (
+                <div style={styles.statusRow}>
+                  <div style={styles.spinner} aria-hidden="true" />
+                  <span style={styles.statusText}>Generating SCORM package…</span>
+                </div>
+              )}
+              {publishStatus === 'done' && (
+                <div style={styles.statusRow}>
+                  <span style={{ ...styles.statusIcon, color: '#a6e3a1' }} aria-hidden="true">✓</span>
+                  <span style={{ ...styles.statusText, color: '#a6e3a1' }}>
+                    Download ready — check your Downloads folder
+                  </span>
+                </div>
+              )}
+              {publishStatus === 'error' && (
+                <div style={styles.statusRow}>
+                  <span style={{ ...styles.statusIcon, color: '#f38ba8' }} aria-hidden="true">✗</span>
+                  <span style={{ ...styles.statusText, color: '#f38ba8' }}>
+                    {publishError || 'Export failed. Please try again.'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
         <div style={styles.actions}>
-          <button ref={firstFocusRef} style={{ ...styles.btn, ...styles.btnCancel }} onClick={onCancel} disabled={publishing}>
-            Cancel
+          <button
+            ref={firstFocusRef}
+            style={{ ...styles.btn, ...styles.btnCancel }}
+            onClick={onCancel}
+            disabled={publishing}
+          >
+            {publishStatus === 'done' || publishStatus === 'error' ? 'Close' : 'Cancel'}
           </button>
-          <button style={{ ...styles.btn, ...styles.btnPrimary }} onClick={onConfirm} disabled={publishing} aria-busy={publishing}>
-            {publishing ? 'Packaging…' : 'Publish SCORM 1.2'}
-          </button>
+          {publishStatus !== 'done' && (
+            <button
+              style={{ ...styles.btn, ...styles.btnPrimary }}
+              onClick={onConfirm}
+              disabled={publishing}
+              aria-busy={publishing}
+              data-testid="publish-confirm-btn"
+            >
+              {publishing ? 'Packaging…' : 'Publish SCORM 1.2'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -217,6 +281,38 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     color: '#fab387',
     lineHeight: 1.5,
+  },
+  statusBox: {
+    background: '#181825',
+    border: '1px solid #45475a',
+    borderRadius: 6,
+    padding: '12px 16px',
+    marginBottom: 20,
+  },
+  statusRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  spinner: {
+    width: 16,
+    height: 16,
+    borderRadius: '50%',
+    border: '2px solid #313244',
+    borderTopColor: '#89b4fa',
+    animation: 't606spin 0.7s linear infinite',
+    flexShrink: 0,
+  } as React.CSSProperties,
+  statusIcon: {
+    fontSize: 16,
+    fontWeight: 700,
+    lineHeight: 1,
+    flexShrink: 0,
+  },
+  statusText: {
+    fontSize: 13,
+    color: '#a6adc8',
+    lineHeight: 1.4,
   },
   actions: {
     display: 'flex',

@@ -73,4 +73,51 @@ test.describe('SCORM Export', () => {
       fs.rmSync(tmpDir, { recursive: true })
     }
   })
+
+  // T606 — Loading feedback tests
+  test('T606 — publish dialog shows "Download ready" after successful export', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    await editorPage.openPublishDialog()
+
+    const downloadPromise = page.waitForEvent('download', { timeout: 30_000 })
+    await editorPage.publishConfirmButton.click()
+
+    await downloadPromise
+
+    // Status box must appear and show success message
+    await expect(editorPage.publishStatusBox).toBeVisible({ timeout: 10_000 })
+    await expect(editorPage.publishStatusBox).toContainText('Download ready')
+  })
+
+  test('T606 — publish dialog shows Close button (not Cancel) after export', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    await editorPage.openPublishDialog()
+
+    const downloadPromise = page.waitForEvent('download', { timeout: 30_000 })
+    await editorPage.publishConfirmButton.click()
+
+    await downloadPromise
+
+    // Cancel button must be replaced by Close
+    await expect(editorPage.publishCloseButton).toBeVisible({ timeout: 10_000 })
+    await expect(editorPage.publishCancelButton).not.toBeVisible()
+  })
+
+  test('T606 — Close button dismisses the dialog after export', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    await editorPage.openPublishDialog()
+
+    const downloadPromise = page.waitForEvent('download', { timeout: 30_000 })
+    await editorPage.publishConfirmButton.click()
+
+    await downloadPromise
+
+    await editorPage.publishCloseButton.waitFor({ state: 'visible', timeout: 10_000 })
+    await editorPage.publishCloseButton.click()
+
+    await expect(editorPage.publishDialog).not.toBeVisible()
+  })
 })

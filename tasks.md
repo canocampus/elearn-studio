@@ -523,11 +523,11 @@
 - [x] T605.4 — Reviewer generated `docs/issues/issues-T605.md`; 0 CRITICAL / 0 HIGH / 0 MEDIUM / 0 LOW — APPROVED; 4 E2E tests added and passing
 
 ### T606 — Add SCORM export loading feedback (BETA-14)
-- [ ] T606.1 — Show loading spinner/state on Publish button while export is in progress
-- [ ] T606.2 — Show status message in Publish dialog: "Generating SCORM package..." → "Download ready"
-- [ ] T606.3 — On error: show error message in dialog instead of silently failing
-- [ ] T606.4 — Refine the generated code
-- [ ] T606.5 — A reviewer will generate `docs/issues/issues-T606.md` with detected problems; resolve them before terminating this block
+- [x] T606.1 — CSS spinner in dialog via `<style>` + `@keyframes t606spin`; Publish button shows "Packaging…" + disabled during export
+- [x] T606.2 — Status section in PublishDialog: 'packaging' → "Generating SCORM package…", 'done' → "Download ready — check your Downloads folder"
+- [x] T606.3 — Error state inline in dialog: red ✗ + error message; dialog stays open for retry; Cancel→"Close" relabeling
+- [x] T606.4 — Added `PublishStatus` type export; `handleCancelPublish()` resets state; `publishStatus`/`publishError` state in AppLayout
+- [x] T606.5 — Reviewer generated `docs/issues/issues-T606.md`; 0 CRITICAL / 0 HIGH / 0 MEDIUM / 0 LOW — APPROVED; 3 new E2E tests + all 10 SCORM tests passing
 
 ### T607 — New widget: Audio Narration component (MISSING-01)
 - [ ] T607.1 — Register GrapesJS Block + Component for `audio-narration` widget

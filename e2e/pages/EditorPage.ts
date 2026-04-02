@@ -30,6 +30,8 @@ export class EditorPage {
   readonly publishDialog: Locator
   readonly publishConfirmButton: Locator
   readonly publishCancelButton: Locator
+  readonly publishCloseButton: Locator
+  readonly publishStatusBox: Locator
 
   constructor(private readonly page: Page) {
     // TopToolbar buttons
@@ -52,6 +54,8 @@ export class EditorPage {
     this.publishDialog = page.getByRole('dialog').filter({ hasText: 'Publish SCORM Package' })
     this.publishConfirmButton = page.getByRole('button', { name: /Publish SCORM 1\.2/i })
     this.publishCancelButton = page.getByRole('button', { name: 'Cancel' })
+    this.publishCloseButton = page.getByRole('button', { name: 'Close' })
+    this.publishStatusBox = page.getByTestId('publish-status')
   }
 
   // ── GrapesJS Locators ──────────────────────────────────────────────────────
