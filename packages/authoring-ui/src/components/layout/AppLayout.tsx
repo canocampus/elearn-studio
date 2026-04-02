@@ -25,6 +25,7 @@ import { LayerManagerPanel } from '../sidebar/LayerManagerPanel'
 import { StyleManagerPanel } from '../sidebar/StyleManagerPanel'
 import { QuestionPropertiesPanel } from '../sidebar/QuestionPropertiesPanel'
 import { PhaserSimPropertiesPanel } from '../sidebar/PhaserSimPropertiesPanel'
+import { ButtonPropertiesPanel } from '../sidebar/ButtonPropertiesPanel'
 import { AnimationPropertiesPanel } from '../sidebar/AnimationPropertiesPanel'
 import { ActionsPanel } from '../actions/ActionsPanel'
 import { EditorCanvas } from '../editor/EditorCanvas'
@@ -176,6 +177,9 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
             </PanelErrorBoundary>
             <PanelErrorBoundary name="PhaserSimPropertiesPanel">
               <PhaserSimPropertiesPanel />
+            </PanelErrorBoundary>
+            <PanelErrorBoundary name="ButtonPropertiesPanel">
+              <ButtonPropertiesPanel />
             </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'actions' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>

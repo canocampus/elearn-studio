@@ -387,3 +387,59 @@ test.describe('GrapesJS Integration: Widget Repositioning (FM-02)', () => {
     expect(Math.abs(finalBox.x - initialBox.x) + Math.abs(finalBox.y - initialBox.y)).toBeGreaterThan(50)
   })
 })
+
+// ---------------------------------------------------------------------------
+// T603 — Button caption and Props tab (BETA-04/05/11 regression)
+// ---------------------------------------------------------------------------
+
+test.describe('T603 — Button properties panel (BETA-04 regression)', () => {
+  test.beforeEach(async ({ editorPage }) => {
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('T603.1 — dragging Button auto-opens Props tab and shows caption field', async ({ editorPage, page }) => {
+    // Drop a Button widget
+    await editorPage.dragBlockToCanvas('Button', 200, 200)
+
+    // Wait for the button in the canvas
+    const btn = editorPage.canvasComponent('[data-gjs-type="button"]').first()
+    await expect(btn).toBeVisible({ timeout: 15_000 })
+
+    // Click the canvas button to select it (triggers Props tab auto-switch)
+    await btn.click()
+    await page.waitForTimeout(400)
+
+    // Props tab must be active (auto-switched by EditorCanvas component:selected handler)
+    await expect(editorPage.propsTab).toHaveAttribute('aria-selected', 'true')
+
+    // Button properties panel must be visible
+    const panel = page.getByTestId('button-properties-panel')
+    await expect(panel).toBeVisible()
+
+    // Caption input must be present
+    const captionInput = panel.getByRole('textbox')
+    await expect(captionInput).toBeVisible()
+  })
+
+  test('T603.2 — changing button caption updates the canvas label (BETA-04 regression)', async ({ editorPage, page }) => {
+    // Drop a Button widget
+    await editorPage.dragBlockToCanvas('Button', 200, 200)
+
+    const btn = editorPage.canvasComponent('[data-gjs-type="button"]').first()
+    await expect(btn).toBeVisible({ timeout: 15_000 })
+
+    // Select the button (auto-shows Props tab)
+    await btn.click()
+    await page.waitForTimeout(400)
+
+    // Change caption via the properties panel
+    const panel = page.getByTestId('button-properties-panel')
+    const captionInput = panel.getByRole('textbox')
+    await captionInput.fill('Start Quiz')
+    await page.waitForTimeout(300)
+
+    // The canvas button must show the new text
+    await expect(btn).toHaveText('Start Quiz')
+  })
+})

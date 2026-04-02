@@ -19,6 +19,7 @@ import { useActionsStore } from '../../store/actionsStore'
 import type { ActionSequence } from '../../types/actions'
 import { isQuestionWidgetType } from '../../types/questions'
 import { isPhaserSimWidgetType } from '../../types/phaserSim'
+import { isButtonWidgetType } from '../sidebar/ButtonPropertiesPanel'
 
 interface EditorCanvasProps {
   courseId: string
@@ -84,7 +85,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
         ed.on('component:selected', (component) => {
           const type: string = component.get('type') ?? ''
           setSelectedComponentType(type)
-          if (isQuestionWidgetType(type) || isPhaserSimWidgetType(type)) {
+          if (isQuestionWidgetType(type) || isPhaserSimWidgetType(type) || isButtonWidgetType(type)) {
             setRightTab('properties')
           }
 
@@ -92,8 +93,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
           const widgetId: string = component.getId() ?? ''
           if (widgetId) {
             const slide = useEditorStore.getState().currentSlide()
-            const widget = slide?.widgets.find((w) => w.id === widgetId)
-            useActionsStore.getState().setWidget(widgetId, (widget?.actions ?? []) as unknown as ActionSequence[])
+            if (slide) {
+              const widget = slide.widgets.find((w) => w.id === widgetId)
+              useActionsStore.getState().setWidget(widgetId, (widget?.actions ?? []) as unknown as ActionSequence[])
+            }
           }
         })
 

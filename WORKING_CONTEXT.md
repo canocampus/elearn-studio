@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-02 — after T601
+> Last updated: 2026-04-02 — after T603
 
 ---
 
@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.13 |
+| **Current version** | v0.5.14 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
-| **Active block** | T603 — Fix button caption + background image |
-| **E2E test count** | 95 tests |
+| **Active block** | T604 — Fix Media Player properties panel |
+| **E2E test count** | 97 tests |
 
 ---
 
 ## What Was Last Done
 
+- **T603 / v0.5.14** — Fixed BETA-04/05/11: new `ButtonPropertiesPanel` component for `button`, `done-button`, `nav-buttons`. Caption editable via `component.get/set('content')`; background image via Asset Manager + `component.setStyle()`. Nav buttons: separate prev/next caption fields writing to child components. Props tab auto-opens on widget select. 2 new E2E tests; all 15 grapesjs-integration tests pass.
 - **T602 / v0.5.13** — Fixed BETA-01/02/03/08/09/13: all question property forms (MC, TF, Fill) now correctly persist text edits, correct-answer selections, and feedback fields. Root cause: forms read `extendedProperties` as a plain variable with no `useState` — React never re-rendered. Fix: `useExtendedProperties<T>` hook (useState + GrapesJS model subscription + isLocalRef loop prevention). All 23 question-widget E2E tests pass.
 - **T601 / v0.5.12** — Fixed BETA-07 (AM thumbnail: generic icon → presigned URL) and BETA-12 (AM filename: UUID → original filename). `customFetch` in `assetManager.ts` now resolves presigned URL post-upload and passes `{ src, name: originalName, type: 'image' }` to GrapesJS. Added T601 E2E regression test; all 4 image-upload tests pass.
 - **T600 / v0.5.11** — Fixed BETA-06: `done-button`, `question-tf`, `question-fill`, `media-player` now land at the correct position on drag (not at canvas origin 0,0). Added 4 E2E regression tests; all 13 grapesjs-integration tests pass.
@@ -48,14 +49,14 @@ Full history: `CHANGELOG.md`
 
 | ID | Description | Task |
 |---|---|---|
-| BETA-04 | Button caption cannot be changed | T603 |
-| BETA-05 | Button background image cannot be assigned | T603 |
+| ~~BETA-04~~ | ~~Button caption cannot be changed~~ | ✅ Fixed in T603 |
+| ~~BETA-05~~ | ~~Button background image cannot be assigned~~ | ✅ Fixed in T603 |
 | ~~BETA-06~~ | ~~Positioning bug on initial drag: done-button, question-tf, question-fill, media-player~~ | ✅ Fixed in T600 |
 | ~~BETA-07~~ | ~~Asset Manager: generic icon instead of image thumbnail~~ | ✅ Fixed in T601 |
 | ~~BETA-08~~ | ~~TF: correct answer selection broken~~ | ✅ Fixed in T602 |
 | ~~BETA-09~~ | ~~Fill: accepted answer not editable~~ | ✅ Fixed in T602 |
 | BETA-10 | Media Player: no properties panel, cannot assign media | T604 |
-| BETA-11 | Nav buttons: individual captions not changeable | T603 |
+| ~~BETA-11~~ | ~~Nav buttons: individual captions not changeable~~ | ✅ Fixed in T603 |
 
 ### 🟡 MEDIUM
 
@@ -117,7 +118,7 @@ assignment is not calling `component.setStyle()` correctly.
 1. ~~**T600** — Fix positioning bug (4 widgets)~~ ✅ Done
 2. ~~**T601** — Fix Asset Manager preview + filename~~ ✅ Done
 3. ~~**T602** — Fix question properties panel (all 3 types)~~ ✅ Done
-4. **T603** — Fix button caption + background image
+4. ~~**T603** — Fix button caption + background image~~ ✅ Done
 5. **T604** — Fix Media Player properties panel
 6. **T605** — Image widget placeholder hint
 7. **T606** — SCORM export loading feedback
@@ -133,9 +134,9 @@ assignment is not calling `component.setStyle()` correctly.
 |---|---|---|
 | Text widget | ✅ Working | No issues |
 | Image widget | ✅ Working | AM thumbnail and filename fixed (T601) |
-| Button | ❌ Broken | Caption + background not working (BETA-04/05) |
-| Done button | ⚠️ Partial | Positioning fixed (T600); caption + background still broken (BETA-04/05) |
-| Nav buttons | ❌ Broken | Individual captions not changeable (BETA-11) |
+| Button | ✅ Working | Caption + background image editable (T603) |
+| Done button | ✅ Working | Positioning (T600) + caption + background image (T603) |
+| Nav buttons | ✅ Working | Individual prev/next captions editable (T603) |
 | Multiple Choice | ✅ Working | Text, options, correct answer, feedback all editable (T602) |
 | True/False | ✅ Working | Positioning (T600) + correct answer selection (T602) fixed |
 | Fill in Blank | ✅ Working | Positioning (T600) + accepted answer editable (T602) |

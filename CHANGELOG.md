@@ -30,6 +30,29 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.14] — 2026-04-02 — Button Caption and Background Image Now Editable (BETA-04/05/11)
+
+### Added
+- **ButtonPropertiesPanel** (`packages/authoring-ui/src/components/sidebar/ButtonPropertiesPanel.tsx`) — New React properties panel for button widgets. Shown automatically in the Props tab when a `button`, `done-button`, or `nav-buttons` widget is selected.
+  - `button` / `done-button`: Caption text field (reads/writes `component.get/set('content')`) + background image picker via Asset Manager
+  - `nav-buttons`: Two separate caption fields for the previous and next inner buttons; background image picker
+  - Background image removal via immutable destructuring (`{ 'background-image': _removed, ...remaining }`)
+  - Per-child `isPrevLocalRef` / `isNextLocalRef` guards — armed before `child.set()` to prevent GrapesJS synchronous `change:content` event loop
+  - Child event listeners in `useEffect` so undo/redo syncs back to the form
+
+### Fixed
+- **[BETA-04] Button caption cannot be changed** (`ButtonPropertiesPanel.tsx`) — No React panel existed for button widgets; caption edits were silently discarded. Fix: new `ButtonPropertiesPanel` reads/writes `component.get/set('content')` and re-renders on external changes (undo/redo).
+- **[BETA-05] Button background image cannot be assigned** (`ButtonPropertiesPanel.tsx`) — No UI to call `component.setStyle({ 'background-image': ... })`. Fix: Background Image section opens the GrapesJS Asset Manager and applies the selected image via `component.setStyle()`.
+- **[BETA-11] Nav buttons: individual captions not changeable** (`ButtonPropertiesPanel.tsx`) — `nav-buttons` is a composite widget; inner prev/next buttons are child GrapesJS components. Fix: `NavButtonsPropertiesForm` accesses children via `component.components().at(0/1)` and writes their `content` property independently.
+
+### Changed
+- **Props tab auto-opens for button widgets** (`EditorCanvas.tsx`) — `component:selected` handler now calls `setRightTab('properties')` for `isButtonWidgetType(type)`, matching the pattern already used for question and Phaser sim widgets.
+
+### Notes
+- `BackgroundImageSection` reads `component.getStyle()` on each render (not subscribed to style changes). Undo/redo remounts the panel via `component:selected` re-emission — no functional gap for normal authoring. Subscribing to style events deferred to a future cleanup.
+
+---
+
 ## [0.5.13] — 2026-04-02 — Fix Question Properties Panel: All Text Fields and Correct Answer Now Editable (BETA-01/02/03/08/09/13)
 
 ### Fixed

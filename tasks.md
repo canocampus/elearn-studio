@@ -497,14 +497,14 @@
 
 ### T603 — Fix button caption and background image (BETA-04/05/11)
 > Affects: `button`, `done-button`, `nav-buttons`
-- [ ] T603.1 — Fix `button` widget: caption (label) editable via Style Manager trait or dedicated props panel field; persists to component content
-- [ ] T603.2 — Fix `done-button` widget: same caption fix
-- [ ] T603.3 — Fix `nav-buttons` grouped widget: expose individual button caption traits for each button in the group (prev/next/first/last labels)
-- [ ] T603.4 — Fix background image assignment: when an image is selected from the Asset Manager for a button, apply it as `background-image` CSS property via `component.setStyle({ 'background-image': 'url(...)' })`
-- [ ] T603.5 — Fix `done-button` and `nav-buttons` background image (same fix as T603.4)
-- [ ] T603.6 — E2E test: drag button → change caption → verify canvas shows new label; add to `authoring-ui-layer.spec.ts`
-- [ ] T603.7 — Refine the generated code
-- [ ] T603.8 — A reviewer will generate `docs/issues/issues-T603.md` with detected problems; resolve them before terminating this block
+- [x] T603.1 — Fix `button` widget: caption (label) editable via Style Manager trait or dedicated props panel field; persists to component content
+- [x] T603.2 — Fix `done-button` widget: same caption fix
+- [x] T603.3 — Fix `nav-buttons` grouped widget: expose individual button caption traits for each button in the group (prev/next/first/last labels)
+- [x] T603.4 — Fix background image assignment: when an image is selected from the Asset Manager for a button, apply it as `background-image` CSS property via `component.setStyle({ 'background-image': 'url(...)' })`
+- [x] T603.5 — Fix `done-button` and `nav-buttons` background image (same fix as T603.4)
+- [x] T603.6 — E2E test: drag button → change caption → verify canvas shows new label; added T603.1 and T603.2 to `grapesjs-integration.spec.ts`
+- [x] T603.7 — Refine the generated code; applied all CRITICAL and HIGH code-review fixes
+- [x] T603.8 — Reviewer generated `docs/issues/issues-T603.md`; all CRITICAL and HIGH resolved
 
 ### T604 — Fix Media Player: add properties panel and media file assignment (BETA-10)
 - [ ] T604.1 — Create `MediaPlayerPropertiesPanel` component (or extend existing props system) with fields: media URL (text input), file type (audio/video selector), autoplay (checkbox), controls visible (checkbox), loop (checkbox)
