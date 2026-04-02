@@ -24,6 +24,7 @@ export const WIDGET_TYPES = [
   'question-hotspot',
   'screenshot-sim',
   'phaser-sim',
+  'audio-narration',
 ] as const
 
 export type WidgetType = (typeof WIDGET_TYPES)[number]

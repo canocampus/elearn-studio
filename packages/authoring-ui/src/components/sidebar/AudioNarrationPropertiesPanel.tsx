@@ -172,12 +172,36 @@ function useExtendedBool(
 // AudioSourceSection — URL input + Asset Manager picker
 // ---------------------------------------------------------------------------
 
+/**
+ * Known audio file extensions. GrapesJS AM stores all assets with type:'image'
+ * regardless of file type, so we validate by extension on selection instead of
+ * relying on the AM's built-in type filter (which only knows 'image' and 'video').
+ */
+const AUDIO_EXTENSIONS = new Set(['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.opus', '.webm'])
+
+function isAudioUrl(url: string): boolean {
+  try {
+    const path = new URL(url).pathname
+    const ext = path.substring(path.lastIndexOf('.')).toLowerCase()
+    return AUDIO_EXTENSIONS.has(ext)
+  } catch {
+    // Relative or malformed URL — check the raw string
+    const ext = url.substring(url.lastIndexOf('.')).toLowerCase().split('?')[0]
+    return AUDIO_EXTENSIONS.has(ext)
+  }
+}
+
 function openAudioPicker(editor: Editor, onPick: (src: string) => void) {
   editor.AssetManager.open({
     types: ['image'],  // GrapesJS AM uses 'image' type for all assets
     select(asset: { getSrc: () => string }, complete: boolean) {
       const src = asset.getSrc()
       if (!src) return
+      if (!isAudioUrl(src)) {
+        // Warn the user — do not set a non-audio file as the narration source
+        alert('Please select an audio file (.mp3, .wav, .ogg, .m4a, .aac, .flac, .opus, .webm).')
+        return
+      }
       onPick(src)
       if (complete) editor.AssetManager.close()
     },

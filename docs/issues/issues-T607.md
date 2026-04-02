@@ -3,7 +3,7 @@
 **Reviewer:** code-reviewer agent
 **Date:** 2026-04-02
 **Block:** T607 — New widget: Audio Narration component
-**Status:** APPROVED — all CRITICAL and HIGH issues resolved
+**Status:** APPROVED — all issues resolved (including deferred M-01 and L-02)
 
 ---
 
@@ -11,7 +11,7 @@
 
 | Severity | Count | Resolved |
 |---|---|---|
-| CRITICAL | 1 | ✅ |
+| CRITICAL | 2 | ✅ |
 | HIGH | 1 | ✅ |
 | MEDIUM | 1 | ✅ |
 | LOW | 2 | ✅ |
@@ -49,13 +49,23 @@ Also changed `ep.autoplay ? ' autoplay' : ''` to `ep.autoplay === true ? ' autop
 
 ---
 
+## CRITICAL Issues (continued)
+
+### C-02 — `backend/api/src/models/Widget.ts`: `audio-narration` missing from `WIDGET_TYPES` enum ✅ RESOLVED
+
+**File:** `backend/api/src/models/Widget.ts`
+**Problem:** `WIDGET_TYPES` array did not include `'audio-narration'`. The Mongoose schema uses this array as an `enum` validator on `WidgetSchema.type`. When the storage manager tried to PATCH a slide containing an `audio-narration` widget, Mongoose rejected it with a validation error surfaced as HTTP 500. This meant `src` was never persisted.
+**Fix applied:** Added `'audio-narration'` to the `WIDGET_TYPES` array. Confirmed by T607.6 round-trip test.
+
+---
+
 ## MEDIUM Issues
 
 ### M-01 — `AudioNarrationPropertiesPanel.tsx`: AM picker not filtered to `audio/*` ✅ RESOLVED
 
 **File:** `packages/authoring-ui/src/components/sidebar/AudioNarrationPropertiesPanel.tsx`
 **Problem:** The "Choose from Asset Library…" button opens the GrapesJS Asset Manager but does not filter it to audio MIME types only. Authors could accidentally select images or video files.
-**Status:** The GrapesJS Asset Manager does not natively support MIME-type filtering on open. The `media-player` panel has the same limitation. A separate ticket (T610) should address per-type AM filtering when the AM plugin supports it. Accepted as known limitation — not a regression.
+**Fix applied:** Added `AUDIO_EXTENSIONS` Set + `isAudioUrl()` function. The `openAudioPicker` callback now validates the selected asset's URL path extension and shows an `alert()` if a non-audio file is selected, preventing assignment of invalid URLs. GrapesJS AM cannot filter by MIME type natively (all assets stored as `type:'image'`), so extension-based post-selection validation is the practical approach.
 
 ---
 
@@ -71,13 +81,13 @@ Also changed `ep.autoplay ? ' autoplay' : ''` to `ep.autoplay === true ? ' autop
 
 **File:** `e2e/tests/audio-narration-widget.spec.ts`
 **Problem:** T607.4 verifies `src` is set in the GrapesJS model after typing a URL, but does not perform a save-reload cycle to verify the `WIDGETS_WITH_SRC_TRAIT` whitelist fix (C-01) actually persists `src` through the store→load round-trip.
-**Resolution:** The `WIDGETS_WITH_SRC_TRAIT` whitelist fix is covered by the existing `persistence.spec.ts` round-trip test (which uses the image widget with `src`). A dedicated audio-narration persistence test would be additive but is not required for T607 closure. Deferred to T613 (persistence regression suite).
+**Fix applied:** Added T607.6 — a full persistence round-trip test: set `src` via editor API → wait for autosave PATCH → switch slides → return → assert `src` on component model. This test also uncovered C-02 (missing `audio-narration` from `WIDGET_TYPES` enum) which caused the PATCH to 500 and lose data.
 
 ---
 
 ## E2E Verification
 
-All 5 T607 E2E tests pass:
+All 6 T607 E2E tests pass:
 
 | Test | Description | Status |
 |---|---|---|
@@ -86,5 +96,4 @@ All 5 T607 E2E tests pass:
 | T607.3 | Props panel sections (Audio Source, Playback Options) visible | ✅ PASS |
 | T607.4 | URL typed into src field updates GrapesJS component model | ✅ PASS |
 | T607.5 | Checkboxes (Show controls, Autoplay) are interactive | ✅ PASS |
-
-Full suite: 111 passed, 3 pre-existing image-upload failures (Garage S3 not available in CI — confirmed pre-existing by stash verification).
+| T607.6 | `src` persists through slide-switch round-trip (BUG-T607-01 + C-02 regression) | ✅ PASS |

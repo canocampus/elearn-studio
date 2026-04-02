@@ -107,4 +107,51 @@ test.describe('T607 — Audio Narration Properties Panel', () => {
     })
     expect((extProps as { autoplay?: boolean })?.autoplay).toBe(true)
   })
+
+  // ─── T607.6 — src survives save → slide-switch → return (WIDGETS_WITH_SRC_TRAIT regression) ──
+
+  test('T607.6 — audio-narration src persists through slide-switch round-trip (BUG-T607-01 regression)', async ({ editorPage, page }) => {
+    const slides = page.locator('[data-testid="slide-item"]')
+    const slideAIndex = (await slides.count()) - 1
+
+    // 1. Add audio-narration widget and set its src via editor API
+    await editorPage.addComponentViaEditor('audio-narration')
+    await page.waitForTimeout(300)
+
+    await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getSelected: () => { set: (k: string, v: unknown) => void } | null
+      } | undefined
+      ed?.getSelected()?.set('src', 'https://example.com/narration.mp3')
+    })
+    await page.waitForTimeout(300)
+
+    // 2. Wait for autosave PATCH to confirm persistence
+    await page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 10_000 },
+    ).catch(() => page.waitForTimeout(3_000))
+
+    // 3. Switch to a new slide (forces a save+load cycle via EditorCanvas Effect 2)
+    await editorPage.addSlide()
+    await slides.last().click()
+    await editorPage.waitForCanvas()
+    await page.waitForTimeout(500)
+
+    // 4. Return to slide A — triggers load from backend
+    await slides.nth(slideAIndex).click()
+    await editorPage.waitForCanvas()
+    await page.waitForTimeout(500)
+
+    // 5. src must survive the round-trip — regression test for WIDGETS_WITH_SRC_TRAIT fix
+    const srcAfterReload = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getComponents: () => { models: Array<{ get: (k: string) => unknown; get type(): string }> }
+      } | undefined
+      const models = ed?.getComponents().models ?? []
+      const audio = models.find((m) => (m.get('type') as string) === 'audio-narration')
+      return audio?.get('src')
+    })
+    expect(srcAfterReload).toBe('https://example.com/narration.mp3')
+  })
 })
