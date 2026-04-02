@@ -30,6 +30,15 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.21] — 2026-04-02 — Fix T601.8 CI Failure: extendedProperties Round-Trip Corruption
+
+### Fixed
+- **T601.8 regression — MC question text not surviving page reload** (`packages/authoring-ui/src/editor/converters.ts`) — GrapesJS Backbone `component.set('extendedProperties', next)` (called by `useExtendedProperties` hook when user edits question text) places the value into the Backbone attributes hash. `c.getAttributes()` was returning it, and it was not excluded by `INTERNAL_GJS_ATTRS` — so the complex object leaked into `widget.properties`. On the next load, `grapesjsFromWidgets` copied it into the GrapesJS component def's `attributes` object (used to set HTML element attributes), causing `loadData()` to crash with `TypeError: Cannot read properties of undefined (reading 'forEach')`. EditorCanvas `.catch()` still set `data-editor-ready="true"`, so `waitForCanvas()` returned successfully but the MC component model was broken and the `QuestionPropertiesPanel` could never re-attach.
+- Extended `INTERNAL_GJS_ATTRS` to include `extendedProperties`, `elearnActions`, `actions`, `properties` — preventing them from flowing through the `c.getAttributes()` → `mergedProps` → `widget.properties` path.
+- Extended the `grapesjsFromWidgets` `attributes` skip list with the same fields — preventing them from ever being placed in the GrapesJS `attributes` sub-object where GrapesJS would try to stringify complex objects as HTML attributes.
+
+---
+
 ## [0.5.20] — 2026-04-02 — Global Volume Control Widget (MISSING-02)
 
 ### Added

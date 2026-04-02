@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-02 — after T609
+> Last updated: 2026-04-02 — after T601.8 fix (v0.5.21)
 
 ---
 
@@ -11,7 +11,7 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.20 |
+| **Current version** | v0.5.21 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
 | **Active block** | T260.TEST — Full E2E suite verification |
 | **E2E test count** | 125 tests (10 new: T608×5, T609×5) |
@@ -20,6 +20,7 @@
 
 ## What Was Last Done
 
+- **T601.8 fix / v0.5.21** — Fixed CI failure: `tests/question-widget.spec.ts:339:7 — T601.8 MC user-edited question text survives page reload`. Root cause: GrapesJS Backbone `component.set('extendedProperties', next)` (called by `useExtendedProperties` hook) places extendedProperties in the Backbone attributes hash; `c.getAttributes()` returns it; it was not excluded by `INTERNAL_GJS_ATTRS`; it leaked into `widget.properties`; on reload `grapesjsFromWidgets` placed it in the GrapesJS component def `attributes` sub-object; `loadData()` crashed with `TypeError: Cannot read properties of undefined (reading 'forEach')`. Fix: extended both `INTERNAL_GJS_ATTRS` and the `grapesjsFromWidgets` skip list to exclude `extendedProperties`, `elearnActions`, `actions`, `properties`.
 - **T609 / v0.5.20** — Implemented MISSING-02: Global Volume Control widget. New `volume-control` GrapesJS block (Media category). `VolumeControlPropertiesPanel` with volume range/number input and showMute checkbox. Runtime player: module-level `_globalVolume`/`_globalMuted`, `applyVolumeToSlide()`, mute button SVG icon swap. 5 new E2E tests.
 - **T608 / v0.5.19** — Implemented MISSING-03: Course Progress Bar widget. New `progress-bar` GrapesJS block (Navigation category). `ProgressBarPropertiesPanel` with color picker, height input, showPercent checkbox. Runtime player: `visitedSlides: Set<number>` in PlayerState, `updateProgressBars()` updates fill width and percent text on every slide nav. 5 new E2E tests.
 - **T607 / v0.5.18** — Implemented MISSING-01: Audio narration widget. New `audio-narration` GrapesJS block + component with speaker-wave canvas preview. `AudioNarrationPropertiesPanel` with Audio Source URL (+ AM picker) and Playback Options (controls/autoplay checkboxes). Runtime player renders `<audio>` element. Fixed converter bug (WIDGETS_WITH_SRC_TRAIT whitelist) that caused `media-player` and `audio-narration` to lose `src` on reload. Fixed backend Widget.ts missing `audio-narration` from WIDGET_TYPES enum (caused 500 on PATCH). Added AM audio extension validation. 6 new E2E tests; 115 tests pass.
