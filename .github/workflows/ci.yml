@@ -165,9 +165,9 @@ jobs:
           head -30 /tmp/ui-server.log || echo "(log not found)"
 
       - name: Wait for services to be ready
-        # /health may return 503 if Garage init is still in progress; use http-get:// prefix
-        # to accept any HTTP response (not just 2xx) as "ready", then let E2E tests verify health.
-        run: pnpm --filter @elearn-studio/e2e exec wait-on http-get://localhost:3001/health http-get://localhost:3000 --timeout 120000
+        # T154-006 fix: use http:// for /health so wait-on fails if it receives 503 (Mongo not ready).
+        # http-get:// would accept any response (including 503) as "ready".
+        run: pnpm --filter @elearn-studio/e2e exec wait-on http://localhost:3001/health http-get://localhost:3000 --timeout 120000
 
       - name: Show server logs on failure
         if: failure()
