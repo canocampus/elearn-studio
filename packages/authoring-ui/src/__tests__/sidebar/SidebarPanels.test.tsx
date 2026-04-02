@@ -59,12 +59,14 @@ function makeCourse(slides: ReturnType<typeof makeSlide>[]): CourseDoc {
   }
 }
 
-/** Minimal GrapesJS component mock supporting get() and set(). */
+/** Minimal GrapesJS component mock supporting get(), set(), on(), off(). */
 function makeMockComponent(type: string, extendedProperties: unknown) {
   const data: Record<string, unknown> = { type, extendedProperties }
   return {
     get: vi.fn((key: string) => data[key]),
     set: vi.fn((key: string, value: unknown) => { data[key] = value }),
+    on: vi.fn(),
+    off: vi.fn(),
   }
 }
 
