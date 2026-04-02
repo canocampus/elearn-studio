@@ -49,9 +49,9 @@ function formatTime(iso: string): string {
 function DetailBadge({ detail }: { detail?: AuditDetail }) {
   if (!detail) return null
   const parts: string[] = []
-  if (typeof detail.slideId === 'string') parts.push(`slide: ${detail.slideId.slice(0, 8)}…`)
-  if (Array.isArray(detail.fields) && detail.fields.length > 0) parts.push(detail.fields.join(', '))
-  if (typeof detail.title === 'string') parts.push(`"${detail.title.slice(0, 30)}"`)
+  if ('slideId' in detail && typeof detail.slideId === 'string') parts.push(`slide: ${detail.slideId.slice(0, 8)}…`)
+  if ('fields' in detail && Array.isArray(detail.fields) && detail.fields.length > 0) parts.push(detail.fields.join(', '))
+  if ('title' in detail && typeof detail.title === 'string') parts.push(`"${detail.title.slice(0, 30)}"`)
   if (!parts.length) return null
   return <span style={styles.detail}>{parts.join(' · ')}</span>
 }

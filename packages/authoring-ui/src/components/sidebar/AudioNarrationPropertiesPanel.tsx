@@ -162,7 +162,7 @@ function useExtendedBool(
     isLocalRef.current = true
     setValue(v)
     const current = getExtended(component)
-    component.set('extendedProperties' as 'type', { ...current, [key]: v })
+    component.set('extendedProperties', { ...current, [key]: v })
   }
 
   return [value, update]
