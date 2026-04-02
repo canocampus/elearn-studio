@@ -27,6 +27,7 @@ import { QuestionPropertiesPanel } from '../sidebar/QuestionPropertiesPanel'
 import { PhaserSimPropertiesPanel } from '../sidebar/PhaserSimPropertiesPanel'
 import { ButtonPropertiesPanel } from '../sidebar/ButtonPropertiesPanel'
 import { MediaPlayerPropertiesPanel } from '../sidebar/MediaPlayerPropertiesPanel'
+import { AudioNarrationPropertiesPanel } from '../sidebar/AudioNarrationPropertiesPanel'
 import { AnimationPropertiesPanel } from '../sidebar/AnimationPropertiesPanel'
 import { ActionsPanel } from '../actions/ActionsPanel'
 import { EditorCanvas } from '../editor/EditorCanvas'
@@ -200,6 +201,9 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
             </PanelErrorBoundary>
             <PanelErrorBoundary name="MediaPlayerPropertiesPanel">
               <MediaPlayerPropertiesPanel />
+            </PanelErrorBoundary>
+            <PanelErrorBoundary name="AudioNarrationPropertiesPanel">
+              <AudioNarrationPropertiesPanel />
             </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'actions' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>

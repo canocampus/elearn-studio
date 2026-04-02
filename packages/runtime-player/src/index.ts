@@ -301,6 +301,22 @@ function renderMediaPlayer(w: BaseWidget): string {
   return `<div class="el-widget el-media" id="w-${w.id}" style="${style}"><a href="${escAttr(src)}" target="_blank">[media]</a></div>`
 }
 
+function renderAudioNarration(w: BaseWidget): string {
+  const src = (w.properties.src as string) ?? ''
+  const ep = (w.extendedProperties as Record<string, unknown> | null) ?? {}
+  const autoplay = ep.autoplay === true ? ' autoplay' : ''
+  const controls = ep.controls !== false ? ' controls' : ''
+  const style = positionStyle(w.bounds)
+  if (!src) {
+    return `<div class="el-widget el-audio-narration" id="w-${w.id}" style="${style}display:flex;align-items:center;justify-content:center;background:#0f172a;color:#94a3b8;font-size:13px;">
+      <span>&#128266; No audio assigned</span>
+    </div>`
+  }
+  return `<div class="el-widget el-audio-narration" id="w-${w.id}" style="${style}display:flex;align-items:center;background:#0f172a;padding:0 8px;box-sizing:border-box;">
+    <audio src="${escAttr(src)}"${controls}${autoplay} style="width:100%;"></audio>
+  </div>`
+}
+
 function renderMCQuestion(w: BaseWidget): string {
   const ep = w.extendedProperties
   const qText = (ep.questionText as string) ?? 'Question'
@@ -376,7 +392,8 @@ function renderWidget(w: BaseWidget): string {
     case 'suspend-button':  return renderSuspendButton(w)
     case 'score-field':  return renderScoreField(w)
     case 'score-quiz':   return renderScoreQuiz(w)
-    case 'media-player': return renderMediaPlayer(w)
+    case 'media-player':     return renderMediaPlayer(w)
+    case 'audio-narration':  return renderAudioNarration(w)
     case 'question-mc':     return renderMCQuestion(w)
     case 'question-tf':     return renderTFQuestion(w)
     case 'question-fill':   return renderFillQuestion(w)

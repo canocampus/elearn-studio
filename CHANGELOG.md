@@ -30,6 +30,28 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.18] — 2026-04-02 — Audio Narration Widget (MISSING-01)
+
+### Added
+- **Audio Narration widget** (`packages/authoring-ui/src/editor/registerBlocks.ts`) — New `audio-narration` GrapesJS block + component for embedding audio tracks on slides. Features speaker-wave SVG icon in the Block Manager (Media category) and a styled dark-background canvas placeholder preview with animated speaker icon.
+- **AudioNarrationPropertiesPanel** (`packages/authoring-ui/src/components/sidebar/AudioNarrationPropertiesPanel.tsx`) — New React properties panel shown automatically in the Props tab when an `audio-narration` widget is selected.
+  - **Audio Source section**: URL text input with bidirectional `change:src` GrapesJS sync; "Choose from Asset Library…" button; "Clear Source" button
+  - **Playback Options section**: "Show controls" checkbox (default on) and "Autoplay on slide load" checkbox (default off) — stored immutably in `extendedProperties`
+  - Uses the same `useTrait` / `useExtendedBool` / `isLocalRef` patterns as `MediaPlayerPropertiesPanel`
+  - `isAudioNarrationWidgetType()` export used by `EditorCanvas.tsx` to auto-switch to Props tab on selection
+- **Runtime player rendering** (`packages/runtime-player/src/index.ts`) — `renderAudioNarration()` produces a native `<audio>` element with `src`, `controls`, and `autoplay` from widget properties; renders a "No audio assigned" placeholder when `src` is empty; `escAttr()` prevents XSS on the `src` attribute.
+- **E2E suite** (`e2e/tests/audio-narration-widget.spec.ts`) — 5 new T607 tests: block visible in Blocks panel, Props tab auto-opens on widget select, all panel sections visible, URL input updates component model, checkboxes interactive. Suite now 114 tests.
+
+### Fixed
+- **[MISSING-01] Audio narration widget missing from widget library** — `audio-narration` was planned but not implemented; authors had no way to add background audio or narration to slides.
+- **[BUG-T607-01] `converters.ts`: `src` not restored for `media-player` and `audio-narration` on slide reload** — `grapesjsFromWidgets()` previously only restored `src` as a GrapesJS model attribute for `w.type === 'image'`. Widgets of type `media-player` and `audio-narration` lost their `src` on every save→reload cycle. Fixed with a `WIDGETS_WITH_SRC_TRAIT` whitelist: `new Set(['image', 'media-player', 'audio-narration'])`.
+
+### Notes
+- `extendedProperties` null guard added in runtime player (`?? {}` fallback) to handle migrated/legacy documents that may have `extendedProperties: null`.
+- Asset Manager MIME-type filtering (audio/* only) is not natively supported by the GrapesJS AM plugin; deferred to a future ticket (same limitation as media-player).
+
+---
+
 ## [0.5.17] — 2026-04-02 — SCORM Export Loading Feedback (BETA-14)
 
 ### Added

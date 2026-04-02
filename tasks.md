@@ -530,14 +530,14 @@
 - [x] T606.5 — Reviewer generated `docs/issues/issues-T606.md`; 0 CRITICAL / 0 HIGH / 0 MEDIUM / 0 LOW — APPROVED; 3 new E2E tests + all 10 SCORM tests passing
 
 ### T607 — New widget: Audio Narration component (MISSING-01)
-- [ ] T607.1 — Register GrapesJS Block + Component for `audio-narration` widget
-- [ ] T607.2 — Props panel: audio file selector (opens AM filtered to audio/*), autoplay toggle, show/hide player controls toggle
-- [ ] T607.3 — Canvas preview: shows audio player UI or a microphone icon placeholder
-- [ ] T607.4 — Runtime player: renders `<audio>` element; autoplay on slide load if configured; respects global volume control (T608)
-- [ ] T607.5 — Storage Manager: bidirectional converter handles `audio-narration` type
-- [ ] T607.6 — E2E test: drag audio-narration block → assign audio file → verify `<audio src>` set in canvas
-- [ ] T607.7 — Refine the generated code
-- [ ] T607.8 — A reviewer will generate `docs/issues/issues-T607.md` with detected problems; resolve them before terminating this block
+- [x] T607.1 — Register GrapesJS Block + Component for `audio-narration` widget
+- [x] T607.2 — Props panel: audio file selector (opens AM filtered to audio/*), autoplay toggle, show/hide player controls toggle
+- [x] T607.3 — Canvas preview: shows audio player UI or a microphone icon placeholder
+- [x] T607.4 — Runtime player: renders `<audio>` element; autoplay on slide load if configured; respects global volume control (T608)
+- [x] T607.5 — Storage Manager: bidirectional converter handles `audio-narration` type (WIDGETS_WITH_SRC_TRAIT whitelist fix)
+- [x] T607.6 — E2E test: 5 new tests in audio-narration-widget.spec.ts — all passing (T607.1–T607.5 flows verified)
+- [x] T607.7 — Refine the generated code (code review CRITICAL and HIGH issues resolved)
+- [x] T607.8 — Reviewer generated `docs/issues/issues-T607.md`; all CRITICAL and HIGH resolved; 5 new E2E tests passing
 
 ### T608 — New widget: Course Progress Bar (MISSING-03)
 - [ ] T608.1 — Register GrapesJS Block + Component for `progress-bar` widget

@@ -225,10 +225,13 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
       def.content = props.content
     }
 
-    // Restore image src as a root-level GrapesJS model attribute.
-    // model.set('src', ...) is how the image component stores its URL — setting it here
-    // triggers the change:src listener and the presigned-URL resolution on load.
-    if (w.type === 'image' && typeof props?.src === 'string' && props.src) {
+    // Restore src as a root-level GrapesJS model attribute for widget types that
+    // declare src as a model-level trait. model.set('src', ...) triggers change:src
+    // listeners (e.g. presigned-URL resolution for images) on load.
+    // Only widget types that use src as a GrapesJS trait are listed here to avoid
+    // inadvertently setting src on types that merely store it in properties.
+    const WIDGETS_WITH_SRC_TRAIT = new Set(['image', 'media-player', 'audio-narration'])
+    if (WIDGETS_WITH_SRC_TRAIT.has(w.type) && typeof props?.src === 'string' && props.src) {
       def.src = props.src
     }
 

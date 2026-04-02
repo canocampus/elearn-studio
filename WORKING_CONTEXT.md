@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-02 — after T606
+> Last updated: 2026-04-02 — after T607
 
 ---
 
@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.17 |
+| **Current version** | v0.5.18 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
-| **Active block** | T607 — Audio narration widget |
-| **E2E test count** | 109 tests |
+| **Active block** | T608 — Course progress bar |
+| **E2E test count** | 114 tests |
 
 ---
 
 ## What Was Last Done
 
+- **T607 / v0.5.18** — Implemented MISSING-01: Audio narration widget. New `audio-narration` GrapesJS block + component with speaker-wave canvas preview. `AudioNarrationPropertiesPanel` with Audio Source URL (+ AM picker) and Playback Options (controls/autoplay checkboxes). Runtime player renders `<audio>` element. Fixed converter bug (WIDGETS_WITH_SRC_TRAIT whitelist) that caused `media-player` and `audio-narration` to lose `src` on reload. 5 new E2E tests; 114 tests pass.
 - **T606 / v0.5.17** — Fixed BETA-14: SCORM export loading feedback. `PublishDialog` now shows a status section (spinner → "Generating SCORM package…" → "Download ready" / error message inline). Error state shows in dialog with `role="alert"`. Cancel relabels to "Close" after export. 3 new E2E tests; 10 SCORM tests pass.
 - **T605 / v0.5.16** — Fixed BETA-15: image widget placeholder via SVG data URI on `img.gjs-plh-image` (camera icon + "Click to choose image" text). Changed `click` → `dblclick` for Asset Manager open; tooltip `title="Double-click to open image selector"` set in `onRender()`. 4 new E2E tests; full 106-test suite passes.
 - **T604 / v0.5.15** — Fixed BETA-10: new `MediaPlayerPropertiesPanel` with Media Source URL (+ AM picker), Media Type selector, and Playback Options (autoplay/controls/loop checkboxes). `useTrait` and `useExtendedBool` hooks with `isLocalRef` loop prevention. Props tab auto-opens on widget select. 6 new E2E tests; full 102-test suite passes.
@@ -74,7 +75,7 @@ Full history: `CHANGELOG.md`
 
 | ID | Description | Task |
 |---|---|---|
-| MISSING-01 | Audio narration component | T607 |
+| ~~MISSING-01~~ | ~~Audio narration component~~ | ✅ Fixed in T607 |
 | MISSING-02 | Global volume control | T609 |
 | MISSING-03 | Course progress bar | T608 |
 
@@ -125,7 +126,7 @@ assignment is not calling `component.setStyle()` correctly.
 5. ~~**T604** — Fix Media Player properties panel~~ ✅ Done
 6. ~~**T605** — Image widget placeholder hint~~ ✅ Done
 7. ~~**T606** — SCORM export loading feedback~~ ✅ Done
-8. **T607** — New: Audio narration widget
+8. ~~**T607** — New: Audio narration widget~~ ✅ Done
 9. **T608** — New: Course progress bar
 10. **T609** — New: Volume control widget
 
@@ -144,6 +145,7 @@ assignment is not calling `component.setStyle()` correctly.
 | True/False | ✅ Working | Positioning (T600) + correct answer selection (T602) fixed |
 | Fill in Blank | ✅ Working | Positioning (T600) + accepted answer editable (T602) |
 | Media Player | ✅ Working | Positioning (T600) + Media Source/Type/Playback props panel (T604) |
+| Audio Narration | ✅ Working | Block + canvas preview + Props panel (T607); runtime `<audio>` rendering |
 
 ---
 

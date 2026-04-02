@@ -19,6 +19,7 @@ const ICONS = {
   doneButton: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="3"/><polyline points="7 12 10 15 17 9"/></svg>`,
   scoreField: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="1"/><line x1="7" y1="12" x2="17" y2="12" stroke-dasharray="2 2"/></svg>`,
   mediaPlayer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 9 10 15 15 12" fill="currentColor" stroke="none"/></svg>`,
+  audioNarration: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`,
 }
 
 const NAME_TRAIT = { type: 'text', name: 'name', label: 'Name' }
@@ -33,6 +34,7 @@ export function registerBlocks(editor: Editor): void {
   registerDoneButtonWidget(editor)
   registerScoreFieldWidget(editor)
   registerMediaPlayerWidget(editor)
+  registerAudioNarrationWidget(editor)
   registerSimBlock(editor)
   registerPhaserSimBlock(editor)
 }
@@ -398,4 +400,44 @@ function registerMediaPlayerWidget(editor: Editor): void {
     },
   })
   registerQuestionBlocks(editor)
+}
+
+function registerAudioNarrationWidget(editor: Editor): void {
+  editor.Components.addType('audio-narration', {
+    model: {
+      defaults: {
+        name: 'Audio Narration',
+        tagName: 'div',
+        droppable: false,
+        properties: {},
+        actions: [],
+        elearnActions: [],
+        extendedProperties: { controls: true, autoplay: false },
+        content: `
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:10px;color:#94a3b8;font-size:13px;">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <span>Audio Narration</span>
+          </div>
+        `,
+        style: {
+          width: '280px',
+          height: '60px',
+          'background-color': '#0f172a',
+          'border-radius': '6px',
+          'z-index': '1',
+          display: 'block',
+        },
+        traits: [NAME_TRAIT, { type: 'text', name: 'src', label: 'Audio URL' }],
+      },
+    },
+  })
+  editor.BlockManager.add('audio-narration', {
+    label: 'Audio Narration',
+    category: 'Media',
+    media: ICONS.audioNarration,
+    content: {
+      type: 'audio-narration',
+      style: { position: 'absolute', left: '100px', top: '100px', width: '280px', height: '60px' },
+    },
+  })
 }
