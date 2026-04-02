@@ -69,9 +69,10 @@ function useExtendedProperties<T extends object>(
 
     component.on('change:extendedProperties', onExternalChange)
     return () => { component.off('change:extendedProperties', onExternalChange) }
+  // Intentional: `defaults` is a stable module-level constant (MC_DEFAULT_EXTENDED etc.)
+  // and never changes. Only `component` changes (different widget selected), triggering
+  // re-subscription. Adding `defaults` to the dep array would cause spurious re-runs.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // Intentional: `defaults` is a stable module-level constant and never changes;
-  // only `component` can change (different widget selected), triggering re-subscription.
   }, [component])
 
   function update(patch: Partial<T>) {
