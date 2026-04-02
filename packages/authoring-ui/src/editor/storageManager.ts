@@ -97,6 +97,10 @@ export function registerStorageManager(editor: Editor): void {
           courseCache = { courseId, doc: course }
         }
 
+        if (!Array.isArray(course.slides)) {
+          throw new Error(`Invalid course data: 'slides' is missing or not an array for course ${courseId}`)
+        }
+
         const slide = course.slides.find((s) => s.id === slideId)
 
         if (!slide) {
