@@ -65,8 +65,8 @@ test.describe('Image Widget: Upload & Presigned URL Display', () => {
     const img = editorPage.canvasComponent('[data-gjs-type="image"]')
     await expect(img).toBeVisible({ timeout: 15_000 })
 
-    // 2. Click the image widget → opens the GrapesJS Asset Manager modal
-    await img.click()
+    // 2. Double-click the image widget → opens the GrapesJS Asset Manager modal (T605: dblclick)
+    await img.dblclick()
 
     const assetManager = page.locator('.gjs-mdl-container')
     await assetManager.waitFor({ state: 'visible', timeout: 10_000 })
@@ -115,7 +115,7 @@ test.describe('Image Widget: Upload & Presigned URL Display', () => {
     await editorPage.dragBlockToCanvas('Image', 300, 200)
     const img = editorPage.canvasComponent('[data-gjs-type="image"]')
     await expect(img).toBeVisible({ timeout: 15_000 })
-    await img.click()
+    await img.dblclick()
 
     const assetManager = page.locator('.gjs-mdl-container')
     await assetManager.waitFor({ state: 'visible', timeout: 10_000 })
@@ -173,7 +173,7 @@ test.describe('Image Widget: Upload & Presigned URL Display', () => {
     await editorPage.dragBlockToCanvas('Image', 300, 200)
     const img = editorPage.canvasComponent('[data-gjs-type="image"]')
     await expect(img).toBeVisible({ timeout: 15_000 })
-    await img.click()
+    await img.dblclick()
 
     const assetManager = page.locator('.gjs-mdl-container')
     await assetManager.waitFor({ state: 'visible', timeout: 10_000 })
