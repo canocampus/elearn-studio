@@ -466,13 +466,13 @@
 
 ### T601 — Fix Asset Manager image preview (BETA-07 + BETA-12)
 > Asset Manager shows generic icon + UUID filename instead of thumbnail + original name.
-- [ ] T601.1 — Investigate how uploaded assets are registered back into GrapesJS Asset Manager after upload (trace: `POST /assets` response → AM `add()` call)
-- [ ] T601.2 — Fix thumbnail: ensure the asset `src` field passed to GrapesJS AM is the presigned URL or a `/assets/:id/thumbnail` endpoint, not a raw path
-- [ ] T601.3 — Fix filename display: store original filename in the asset metadata; pass it as the `name` field to GrapesJS AM `add()`
-- [ ] T601.4 — Backend: if needed, add original filename storage to the `POST /assets` handler (store as Garage object metadata or in MongoDB)
-- [ ] T601.5 — E2E test: upload image → open Asset Manager → verify thumbnail is visible and filename matches original; update `image-upload.spec.ts`
-- [ ] T601.6 — Refine the generated code
-- [ ] T601.7 — A reviewer will generate `docs/issues/issues-T601.md` with detected problems; resolve them before terminating this block
+- [x] T601.1 — Investigate how uploaded assets are registered back into GrapesJS Asset Manager after upload (trace: `POST /assets` response → AM `add()` call)
+- [x] T601.2 — Fix thumbnail: ensure the asset `src` field passed to GrapesJS AM is the presigned URL or a `/assets/:id/thumbnail` endpoint, not a raw path
+- [x] T601.3 — Fix filename display: store original filename in the asset metadata; pass it as the `name` field to GrapesJS AM `add()`
+- [x] T601.4 — Backend: if needed, add original filename storage to the `POST /assets` handler (store as Garage object metadata or in MongoDB) — not needed; backend already returns `originalName`
+- [x] T601.5 — E2E test: upload image → open Asset Manager → verify thumbnail is visible and filename matches original; update `image-upload.spec.ts`
+- [x] T601.6 — Refine the generated code (fixed C-01: empty catch block now logs with console.warn)
+- [x] T601.7 — A reviewer will generate `docs/issues/issues-T601.md` with detected problems; resolve them before terminating this block
 
 ### T602 — Fix question properties panel: text fields and correct answer not editable (BETA-01/02/03/08/09)
 > Root cause: `onChange` handlers in question form components likely not wiring

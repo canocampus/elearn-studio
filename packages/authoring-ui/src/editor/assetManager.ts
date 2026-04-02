@@ -32,7 +32,7 @@ export function buildAssetManagerConfig(): AssetManagerConfig {
     autoAdd: true,
 
     // customFetch: injects Bearer token and transforms the backend envelope
-    // { success, data: { url, objectName } } into the string GrapesJS expects.
+    // { success, data: { url, objectName, originalName } } into the object GrapesJS expects.
     //
     // IMPORTANT: GrapesJS calls customFetch then does:
     //   fetchResult.then(text => onUploadResponse(text, clb))
@@ -41,12 +41,19 @@ export function buildAssetManagerConfig(): AssetManagerConfig {
     //
     // So customFetch must resolve to a STRING (same as the standard res.text() path),
     // NOT a Response object (which would make json.data === undefined, nothing added).
+    //
+    // T601 (BETA-07 + BETA-12):
+    //   - BETA-07: /assets/:objectName requires Bearer auth — browser <img> can't load it.
+    //     Fix: resolve the presigned URL immediately after upload and pass it as `src`.
+    //   - BETA-12: passing only a URL string causes GrapesJS to display the UUID as the name.
+    //     Fix: pass { src, name, type } object so the original filename is shown in the AM list.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     customFetch: async (url: string, options: RequestInit): Promise<any> => {
       const token = useAuthStore.getState().accessToken
+      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
       const headers: Record<string, string> = {
         ...((options.headers ?? {}) as Record<string, string>),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...authHeaders,
       }
 
       const resp = await fetch(url, { ...options, headers })
@@ -55,9 +62,37 @@ export function buildAssetManagerConfig(): AssetManagerConfig {
         return Promise.reject(await resp.text())
       }
 
-      const body = await resp.json() as { success: boolean; data: { url: string } }
+      const body = await resp.json() as {
+        success: boolean
+        data: { url: string; objectName: string; originalName: string }
+      }
+
+      // T601 BETA-07: resolve a presigned URL so the AM thumbnail can load without auth.
+      // T601 BETA-12: use originalName from upload response as the AM display name.
+      const { objectName, originalName } = body.data
+      let src: string = body.data.url
+      try {
+        const presignedResp = await fetch(
+          `${API_BASE}/assets/${objectName}/presigned`,
+          { headers: authHeaders },
+        )
+        if (presignedResp.ok) {
+          const presignedBody = await presignedResp.json() as {
+            success: boolean
+            data: { presignedUrl: string }
+          }
+          src = presignedBody.data.presignedUrl
+        }
+      } catch (err: unknown) {
+        // If presigned URL fetch fails, fall back to the /assets/ path.
+        // The thumbnail will not display (auth-protected) but the asset is still added.
+        console.warn('[assetManager] presigned fetch failed for', objectName, err)
+      }
+
       // Return JSON string: GrapesJS will JSON.parse it, then call target.add(json.data).
-      return JSON.stringify({ data: [body.data.url] })
+      return JSON.stringify({
+        data: [{ src, name: originalName, type: 'image' }],
+      })
     },
 
     // Empty initial assets; uploads populate the list dynamically.

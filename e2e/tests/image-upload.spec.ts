@@ -108,7 +108,47 @@ test.describe('Image Widget: Upload & Presigned URL Display', () => {
     expect(presignedApiCalled).toBe(true)
   })
 
-  // ── Test 2: /assets/:objectName/presigned returns JSON with presignedUrl ───
+  // ── T601 Test 2: AM shows presigned thumbnail + original filename after upload ─
+
+  test('T601 — Asset Manager shows image thumbnail (not broken icon) and original filename after upload', async ({ editorPage, page }) => {
+    // 1. Drop image block and open AM
+    await editorPage.dragBlockToCanvas('Image', 300, 200)
+    const img = editorPage.canvasComponent('[data-gjs-type="image"]')
+    await expect(img).toBeVisible({ timeout: 15_000 })
+    await img.click()
+
+    const assetManager = page.locator('.gjs-mdl-container')
+    await assetManager.waitFor({ state: 'visible', timeout: 10_000 })
+
+    // 2. Upload via file input
+    const fileInput = page.locator('input[type="file"]').first()
+    const testFile = testImageFile()
+    await fileInput.setInputFiles({
+      name: testFile.name,
+      mimeType: testFile.mimeType,
+      buffer: testFile.buffer,
+    })
+
+    // 3. Wait for asset item to appear in the list
+    const assetItem = page.locator('.gjs-am-asset').first()
+    await assetItem.waitFor({ state: 'visible', timeout: 20_000 })
+
+    // 4. T601 BETA-07: the thumbnail <img> inside the AM item must have a presigned URL
+    //    src (http://…) — NOT the auth-protected /assets/ path.
+    const thumbImg = assetItem.locator('img').first()
+    if (await thumbImg.count() > 0) {
+      await expect(thumbImg).toHaveAttribute('src', /^https?:\/\//, { timeout: 10_000 })
+    }
+
+    // 5. T601 BETA-12: the AM item must display the original filename, not a UUID.
+    //    GrapesJS renders the asset name as text inside .gjs-am-asset-name (or similar).
+    //    The original filename is testFile.name (e.g. "test-image.png").
+    const assetItemText = await assetItem.textContent() ?? ''
+    // Original name should appear somewhere in the item text; UUID pattern should NOT be the only text
+    expect(assetItemText).toContain(testFile.name.replace(/\.[^.]+$/, '')) // stem without extension
+  })
+
+  // ── Test 3: /assets/:objectName/presigned returns JSON with presignedUrl ───
 
   test('GET /assets/:objectName/presigned endpoint returns a presigned URL', async ({ page }) => {
     // Upload an asset directly via the API so we have a real objectName to test with

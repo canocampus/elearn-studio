@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-02 — after T600
+> Last updated: 2026-04-02 — after T601
 
 ---
 
@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.11 |
+| **Current version** | v0.5.12 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
-| **Active block** | T601 — Fix Asset Manager image preview |
-| **E2E test count** | 94 tests |
+| **Active block** | T602 — Fix question properties panel |
+| **E2E test count** | 95 tests |
 
 ---
 
 ## What Was Last Done
 
+- **T601 / v0.5.12** — Fixed BETA-07 (AM thumbnail: generic icon → presigned URL) and BETA-12 (AM filename: UUID → original filename). `customFetch` in `assetManager.ts` now resolves presigned URL post-upload and passes `{ src, name: originalName, type: 'image' }` to GrapesJS. Added T601 E2E regression test; all 4 image-upload tests pass.
 - **T600 / v0.5.11** — Fixed BETA-06: `done-button`, `question-tf`, `question-fill`, `media-player` now land at the correct position on drag (not at canvas origin 0,0). Added 4 E2E regression tests; all 13 grapesjs-integration tests pass.
 - **Beta Review Round 1** — Full manual authoring test by project owner. 15 bugs found, 3 missing features identified. Full details: `docs/issues/issues-BETA-R1.md`
 - **v0.5.10** — Defensive guards for missing `w.bounds` in `grapesjsFromWidgets`
@@ -49,7 +50,7 @@ Full history: `CHANGELOG.md`
 | BETA-04 | Button caption cannot be changed | T603 |
 | BETA-05 | Button background image cannot be assigned | T603 |
 | ~~BETA-06~~ | ~~Positioning bug on initial drag: done-button, question-tf, question-fill, media-player~~ | ✅ Fixed in T600 |
-| BETA-07 | Asset Manager: generic icon instead of image thumbnail | T601 |
+| ~~BETA-07~~ | ~~Asset Manager: generic icon instead of image thumbnail~~ | ✅ Fixed in T601 |
 | BETA-08 | TF: correct answer selection broken | T602 |
 | BETA-09 | Fill: accepted answer not editable | T602 |
 | BETA-10 | Media Player: no properties panel, cannot assign media | T604 |
@@ -59,7 +60,7 @@ Full history: `CHANGELOG.md`
 
 | ID | Description | Task |
 |---|---|---|
-| BETA-12 | Asset Manager: UUID shown instead of original filename | T601 |
+| ~~BETA-12~~ | ~~Asset Manager: UUID shown instead of original filename~~ | ✅ Fixed in T601 |
 | BETA-13 | MC props panel doesn't refresh when options added/removed | T602 |
 | BETA-14 | No loading feedback during SCORM export | T606 |
 | BETA-15 | Image widget: no placeholder hint | T605 |
@@ -113,7 +114,7 @@ assignment is not calling `component.setStyle()` correctly.
 ## Next Steps (Ordered)
 
 1. ~~**T600** — Fix positioning bug (4 widgets)~~ ✅ Done
-2. **T601** — Fix Asset Manager preview + filename
+2. ~~**T601** — Fix Asset Manager preview + filename~~ ✅ Done
 3. **T602** — Fix question properties panel (all 3 types)
 4. **T603** — Fix button caption + background image
 5. **T604** — Fix Media Player properties panel
@@ -130,7 +131,7 @@ assignment is not calling `component.setStyle()` correctly.
 | Component | Status | Notes |
 |---|---|---|
 | Text widget | ✅ Working | No issues |
-| Image widget | ⚠️ Partial | Loads correctly, AM preview broken (BETA-07) |
+| Image widget | ✅ Working | AM thumbnail and filename fixed (T601) |
 | Button | ❌ Broken | Caption + background not working (BETA-04/05) |
 | Done button | ⚠️ Partial | Positioning fixed (T600); caption + background still broken (BETA-04/05) |
 | Nav buttons | ❌ Broken | Individual captions not changeable (BETA-11) |

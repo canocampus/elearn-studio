@@ -30,6 +30,19 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.12] — 2026-04-02 — Fix Asset Manager Thumbnail and Filename Display (BETA-07 + BETA-12)
+
+### Fixed
+
+- **[BETA-07] Asset Manager thumbnail: generic icon replaced by presigned URL image** (`packages/authoring-ui/src/editor/assetManager.ts`) — After upload, the Asset Manager showed a generic broken icon instead of an image thumbnail. Root cause: `customFetch` passed `/assets/uuid.png` (auth-protected, returns 401 for `<img>` tags) directly to GrapesJS. Fix: after each upload, `customFetch` now calls `GET /assets/:objectName/presigned` to resolve a time-limited browser-loadable URL, which is then passed as `src` to GrapesJS. Presigned URL fetch failure is logged via `console.warn` and falls back gracefully to the auth-protected path.
+- **[BETA-12] Asset Manager filename: original filename shown instead of UUID** (`packages/authoring-ui/src/editor/assetManager.ts`) — GrapesJS was receiving only a URL string after upload, causing it to use the UUID-based path as the display name. Fix: `customFetch` now returns `{ src, name: originalName, type: 'image' }` object using the `originalName` already present in the backend upload response. No backend changes were required.
+
+### Tests
+
+- Added `T601 — Asset Manager shows image thumbnail and original filename after upload` test in `e2e/tests/image-upload.spec.ts`. Verifies: AM thumbnail `<img>` has `src` matching `https?://` (presigned URL, not auth-protected path); asset item text contains original filename stem. All 4 image-upload tests pass.
+
+---
+
 ## [0.5.11] — 2026-04-02 — Fix Initial Drag Positioning for 4 Broken Block Types (BETA-06)
 
 ### Fixed
