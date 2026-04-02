@@ -83,6 +83,46 @@ The Media Player block plays audio or video files on your slide.
 
 ---
 
+## Audio narration
+
+The Audio Narration block embeds a background audio track on your slide — ideal for voice-over narration.
+
+1. Drag an **Audio Narration** block onto the canvas.
+2. In the Properties panel, paste an audio file URL into the **Audio Source** field, or click **Choose from Asset Library…** to select an uploaded file.
+3. Enable **Show controls** to let learners pause or replay the audio.
+4. Enable **Autoplay on slide load** to start the audio automatically when the slide is shown.
+
+> 💡 **Tip:** Keep narration tracks under 3 minutes per slide. Longer clips reduce engagement and make it harder for learners to revisit specific content.
+
+---
+
+## Course progress bar
+
+The Course Progress Bar shows learners how far they have progressed through the course. Place it on every slide (or on a shared template) so learners always know where they are.
+
+1. Drag a **Progress Bar** block onto the canvas.
+2. In the Properties panel, set the **Bar Color** using the color picker or by typing a hex value (e.g. `#4f46e5`).
+3. Set the **Bar Height** (in pixels) to adjust the thickness of the bar.
+4. Enable **Show percentage text** to display a numeric percentage alongside the bar.
+
+The bar fills automatically as learners visit slides. It does not require any additional configuration.
+
+> ℹ️ **Note:** A slide is counted as "visited" the first time a learner navigates to it. Revisiting a slide does not change the progress count.
+
+---
+
+## Volume control
+
+The Volume Control block lets learners adjust the playback volume of all audio and video on the current slide. It is useful on slides that contain multiple media elements.
+
+1. Drag a **Volume Control** block onto the canvas.
+2. In the Properties panel, set the **Default Volume** (0–100) that plays when the slide loads.
+3. Enable **Show mute button** to add a one-click mute/unmute toggle next to the slider.
+
+> 💡 **Tip:** Place the Volume Control block in a consistent corner of every slide (or on a slide template) so learners can always find it.
+
+---
+
 ## Navigation buttons
 
 Navigation buttons let learners move between slides.
