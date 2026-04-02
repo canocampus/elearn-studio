@@ -438,7 +438,8 @@ describe('T600.2 — image widget resolveAndSetSrc', () => {
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('[registerBlocks] resolveAndSetSrc failed for'),
       'broken.png',
-      networkErr,
+      '—',
+      networkErr.message,
     )
     warnSpy.mockRestore()
   })

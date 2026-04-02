@@ -84,9 +84,10 @@ describe('customFetch — REGRESSION: return type must be a JSON string', () => 
   })
 
   it('returns a string (not a Response or object)', async () => {
-    fetchMock.mockResolvedValue(
-      makeBackendResponse({ success: true, data: { url: '/assets/img-001.png', objectName: 'img-001.png' } }),
-    )
+    // Upload response (call 1); presigned URL fetch rejects so src falls back to url (call 2).
+    fetchMock
+      .mockResolvedValueOnce(makeBackendResponse({ success: true, data: { url: '/assets/img-001.png', objectName: 'img-001.png', originalName: 'photo.png' } }))
+      .mockRejectedValueOnce(new Error('presigned skip'))
 
     const cfg = buildAssetManagerConfig()
     const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
@@ -97,31 +98,32 @@ describe('customFetch — REGRESSION: return type must be a JSON string', () => 
   })
 
   it('parsed result has a "data" array (GrapesJS calls target.add(json.data))', async () => {
-    fetchMock.mockResolvedValue(
-      makeBackendResponse({ success: true, data: { url: '/assets/img-001.png', objectName: 'img-001.png' } }),
-    )
+    fetchMock
+      .mockResolvedValueOnce(makeBackendResponse({ success: true, data: { url: '/assets/img-001.png', objectName: 'img-001.png', originalName: 'photo.png' } }))
+      .mockRejectedValueOnce(new Error('presigned skip'))
 
     const cfg = buildAssetManagerConfig()
     const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
     const parsed = JSON.parse(result)
 
-    // GrapesJS expects json.data to be an array of src strings
+    // GrapesJS expects json.data to be an array of asset objects
     expect(Array.isArray(parsed.data)).toBe(true)
     expect(parsed.data.length).toBeGreaterThan(0)
   })
 
   it('data[0] is the asset URL from the backend response (REGRESSION: field mapping)', async () => {
     const expectedUrl = '/assets/my-image-abc123.png'
-    fetchMock.mockResolvedValue(
-      makeBackendResponse({ success: true, data: { url: expectedUrl, objectName: 'my-image-abc123.png' } }),
-    )
+    fetchMock
+      .mockResolvedValueOnce(makeBackendResponse({ success: true, data: { url: expectedUrl, objectName: 'my-image-abc123.png', originalName: 'diagram.png' } }))
+      .mockRejectedValueOnce(new Error('presigned skip'))
 
     const cfg = buildAssetManagerConfig()
     const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
     const parsed = JSON.parse(result)
 
+    // data[0] is now { src, name, type } — check the src field maps from backend url.
     // If backend renames "url" to "src" or "path", this test catches it.
-    expect(parsed.data[0]).toBe(expectedUrl)
+    expect(parsed.data[0].src).toBe(expectedUrl)
   })
 })
 
@@ -133,9 +135,10 @@ describe('customFetch — Bearer token injection', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
-    fetchMock = vi.fn().mockResolvedValue(
-      makeBackendResponse({ success: true, data: { url: '/assets/test.png' } }),
-    )
+    // Each test makes two fetch calls: upload response (call 1) + presigned URL (call 2, fails → fallback).
+    fetchMock = vi.fn()
+      .mockResolvedValueOnce(makeBackendResponse({ success: true, data: { url: '/assets/test.png', objectName: 'test-obj.png', originalName: 'test.png' } }))
+      .mockRejectedValueOnce(new Error('presigned skip'))
     vi.stubGlobal('fetch', fetchMock)
   })
 
