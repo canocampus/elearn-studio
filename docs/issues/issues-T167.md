@@ -70,7 +70,7 @@ Impact: LOW — Current UI only renders known fields; unknown fields are ignored
 
 Fix: Define per-action detail types as a discriminated union in a shared types package.
 
-Status: DEFERRED — Partially mitigated: `AuditEntry` now comes from generated OpenAPI types (T168). Full discriminated-union detail types deferred to Phase 3 shared types package.
+Status: FIXED — `AuditDetail` discriminated union defined in `courseApi.ts` (M-167-02). Per-action shapes: `AuditDetailCourseCreate`, `AuditDetailCourseUpdate`, `AuditDetailSlideCreate`, `AuditDetailSlideUpdate`, `AuditDetailSlideDelete`, `AuditDetailSlideReorder`. `AuditLogEntry` overrides the generated `detail` field using `Omit` + intersection. `DetailBadge` prop type updated from `Record<string, unknown>` to `AuditDetail`.
 
 ---
 
@@ -84,7 +84,7 @@ Impact: LOW — Debug panel only; not user-facing data.
 
 Fix: Add a refresh button or polling interval.
 
-Status: DEFERRED — Debug panel only; no user impact. Refresh button deferred to Phase 3 UX polish.
+Status: FIXED — Refresh button (⟳) added to `CourseHistory` header (M-167-03). Calls `void load(skip)` to reload the current page in-place. Button disabled while loading to prevent double-fetch.
 
 ---
 
@@ -120,9 +120,9 @@ Status: OK — Document in test comments.
 | Severity | Count | Fixed | Open |
 |----------|-------|-------|------|
 | CRITICAL | 0     | 0     | 0    |
-| HIGH     | 2     | 0     | 2    |
-| MEDIUM   | 3     | 0     | 3    |
-| LOW      | 2     | 0     | 2    |
+| HIGH     | 2     | 2     | 0    |
+| MEDIUM   | 3     | 3     | 0    |
+| LOW      | 2     | 2     | 0    |
 
 ## Verdict
 

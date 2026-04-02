@@ -95,8 +95,28 @@ export function reorderSlides(courseId: string, orderedIds: string[]): Promise<C
 // Audit History (T167)
 // ---------------------------------------------------------------------------
 
-/** Generated from OpenAPI schema — do not edit manually. */
-export type AuditLogEntry = components['schemas']['AuditEntry']
+// Per-action detail shapes (discriminated by the action field on AuditLogEntry).
+// generated.ts uses { [key: string]: unknown } — we override with precise types here.
+type AuditDetailCourseCreate  = { title: string }
+type AuditDetailCourseUpdate  = { fields: string[] }
+type AuditDetailSlideCreate   = { slideId: string; title: string }
+type AuditDetailSlideUpdate   = { slideId: string; fields: string[] }
+type AuditDetailSlideDelete   = { slideId: string }
+type AuditDetailSlideReorder  = { orderedIds: string[] }
+
+export type AuditDetail =
+  | AuditDetailCourseCreate
+  | AuditDetailCourseUpdate
+  | AuditDetailSlideCreate
+  | AuditDetailSlideUpdate
+  | AuditDetailSlideDelete
+  | AuditDetailSlideReorder
+  | Record<string, unknown>  // fallback for future actions
+
+/** AuditEntry with narrowed detail type. Overrides the generated schema. */
+export type AuditLogEntry = Omit<components['schemas']['AuditEntry'], 'detail'> & {
+  detail?: AuditDetail
+}
 
 export interface CourseHistoryResult {
   entries: AuditLogEntry[]

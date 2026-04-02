@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { getCourseHistory, type AuditLogEntry } from '../../api/courseApi'
+import { getCourseHistory, type AuditLogEntry, type AuditDetail } from '../../api/courseApi'
 
 interface CourseHistoryProps {
   courseId: string
@@ -46,7 +46,7 @@ function formatTime(iso: string): string {
   }
 }
 
-function DetailBadge({ detail }: { detail?: Record<string, unknown> }) {
+function DetailBadge({ detail }: { detail?: AuditDetail }) {
   if (!detail) return null
   const parts: string[] = []
   if (typeof detail.slideId === 'string') parts.push(`slide: ${detail.slideId.slice(0, 8)}…`)
@@ -92,6 +92,12 @@ export function CourseHistory({ courseId, onClose }: CourseHistoryProps) {
         <span style={styles.title}>Course History</span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={styles.count}>{total} events</span>
+          <button
+            style={styles.closeBtn}
+            onClick={() => void load(skip)}
+            aria-label="Refresh history"
+            disabled={loading}
+          >⟳</button>
           <button style={styles.closeBtn} onClick={onClose} aria-label="Close history">✕</button>
         </div>
       </div>
