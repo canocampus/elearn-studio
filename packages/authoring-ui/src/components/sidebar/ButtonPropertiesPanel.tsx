@@ -128,8 +128,23 @@ function openBackgroundImagePicker(editor: Editor, component: Component) {
   })
 }
 
+// T603 M-02 — Subscribe to change:style so undo/redo and external style mutations
+// update the "Current" display without requiring a parent re-render.
+// T603 L-02 — typeof guard instead of unsafe `as string | undefined` cast.
+function getBgStyle(component: Component): string {
+  const raw = component.getStyle()['background-image']
+  return typeof raw === 'string' ? raw : ''
+}
+
 function BackgroundImageSection({ editor, component }: { editor: Editor; component: Component }) {
-  const currentBg = (component.getStyle()['background-image'] as string | undefined) ?? ''
+  const [currentBg, setCurrentBg] = useState<string>(() => getBgStyle(component))
+
+  useEffect(() => {
+    setCurrentBg(getBgStyle(component))
+    function onStyleChange() { setCurrentBg(getBgStyle(component)) }
+    component.on('change:style', onStyleChange)
+    return () => { component.off('change:style', onStyleChange) }
+  }, [component])
 
   return (
     <div style={SECTION_STYLE}>
