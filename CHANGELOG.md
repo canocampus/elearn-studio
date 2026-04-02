@@ -30,6 +30,31 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.13] — 2026-04-02 — Fix Question Properties Panel: All Text Fields and Correct Answer Now Editable (BETA-01/02/03/08/09/13)
+
+### Fixed
+
+- **[BETA-01] MC question: correct answer can now be marked** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — Clicking a radio button in `MCPropertiesForm` to mark the correct option now persists correctly. Root cause: the form read `extendedProperties` as a plain variable with no `useState`, so React never re-rendered — every keystroke or click was written to the GrapesJS model but the form immediately reverted to its initial value due to a stale closure. Fixed with the `useExtendedProperties<T>` hook.
+- **[BETA-02] All questions: question text and option text now editable** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — Same root cause as BETA-01. Typing in the question text textarea or any option text input now updates the GrapesJS model and re-renders the canvas preview correctly.
+- **[BETA-03] All questions: feedback text now editable** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — Same root cause. `feedbackCorrect` and `feedbackIncorrect` fields now persist on each keystroke.
+- **[BETA-08] TF: correct answer selection now works** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — True/False radio buttons now persist the selected answer to `extendedProperties.correctAnswer`.
+- **[BETA-09] Fill: accepted answer now editable** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — Accepted answer inputs in `FillPropertiesForm` now persist to `extendedProperties.answers`.
+- **[BETA-13] MC props panel refreshes when options added/removed** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — The `useExtendedProperties` hook subscribes to `change:extendedProperties` model events via `useEffect`, so the panel re-renders correctly when options are added or removed.
+
+### How the fix works
+
+`useExtendedProperties<T>(component, defaults)` is a custom React hook that:
+1. Initialises form state from `component.get('extendedProperties')` via `useState` (was missing)
+2. Subscribes to the GrapesJS model `change:extendedProperties` event to catch external changes (undo/redo, reload)
+3. Uses an `isLocalRef` flag to skip the external handler when the change originated from the local `update()` call, preventing a double-setState loop
+4. Returns `[ep, update]` — each form replaces its 3-line plain-variable + per-form `update` function with a single `const [ep, update] = useExtendedProperties<T>(...)` call
+
+### Tests
+
+- All 23 existing `question-widget.spec.ts` tests pass with no changes. Existing regression tests (T601.2, T601.3a/b, T601.4, T601.7, T601.8, T611-07) provide full coverage for the fixed behaviors.
+
+---
+
 ## [0.5.12] — 2026-04-02 — Fix Asset Manager Thumbnail and Filename Display (BETA-07 + BETA-12)
 
 ### Fixed

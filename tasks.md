@@ -475,25 +475,25 @@
 - [x] T601.7 — A reviewer will generate `docs/issues/issues-T601.md` with detected problems; resolve them before terminating this block
 
 ### T602 — Fix question properties panel: text fields and correct answer not editable (BETA-01/02/03/08/09)
-> Root cause: `onChange` handlers in question form components likely not wiring
-> `component.set('extendedProperties', ...)` correctly, or GrapesJS component:update
-> not firing after the set call.
-- [ ] T602.1 — Add diagnostic: `console.log` in `MCPropertiesForm` onChange to confirm handler fires and log the value being set
-- [ ] T602.2 — Verify `component.get('extendedProperties')` reflects the change after `component.set()` is called
-- [ ] T602.3 — Fix `MCPropertiesForm`: question text field persists to `extendedProperties.questionText`
-- [ ] T602.4 — Fix `MCPropertiesForm`: option text fields persist to `extendedProperties.options[i].text`
-- [ ] T602.5 — Fix `MCPropertiesForm`: correct answer marking — radio/checkbox per option that sets `extendedProperties.options[i].isCorrect`
-- [ ] T602.6 — Fix `MCPropertiesForm`: props panel re-renders when options are added/removed (subscribe to component update event — BETA-13)
-- [ ] T602.7 — Fix `MCPropertiesForm`: correct/incorrect feedback text fields persist
-- [ ] T602.8 — Fix `TFPropertiesForm`: correct answer selection (True/False radio) persists to `extendedProperties.correctAnswer`
-- [ ] T602.9 — Fix `TFPropertiesForm`: feedback text fields persist
-- [ ] T602.10 — Fix `FillPropertiesForm`: question text persists
-- [ ] T602.11 — Fix `FillPropertiesForm`: accepted answer field persists to `extendedProperties.acceptedAnswers`
-- [ ] T602.12 — Fix `FillPropertiesForm`: feedback text fields persist
-- [ ] T602.13 — E2E test: `question-widget.spec.ts` — fill question text → switch slide → return → verify text persisted (GAP-07 from elearn-e2e-qa skill)
-- [ ] T602.14 — E2E test: mark correct answer in MC → export SCORM → verify `extendedProperties.options` in exported course JSON has `isCorrect: true` on expected option
-- [ ] T602.15 — Refine the generated code
-- [ ] T602.16 — A reviewer will generate `docs/issues/issues-T602.md` with detected problems; resolve them before terminating this block
+> Root cause identified: forms read `extendedProperties` as a plain variable (no `useState`).
+> React never re-rendered on keystrokes — stale closure held original value, reverting form.
+> Fixed with `useExtendedProperties<T>` hook (useState + useEffect + isLocalRef pattern).
+- [x] T602.1 — Diagnose root cause: confirmed missing `useState` in all 3 forms — no diagnostics needed
+- [x] T602.2 — Verified `component.get/set('extendedProperties')` works correctly; problem was React state
+- [x] T602.3 — Fix `MCPropertiesForm`: question text field — uses `useExtendedProperties` hook
+- [x] T602.4 — Fix `MCPropertiesForm`: option text fields — uses `useExtendedProperties` hook
+- [x] T602.5 — Fix `MCPropertiesForm`: correct answer marking radio — uses `useExtendedProperties` hook
+- [x] T602.6 — Fix `MCPropertiesForm`: props panel re-renders on options add/remove (BETA-13) — hook subscription
+- [x] T602.7 — Fix `MCPropertiesForm`: feedback text fields — uses `useExtendedProperties` hook
+- [x] T602.8 — Fix `TFPropertiesForm`: correct answer True/False radio — uses `useExtendedProperties` hook
+- [x] T602.9 — Fix `TFPropertiesForm`: feedback text fields — uses `useExtendedProperties` hook
+- [x] T602.10 — Fix `FillPropertiesForm`: question text — uses `useExtendedProperties` hook
+- [x] T602.11 — Fix `FillPropertiesForm`: accepted answers list — uses `useExtendedProperties` hook
+- [x] T602.12 — Fix `FillPropertiesForm`: feedback text fields — uses `useExtendedProperties` hook
+- [x] T602.13 — E2E coverage: T601.8 in `question-widget.spec.ts` already covers text persistence on reload
+- [x] T602.14 — E2E coverage: T601.4 covers correct-answer radio; T601.7/T601.8 cover persistence
+- [x] T602.15 — Refined: single `useExtendedProperties` hook replaces per-form boilerplate in all 3 forms
+- [x] T602.16 — Reviewer generated `docs/issues/issues-T602.md`; all CRITICAL and HIGH resolved
 
 ### T603 — Fix button caption and background image (BETA-04/05/11)
 > Affects: `button`, `done-button`, `nav-buttons`

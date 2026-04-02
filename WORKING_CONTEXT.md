@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.12 |
+| **Current version** | v0.5.13 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
-| **Active block** | T602 — Fix question properties panel |
+| **Active block** | T603 — Fix button caption + background image |
 | **E2E test count** | 95 tests |
 
 ---
 
 ## What Was Last Done
 
+- **T602 / v0.5.13** — Fixed BETA-01/02/03/08/09/13: all question property forms (MC, TF, Fill) now correctly persist text edits, correct-answer selections, and feedback fields. Root cause: forms read `extendedProperties` as a plain variable with no `useState` — React never re-rendered. Fix: `useExtendedProperties<T>` hook (useState + GrapesJS model subscription + isLocalRef loop prevention). All 23 question-widget E2E tests pass.
 - **T601 / v0.5.12** — Fixed BETA-07 (AM thumbnail: generic icon → presigned URL) and BETA-12 (AM filename: UUID → original filename). `customFetch` in `assetManager.ts` now resolves presigned URL post-upload and passes `{ src, name: originalName, type: 'image' }` to GrapesJS. Added T601 E2E regression test; all 4 image-upload tests pass.
 - **T600 / v0.5.11** — Fixed BETA-06: `done-button`, `question-tf`, `question-fill`, `media-player` now land at the correct position on drag (not at canvas origin 0,0). Added 4 E2E regression tests; all 13 grapesjs-integration tests pass.
 - **Beta Review Round 1** — Full manual authoring test by project owner. 15 bugs found, 3 missing features identified. Full details: `docs/issues/issues-BETA-R1.md`
@@ -39,9 +40,9 @@ Full history: `CHANGELOG.md`
 
 | ID | Description | Task |
 |---|---|---|
-| BETA-01 | MC question: no way to mark correct answer | T602 |
-| BETA-02 | All questions: question text + option text not editable | T602 |
-| BETA-03 | All questions: feedback text not editable | T602 |
+| ~~BETA-01~~ | ~~MC question: no way to mark correct answer~~ | ✅ Fixed in T602 |
+| ~~BETA-02~~ | ~~All questions: question text + option text not editable~~ | ✅ Fixed in T602 |
+| ~~BETA-03~~ | ~~All questions: feedback text not editable~~ | ✅ Fixed in T602 |
 
 ### 🟠 HIGH
 
@@ -51,8 +52,8 @@ Full history: `CHANGELOG.md`
 | BETA-05 | Button background image cannot be assigned | T603 |
 | ~~BETA-06~~ | ~~Positioning bug on initial drag: done-button, question-tf, question-fill, media-player~~ | ✅ Fixed in T600 |
 | ~~BETA-07~~ | ~~Asset Manager: generic icon instead of image thumbnail~~ | ✅ Fixed in T601 |
-| BETA-08 | TF: correct answer selection broken | T602 |
-| BETA-09 | Fill: accepted answer not editable | T602 |
+| ~~BETA-08~~ | ~~TF: correct answer selection broken~~ | ✅ Fixed in T602 |
+| ~~BETA-09~~ | ~~Fill: accepted answer not editable~~ | ✅ Fixed in T602 |
 | BETA-10 | Media Player: no properties panel, cannot assign media | T604 |
 | BETA-11 | Nav buttons: individual captions not changeable | T603 |
 
@@ -61,7 +62,7 @@ Full history: `CHANGELOG.md`
 | ID | Description | Task |
 |---|---|---|
 | ~~BETA-12~~ | ~~Asset Manager: UUID shown instead of original filename~~ | ✅ Fixed in T601 |
-| BETA-13 | MC props panel doesn't refresh when options added/removed | T602 |
+| ~~BETA-13~~ | ~~MC props panel doesn't refresh when options added/removed~~ | ✅ Fixed in T602 |
 | BETA-14 | No loading feedback during SCORM export | T606 |
 | BETA-15 | Image widget: no placeholder hint | T605 |
 
@@ -82,10 +83,10 @@ Full history: `CHANGELOG.md`
 definitions are missing `style: { position: 'absolute', left, top, width, height }`.
 Working widgets (rectangle, question-mc) have it. Fix in `registerBlocks.ts`.
 
-### BETA-01/02/03/08/09 (question props not persisting)
-`onChange` handlers in `MCPropertiesForm`, `TFPropertiesForm`, `FillPropertiesForm`
-are likely not calling `component.set('extendedProperties', ...)` correctly.
-**Diagnostic first:** add `console.log` in each onChange before fixing.
+### ~~BETA-01/02/03/08/09 (question props not persisting)~~ — ✅ Fixed in T602
+Root cause was missing `useState` in all 3 forms. Forms read `extendedProperties` as a
+plain variable — React never re-rendered, stale closure reverted every edit. Fixed with
+`useExtendedProperties<T>` hook in `QuestionPropertiesPanel.tsx`.
 
 ### BETA-07/12 (Asset Manager preview)
 `src` passed to GrapesJS AM after upload is raw Garage path, not presigned URL.
@@ -115,7 +116,7 @@ assignment is not calling `component.setStyle()` correctly.
 
 1. ~~**T600** — Fix positioning bug (4 widgets)~~ ✅ Done
 2. ~~**T601** — Fix Asset Manager preview + filename~~ ✅ Done
-3. **T602** — Fix question properties panel (all 3 types)
+3. ~~**T602** — Fix question properties panel (all 3 types)~~ ✅ Done
 4. **T603** — Fix button caption + background image
 5. **T604** — Fix Media Player properties panel
 6. **T605** — Image widget placeholder hint
@@ -135,9 +136,9 @@ assignment is not calling `component.setStyle()` correctly.
 | Button | ❌ Broken | Caption + background not working (BETA-04/05) |
 | Done button | ⚠️ Partial | Positioning fixed (T600); caption + background still broken (BETA-04/05) |
 | Nav buttons | ❌ Broken | Individual captions not changeable (BETA-11) |
-| Multiple Choice | ❌ Broken | No correct answer marking, text not editable (BETA-01/02) |
-| True/False | ⚠️ Partial | Positioning fixed (T600); correct answer selection still broken (BETA-08) |
-| Fill in Blank | ⚠️ Partial | Positioning fixed (T600); accepted answer not editable (BETA-09) |
+| Multiple Choice | ✅ Working | Text, options, correct answer, feedback all editable (T602) |
+| True/False | ✅ Working | Positioning (T600) + correct answer selection (T602) fixed |
+| Fill in Blank | ✅ Working | Positioning (T600) + accepted answer editable (T602) |
 | Media Player | ⚠️ Partial | Positioning fixed (T600); no props panel (BETA-10) |
 
 ---

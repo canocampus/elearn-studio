@@ -12,6 +12,7 @@
  * which triggers the canvas preview refresh via the listenTo hook in registerQuestionBlocks.ts.
  */
 
+import { useState, useEffect, useRef } from 'react'
 import type { Component } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
 import {
@@ -27,6 +28,62 @@ import type {
   MCOption,
   FillMatchType,
 } from '../../types/questions'
+
+// ---------------------------------------------------------------------------
+// useExtendedProperties — bidirectional sync between React form and GrapesJS model.
+//
+// Root cause fixed (T602 / BETA-01 through BETA-03, BETA-08, BETA-09, BETA-13):
+// All three forms previously read extendedProperties as a plain variable (no useState).
+// React did not re-render when the user typed — every keystroke was captured by the
+// onChange handler, written to the GrapesJS model, but the form value immediately
+// reverted because the stale closure still held the original value.
+//
+// This hook:
+//   1. Initialises form state from the GrapesJS model at mount time.
+//   2. Subscribes to model 'change:extendedProperties' events so that external
+//      changes (e.g. undo/redo, reload) update the form without a full re-mount.
+//   3. Skips the external-change handler when the change originated locally
+//      (isLocalRef flag) to prevent a double-setState loop.
+// ---------------------------------------------------------------------------
+
+function useExtendedProperties<T extends object>(
+  component: Component,
+  defaults: T,
+): [T, (patch: Partial<T>) => void] {
+  const [ep, setEp] = useState<T>(
+    () => (component.get('extendedProperties') as T | undefined) ?? defaults,
+  )
+  const isLocalRef = useRef(false)
+
+  useEffect(() => {
+    // Sync state when a different component is selected (component prop changes).
+    setEp((component.get('extendedProperties') as T | undefined) ?? defaults)
+
+    function onExternalChange() {
+      if (isLocalRef.current) {
+        isLocalRef.current = false
+        return
+      }
+      setEp((component.get('extendedProperties') as T | undefined) ?? defaults)
+    }
+
+    component.on('change:extendedProperties', onExternalChange)
+    return () => { component.off('change:extendedProperties', onExternalChange) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [component])
+
+  function update(patch: Partial<T>) {
+    const next = { ...ep, ...patch }
+    setEp(next)
+    isLocalRef.current = true
+    component.set('extendedProperties', next)
+    // NOTE: component.set() fires component:update, which triggers the debounced
+    // autosave in initEditor.ts. Do NOT call editor.store() here — calling it on
+    // every keystroke creates racing PATCH requests that overwrite newer data.
+  }
+
+  return [ep, update]
+}
 
 // ---------------------------------------------------------------------------
 // Shared field styles
@@ -147,15 +204,7 @@ function ScoringFeedbackForm({
 // ---------------------------------------------------------------------------
 
 function MCPropertiesForm({ component }: { component: Component }) {
-  const ep: MCExtendedProps =
-    (component.get('extendedProperties') as MCExtendedProps | undefined) ?? MC_DEFAULT_EXTENDED
-
-  function update(patch: Partial<MCExtendedProps>) {
-    component.set('extendedProperties', { ...ep, ...patch })
-    // NOTE: component.set() fires component:update, which triggers the debounced autosave
-    // in initEditor.ts. Do NOT call editor.store() here — calling it on every onChange
-    // keystroke creates racing PATCH requests that can overwrite newer data with older state.
-  }
+  const [ep, update] = useExtendedProperties<MCExtendedProps>(component, MC_DEFAULT_EXTENDED)
 
   function updateOption(id: string, patch: Partial<MCOption>) {
     update({
@@ -266,15 +315,7 @@ function MCPropertiesForm({ component }: { component: Component }) {
 // ---------------------------------------------------------------------------
 
 function TFPropertiesForm({ component }: { component: Component }) {
-  const ep: TFExtendedProps =
-    (component.get('extendedProperties') as TFExtendedProps | undefined) ?? TF_DEFAULT_EXTENDED
-
-  function update(patch: Partial<TFExtendedProps>) {
-    component.set('extendedProperties', { ...ep, ...patch })
-    // NOTE: component.set() fires component:update, which triggers the debounced autosave
-    // in initEditor.ts. Do NOT call editor.store() here — calling it on every onChange
-    // keystroke creates racing PATCH requests that can overwrite newer data with older state.
-  }
+  const [ep, update] = useExtendedProperties<TFExtendedProps>(component, TF_DEFAULT_EXTENDED)
 
   return (
     <>
@@ -332,15 +373,7 @@ function TFPropertiesForm({ component }: { component: Component }) {
 // ---------------------------------------------------------------------------
 
 function FillPropertiesForm({ component }: { component: Component }) {
-  const ep: FillExtendedProps =
-    (component.get('extendedProperties') as FillExtendedProps | undefined) ?? FILL_DEFAULT_EXTENDED
-
-  function update(patch: Partial<FillExtendedProps>) {
-    component.set('extendedProperties', { ...ep, ...patch })
-    // NOTE: component.set() fires component:update, which triggers the debounced autosave
-    // in initEditor.ts. Do NOT call editor.store() here — calling it on every onChange
-    // keystroke creates racing PATCH requests that can overwrite newer data with older state.
-  }
+  const [ep, update] = useExtendedProperties<FillExtendedProps>(component, FILL_DEFAULT_EXTENDED)
 
   function addAnswer() {
     update({ answers: [...ep.answers, ''] })
