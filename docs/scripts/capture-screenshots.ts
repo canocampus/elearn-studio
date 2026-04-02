@@ -118,9 +118,9 @@ async function setupDocsCourse(accessToken: string) {
 
 async function main() {
   cleanScreenshotsDir()
-  
+
   // Launch with specific flags to improve headless rendering of iframes/canvas
-  const browser = await chromium.launch({ 
+  const browser = await chromium.launch({
     headless: true,
     args: [
       '--disable-gpu',
@@ -131,11 +131,19 @@ async function main() {
   })
 
   try {
+    // Create the docs course via API before opening the browser.
+    // The app auto-loads the most recently updated course, so this course
+    // will be selected automatically when the editor opens.
     const accessToken = await authenticate()
-    const { courseId } = await setupDocsCourse(accessToken)
-    
-    // Auth context with animation disabling script
-    const ctx = await browser.newContext({ baseURL: BASE_URL })
+    await setupDocsCourse(accessToken)
+
+    // Auth context: use the E2E storageState which has the httpOnly refreshToken
+    // cookie required for silent session restore in the browser.
+    const storageStatePath = path.resolve(__dirname, '../../e2e/.auth/state.json')
+    const ctx = await browser.newContext({
+      baseURL: BASE_URL,
+      storageState: fs.existsSync(storageStatePath) ? storageStatePath : undefined,
+    })
     await ctx.addInitScript(() => {
       const style = document.createElement('style')
       style.textContent = '*, *::before, *::after { transition: none !important; animation: none !important; }'
@@ -145,18 +153,30 @@ async function main() {
     const page = await ctx.newPage()
     await page.setViewportSize({ width: 1440, height: 900 })
 
-    // 01: Dashboard
+    // If storageState is not available, fall back to browser-based login.
+    if (!fs.existsSync(storageStatePath)) {
+      log('No storageState found — logging in via UI...')
+      await page.goto('/')
+      await page.waitForLoadState('networkidle')
+      const emailField = page.locator('input[type="email"], input[name="email"]').first()
+      if (await emailField.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await emailField.fill(E2E_EMAIL)
+        await page.locator('input[type="password"]').first().fill(E2E_PASSWORD)
+        await page.getByRole('button', { name: /log in|sign in/i }).click()
+        await page.waitForLoadState('networkidle')
+      }
+    }
+
+    // 01: Dashboard — the editor loading state
     log('Navigating to dashboard...')
     await page.goto('/')
     await page.waitForLoadState('networkidle')
     await screenshot(page, '01-dashboard.png', 'Dashboard')
 
-    // Navigate to Editor
-    log(`Opening editor for course: ${courseId}`)
-    await page.goto(`/?courseId=${courseId}`)
-    await waitForEditorReady(page)
+    // Wait for the editor to be ready (app auto-loads the most recent course)
+    await waitForEditorReady(page, 45_000)
     
-    // 03: Empty Editor
+    // 03: Empty Editor (first slide of docs course)
     await screenshot(page, '03-editor-empty.png', 'Empty Editor')
 
     // 04: Block Manager
@@ -189,7 +209,7 @@ async function main() {
     await screenshot(page, '08-question-mc-authoring.png', 'Question Authoring')
 
     // 09: Question Props
-    await page.frameLocator('iframe.gjs-frame').locator('[data-widget="question-mc"]').first().click()
+    await page.frameLocator('iframe.gjs-frame').locator('[data-gjs-type="question-mc"]').first().click()
     await page.getByRole('tab', { name: 'Props' }).click()
     await page.locator('[data-testid="question-props-panel"]').waitFor({ state: 'visible' }).catch(() => {})
     await screenshot(page, '09-question-properties.png', 'Question Properties')
