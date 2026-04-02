@@ -227,7 +227,7 @@ function AppearanceSection({ component }: { component: Component }) {
         value={height}
         onChange={e => {
           const n = parseInt(e.target.value, 10)
-          if (!isNaN(n) && n >= 4 && n <= 40) setHeight(n)
+          setHeight(isNaN(n) ? height : Math.max(4, Math.min(40, n)))
         }}
         style={{ ...FIELD_STYLE, marginBottom: 10 }}
       />

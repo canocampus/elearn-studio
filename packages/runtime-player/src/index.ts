@@ -709,11 +709,10 @@ function updateProgressBars(state: PlayerState): void {
   const total = state.course.slides.length
   if (total === 0) return
   const pct = Math.round((state.visitedSlides.size / total) * 100)
-  state.container.querySelectorAll<HTMLElement>('.el-progress-bar-fill').forEach(el => {
-    el.style.width = `${pct}%`
-  })
-  state.container.querySelectorAll<HTMLElement>('.el-progress-percent').forEach(el => {
-    el.textContent = `${pct}%`
+  state.container.querySelectorAll<HTMLElement>('.el-progress-bar-fill').forEach(fill => {
+    fill.style.width = `${pct}%`
+    const percent = fill.closest('.el-progress-bar')?.querySelector<HTMLElement>('.el-progress-percent')
+    if (percent) percent.textContent = `${pct}%`
   })
 }
 

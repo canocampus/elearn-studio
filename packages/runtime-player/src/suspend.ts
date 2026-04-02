@@ -5,22 +5,27 @@
  * LZString, and stores it in cmi.suspend_data (SCORM 1.2, max 4096 chars).
  * On resume, the compressed payload is decompressed and the state is restored.
  *
- * SuspendData schema (v:1):
- *   { v: 1, slide: number, scores: [widgetId, { s: score, w: weight, a: answered }][] }
+ * SuspendData schema (v:2):
+ *   { v: 2, slide: number, visited: number[], scores: [widgetId, { s: score, w: weight, a: answered }][] }
+ *
+ * v:1 payloads (no visited field) are still parsed and restored; visited defaults to [slide].
  */
 
 import LZString from 'lz-string'
 
 /** Compact form stored inside suspend_data */
 interface SuspendPayload {
-  v: 1
+  v: 1 | 2
   slide: number
+  /** Slide indices visited this session (v:2+). Absent in v:1 payloads. */
+  visited?: number[]
   scores: Array<[string, { s: number; w: number; a: boolean }]>
 }
 
 /** Subset of PlayerState needed for suspend serialisation (avoids circular dep) */
 export interface SuspendableState {
   currentSlide: number
+  visitedSlides: Set<number>
   questionStates: Map<string, { widgetId: string; score: number; weight: number; answered: boolean }>
 }
 
@@ -40,8 +45,9 @@ export function serializeSuspend(state: SuspendableState): string | null {
     return null
   }
   const payload: SuspendPayload = {
-    v: 1,
+    v: 2,
     slide: state.currentSlide,
+    visited: Array.from(state.visitedSlides),
     scores: Array.from(state.questionStates.values()).map(q => [
       q.widgetId,
       { s: q.score, w: q.weight, a: q.answered },
@@ -67,7 +73,7 @@ export function deserializeSuspend(compressed: string): SuspendPayload | null {
     const json = LZString.decompressFromEncodedURIComponent(compressed)
     if (!json) return null
     const payload = JSON.parse(json) as SuspendPayload
-    if (payload.v !== 1) return null
+    if (payload.v !== 1 && payload.v !== 2) return null
     if (typeof payload.slide !== 'number') return null
     if (!Array.isArray(payload.scores)) return null
     return payload
@@ -158,6 +164,14 @@ export function restoreSuspendData(
     return false
   }
   state.currentSlide = payload.slide
+
+  // Restore visited slide indices (v:2+). For v:1 payloads (no visited field),
+  // seed with just the current slide so progress doesn't show 0% on resume.
+  state.visitedSlides = new Set(
+    Array.isArray(payload.visited)
+      ? payload.visited.filter(n => typeof n === 'number' && n >= 0 && n < slideCount)
+      : [payload.slide],
+  )
 
   state.questionStates.clear()
   for (const [widgetId, q] of payload.scores) {

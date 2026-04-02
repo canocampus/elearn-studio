@@ -539,27 +539,27 @@
 - [x] T607.7 — Refine the generated code (code review CRITICAL and HIGH issues resolved)
 - [x] T607.8 — Reviewer generated `docs/issues/issues-T607.md`; all CRITICAL and HIGH resolved; 5 new E2E tests passing
 
-### T608 — New widget: Course Progress Bar (MISSING-03)
-- [ ] T608.1 — Register GrapesJS Block + Component for `progress-bar` widget
-- [ ] T608.2 — Props panel: style options (color, height, show percentage text toggle)
-- [ ] T608.3 — Runtime player: calculates progress as (slides visited / total slides) × 100; updates on every slide navigation
-- [ ] T608.4 — Designed to be placed on background (shared across slides) for persistent display
-- [ ] T608.5 — Reports progress via `LMSSetValue('cmi.core.lesson_location', slideIndex)` for SCORM bookmark support
-- [ ] T608.6 — E2E test: course with progress bar → navigate slides → verify bar width changes
-- [ ] T608.7 — Refine the generated code
-- [ ] T608.8 — A reviewer will generate `docs/issues/issues-T608.md` with detected problems; resolve them before terminating this block
+### TA608 — New widget: Course Progress Bar (MISSING-03)
+- [x] TA608.1 — Register GrapesJS Block + Component for `progress-bar` widget
+- [x] TA608.2 — Props panel: style options (color, height, show percentage text toggle)
+- [x] TA608.3 — Runtime player: calculates progress as (slides visited / total slides) × 100; updates on every slide navigation
+- [x] TA608.4 — Designed to be placed on background (shared across slides) for persistent display
+- [x] TA608.5 — visitedSlides persisted in suspend_data v:2; slide index restored via cmi.suspend_data on resume
+- [x] TA608.6 — E2E test: TA608.6 persistence test — extendedProperties (color/height/showPercent) survive page reload
+- [x] TA608.7 — Refine the generated code (height clamping, updateProgressBars scoping, suspend_data v:2 schema)
+- [x] TA608.8 — Reviewer generated `docs/issues/issues-TA608.md`; all CRITICAL and HIGH resolved; 6 E2E tests passing
 
-### T609 — New widget: Global Volume Control (MISSING-02)
-- [ ] T609.1 — Register GrapesJS Block + Component for `volume-control` widget
-- [ ] T609.2 — Props panel: default volume (0–100), show mute button toggle
-- [ ] T609.3 — Runtime player: renders a volume slider and/or mute toggle; controls all `<audio>` and `<video>` elements in the current slide
-- [ ] T609.4 — Volume preference persists across slides via a module-level variable in the runtime player (not SCORM suspend_data — too heavy for this)
-- [ ] T609.5 — Refine the generated code
-- [ ] T609.6 — A reviewer will generate `docs/issues/issues-T609.md` with detected problems; resolve them before terminating this block
+### TA609 — New widget: Global Volume Control (MISSING-02)
+- [ ] TA609.1 — Register GrapesJS Block + Component for `volume-control` widget
+- [ ] TA609.2 — Props panel: default volume (0–100), show mute button toggle
+- [ ] TA609.3 — Runtime player: renders a volume slider and/or mute toggle; controls all `<audio>` and `<video>` elements in the current slide
+- [ ] TA609.4 — Volume preference persists across slides via a module-level variable in the runtime player (not SCORM suspend_data — too heavy for this)
+- [ ] TA609.5 — Refine the generated code
+- [ ] TA609.6 — A reviewer will generate `docs/issues/issues-TA609.md` with detected problems; resolve them before terminating this block
 
 ### Phase 2.6 — Closing Tasks
-- [ ] T260.TEST — Full E2E suite passes with all bug fixes applied; FM-01 regression test covers all 4 previously broken widgets (done-button, question-tf, question-fill, media-player); question property persistence verified for all 3 question types; new widgets (audio-narration, progress-bar, volume-control) have at least one E2E test each
-- [ ] T260.DOCS — Update `docs/user-guide/04-widgets.md` with new widgets; update `docs/user-guide/05-questions.md` with correct-answer marking instructions; update `CHANGELOG.md` with all fixes as a new version entry
+- [ ] TA260.TEST — Full E2E suite passes with all bug fixes applied; FM-01 regression test covers all 4 previously broken widgets (done-button, question-tf, question-fill, media-player); question property persistence verified for all 3 question types; new widgets (audio-narration, progress-bar, volume-control) have at least one E2E test each
+- [ ] TA260.DOCS — Update `docs/user-guide/04-widgets.md` with new widgets; update `docs/user-guide/05-questions.md` with correct-answer marking instructions; update `CHANGELOG.md` with all fixes as a new version entry
 
 ---
 

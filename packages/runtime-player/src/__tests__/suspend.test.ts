@@ -16,9 +16,10 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeState(slide = 0, scores: [string, { score: number; weight: number; answered: boolean }][] = []): SuspendableState {
+function makeState(slide = 0, scores: [string, { score: number; weight: number; answered: boolean }][] = [], visited: number[] = []): SuspendableState {
   return {
     currentSlide: slide,
+    visitedSlides: new Set(visited.length ? visited : [slide]),
     questionStates: new Map(scores.map(([id, q]) => [id, { widgetId: id, ...q }])),
   }
 }
@@ -116,10 +117,18 @@ describe('deserializeSuspend', () => {
   })
 
   it('returns null for unknown schema version', () => {
-    // Manually craft a payload with v:2
-
-    const bad = LZString.compressToEncodedURIComponent(JSON.stringify({ v: 2, slide: 0, scores: [] }))
+    // v:3 and above are unknown
+    const bad = LZString.compressToEncodedURIComponent(JSON.stringify({ v: 3, slide: 0, scores: [] }))
     expect(deserializeSuspend(bad)).toBeNull()
+  })
+
+  it('accepts v:2 payloads with visited field', () => {
+    const payload = LZString.compressToEncodedURIComponent(
+      JSON.stringify({ v: 2, slide: 1, visited: [0, 1], scores: [] }),
+    )
+    const result = deserializeSuspend(payload)
+    expect(result).not.toBeNull()
+    expect(result?.visited).toEqual([0, 1])
   })
 
   it('returns null when slide field is missing', () => {
@@ -141,9 +150,10 @@ describe('deserializeSuspend', () => {
     ])
     const compressed = serializeSuspend(state)!
     const payload = deserializeSuspend(compressed)!
-    expect(payload.v).toBe(1)
+    expect(payload.v).toBe(2)
     expect(payload.slide).toBe(5)
     expect(payload.scores).toHaveLength(2)
+    expect(Array.isArray(payload.visited)).toBe(true)
   })
 })
 
@@ -196,8 +206,8 @@ describe('saveSuspendData', () => {
 // ─── restoreSuspendData ───────────────────────────────────────────────────────
 
 describe('restoreSuspendData', () => {
-  it('restores slide index and question states from suspend_data', () => {
-    const state = makeState(2, [['w1', { score: 1, weight: 100, answered: true }]])
+  it('restores slide index, visitedSlides, and question states from suspend_data', () => {
+    const state = makeState(2, [['w1', { score: 1, weight: 100, answered: true }]], [0, 1, 2])
     const store: Record<string, string> = {}
     const api = makeApi(store)
     saveSuspendData(state, api)
@@ -207,11 +217,23 @@ describe('restoreSuspendData', () => {
 
     expect(ok).toBe(true)
     expect(restored.currentSlide).toBe(2)
+    expect(restored.visitedSlides).toEqual(new Set([0, 1, 2]))
     expect(restored.questionStates.size).toBe(1)
     const q = restored.questionStates.get('w1')!
     expect(q.score).toBe(1)
     expect(q.weight).toBe(100)
     expect(q.answered).toBe(true)
+  })
+
+  it('seeds visitedSlides with current slide when restoring v:1 payload (no visited field)', () => {
+    const compressed = LZString.compressToEncodedURIComponent(
+      JSON.stringify({ v: 1, slide: 3, scores: [] }),
+    )
+    const api = makeApi({ 'cmi.suspend_data': compressed })
+    const state = makeState()
+    const ok = restoreSuspendData(state, api, 10)
+    expect(ok).toBe(true)
+    expect(state.visitedSlides).toEqual(new Set([3]))
   })
 
   it('returns false and leaves state unchanged when api is null', () => {

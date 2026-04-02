@@ -30,6 +30,20 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.22] — 2026-04-03 — Progress Bar Refinements: suspend_data v:2, visitedSlides Persistence, E2E TA608.6
+
+### Added
+- **suspend_data schema v:2** (`packages/runtime-player/src/suspend.ts`) — Extended `SuspendPayload` with a `visited: number[]` field and bumped schema version from v:1 to v:2. `SuspendableState` now includes `visitedSlides: Set<number>`. `serializeSuspend()` now serialises `visitedSlides` as a compact number array; `restoreSuspendData()` reconstructs the set, filtering out-of-bounds indices. v:1 payloads remain fully accepted (backward compat) — `visitedSlides` seeds to `[currentSlide]`.
+- **TA608.6 E2E test** (`e2e/tests/progress-bar-widget.spec.ts`) — Persistence regression guard: set custom color (`#cc3300`) and uncheck showPercent → wait for autosave PATCH → reload editor → re-select widget → verify `extendedProperties.color` and `extendedProperties.showPercent` are still correct. Autosave response status verified `< 400`.
+
+### Fixed
+- **visitedSlides reset on resume** (`packages/runtime-player/src/index.ts`, `src/suspend.ts`) — Previously `visitedSlides` was initialised as an empty `Set` on every player start, including SCORM resume. Learner progress bar showed 0% after returning to a course. Now persisted and restored via suspend_data v:2.
+- **updateProgressBars scoping** (`packages/runtime-player/src/index.ts`) — `.el-progress-percent` was queried globally across the whole container; now scoped to `fill.closest('.el-progress-bar')` so multiple progress bars on a slide update independently.
+- **Height input clamping** (`packages/authoring-ui/src/components/sidebar/ProgressBarPropertiesPanel.tsx`) — Height field silently rejected out-of-range values on blur, causing the controlled input to revert. Now always clamps with `Math.max(4, Math.min(40, n))` for immediate feedback.
+- **Unit tests updated for suspend_data v:2** (`packages/runtime-player/src/__tests__/suspend.test.ts`) — "unknown schema version" test updated to v:3 (v:2 is now valid); added "accepts v:2 payloads with visited field" test; round-trip test asserts `payload.v === 2` and `visited` array present; "restores slide index" test verifies `visitedSlides` is restored correctly; added "seeds visitedSlides with current slide when restoring v:1 payload" test.
+
+---
+
 ## [0.5.21] — 2026-04-02 — Fix T601.8 CI Failure: extendedProperties Round-Trip Corruption
 
 ### Fixed
