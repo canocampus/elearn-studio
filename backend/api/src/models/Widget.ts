@@ -25,6 +25,8 @@ export const WIDGET_TYPES = [
   'screenshot-sim',
   'phaser-sim',
   'audio-narration',
+  'progress-bar',
+  'volume-control',
 ] as const
 
 export type WidgetType = (typeof WIDGET_TYPES)[number]

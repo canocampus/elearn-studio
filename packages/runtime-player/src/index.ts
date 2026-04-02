@@ -175,7 +175,16 @@ interface PlayerState {
   simCleanup: (() => void) | null
   /** Cleanup callbacks for any Phaser games on the current slide. */
   phaserCleanups: Array<() => void>
+  /** Slide indices visited this session — used to calculate progress bar fill. */
+  visitedSlides: Set<number>
 }
+
+// ─── Global volume state (persists across slides, not stored in SCORM) ────────
+
+/** Volume level 0.0–1.0. Module-level so it persists across slide navigations. */
+let _globalVolume = 0.8
+/** Whether audio is currently muted. */
+let _globalMuted = false
 
 // ─── Question evaluation (inlined from question-engine) ───────────────────────
 
@@ -317,6 +326,39 @@ function renderAudioNarration(w: BaseWidget): string {
   </div>`
 }
 
+function renderProgressBar(w: BaseWidget): string {
+  const ep = (w.extendedProperties as Record<string, unknown> | null) ?? {}
+  const color = typeof ep.color === 'string' ? ep.color : '#4f46e5'
+  const barHeight = typeof ep.height === 'number' ? ep.height : 12
+  const showPercent = ep.showPercent !== false
+  const style = `${positionStyle(w.bounds)}box-sizing:border-box;padding:0 8px;display:flex;flex-direction:column;justify-content:center;gap:4px;`
+  const percentEl = showPercent
+    ? `<div class="el-progress-percent" style="font-size:11px;color:#64748b;text-align:right;">0%</div>`
+    : ''
+  return `<div class="el-widget el-progress-bar" id="w-${w.id}" style="${style}">
+    <div style="width:100%;background:#e2e8f0;border-radius:99px;overflow:hidden;">
+      <div class="el-progress-bar-fill" style="width:0%;height:${barHeight}px;background:${escAttr(color)};border-radius:99px;transition:width 0.3s ease;"></div>
+    </div>
+    ${percentEl}
+  </div>`
+}
+
+function renderVolumeControl(w: BaseWidget): string {
+  const ep = (w.extendedProperties as Record<string, unknown> | null) ?? {}
+  const defaultVolume = typeof ep.defaultVolume === 'number' ? ep.defaultVolume : 80
+  const showMute = ep.showMute !== false
+  const style = `${positionStyle(w.bounds)}display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;background:#1e293b;border-radius:6px;`
+  const muteBtn = showMute
+    ? `<button class="el-mute-btn" data-widget-id="${w.id}" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:2px;display:flex;align-items:center;" title="Toggle mute">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      </button>`
+    : `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94a3b8" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="#94a3b8" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`
+  return `<div class="el-widget el-volume-control" id="w-${w.id}" data-widget-id="${w.id}" style="${style}">
+    ${muteBtn}
+    <input class="el-volume-slider" type="range" min="0" max="100" value="${defaultVolume}" data-widget-id="${w.id}" style="flex:1;cursor:pointer;accent-color:#4f46e5;" />
+  </div>`
+}
+
 function renderMCQuestion(w: BaseWidget): string {
   const ep = w.extendedProperties
   const qText = (ep.questionText as string) ?? 'Question'
@@ -394,6 +436,8 @@ function renderWidget(w: BaseWidget): string {
     case 'score-quiz':   return renderScoreQuiz(w)
     case 'media-player':     return renderMediaPlayer(w)
     case 'audio-narration':  return renderAudioNarration(w)
+    case 'progress-bar':     return renderProgressBar(w)
+    case 'volume-control':   return renderVolumeControl(w)
     case 'question-mc':     return renderMCQuestion(w)
     case 'question-tf':     return renderTFQuestion(w)
     case 'question-fill':   return renderFillQuestion(w)
@@ -505,6 +549,7 @@ function goToSlide(state: PlayerState, index: number): void {
   const { course, container } = state
   if (index < 0 || index >= course.slides.length) return
   state.currentSlide = index
+  state.visitedSlides.add(index)
   const slide = course.slides[index]
   container.innerHTML = renderSlide(slide, course.settings)
 
@@ -550,10 +595,41 @@ function goToSlide(state: PlayerState, index: number): void {
       }).catch(err => {
         console.error(`[ELearnPlayer] Failed to mount phaser-sim ${w.id}:`, err)
       })
+    } else if (w.type === 'volume-control') {
+      const ep = (w.extendedProperties as Record<string, unknown> | null) ?? {}
+      const defaultVolume = typeof ep.defaultVolume === 'number' ? ep.defaultVolume : 80
+      // On the very first slide, seed global volume from the widget's default
+      if (state.visitedSlides.size === 1) {
+        _globalVolume = defaultVolume / 100
+        _globalMuted = false
+      }
+      const slider = el.querySelector<HTMLInputElement>('.el-volume-slider')
+      if (slider) {
+        slider.value = String(Math.round(_globalVolume * 100))
+        slider.addEventListener('input', () => {
+          _globalVolume = Number(slider.value) / 100
+          _globalMuted = false
+          applyVolumeToSlide(container)
+          const muteBtn = el.querySelector<HTMLElement>('.el-mute-btn')
+          if (muteBtn) updateMuteBtnIcon(muteBtn, false)
+        })
+      }
+      const muteBtn = el.querySelector<HTMLButtonElement>('.el-mute-btn')
+      if (muteBtn) {
+        updateMuteBtnIcon(muteBtn, _globalMuted)
+        muteBtn.addEventListener('click', () => {
+          _globalMuted = !_globalMuted
+          applyVolumeToSlide(container)
+          if (slider) slider.value = String(_globalMuted ? 0 : Math.round(_globalVolume * 100))
+          updateMuteBtnIcon(muteBtn, _globalMuted)
+        })
+      }
     }
   }
 
   updateScoreDisplays(state)
+  updateProgressBars(state)
+  applyVolumeToSlide(container)
   scormReport(state, 'incomplete')
 
   // Prefetch assets for the next 2 slides (T042.3)
@@ -626,6 +702,34 @@ function updateScoreDisplays(state: PlayerState): void {
   const score = calculateCurrentScore(state)
   state.container.querySelectorAll<HTMLElement>('.el-score-value, .el-quiz-score-value').forEach(el => {
     el.textContent = `${score}%`
+  })
+}
+
+function updateProgressBars(state: PlayerState): void {
+  const total = state.course.slides.length
+  if (total === 0) return
+  const pct = Math.round((state.visitedSlides.size / total) * 100)
+  state.container.querySelectorAll<HTMLElement>('.el-progress-bar-fill').forEach(el => {
+    el.style.width = `${pct}%`
+  })
+  state.container.querySelectorAll<HTMLElement>('.el-progress-percent').forEach(el => {
+    el.textContent = `${pct}%`
+  })
+}
+
+/** Update the mute button SVG icon to reflect current mute state. */
+function updateMuteBtnIcon(btn: HTMLElement, muted: boolean): void {
+  btn.innerHTML = muted
+    ? `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`
+    : `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`
+}
+
+/** Apply the current global volume to all audio/video elements in the container. */
+function applyVolumeToSlide(container: HTMLElement): void {
+  const vol = _globalMuted ? 0 : _globalVolume
+  container.querySelectorAll<HTMLMediaElement>('audio, video').forEach(el => {
+    el.volume = vol
+    el.muted = _globalMuted
   })
 }
 
@@ -824,6 +928,7 @@ function init(
     remediationVisited: false,
     simCleanup: null,
     phaserCleanups: [],
+    visitedSlides: new Set<number>(),
   }
 
   // Attempt to restore full suspend state (slide + question scores) from cmi.suspend_data.

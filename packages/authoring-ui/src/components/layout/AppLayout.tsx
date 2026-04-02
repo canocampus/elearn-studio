@@ -28,6 +28,8 @@ import { PhaserSimPropertiesPanel } from '../sidebar/PhaserSimPropertiesPanel'
 import { ButtonPropertiesPanel } from '../sidebar/ButtonPropertiesPanel'
 import { MediaPlayerPropertiesPanel } from '../sidebar/MediaPlayerPropertiesPanel'
 import { AudioNarrationPropertiesPanel } from '../sidebar/AudioNarrationPropertiesPanel'
+import { ProgressBarPropertiesPanel } from '../sidebar/ProgressBarPropertiesPanel'
+import { VolumeControlPropertiesPanel } from '../sidebar/VolumeControlPropertiesPanel'
 import { AnimationPropertiesPanel } from '../sidebar/AnimationPropertiesPanel'
 import { ActionsPanel } from '../actions/ActionsPanel'
 import { EditorCanvas } from '../editor/EditorCanvas'
@@ -204,6 +206,12 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
             </PanelErrorBoundary>
             <PanelErrorBoundary name="AudioNarrationPropertiesPanel">
               <AudioNarrationPropertiesPanel />
+            </PanelErrorBoundary>
+            <PanelErrorBoundary name="ProgressBarPropertiesPanel">
+              <ProgressBarPropertiesPanel />
+            </PanelErrorBoundary>
+            <PanelErrorBoundary name="VolumeControlPropertiesPanel">
+              <VolumeControlPropertiesPanel />
             </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'actions' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>

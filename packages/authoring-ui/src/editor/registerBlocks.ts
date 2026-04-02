@@ -20,6 +20,8 @@ const ICONS = {
   scoreField: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="1"/><line x1="7" y1="12" x2="17" y2="12" stroke-dasharray="2 2"/></svg>`,
   mediaPlayer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 9 10 15 15 12" fill="currentColor" stroke="none"/></svg>`,
   audioNarration: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`,
+  progressBar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="9" width="20" height="6" rx="3"/><rect x="2" y="9" width="13" height="6" rx="3" fill="currentColor" stroke="none"/></svg>`,
+  volumeControl: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><line x1="18" y1="10" x2="22" y2="10"/><line x1="18" y1="14" x2="22" y2="14"/></svg>`,
 }
 
 const NAME_TRAIT = { type: 'text', name: 'name', label: 'Name' }
@@ -35,6 +37,8 @@ export function registerBlocks(editor: Editor): void {
   registerScoreFieldWidget(editor)
   registerMediaPlayerWidget(editor)
   registerAudioNarrationWidget(editor)
+  registerProgressBarWidget(editor)
+  registerVolumeControlWidget(editor)
   registerSimBlock(editor)
   registerPhaserSimBlock(editor)
 }
@@ -438,6 +442,89 @@ function registerAudioNarrationWidget(editor: Editor): void {
     content: {
       type: 'audio-narration',
       style: { position: 'absolute', left: '100px', top: '100px', width: '280px', height: '60px' },
+    },
+  })
+}
+
+function registerProgressBarWidget(editor: Editor): void {
+  editor.Components.addType('progress-bar', {
+    model: {
+      defaults: {
+        name: 'Progress Bar',
+        tagName: 'div',
+        droppable: false,
+        properties: {},
+        actions: [],
+        elearnActions: [],
+        extendedProperties: { color: '#4f46e5', height: 12, showPercent: true },
+        content: `
+          <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;">
+            <div style="width:100%;background:#e2e8f0;border-radius:99px;overflow:hidden;">
+              <div style="width:40%;height:12px;background:#4f46e5;border-radius:99px;"></div>
+            </div>
+            <div style="font-size:11px;color:#64748b;text-align:right;">40%</div>
+          </div>
+        `,
+        style: {
+          width: '300px',
+          height: '40px',
+          padding: '0 8px',
+          'box-sizing': 'border-box',
+          'z-index': '1',
+          display: 'block',
+        },
+        traits: [NAME_TRAIT],
+      },
+    },
+  })
+  editor.BlockManager.add('progress-bar', {
+    label: 'Progress Bar',
+    category: 'Navigation',
+    media: ICONS.progressBar,
+    content: {
+      type: 'progress-bar',
+      style: { position: 'absolute', left: '0px', top: '0px', width: '100%', height: '40px' },
+    },
+  })
+}
+
+function registerVolumeControlWidget(editor: Editor): void {
+  editor.Components.addType('volume-control', {
+    model: {
+      defaults: {
+        name: 'Volume Control',
+        tagName: 'div',
+        droppable: false,
+        properties: {},
+        actions: [],
+        elearnActions: [],
+        extendedProperties: { defaultVolume: 80, showMute: true },
+        content: `
+          <div style="width:100%;height:100%;display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <input type="range" min="0" max="100" value="80" style="flex:1;cursor:pointer;" />
+          </div>
+        `,
+        style: {
+          width: '200px',
+          height: '40px',
+          background: '#1e293b',
+          'border-radius': '6px',
+          color: '#94a3b8',
+          'z-index': '1',
+          display: 'block',
+        },
+        traits: [NAME_TRAIT],
+      },
+    },
+  })
+  editor.BlockManager.add('volume-control', {
+    label: 'Volume Control',
+    category: 'Media',
+    media: ICONS.volumeControl,
+    content: {
+      type: 'volume-control',
+      style: { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '40px' },
     },
   })
 }

@@ -22,6 +22,8 @@ import { isPhaserSimWidgetType } from '../../types/phaserSim'
 import { isButtonWidgetType } from '../sidebar/ButtonPropertiesPanel'
 import { isMediaPlayerWidgetType } from '../sidebar/MediaPlayerPropertiesPanel'
 import { isAudioNarrationWidgetType } from '../sidebar/AudioNarrationPropertiesPanel'
+import { isProgressBarWidgetType } from '../sidebar/ProgressBarPropertiesPanel'
+import { isVolumeControlWidgetType } from '../sidebar/VolumeControlPropertiesPanel'
 
 interface EditorCanvasProps {
   courseId: string
@@ -87,7 +89,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
         ed.on('component:selected', (component) => {
           const type: string = component.get('type') ?? ''
           setSelectedComponentType(type)
-          if (isQuestionWidgetType(type) || isPhaserSimWidgetType(type) || isButtonWidgetType(type) || isMediaPlayerWidgetType(type) || isAudioNarrationWidgetType(type)) {
+          if (isQuestionWidgetType(type) || isPhaserSimWidgetType(type) || isButtonWidgetType(type) || isMediaPlayerWidgetType(type) || isAudioNarrationWidgetType(type) || isProgressBarWidgetType(type) || isVolumeControlWidgetType(type)) {
             setRightTab('properties')
           }
 
