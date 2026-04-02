@@ -2,7 +2,7 @@
 
 **Reviewer:** Claude Code  
 **Date:** 2026-04-02  
-**Status:** CLOSED — all CRITICAL and HIGH resolved
+**Status:** CLOSED — all issues resolved
 
 ---
 
@@ -34,31 +34,25 @@ None.
 
 ### MEDIUM — 1
 
-#### M-01 — (Investigated, false positive for known-working blocks)
+#### M-01 — ✅ RESOLVED — Full block coverage (all remaining blocks patched)
 
-The code reviewer noted that `question-mc`, `text`, `button`, `rectangle`, and simulation blocks
-also lack explicit position style in their block content definitions, suggesting they could share
-the same vulnerability.
+The code reviewer noted that `question-mc`, `text`, `button`, `rectangle`, `nav-buttons`,
+`score-quiz`, `score-field`, `screenshot-sim`, and `phaser-sim` blocks also lacked the explicit
+`position: absolute` style in their block content definitions, sharing the same latent vulnerability.
 
-**Investigation result:** The existing E2E suite independently confirms these blocks work correctly:
-- `dropped widgets land at the correct coordinates` test uses Rectangle — passes
-- `widgets do not jump to (20, 20) on drop` test uses Button — passes
-- `FM-05` and `FM-06` tests use `question-mc` via `addComponentViaEditor` — passes
-
-These blocks were never reported as broken (not in BETA-R1 issue list). The 4 fixed blocks had
-an additional characteristic that caused them to land at 0,0; the exact discriminating factor is
-not fully documented, but the empirical fix is confirmed working.
-
-**Status:** No action required. Deferred to T600+ if a future report identifies another broken block.
+**Resolution:** Applied `style: { position: 'absolute', left: '100px', top: '100px', width, height }`
+to all remaining blocks in `registerBlocks.ts`, `registerQuestionBlocks.ts`, `registerSimBlock.ts`,
+and `registerPhaserSimBlock.ts`. Every block definition in the codebase now has a consistent,
+complete position style. TypeScript check passes; all 13 E2E tests pass.
 
 ### LOW — 1
 
-#### L-01 — CRLF line endings in e2e spec file (cosmetic)
+#### L-01 — ✅ RESOLVED — Created `.gitattributes` to enforce LF line endings
 
-Git may report a CRLF→LF conversion warning for `e2e/tests/grapesjs-integration.spec.ts` on
-Windows. This is a cosmetic `.gitattributes` hygiene issue, not a test bug.
-
-**Status:** Deferred — does not affect test correctness or CI.
+Created `.gitattributes` at the repository root with `* text=auto eol=lf` and explicit
+`eol=lf` rules for `*.ts`, `*.tsx`, `*.js`, `*.jsx`, `*.json`, `*.md`, `*.yml`, `*.yaml`.
+Binary assets (images, fonts) marked as `binary` to skip conversion.
+This eliminates CRLF→LF conversion warnings on Windows for all source files.
 
 ---
 
@@ -66,16 +60,19 @@ Windows. This is a cosmetic `.gitattributes` hygiene issue, not a test bug.
 
 | File | Change |
 |---|---|
-| `packages/authoring-ui/src/editor/registerBlocks.ts` | Added `style` with `position: 'absolute'` + `left/top/width/height` to `done-button` and `media-player` block content |
-| `packages/authoring-ui/src/editor/registerQuestionBlocks.ts` | Added `style` with `position: 'absolute'` + `left/top/width/height` to `question-tf` and `question-fill` block content |
-| `e2e/tests/grapesjs-integration.spec.ts` | Added T600 regression describe block with 4 parameterized tests (one per fixed widget) |
+| `packages/authoring-ui/src/editor/registerBlocks.ts` | Added `style` with `position: 'absolute'` + `left/top/width/height` to `done-button` and `media-player` block content (original fix); then added to `text`, `image`, `button`, `rectangle`, `nav-buttons`, `score-quiz`, `score-field` (M-01 resolution) |
+| `packages/authoring-ui/src/editor/registerQuestionBlocks.ts` | Added `style` to `question-tf`, `question-fill` (original fix); then `question-mc` (M-01 resolution) |
+| `packages/authoring-ui/src/editor/registerSimBlock.ts` | Added `style` to `screenshot-sim` block content (M-01 resolution) |
+| `packages/authoring-ui/src/editor/registerPhaserSimBlock.ts` | Added `style` to `phaser-sim` block content (M-01 resolution) |
+| `e2e/tests/grapesjs-integration.spec.ts` | Added T600 regression describe block with 4 parameterized tests (one per originally fixed widget) |
+| `.gitattributes` | Created — enforces LF line endings for all source files (L-01 resolution) |
 
 ---
 
 ## Test Results
 
 ```
-13 passed (49.1s)
+13 passed (49.7s)
   ✓ Done Button does NOT land at canvas origin (0,0) on drop (BETA-06 regression)
   ✓ True / False does NOT land at canvas origin (0,0) on drop (BETA-06 regression)
   ✓ Fill in the Blank does NOT land at canvas origin (0,0) on drop (BETA-06 regression)

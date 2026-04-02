@@ -236,7 +236,7 @@ function registerMCWidget(editor: Editor): void {
     label: 'Multiple Choice',
     category: 'Questions',
     media: ICONS.questionMC,
-    content: { type: 'question-mc' },
+    content: { type: 'question-mc', style: { position: 'absolute', left: '100px', top: '100px', width: '340px', height: '180px' } },
   })
 }
 

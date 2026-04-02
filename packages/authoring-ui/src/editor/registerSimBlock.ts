@@ -44,6 +44,7 @@ export function registerSimBlock(editor: Editor): void {
         selectable: true,
         content: PLACEHOLDER_HTML,
         properties: {},
+        actions: [],
         elearnActions: [],
         extendedProperties: {
           simConfig: null as SimConfig | null,
@@ -93,6 +94,6 @@ export function registerSimBlock(editor: Editor): void {
     label: 'Screenshot Sim',
     category: 'Simulations',
     media: SIM_ICON,
-    content: { type: 'screenshot-sim' },
+    content: { type: 'screenshot-sim', style: { position: 'absolute', left: '100px', top: '100px', width: '640px', height: '360px' } },
   })
 }

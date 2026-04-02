@@ -66,7 +66,7 @@ function registerTextWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('text', { label: 'Text', category: 'Basic', media: ICONS.text, content: { type: 'text' } })
+  editor.BlockManager.add('text', { label: 'Text', category: 'Basic', media: ICONS.text, content: { type: 'text', style: { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '50px' } } })
 }
 
 function registerImageWidget(editor: Editor): void {
@@ -158,7 +158,7 @@ function registerImageWidget(editor: Editor): void {
       },
     } as unknown) as object,
   })
-  editor.BlockManager.add('image', { label: 'Image', category: 'Basic', media: ICONS.image, content: { type: 'image' } })
+  editor.BlockManager.add('image', { label: 'Image', category: 'Basic', media: ICONS.image, content: { type: 'image', style: { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '150px' } } })
 }
 
 function registerButtonWidget(editor: Editor): void {
@@ -189,7 +189,7 @@ function registerButtonWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('button', { label: 'Button', category: 'Basic', media: ICONS.button, content: { type: 'button' } })
+  editor.BlockManager.add('button', { label: 'Button', category: 'Basic', media: ICONS.button, content: { type: 'button', style: { position: 'absolute', left: '100px', top: '100px', width: '120px', height: '40px' } } })
 }
 
 function registerRectangleWidget(editor: Editor): void {
@@ -215,7 +215,7 @@ function registerRectangleWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('rectangle', { label: 'Rectangle', category: 'Basic', media: ICONS.rectangle, content: { type: 'rectangle' } })
+  editor.BlockManager.add('rectangle', { label: 'Rectangle', category: 'Basic', media: ICONS.rectangle, content: { type: 'rectangle', style: { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '100px' } } })
 }
 
 function registerNavButtonsWidget(editor: Editor): void {
@@ -244,7 +244,7 @@ function registerNavButtonsWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('nav-buttons', { label: 'Nav Buttons', category: 'Navigation', media: ICONS.navButtons, content: { type: 'nav-buttons' } })
+  editor.BlockManager.add('nav-buttons', { label: 'Nav Buttons', category: 'Navigation', media: ICONS.navButtons, content: { type: 'nav-buttons', style: { position: 'absolute', left: '100px', top: '100px', width: '240px', height: '50px' } } })
 }
 
 function registerDoneButtonWidget(editor: Editor): void {
@@ -316,7 +316,7 @@ function registerScoreQuizWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('score-quiz', { label: 'Quiz Score', category: 'Assessment', media: ICONS.scoreQuiz, content: { type: 'score-quiz' } })
+  editor.BlockManager.add('score-quiz', { label: 'Quiz Score', category: 'Assessment', media: ICONS.scoreQuiz, content: { type: 'score-quiz', style: { position: 'absolute', left: '100px', top: '100px', width: '160px', height: '70px' } } })
 }
 
 function registerScoreFieldWidget(editor: Editor): void {
@@ -350,7 +350,7 @@ function registerScoreFieldWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('score-field', { label: 'Score Field', category: 'Assessment', media: ICONS.scoreField, content: { type: 'score-field' } })
+  editor.BlockManager.add('score-field', { label: 'Score Field', category: 'Assessment', media: ICONS.scoreField, content: { type: 'score-field', style: { position: 'absolute', left: '100px', top: '100px', width: '140px', height: '36px' } } })
 }
 
 function registerMediaPlayerWidget(editor: Editor): void {
