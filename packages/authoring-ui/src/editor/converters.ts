@@ -74,10 +74,21 @@ const FLEX_DISPLAY_TYPES = new Set(['nav-buttons', 'score-field'])
 const LAYOUT_STYLE_KEYS = new Set(['position', 'left', 'top', 'width', 'height', 'z-index', 'display'])
 
 /**
- * GrapesJS-internal attributes that should NOT be persisted into the widget properties.
- * These are managed by GrapesJS or our converters directly.
+ * GrapesJS-internal attributes and custom eLearn model fields that should NOT be
+ * persisted into the widget properties via c.getAttributes().
+ *
+ * GrapesJS Backbone model: calling component.set('extendedProperties', ...) places
+ * the value into the Backbone attributes hash, which c.getAttributes() then returns.
+ * If we allow extendedProperties / elearnActions / properties to flow into mergedProps
+ * they get persisted as widget.properties keys, and on the next load grapesjsFromWidgets
+ * would copy them into the GrapesJS component def's `attributes` field — where GrapesJS
+ * tries to process them as HTML element attributes, crashing with "Cannot read properties
+ * of undefined (reading 'forEach')" inside loadData (T601.8 regression).
  */
-const INTERNAL_GJS_ATTRS = new Set(['id', 'class', 'style', 'src'])
+const INTERNAL_GJS_ATTRS = new Set([
+  'id', 'class', 'style', 'src',
+  'extendedProperties', 'elearnActions', 'actions', 'properties',
+])
 
 /**
  * Converts a flat list of GrapesJS components into eLearn Studio Widgets.
@@ -191,8 +202,12 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
     // T611: Restore all saved attributes from properties.
     const attributes: Record<string, unknown> = { id: w.id }
     for (const [key, value] of Object.entries(props)) {
-      // Skip fields that are handled explicitly (content, src, style, actions)
-      if (['content', 'src', 'style', 'actions'].includes(key)) continue
+      // Skip fields that are handled explicitly or that must never become HTML attributes.
+      // extendedProperties / elearnActions / properties are complex objects stored as
+      // top-level fields on the GrapesJS component def — placing them inside `attributes`
+      // would cause GrapesJS's loadData to crash trying to iterate their nested values.
+      if (['content', 'src', 'style', 'actions',
+           'extendedProperties', 'elearnActions', 'properties'].includes(key)) continue
       attributes[key] = value
     }
 
