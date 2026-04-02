@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from 'grapesjs'
-import { initEditor } from '../../editor/initEditor'
+import { initEditor, setEditorLoading } from '../../editor/initEditor'
 import { updateStorageContext } from '../../editor/storageManager'
 import { useEditorStore } from '../../store/editorStore'
 import { useActionsStore } from '../../store/actionsStore'
@@ -158,6 +158,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
       fallbackTimer = setTimeout(() => {
         console.warn('[EditorCanvas] Fallback timer fired — forcing isReady=true after 8s')
+        setEditorLoading(false)  // safety reset in case load hung before .then()/.catch()
         if (loadGenRef.current === gen && editorRef.current === editor) setIsReady(true)
       }, 8000)
 
@@ -197,11 +198,19 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
         // editor.load() in GrapesJS can take a callback or return a promise in newer versions.
         // We wrap it to ensure we set isReady true after the canvas is populated.
+        //
+        // GAP-06b/c fix: set the loading gate BEFORE editor.load() so that all component:add,
+        // component:remove, and component:update events fired by loadData() (which runs
+        // synchronously after the storage promise resolves) are suppressed in triggerAutosave.
+        // The gate is cleared in .then()/.catch() — after loadData() has completed — so the
+        // first real user edit after loading correctly starts the autosave debounce timer.
+        setEditorLoading(true)
         const loadPromise = editor.load() as Promise<unknown> | undefined
         if (loadPromise && typeof loadPromise.then === 'function') {
           loadPromise
             .then(() => {
               clearTimeout(fallbackTimer)
+              setEditorLoading(false)
               // Guard with generation AND editor identity: a stale .then() (from a load that
               // was superseded by a newer slide switch) must not call setIsReady(true) while
               // the new load is still in-flight. The editor identity check prevents this
@@ -214,6 +223,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
             })
             .catch((err) => {
               clearTimeout(fallbackTimer)
+              setEditorLoading(false)
               console.error('[EditorCanvas] load() failed:', err)
               // Guard with generation AND editor identity: only unblock the UI if this is still
               // the active editor. If editor.destroy() was called (editorRef.current !== editor),
@@ -225,6 +235,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
               }
             })
         } else {
+          setEditorLoading(false)
           clearTimeout(fallbackTimer)
           // Fallback for older GrapesJS versions where load() is synchronous or lacks promise.
           if (loadGenRef.current === gen && editorRef.current === editor) {

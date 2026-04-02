@@ -221,7 +221,7 @@ test.describe('State Persistence', () => {
     const ourSlideIndex = (await slides.count()) - 1
 
     await page.reload()
-    await editorPage.waitForReady()
+    await editorPage.waitForReloadComplete()
     await slides.nth(ourSlideIndex).click()
     await editorPage.waitForCanvas()
 
@@ -267,7 +267,7 @@ test.describe('State Persistence', () => {
 
     // Verify: reload and confirm the widget is gone (not re-loaded from stale backend data).
     await page.reload()
-    await editorPage.waitForReady()
+    await editorPage.waitForReloadComplete()
     await slides.nth(ourSlideIndex).click()
     await editorPage.waitForCanvas()
 

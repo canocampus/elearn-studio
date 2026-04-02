@@ -460,6 +460,11 @@ test.describe('Question Widget: Fast slide switch race condition (T611-07)', () 
     // Wait for the PATCH that must have been triggered by the synchronous store() call.
     await patchPromise
 
+    // Wait for slide B's canvas to be fully loaded before navigating away.
+    // Without this, clicking slide A while slide B's editor.load() is still in-flight
+    // causes concurrent GrapesJS loads that corrupt internal state and crash the editor.
+    await editorPage.waitForCanvas()
+
     // Navigate back to slide A.
     await slides.nth(slideAIndex).click()
     await editorPage.waitForCanvas()

@@ -14,6 +14,20 @@ import { useEditorStore } from '../store/editorStore'
 
 const AUTOSAVE_DEBOUNCE_MS = 2000
 
+// Loading gate — module-level flag set by EditorCanvas around editor.load() calls.
+// Suppresses autosave events fired during component reconstruction (loadData) so that
+// the debounce timer does not start until the first real user edit after loading.
+// See GAP-06b/c for why storage events alone are insufficient (loadData fires after
+// storage:end:load, so component:add events arrive when isEditorLoading is already false
+// if we relied on storage events).
+let _isEditorLoading = false
+export function setEditorLoading(loading: boolean): void {
+  _isEditorLoading = loading
+}
+export function getEditorLoading(): boolean {
+  return _isEditorLoading
+}
+
 export interface InitEditorOptions {
   container: HTMLElement
   courseId: string
@@ -218,8 +232,16 @@ export function initEditor(opts: InitEditorOptions): Editor {
   // Race-condition guard (CRITICAL-01): snapshot the context at event time and compare
   // when the timer fires. If the user switched slides during the debounce window the
   // snapshot won't match the current context, so we abort instead of saving stale data.
+  //
+  // Loading gate (GAP-06b/c fix): GrapesJS fires component:add, component:remove, and
+  // component:update events for every component reconstructed during editor.load(). GrapesJS
+  // calls loadData() AFTER storage:end:load fires (confirmed in grapes.min.js em.prototype.load),
+  // so we cannot use storage events to gate. Instead, EditorCanvas calls setEditorLoading()
+  // before/after editor.load() — isEditorLoading=true suppresses the spurious events so the
+  // autosave timer only starts ticking once the first genuine user edit fires.
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null
   const triggerAutosave = () => {
+    if (getEditorLoading()) return
     if (autosaveTimer !== null) clearTimeout(autosaveTimer)
     const snapshot = getStorageContext()
     autosaveTimer = setTimeout(async () => {
