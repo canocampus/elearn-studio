@@ -30,6 +30,32 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.20] — 2026-04-02 — Global Volume Control Widget (MISSING-02)
+
+### Added
+- **Volume Control widget** (`packages/authoring-ui/src/editor/registerBlocks.ts`) — New `volume-control` GrapesJS block + component. Features volume icon SVG in the Block Manager (Media category). `extendedProperties: { defaultVolume: 80, showMute: true }`.
+- **VolumeControlPropertiesPanel** (`packages/authoring-ui/src/components/sidebar/VolumeControlPropertiesPanel.tsx`) — New React properties panel with Volume Options section: range slider + number input (0–100) for default volume; checkbox for show mute button. Auto-shows in Props tab on widget select via `isVolumeControlWidgetType()`.
+- **Runtime player volume logic** (`packages/runtime-player/src/index.ts`) — Module-level `_globalVolume` / `_globalMuted` state persists across slide navigations. `applyVolumeToSlide()` applies current volume/muted state to all `audio, video` elements in the current slide. Mute button toggles with animated SVG icon swap.
+- **E2E suite** (`e2e/tests/volume-control-widget.spec.ts`) — 5 new T609 tests: block visible in Blocks panel, Props tab auto-opens on widget select, panel sections visible, volume input updates `extendedProperties.defaultVolume`, showMute checkbox updates `extendedProperties.showMute`.
+
+### Fixed
+- **[MISSING-02] Global volume control missing from widget library** — Authors had no way to place a global volume slider on slides; runtime had no mechanism to set media volume.
+
+---
+
+## [0.5.19] — 2026-04-02 — Course Progress Bar Widget (MISSING-03)
+
+### Added
+- **Progress Bar widget** (`packages/authoring-ui/src/editor/registerBlocks.ts`) — New `progress-bar` GrapesJS block + component. Features progress bar SVG icon in the Block Manager (Navigation category). `extendedProperties: { color: '#4f46e5', height: 12, showPercent: true }`.
+- **ProgressBarPropertiesPanel** (`packages/authoring-ui/src/components/sidebar/ProgressBarPropertiesPanel.tsx`) — New React properties panel with Appearance section: color picker + text input, height number input (4–40px), show percentage text checkbox. Auto-shows in Props tab on widget select via `isProgressBarWidgetType()`.
+- **Runtime player progress tracking** (`packages/runtime-player/src/index.ts`) — `visitedSlides: Set<number>` in `PlayerState` tracks which slide indices have been visited. `updateProgressBars()` queries `.el-progress-bar-fill` and `.el-progress-percent` elements and updates bar width and text on every slide navigation.
+- **E2E suite** (`e2e/tests/progress-bar-widget.spec.ts`) — 5 new T608 tests: block visible in Blocks panel, Props tab auto-opens on widget select, panel sections visible, hex color input updates `extendedProperties.color`, showPercent checkbox updates `extendedProperties.showPercent`.
+
+### Fixed
+- **[MISSING-03] Course progress bar missing from widget library** — Authors had no way to place a visual progress indicator on slides; runtime had no mechanism to track slide visit history.
+
+---
+
 ## [0.5.18] — 2026-04-02 — Audio Narration Widget (MISSING-01)
 
 ### Added

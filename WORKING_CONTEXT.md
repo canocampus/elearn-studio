@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-02 — after T607
+> Last updated: 2026-04-02 — after T609
 
 ---
 
@@ -11,15 +11,17 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.18 |
+| **Current version** | v0.5.20 |
 | **Active phase** | Phase 2.6 — Beta Review Fixes (Round 1) |
-| **Active block** | T608 — Course progress bar |
-| **E2E test count** | 115 tests |
+| **Active block** | T260.TEST — Full E2E suite verification |
+| **E2E test count** | 125 tests (10 new: T608×5, T609×5) |
 
 ---
 
 ## What Was Last Done
 
+- **T609 / v0.5.20** — Implemented MISSING-02: Global Volume Control widget. New `volume-control` GrapesJS block (Media category). `VolumeControlPropertiesPanel` with volume range/number input and showMute checkbox. Runtime player: module-level `_globalVolume`/`_globalMuted`, `applyVolumeToSlide()`, mute button SVG icon swap. 5 new E2E tests.
+- **T608 / v0.5.19** — Implemented MISSING-03: Course Progress Bar widget. New `progress-bar` GrapesJS block (Navigation category). `ProgressBarPropertiesPanel` with color picker, height input, showPercent checkbox. Runtime player: `visitedSlides: Set<number>` in PlayerState, `updateProgressBars()` updates fill width and percent text on every slide nav. 5 new E2E tests.
 - **T607 / v0.5.18** — Implemented MISSING-01: Audio narration widget. New `audio-narration` GrapesJS block + component with speaker-wave canvas preview. `AudioNarrationPropertiesPanel` with Audio Source URL (+ AM picker) and Playback Options (controls/autoplay checkboxes). Runtime player renders `<audio>` element. Fixed converter bug (WIDGETS_WITH_SRC_TRAIT whitelist) that caused `media-player` and `audio-narration` to lose `src` on reload. Fixed backend Widget.ts missing `audio-narration` from WIDGET_TYPES enum (caused 500 on PATCH). Added AM audio extension validation. 6 new E2E tests; 115 tests pass.
 - **T606 / v0.5.17** — Fixed BETA-14: SCORM export loading feedback. `PublishDialog` now shows a status section (spinner → "Generating SCORM package…" → "Download ready" / error message inline). Error state shows in dialog with `role="alert"`. Cancel relabels to "Close" after export. 3 new E2E tests; 10 SCORM tests pass.
 - **T605 / v0.5.16** — Fixed BETA-15: image widget placeholder via SVG data URI on `img.gjs-plh-image` (camera icon + "Click to choose image" text). Changed `click` → `dblclick` for Asset Manager open; tooltip `title="Double-click to open image selector"` set in `onRender()`. 4 new E2E tests; full 106-test suite passes.
@@ -76,8 +78,8 @@ Full history: `CHANGELOG.md`
 | ID | Description | Task |
 |---|---|---|
 | ~~MISSING-01~~ | ~~Audio narration component~~ | ✅ Fixed in T607 |
-| MISSING-02 | Global volume control | T609 |
-| MISSING-03 | Course progress bar | T608 |
+| ~~MISSING-02~~ | ~~Global volume control~~ | ✅ Fixed in T609 |
+| ~~MISSING-03~~ | ~~Course progress bar~~ | ✅ Fixed in T608 |
 
 ---
 
@@ -127,8 +129,8 @@ assignment is not calling `component.setStyle()` correctly.
 6. ~~**T605** — Image widget placeholder hint~~ ✅ Done
 7. ~~**T606** — SCORM export loading feedback~~ ✅ Done
 8. ~~**T607** — New: Audio narration widget~~ ✅ Done
-9. **T608** — New: Course progress bar
-10. **T609** — New: Volume control widget
+9. ~~**T608** — New: Course progress bar~~ ✅ Done
+10. ~~**T609** — New: Volume control widget~~ ✅ Done
 
 ---
 
@@ -146,6 +148,8 @@ assignment is not calling `component.setStyle()` correctly.
 | Fill in Blank | ✅ Working | Positioning (T600) + accepted answer editable (T602) |
 | Media Player | ✅ Working | Positioning (T600) + Media Source/Type/Playback props panel (T604) |
 | Audio Narration | ✅ Working | Block + canvas preview + Props panel (T607); runtime `<audio>` rendering |
+| Progress Bar | ✅ Working | Block + Props panel (T608); runtime `visitedSlides` progress tracking |
+| Volume Control | ✅ Working | Block + Props panel (T609); runtime global volume/mute with `applyVolumeToSlide()` |
 
 ---
 
