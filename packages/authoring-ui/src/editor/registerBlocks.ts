@@ -130,15 +130,16 @@ function registerImageWidget(editor: Editor): void {
         const el = (this as any).el as HTMLElement
         resolveAssetUrl(objectName)
           .then((presignedUrl: string) => {
-            // T702: guard against stale DOM reference — the component may have been
+            // Guard against stale DOM reference — the component may have been
             // removed from the canvas while the presigned-URL request was in-flight.
             if (!el.isConnected) return
             el.setAttribute('src', presignedUrl)
           })
           .catch((err: unknown) => {
-            // T702: log instead of silently swallowing so developers can diagnose
-            // Garage connectivity issues; canvas will show a broken-image placeholder.
-            console.warn('[registerBlocks] resolveAndSetSrc failed for', objectName, err)
+            // Log with error message so failure mode is distinguishable
+            // (network timeout vs 401 token expiry vs 403 vs 500 Garage down).
+            const msg = err instanceof Error ? err.message : String(err)
+            console.warn('[registerBlocks] resolveAndSetSrc failed for', objectName, '—', msg)
           })
       },
 

@@ -11,6 +11,8 @@
 import type { AssetManagerConfig } from 'grapesjs'
 import { useAuthStore } from '../store/authStore'
 
+// VITE_API_URL must be set to an absolute URL (e.g. http://localhost:3001) at build time.
+// If empty, presigned URL fetches use a relative path which fails on cross-origin deployments.
 const API_BASE: string = (import.meta as unknown as Record<string, { VITE_API_URL?: string }>).env?.VITE_API_URL ?? ''
 
 /**
@@ -42,11 +44,15 @@ export function buildAssetManagerConfig(): AssetManagerConfig {
     // So customFetch must resolve to a STRING (same as the standard res.text() path),
     // NOT a Response object (which would make json.data === undefined, nothing added).
     //
-    // T601 (BETA-07 + BETA-12):
-    //   - BETA-07: /assets/:objectName requires Bearer auth — browser <img> can't load it.
-    //     Fix: resolve the presigned URL immediately after upload and pass it as `src`.
-    //   - BETA-12: passing only a URL string causes GrapesJS to display the UUID as the name.
-    //     Fix: pass { src, name, type } object so the original filename is shown in the AM list.
+    // BETA-07 (T601): /assets/:objectName is auth-protected — browser <img> tags cannot send
+    //   Bearer tokens, so loading the raw path returns 401 and GrapesJS shows a broken icon.
+    //   Fix: call GET /assets/:objectName/presigned immediately after upload to get a
+    //   time-limited, browser-loadable URL, and pass that as `src` to GrapesJS.
+    //
+    // BETA-12 (T601): when only a URL string is passed, GrapesJS uses the URL path as the
+    //   display name — resulting in the UUID-based path shown to the user instead of the
+    //   original filename. Fix: pass { src, name: originalName, type: 'image' } so GrapesJS
+    //   displays the original filename (e.g. "diagram.png") in the Asset Manager list.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     customFetch: async (url: string, options: RequestInit): Promise<any> => {
       const token = useAuthStore.getState().accessToken
@@ -67,8 +73,12 @@ export function buildAssetManagerConfig(): AssetManagerConfig {
         data: { url: string; objectName: string; originalName: string }
       }
 
-      // T601 BETA-07: resolve a presigned URL so the AM thumbnail can load without auth.
-      // T601 BETA-12: use originalName from upload response as the AM display name.
+      // M-01: guard against backend response missing required fields (e.g. after backend refactor).
+      if (!body.data?.objectName || !body.data?.originalName) {
+        return Promise.reject('[assetManager] upload response missing objectName or originalName')
+      }
+
+      // BETA-07: resolve presigned URL for AM thumbnail. BETA-12: use original filename as display name.
       const { objectName, originalName } = body.data
       let src: string = body.data.url
       try {

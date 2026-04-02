@@ -141,11 +141,59 @@ test.describe('Image Widget: Upload & Presigned URL Display', () => {
     }
 
     // 5. T601 BETA-12: the AM item must display the original filename, not a UUID.
-    //    GrapesJS renders the asset name as text inside .gjs-am-asset-name (or similar).
-    //    The original filename is testFile.name (e.g. "test-image.png").
-    const assetItemText = await assetItem.textContent() ?? ''
-    // Original name should appear somewhere in the item text; UUID pattern should NOT be the only text
-    expect(assetItemText).toContain(testFile.name.replace(/\.[^.]+$/, '')) // stem without extension
+    //    GrapesJS renders the asset name in .gjs-am-asset-name; fall back to full item text.
+    const stem = testFile.name.replace(/\.[^.]+$/, '')
+    const nameField = assetItem.locator('.gjs-am-asset-name').first()
+    if (await nameField.count() > 0) {
+      await expect(nameField).toContainText(stem)
+    } else {
+      // Fallback: check anywhere in the item text
+      const assetItemText = await assetItem.textContent() ?? ''
+      expect(assetItemText).toContain(stem)
+    }
+  })
+
+  // ── H-01 Test: presigned endpoint failure degrades gracefully ────────────────
+
+  test('H-01 — asset is added to AM even when /presigned endpoint fails (graceful degradation)', async ({ editorPage, page }) => {
+    // Intercept presigned URL requests and return 500 to simulate Garage downtime.
+    await page.route(/\/assets\/[^/]+\/presigned/, route =>
+      route.fulfill({ status: 500, body: 'Internal Server Error' }),
+    )
+
+    // Capture console.warn to verify the failure is logged (not silently swallowed).
+    const warnings: string[] = []
+    page.on('console', msg => {
+      if (msg.type() === 'warning') warnings.push(msg.text())
+    })
+
+    // 1. Drop image block and open AM
+    await editorPage.dragBlockToCanvas('Image', 300, 200)
+    const img = editorPage.canvasComponent('[data-gjs-type="image"]')
+    await expect(img).toBeVisible({ timeout: 15_000 })
+    await img.click()
+
+    const assetManager = page.locator('.gjs-mdl-container')
+    await assetManager.waitFor({ state: 'visible', timeout: 10_000 })
+
+    // 2. Upload via file input
+    const fileInput = page.locator('input[type="file"]').first()
+    const testFile = testImageFile()
+    await fileInput.setInputFiles({
+      name: testFile.name,
+      mimeType: testFile.mimeType,
+      buffer: testFile.buffer,
+    })
+
+    // 3. Asset must still appear in the AM list (fallback to auth-protected path).
+    const assetItem = page.locator('.gjs-am-asset').first()
+    await assetItem.waitFor({ state: 'visible', timeout: 20_000 })
+
+    // 4. A console.warn mentioning 'assetManager' must have been emitted.
+    //    Give the async presigned fetch a moment to complete and log.
+    await page.waitForTimeout(2_000)
+    const hasWarn = warnings.some(w => w.includes('assetManager'))
+    expect(hasWarn).toBe(true)
   })
 
   // ── Test 3: /assets/:objectName/presigned returns JSON with presignedUrl ───

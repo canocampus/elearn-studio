@@ -143,18 +143,18 @@ Comment references "T702" for the isConnected guard. Unclear if T702 is a follow
 | Issue | Status |
 |-------|--------|
 | C-01  | ✅ RESOLVED — Added `console.warn('[assetManager] presigned fetch failed for', objectName, err)` to catch block |
-| H-01  | Deferred — Double-failure path; add presigned failure E2E test in future |
-| H-02  | Deferred — Improve error context in logs in future |
-| M-01  | Deferred — Add backend response validation in future |
-| M-02  | Pre-existing — Document configuration requirement |
-| M-03  | Deferred — Improve E2E test assertion specificity in future |
-| L-01  | Deferred — Expand comments in future |
-| L-02  | Deferred — Clarify T702 reference in future |
+| H-01  | ✅ RESOLVED — Added E2E test `H-01 — asset is added to AM even when /presigned endpoint fails` in `image-upload.spec.ts`. Uses `page.route()` to intercept presigned endpoint with 500, verifies asset still appears in AM and `console.warn` is emitted |
+| H-02  | ✅ RESOLVED — Improved `.catch` in `registerBlocks.ts`: extracts `err.message` so failure mode is distinguishable (network timeout vs 401 vs 500) |
+| M-01  | ✅ RESOLVED — Added guard in `assetManager.ts`: rejects with descriptive error if `objectName` or `originalName` are missing from upload response |
+| M-02  | ✅ RESOLVED — Added explanatory comment near `API_BASE` declaration documenting that `VITE_API_URL` must be an absolute URL for cross-origin deployments |
+| M-03  | ✅ RESOLVED — Tightened E2E assertion: now checks `.gjs-am-asset-name` element first, falls back to full item text |
+| L-01  | ✅ RESOLVED — Expanded comments in `assetManager.ts` explaining BETA-07 and BETA-12 root causes and fixes in full |
+| L-02  | ✅ RESOLVED — Removed incorrect T702 task reference from `registerBlocks.ts`; replaced with plain explanation of the defensive guard pattern |
 
 ---
 
 ## Verdict
 
-**APPROVED — C-01 RESOLVED**
+**CLOSED — All issues resolved**
 
-T601 correctly fixes BETA-07 and BETA-12. C-01 (silent catch) has been resolved by adding `console.warn` logging. H-01/H-02 and MEDIUM/LOW issues are deferred as follow-ups and do not block this release.
+All CRITICAL, HIGH, MEDIUM, and LOW issues have been addressed. T601 is fully closed.
