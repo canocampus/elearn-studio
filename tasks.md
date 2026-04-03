@@ -608,9 +608,9 @@
 - [x] T611.8 — Update `handleSubmit()` and `handleWidgetScore()`: after recording the answer, re-evaluate `slideIsComplete()` and re-enable Next button if the slide is now complete
 - [x] T611.9 — Run tests for affected files: `converters.test.ts`, `registerQuestionBlocks.test.ts`, all `runtime-player/src/__tests__/` — update any that fail
 - [x] T611.10 — E2E test (`question-widget.spec.ts`): in `linear-strict` mode → drag mandatory MC question → do NOT answer → attempt Next → verify button disabled; answer question → verify Next enabled; add to `@regression` tag
-- [ ] T611.11 — Run full test suite + push + verify CI green
-- [ ] T611.12 — Refine the generated code
-- [ ] T611.13 — A reviewer will generate `docs/issues/issues-T611.md` with detected problems; resolve them before terminating this block
+- [x] T611.11 — Run full test suite + push + verify CI green
+- [x] T611.12 — Refine the generated code
+- [x] T611.13 — A reviewer will generate `docs/issues/issues-T611.md` with detected problems; resolve them before terminating this block
 
 ### T612 — Visited slides tracking and complete resume
 > Depends on T610 and T611.

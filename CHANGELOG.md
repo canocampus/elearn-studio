@@ -37,6 +37,23 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.24] — 2026-04-04 — T610 + T611: SCORM Navigation — Mandatory Question Gating
+
+### Added
+- **`navigationMode` and `requireAllSlides` in CourseSettings** (`packages/authoring-ui/src/types/course.ts`, `backend/api/src/models/Course.ts`, `packages/runtime-player/src/index.ts`, `packages/scorm-packager/src/index.ts`) — Foundational schema addition for T610. `navigationMode: 'free' | 'linear-strict'` (default `'free'`); `requireAllSlides: boolean` (default `false`).
+- **Navigation mode selector in Course Settings UI** (`packages/authoring-ui/src/components/layout/CourseSettingsDialog.tsx`) — Radio/select control to set `free` or `linear-strict` navigation mode per course.
+- **`mandatory?: boolean` in `QuestionScoring`** (`packages/authoring-ui/src/types/questions.ts`) — Marks individual questions as required-before-advancing in linear-strict mode.
+- **Mandatory checkbox in `QuestionPropertiesPanel`** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — "Required — learner must answer before advancing" toggle in Scoring section. Persists via `extendedProperties.scoring.mandatory` in MongoDB.
+- **`slideIsComplete()` and `updateNavButtons()`** (`packages/runtime-player/src/index.ts`) — Gate navigation: in `linear-strict` mode, returns false if any mandatory question on the current slide has not been answered. Disables `[data-nav-next]` buttons visually (opacity + cursor + `disabled` attribute).
+- **T611.10 E2E regression test** (`e2e/tests/question-widget.spec.ts`) — `@regression` test verifying Next button disabled on unanswered mandatory MC → enabled after answer in linear-strict mode.
+- **EditorPage helpers** (`e2e/pages/EditorPage.ts`) — `openCourseSettings()`, `setNavigationMode()`, `closeCourseSettings()`, `openPreview()`.
+
+### Fixed
+- **H-01: Optional chaining on `extendedProperties?.scoring`** (`packages/runtime-player/src/index.ts:651`) — Prevents `TypeError` when migrated widgets have `extendedProperties: null`.
+- **H-02: `console.warn` in `updateNavButtons()`** when no `[data-nav-next]` buttons found in linear-strict mode — prevents silent gating bypass going unnoticed.
+
+---
+
 ## [0.5.22] — 2026-04-03 — Progress Bar Refinements: suspend_data v:2, visitedSlides Persistence, E2E TA608.6
 
 ### Added
