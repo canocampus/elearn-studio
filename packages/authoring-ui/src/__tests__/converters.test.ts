@@ -83,7 +83,7 @@ describe('grapesjsFromWidgets — Widget → GrapesJS definition', () => {
   it('maps layer to CSS z-index', () => {
     const [def] = grapesjsFromWidgets([makeWidget({ layer: 7 })])
     const style = def.style as Record<string, unknown>
-    expect(style['z-index']).toBe(7)
+    expect(style['z-index']).toBe('7')
   })
 
   it('maps visible:true to display:block for block-level widget types', () => {
