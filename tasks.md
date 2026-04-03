@@ -550,12 +550,12 @@
 - [x] TA608.8 — Reviewer generated `docs/issues/issues-TA608.md`; all CRITICAL and HIGH resolved; 6 E2E tests passing
 
 ### TA609 — New widget: Global Volume Control (MISSING-02)
-- [ ] TA609.1 — Register GrapesJS Block + Component for `volume-control` widget
-- [ ] TA609.2 — Props panel: default volume (0–100), show mute button toggle
-- [ ] TA609.3 — Runtime player: renders a volume slider and/or mute toggle; controls all `<audio>` and `<video>` elements in the current slide
-- [ ] TA609.4 — Volume preference persists across slides via a module-level variable in the runtime player (not SCORM suspend_data — too heavy for this)
-- [ ] TA609.5 — Refine the generated code
-- [ ] TA609.6 — A reviewer will generate `docs/issues/issues-TA609.md` with detected problems; resolve them before terminating this block
+- [x] TA609.1 — Register GrapesJS Block + Component for `volume-control` widget
+- [x] TA609.2 — Props panel: default volume (0–100), show mute button toggle
+- [x] TA609.3 — Runtime player: renders a volume slider and/or mute toggle; controls all `<audio>` and `<video>` elements in the current slide
+- [x] TA609.4 — Volume preference persists across slides via a module-level variable in the runtime player (not SCORM suspend_data — too heavy for this)
+- [x] TA609.5 — Refine the generated code
+- [x] TA609.6 — Reviewer generated `docs/issues/issues-TA609.md`; all CRITICAL and HIGH resolved; 5 E2E tests passing (T609.1–T609.5)
 
 ### Phase 2.6 — Closing Tasks
 - [ ] TA260.TEST — Full E2E suite passes with all bug fixes applied; FM-01 regression test covers all 4 previously broken widgets (done-button, question-tf, question-fill, media-player); question property persistence verified for all 3 question types; new widgets (audio-narration, progress-bar, volume-control) have at least one E2E test each
