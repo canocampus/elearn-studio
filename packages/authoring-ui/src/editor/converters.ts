@@ -36,7 +36,7 @@ export interface GrapesJsComponentDef {
   content?: string
   /** Root-level GrapesJS src for image components — triggers change:src and presigned-URL resolution. */
   src?: string
-  properties: BaseWidget['properties']
+  properties?: BaseWidget['properties']
   /** GrapesJS-native actions field — always empty array to prevent loadData forEach crash. */
   actions: []
   /** Our ActionSequence[] stored under a separate key to avoid GrapesJS key collision. */
