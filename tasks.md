@@ -1216,130 +1216,130 @@ Prometheus + Loki + Tempo ──▶ Grafana (dashboards + alerts)
 
 > **Goal:** Raise test coverage across all packages to ≥ 80% and add E2E coverage for critical user flows that currently have no automated tests.
 >
-> **Priority order:** T600 → T601 → T602 → T603 → T604 → T605 → T606 → T607
+> **Priority order:** T650 → T651 → T652 → T653 → T654 → T655 → T656 → T657
 
 ---
 
-### T600 — Unit Tests: `resolveAssetUrl` & Image Widget Src Resolution
+### T650 — Unit Tests: `resolveAssetUrl` & Image Widget Src Resolution
 > Regression protection for the presigned-URL fix made in this phase.
-- [x] T600.1 — Unit test `resolveAssetUrl()` in `packages/authoring-ui/src/api/courseApi.ts`:
+- [x] T650.1 — Unit test `resolveAssetUrl()` in `packages/authoring-ui/src/api/courseApi.ts`:
   - Mock `apiFetch` / global `fetch`; verify it calls `/assets/:objectName/presigned`
   - Verify it returns `presignedUrl` from the response body
   - Verify it rejects when the endpoint returns 4xx
-- [x] T600.2 — Unit test `registerImageWidget` view logic (jsdom + GrapesJS headless):
+- [x] T650.2 — Unit test `registerImageWidget` view logic (jsdom + GrapesJS headless):
   - `resolveAndSetSrc()` does nothing when src is not `/assets/...`
   - `resolveAndSetSrc()` calls `resolveAssetUrl` and sets `el.src` to the presigned URL
   - `resolveAndSetSrc()` does NOT throw when `resolveAssetUrl` rejects
   - `change:src` event on model triggers `resolveAndSetSrc`
-- [x] T600.3 — Verify test coverage for `courseApi.ts` reaches ≥ 80%
+- [x] T650.3 — Verify test coverage for `courseApi.ts` reaches ≥ 80%
 
 ---
 
-### T601 — E2E Tests: Question Widget Lifecycle (MC / TF / Fill-in)
+### T651 — E2E Tests: Question Widget Lifecycle (MC / TF / Fill-in)
 > Currently zero E2E coverage for the most business-critical feature.
-- [x] T601.1 — Drag a **Multiple Choice** question block onto the canvas; verify it renders with default question text and 3 options
-- [x] T601.2 — Edit MC question text via properties panel; verify the canvas HTML updates
-- [x] T601.3 — Add and remove answer options via the properties panel; verify option count changes in canvas
-- [x] T601.4 — Mark a different option as correct; verify the model stores the right `correctIndex`
-- [x] T601.5 — Drag a **True/False** question block; verify it renders with two radio options
-- [x] T601.6 — Drag a **Fill-in** question block; verify the input field is present in the canvas
-- [x] T601.7 — Verify that question widgets persist across save/reload (calls the storage manager)
-> **Implemented in** `e2e/tests/question-widget.spec.ts` — covers T601.0 (block visibility), T601.1 (MC drag + content), T601.2 (question text via Props panel), T601.3 (add/remove options), T601.4 (mark correct), T601.5 (TF drag + content), T601.6 (Fill drag + content), T601.7 (persistence after reload + coexistence).
+- [x] T651.1 — Drag a **Multiple Choice** question block onto the canvas; verify it renders with default question text and 3 options
+- [x] T651.2 — Edit MC question text via properties panel; verify the canvas HTML updates
+- [x] T651.3 — Add and remove answer options via the properties panel; verify option count changes in canvas
+- [x] T651.4 — Mark a different option as correct; verify the model stores the right `correctIndex`
+- [x] T651.5 — Drag a **True/False** question block; verify it renders with two radio options
+- [x] T651.6 — Drag a **Fill-in** question block; verify the input field is present in the canvas
+- [x] T651.7 — Verify that question widgets persist across save/reload (calls the storage manager)
+> **Implemented in** `e2e/tests/question-widget.spec.ts` — covers T651.0 (block visibility), T651.1 (MC drag + content), T651.2 (question text via Props panel), T651.3 (add/remove options), T651.4 (mark correct), T651.5 (TF drag + content), T651.6 (Fill drag + content), T651.7 (persistence after reload + coexistence).
 
 ---
 
-### T602 — E2E Tests: Slide Content Persistence (Save / Reload Cycle)
+### T652 — E2E Tests: Slide Content Persistence (Save / Reload Cycle)
 > Zero coverage for the storage manager round-trip — the single most data-loss-prone path.
-- [x] T602.1 — Add a Text widget, set content, save (Ctrl+S or toolbar), reload the page → widget present with correct content
-- [x] T602.2 — Add an Image widget, assign an uploaded image, save, reload → image src persists
-- [x] T602.3 — Add a Button widget, change label via traits, save, reload → label persists
-- [x] T602.4 — Move a widget (drag to new position), save, reload → position persists
-- [x] T602.5 — Delete a widget, save, reload → widget absent
-- [x] T602.6 — Add two slides, add content to each, reload → both slides have their correct widgets
-> **Implemented in** `e2e/tests/persistence.spec.ts` — covers T602.1 (text persistence), T602.4 (position), T602.6 (slide switch). All widgets covered via `converters.ts` and `initEditor.ts` robustness.
+- [x] T652.1 — Add a Text widget, set content, save (Ctrl+S or toolbar), reload the page → widget present with correct content
+- [x] T652.2 — Add an Image widget, assign an uploaded image, save, reload → image src persists
+- [x] T652.3 — Add a Button widget, change label via traits, save, reload → label persists
+- [x] T652.4 — Move a widget (drag to new position), save, reload → position persists
+- [x] T652.5 — Delete a widget, save, reload → widget absent
+- [x] T652.6 — Add two slides, add content to each, reload → both slides have their correct widgets
+> **Implemented in** `e2e/tests/persistence.spec.ts` — covers T652.1 (text persistence), T652.4 (position), T652.6 (slide switch). All widgets covered via `converters.ts` and `initEditor.ts` robustness.
 
 ---
 
-### T603 — Backend Unit Tests: Slide Delete + Resource Management Routes
+### T653 — Backend Unit Tests: Slide Delete + Resource Management Routes
 > `DELETE /courses/:id/slides/:slideId` and asset-cleanup routes are untested.
-- [x] T603.1 — `DELETE /courses/:id/slides/:slideId` returns 200 and removes the slide from the document
-- [x] T603.2 — Deleting a non-existent slideId is a MongoDB `$pull` no-op → returns 200 (not 404; documented with test)
-- [x] T603.3 — 401 Unauthorized without auth token — 10 tests covering all protected routes (GET/POST/PUT/DELETE/PATCH)
-- [x] T603.4 — Slide ordering: slides come from `GET /courses/:id`; covered by existing tests in T000.TEST.1
-- [x] T603.5 — `PATCH /courses/:id/slides/reorder` — 6 tests: success, empty orderedIds (400), missing orderedIds (400), mismatched IDs (400), unknown course (404), invalid id (400). Also fixed production routing bug: reorder route was shadowed by `/:slideId` handler — moved before the parameterized route.
-- [x] T603.6 — `DELETE /assets/:objectName` — implemented: `deleteObject` added to `s3.ts`, DELETE route added to `assets.ts` (UUID+extension validation, 204 on success, 503 on storage error); 6 unit tests in `assets.test.ts` (valid name, all whitelisted extensions, no UUID, no extension, disallowed extension, storage throws)
-- [x] T603.7 — Duplicate filename uniqueness: UUID-based objectName generation inherently prevents overwrite; no additional test needed
+- [x] T653.1 — `DELETE /courses/:id/slides/:slideId` returns 200 and removes the slide from the document
+- [x] T653.2 — Deleting a non-existent slideId is a MongoDB `$pull` no-op → returns 200 (not 404; documented with test)
+- [x] T653.3 — 401 Unauthorized without auth token — 10 tests covering all protected routes (GET/POST/PUT/DELETE/PATCH)
+- [x] T653.4 — Slide ordering: slides come from `GET /courses/:id`; covered by existing tests in T000.TEST.1
+- [x] T653.5 — `PATCH /courses/:id/slides/reorder` — 6 tests: success, empty orderedIds (400), missing orderedIds (400), mismatched IDs (400), unknown course (404), invalid id (400). Also fixed production routing bug: reorder route was shadowed by `/:slideId` handler — moved before the parameterized route.
+- [x] T653.6 — `DELETE /assets/:objectName` — implemented: `deleteObject` added to `s3.ts`, DELETE route added to `assets.ts` (UUID+extension validation, 204 on success, 503 on storage error); 6 unit tests in `assets.test.ts` (valid name, all whitelisted extensions, no UUID, no extension, disallowed extension, storage throws)
+- [x] T653.7 — Duplicate filename uniqueness: UUID-based objectName generation inherently prevents overwrite; no additional test needed
 
 ---
 
-### T604 — Unit Tests: `simulation-engine/recorder/` Core
+### T654 — Unit Tests: `simulation-engine/recorder/` Core
 > Coverage is 11% — recorder, captureScript, and browser helpers are entirely untested.
-- [x] T604.1 — `startRecording()`: 7 tests — chromium.launch flags (--no-sandbox, --disable-dev-shm-usage), viewport (1280×720), CAPTURE_SCRIPT injection, URL navigation, session creation, activeBrowserCount increment
-- [x] T604.2 — `stopRecording()`: 5 tests — browser.close() called, session returned with steps, sessions store cleared, activeBrowserCount decrement, throws on unknown session
-- [x] T604.3 — `CAPTURE_SCRIPT` content: 14 tests — string validity, __elearnCapture init, buildSelector, #id/data-testid/aria-label fallbacks, click/dblclick/keydown/input/change listeners, debounce, SPA double-injection guard, rightclick, extractText
-- [x] T604.4 — `startRecording()` tests cover Playwright mock → screenshot → session creation (replaces the CDP test; no raw CDP surface in this impl)
-- [x] T604.5 — `stopRecording()` tests verify returned steps array after recording lifecycle
-- [x] T604.6 — 26 new tests in `browser.test.ts` + existing 34 in `recorder.test.ts` = 60 total; covers recorder core at ≥ 60%
+- [x] T654.1 — `startRecording()`: 7 tests — chromium.launch flags (--no-sandbox, --disable-dev-shm-usage), viewport (1280×720), CAPTURE_SCRIPT injection, URL navigation, session creation, activeBrowserCount increment
+- [x] T654.2 — `stopRecording()`: 5 tests — browser.close() called, session returned with steps, sessions store cleared, activeBrowserCount decrement, throws on unknown session
+- [x] T654.3 — `CAPTURE_SCRIPT` content: 14 tests — string validity, __elearnCapture init, buildSelector, #id/data-testid/aria-label fallbacks, click/dblclick/keydown/input/change listeners, debounce, SPA double-injection guard, rightclick, extractText
+- [x] T654.4 — `startRecording()` tests cover Playwright mock → screenshot → session creation (replaces the CDP test; no raw CDP surface in this impl)
+- [x] T654.5 — `stopRecording()` tests verify returned steps array after recording lifecycle
+- [x] T654.6 — 26 new tests in `browser.test.ts` + existing 34 in `recorder.test.ts` = 60 total; covers recorder core at ≥ 60%
 > **Implemented in** `packages/simulation-engine/src/__tests__/browser.test.ts` — 26 tests using vi.hoisted() mocks for @playwright/test and ../storage/s3.
 
 ---
 
-### T605 — Unit Tests: SCORM 1.2 Runtime Player
+### T655 — Unit Tests: SCORM 1.2 Runtime Player
 > All rendering and SCORM logic is in `index.ts` (no separate files); tested via `init()` + DOM inspection.
-- [x] T605.1 — `LMSInitialize('')` called on SCORM 1.2 init — covered by `scorm2004.test.ts` line 87
-- [x] T605.2 — `LMSSetValue('cmi.core.score.raw', score)` — covered by `scormScoreChain.test.ts` line 111
-- [x] T605.3 — `cmi.core.lesson_status` = 'incomplete'/'passed'/'failed' — covered by `scormScoreChain.test.ts` + `slideRenderer.test.ts`
-- [x] T605.4 — `renderSlide()` HTML output: 14 snapshot-style DOM tests in `slideRenderer.test.ts` (T605.4 block)
-- [x] T605.5 — Navigation: Next/Prev/keyboard tests in `slideRenderer.test.ts` (T605.5 block, 11 tests); no `elearn:navigate` event exists — button data-action click and keydown are the navigation mechanism
-- [x] T605.6 — Coverage: 82.41% overall (index.ts 75.53%) — exceeds 60% threshold
+- [x] T655.1 — `LMSInitialize('')` called on SCORM 1.2 init — covered by `scorm2004.test.ts` line 87
+- [x] T655.2 — `LMSSetValue('cmi.core.score.raw', score)` — covered by `scormScoreChain.test.ts` line 111
+- [x] T655.3 — `cmi.core.lesson_status` = 'incomplete'/'passed'/'failed' — covered by `scormScoreChain.test.ts` + `slideRenderer.test.ts`
+- [x] T655.4 — `renderSlide()` HTML output: 14 snapshot-style DOM tests in `slideRenderer.test.ts` (T655.4 block)
+- [x] T655.5 — Navigation: Next/Prev/keyboard tests in `slideRenderer.test.ts` (T655.5 block, 11 tests); no `elearn:navigate` event exists — button data-action click and keydown are the navigation mechanism
+- [x] T655.6 — Coverage: 82.41% overall (index.ts 75.53%) — exceeds 60% threshold
 
 ---
 
-### T606 — Component Tests: Actions Panel (ActionItemEditor / EventSelector)
+### T656 — Component Tests: Actions Panel (ActionItemEditor / EventSelector)
 > The visual action programming panel has zero component-level tests.
-- [x] T606.1 — `ActionItemEditor` renders with navigate/show/score-quiz/set-variable actions (4 tests)
-- [x] T606.2 — `ActionItemEditor` calls `onChange` when navigate target, slideName, or display-message text changes (4 tests)
-- [x] T606.3 — `EventSelector` renders tabs from store sequences: single tab, multiple tabs, aria-pressed state, "+ Event" button (4 tests)
-- [x] T606.4 — `EventSelector` tab click updates selectedEvent; Remove button removes sequence; "+ Event" opens dropdown; clicking menu item adds sequence (4 tests)
-- [x] T606.5 — `ActionSequenceEditor` shows "No event selected", "No actions yet", action items with data-testid, multiple items in order (4 tests)
-- [x] T606.6 — `ActionPalette` inserts navigate/show/hide actions, accumulates multiple, warns when no event selected, calls onInsert callback (5 tests)
+- [x] T656.1 — `ActionItemEditor` renders with navigate/show/score-quiz/set-variable actions (4 tests)
+- [x] T656.2 — `ActionItemEditor` calls `onChange` when navigate target, slideName, or display-message text changes (4 tests)
+- [x] T656.3 — `EventSelector` renders tabs from store sequences: single tab, multiple tabs, aria-pressed state, "+ Event" button (4 tests)
+- [x] T656.4 — `EventSelector` tab click updates selectedEvent; Remove button removes sequence; "+ Event" opens dropdown; clicking menu item adds sequence (4 tests)
+- [x] T656.5 — `ActionSequenceEditor` shows "No event selected", "No actions yet", action items with data-testid, multiple items in order (4 tests)
+- [x] T656.6 — `ActionPalette` inserts navigate/show/hide actions, accumulates multiple, warns when no event selected, calls onInsert callback (5 tests)
 > **Implemented in** `packages/authoring-ui/src/__tests__/actions/ActionsPanel.test.tsx` — 25 tests; all passing.
 
 ---
 
-### T607 — Component Tests: Sidebar Panels (SlideList, QuestionPropertiesPanel)
+### T657 — Component Tests: Sidebar Panels (SlideList, QuestionPropertiesPanel)
 > Sidebar panels have partial coverage; properties panel for question widgets tested.
-- [x] T607.1 — `SlideList` renders slide thumbnails in order; 1-based numbers when no thumbnail (2 tests)
-- [x] T607.2 — `SlideList` clicking a thumbnail updates `currentSlideIndex`; aria-current on active item (3 tests)
-- [x] T607.3 — `SlideList` "Add Slide" button visible and calls `addSlide` API (2 tests)
-- [x] T607.4 — `SlideList` all slide items have `draggable="true"` attribute (1 test)
-- [x] T607.5 — `QuestionPropertiesPanel` MC form: heading, textarea, radio buttons, option inputs, component.set (5 tests)
-- [x] T607.6 — `QuestionPropertiesPanel` TF form: heading, True/False labels, checked state, component.set (4 tests)
-- [x] T607.7 — `QuestionPropertiesPanel` Fill form: heading, match-type select, answer input, component.set (4 tests)
-- [x] T607.8 — `QuestionPropertiesPanel` empty states: no editor, non-question type, getSelected null (3 tests)
+- [x] T657.1 — `SlideList` renders slide thumbnails in order; 1-based numbers when no thumbnail (2 tests)
+- [x] T657.2 — `SlideList` clicking a thumbnail updates `currentSlideIndex`; aria-current on active item (3 tests)
+- [x] T657.3 — `SlideList` "Add Slide" button visible and calls `addSlide` API (2 tests)
+- [x] T657.4 — `SlideList` all slide items have `draggable="true"` attribute (1 test)
+- [x] T657.5 — `QuestionPropertiesPanel` MC form: heading, textarea, radio buttons, option inputs, component.set (5 tests)
+- [x] T657.6 — `QuestionPropertiesPanel` TF form: heading, True/False labels, checked state, component.set (4 tests)
+- [x] T657.7 — `QuestionPropertiesPanel` Fill form: heading, match-type select, answer input, component.set (4 tests)
+- [x] T657.8 — `QuestionPropertiesPanel` empty states: no editor, non-question type, getSelected null (3 tests)
 > **Implemented in** `packages/authoring-ui/src/__tests__/sidebar/SidebarPanels.test.tsx` — 24 tests; all passing.
 
 ---
 
-### T608 — E2E Tests: authoring-ui GrapesJS+React Layer
+### T658 — E2E Tests: authoring-ui GrapesJS+React Layer
 > Playwright E2E coverage for the components at 0% vitest coverage due to GrapesJS iframe dependency.
 > Covers AppLayout, TopToolbar, QuestionPropertiesPanel — the most business-critical untested layer.
-- [x] T608.1 — AppLayout left sidebar tabs: Slides tab default + active state; Blocks tab shows block manager; switching back shows SlideList (3 tests)
-- [x] T608.2 — AppLayout right sidebar tabs: Layers default; Styles tab shows #gjs-sm; Actions tab; Props tab shows empty state; Anim tab; switch back to Layers (6 tests)
-- [x] T608.3 — TopToolbar "+ New Slide": slide count increases; new slide is active in list; toolbar renders title (3 tests)
-- [x] T608.4 — TopToolbar "Publish SCORM": dialog opens; Cancel closes it; dialog has SCORM 1.2 button (3 tests)
-- [x] T608.5 — QuestionPropertiesPanel: empty state before selection; drop MC widget + select → Props tab shows MC form; deselect → empty state returns (3 tests)
-- [x] T608.6 — TopToolbar "Delete Slide": dismiss confirm → count unchanged; accept → count decreases; button still visible with 1 slide (3 tests)
+- [x] T658.1 — AppLayout left sidebar tabs: Slides tab default + active state; Blocks tab shows block manager; switching back shows SlideList (3 tests)
+- [x] T658.2 — AppLayout right sidebar tabs: Layers default; Styles tab shows #gjs-sm; Actions tab; Props tab shows empty state; Anim tab; switch back to Layers (6 tests)
+- [x] T658.3 — TopToolbar "+ New Slide": slide count increases; new slide is active in list; toolbar renders title (3 tests)
+- [x] T658.4 — TopToolbar "Publish SCORM": dialog opens; Cancel closes it; dialog has SCORM 1.2 button (3 tests)
+- [x] T658.5 — QuestionPropertiesPanel: empty state before selection; drop MC widget + select → Props tab shows MC form; deselect → empty state returns (3 tests)
+- [x] T658.6 — TopToolbar "Delete Slide": dismiss confirm → count unchanged; accept → count decreases; button still visible with 1 slide (3 tests)
 > **Implemented in** `e2e/tests/authoring-ui-layer.spec.ts` — 21 tests.
 
 ---
 
 ### Phase 6 — Closing Tasks
-- [x] T600.REVIEW — Code-reviewer completed: 2 CRITICAL fixed (spy restore via vi.restoreAllMocks(), store state verification after addSlide), HIGH issues noted for future follow-up (async timing in T605.5, session cleanup races in T604)
-- [x] T601.REVIEW — E2E tests reviewed as part of Phase 6 work (playwright tests in e2e/tests/)
-- [x] T603.REVIEW — Backend tests reviewed; pre-existing failures in assets/auth/health are infrastructure-dependent (Garage unavailable in unit test env), not Phase 6 regressions
-- [x] T600.CI — All Phase 6 packages pass: authoring-ui (491 tests), question-engine (74), runtime-player (252), simulation-engine (60). Backend 5 failures are pre-existing infrastructure tests (Garage/auth) unrelated to Phase 6.
-- [x] T600.COVERAGE — Coverage: authoring-ui: 54.5% stmts / 80.1% branch (below 60% stmt target due to untestable GrapesJS-bound components: EditorCanvas, AppLayout, TopToolbar, SimulationEditor, Konva canvas); question-engine: 74 tests all passing (evaluators, scoring, feedback — estimated >80%); runtime-player: 252 tests; simulation-engine: 60 tests. Branch coverage in authoring-ui (80%) is healthy. Stmt target revised to realistic 55% given GrapesJS iframe exclusions.
+- [x] T650.REVIEW — Code-reviewer completed: 2 CRITICAL fixed (spy restore via vi.restoreAllMocks(), store state verification after addSlide), HIGH issues noted for future follow-up (async timing in T655.5, session cleanup races in T654)
+- [x] T651.REVIEW — E2E tests reviewed as part of Phase 6 work (playwright tests in e2e/tests/)
+- [x] T653.REVIEW — Backend tests reviewed; pre-existing failures in assets/auth/health are infrastructure-dependent (Garage unavailable in unit test env), not Phase 6 regressions
+- [x] T650.CI — All Phase 6 packages pass: authoring-ui (491 tests), question-engine (74), runtime-player (252), simulation-engine (60). Backend 5 failures are pre-existing infrastructure tests (Garage/auth) unrelated to Phase 6.
+- [x] T650.COVERAGE — Coverage: authoring-ui: 54.5% stmts / 80.1% branch (below 60% stmt target due to untestable GrapesJS-bound components: EditorCanvas, AppLayout, TopToolbar, SimulationEditor, Konva canvas); question-engine: 74 tests all passing (evaluators, scoring, feedback — estimated >80%); runtime-player: 252 tests; simulation-engine: 60 tests. Branch coverage in authoring-ui (80%) is healthy. Stmt target revised to realistic 55% given GrapesJS iframe exclusions.
 
 ---
 
@@ -1370,15 +1370,15 @@ T035 (Phaser player)     ← T030 + T016 (conditional bundle)
 T033 (Gamified quiz)     ← T015 (question-engine)
 
 ── Phase 6 ──────────────────────────────────────────────────────────
-T600 (resolveAssetUrl unit tests) ← registerBlocks.ts image widget fix
-T601 (question widget E2E)        ← T014 (question widgets) + T015 (engine)
-T602 (slide persistence E2E)      ← T011 (storage manager)
-T603 (backend slide/resource tests) ← T010 (courses API)
-T604 (simulation-engine unit tests) ← T023 (recorder)
-T605 (runtime player unit tests)  ← T017 (runtime player)
-T606 (actions panel component tests) ← T020 (actions editor)
-T607 (sidebar panel component tests) ← T010 (GrapesJS init)
-T608 (authoring-ui E2E layer tests)  ← T010 (GrapesJS) + T607 (sidebar panels)
+T650 (resolveAssetUrl unit tests) ← registerBlocks.ts image widget fix
+T651 (question widget E2E)        ← T014 (question widgets) + T015 (engine)
+T652 (slide persistence E2E)      ← T011 (storage manager)
+T653 (backend slide/resource tests) ← T010 (courses API)
+T654 (simulation-engine unit tests) ← T023 (recorder)
+T655 (runtime player unit tests)  ← T017 (runtime player)
+T656 (actions panel component tests) ← T020 (actions editor)
+T657 (sidebar panel component tests) ← T010 (GrapesJS init)
+T658 (authoring-ui E2E layer tests)  ← T010 (GrapesJS) + T657 (sidebar panels)
 
 ── Issues files location ────────────────────────────────────────────
 All reviewer issue files go in: docs/issues/issues-TXX.md
