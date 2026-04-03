@@ -417,12 +417,6 @@ function registerAudioNarrationWidget(editor: Editor): void {
         actions: [],
         elearnActions: [],
         extendedProperties: { controls: true, autoplay: false },
-        content: `
-          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:10px;color:#94a3b8;font-size:13px;">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-            <span>Audio Narration</span>
-          </div>
-        `,
         style: {
           width: '280px',
           height: '60px',
@@ -432,6 +426,11 @@ function registerAudioNarrationWidget(editor: Editor): void {
           display: 'block',
         },
         traits: [NAME_TRAIT, { type: 'text', name: 'src', label: 'Audio URL' }],
+      },
+    },
+    view: {
+      onRender(this: { el: HTMLElement }) {
+        this.el.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:10px;color:#94a3b8;font-size:13px;"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><span>Audio Narration</span></div>`
       },
     },
   })
@@ -457,14 +456,6 @@ function registerProgressBarWidget(editor: Editor): void {
         actions: [],
         elearnActions: [],
         extendedProperties: { color: '#4f46e5', height: 12, showPercent: true },
-        content: `
-          <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;">
-            <div style="width:100%;background:#e2e8f0;border-radius:99px;overflow:hidden;">
-              <div style="width:40%;height:12px;background:#4f46e5;border-radius:99px;"></div>
-            </div>
-            <div style="font-size:11px;color:#64748b;text-align:right;">40%</div>
-          </div>
-        `,
         style: {
           width: '300px',
           height: '40px',
@@ -474,6 +465,11 @@ function registerProgressBarWidget(editor: Editor): void {
           display: 'block',
         },
         traits: [NAME_TRAIT],
+      },
+    },
+    view: {
+      onRender(this: { el: HTMLElement }) {
+        this.el.innerHTML = `<div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;"><div style="width:100%;background:#e2e8f0;border-radius:99px;overflow:hidden;"><div style="width:40%;height:12px;background:#4f46e5;border-radius:99px;"></div></div><div style="font-size:11px;color:#64748b;text-align:right;">40%</div></div>`
       },
     },
   })
@@ -499,12 +495,6 @@ function registerVolumeControlWidget(editor: Editor): void {
         actions: [],
         elearnActions: [],
         extendedProperties: { defaultVolume: 80, showMute: true },
-        content: `
-          <div style="width:100%;height:100%;display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-            <input type="range" min="0" max="100" value="80" style="flex:1;cursor:pointer;" />
-          </div>
-        `,
         style: {
           width: '200px',
           height: '40px',
@@ -515,6 +505,11 @@ function registerVolumeControlWidget(editor: Editor): void {
           display: 'block',
         },
         traits: [NAME_TRAIT],
+      },
+    },
+    view: {
+      onRender(this: { el: HTMLElement }) {
+        this.el.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><input type="range" min="0" max="100" value="80" style="flex:1;cursor:pointer;" /></div>`
       },
     },
   })

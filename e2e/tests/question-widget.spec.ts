@@ -374,11 +374,21 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
     await editorPage.waitForCanvas()
 
     // Re-select the widget and open Props tab to read the stored value.
-    await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 15_000 })
-    await editorPage.canvasComponent('[data-gjs-type="question-mc"]').click()
+    // After reload, GrapesJS needs a moment to fully set up canvas event listeners even
+    // after data-editor-ready is true. We click then check for the panel; if it doesn't
+    // appear (click landed before GrapesJS event system was ready), retry once.
+    const questionComp = editorPage.canvasComponent('[data-gjs-type="question-mc"]')
+    await expect(questionComp).toBeVisible({ timeout: 15_000 })
+    await questionComp.click()
     await editorPage.propsTab.click()
 
     const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
+    const panelVisible = await restoredPanel.isVisible().catch(() => false)
+    if (!panelVisible) {
+      // Retry: GrapesJS event listeners may not have been ready on first click.
+      await questionComp.click()
+      await editorPage.propsTab.click()
+    }
     await expect(restoredPanel).toBeVisible({ timeout: 10_000 })
     const restoredTextarea = restoredPanel.locator('textarea').first()
 
