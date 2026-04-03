@@ -648,7 +648,7 @@ function slideIsComplete(state: PlayerState, slideIndex: number): boolean {
   const slide = state.course.slides[slideIndex]
   if (!slide) return true
   for (const widget of slide.widgets) {
-    const scoring = (widget.extendedProperties.scoring as { mandatory?: boolean } | undefined)
+    const scoring = (widget.extendedProperties?.scoring as { mandatory?: boolean } | undefined)
     if (scoring?.mandatory) {
       const qs = state.questionStates.get(widget.id)
       if (!qs?.answered) return false
@@ -660,7 +660,11 @@ function slideIsComplete(state: PlayerState, slideIndex: number): boolean {
 /** Update the disabled state of all Next nav buttons based on slideIsComplete. */
 function updateNavButtons(state: PlayerState): void {
   const complete = slideIsComplete(state, state.currentSlide)
-  state.container.querySelectorAll<HTMLButtonElement>('[data-nav-next]').forEach(btn => {
+  const buttons = state.container.querySelectorAll<HTMLButtonElement>('[data-nav-next]')
+  if (buttons.length === 0 && state.course.settings?.navigationMode === 'linear-strict') {
+    console.warn('[ELearnPlayer] No nav-next buttons found on slide — mandatory question gating disabled.')
+  }
+  buttons.forEach(btn => {
     btn.disabled = !complete
     btn.style.opacity = complete ? '' : '0.4'
     btn.style.cursor = complete ? 'pointer' : 'not-allowed'

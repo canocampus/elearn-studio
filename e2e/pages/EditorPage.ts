@@ -288,4 +288,49 @@ export class EditorPage {
     await this.publishCancelButton.click()
     await this.publishDialog.waitFor({ state: 'hidden', timeout: 5_000 })
   }
+
+  // ── Course Settings helpers ────────────────────────────────────────────────
+
+  async openCourseSettings() {
+    const settingsBtn = this.page.getByTestId('course-settings-btn')
+    await settingsBtn.click()
+    const dialog = this.page.getByRole('dialog').filter({ hasText: 'Course Settings' })
+    await dialog.waitFor({ state: 'visible', timeout: 10_000 })
+    return dialog
+  }
+
+  async setNavigationMode(mode: 'free' | 'linear-strict') {
+    const select = this.page.getByTestId('navigation-mode-select')
+    await select.selectOption(mode)
+    // Wait for the change to be saved (debounced)
+    await this.page.waitForTimeout(500)
+  }
+
+  async closeCourseSettings() {
+    const dialog = this.page.getByRole('dialog').filter({ hasText: 'Course Settings' })
+    // Look for a close button (X or similar) or click outside
+    const closeBtn = dialog.getByRole('button', { name: /close|cancel/i }).first()
+    if (await closeBtn.isVisible().catch(() => false)) {
+      await closeBtn.click()
+    } else {
+      // Press Escape to close the dialog
+      await this.page.keyboard.press('Escape')
+    }
+    await dialog.waitFor({ state: 'hidden', timeout: 5_000 })
+  }
+
+  // ── Preview helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Click the Preview button and return the runtime player page (new popup/window).
+   * The preview opens in a new window/popup that must be tracked separately.
+   */
+  async openPreview(context: any) {
+    const [popup] = await Promise.all([
+      context.waitForEvent('page'),
+      this.previewButton.click(),
+    ])
+    await popup.waitForLoadState('networkidle')
+    return popup
+  }
 }

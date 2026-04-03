@@ -581,33 +581,33 @@
 ### T610 — Add navigationMode to CourseSettings
 > Foundational — must complete before T611, T612, T613.
 > This field must be propagated consistently across all 4 packages.
-- [ ] T610.1 — Add `navigationMode: 'free' | 'linear-strict'` to `CourseSettings` in `packages/authoring-ui/src/types/course.ts`
-- [ ] T610.2 — Add `requireAllSlides: boolean` to `CourseSettings` (default `false`; when `true`, course cannot be marked complete until all slides are visited)
-- [ ] T610.3 — Add `navigationMode` and `requireAllSlides` to Mongoose schema in `backend/api/src/models/Course.ts` with defaults (`'free'`, `false`)
-- [ ] T610.4 — Add `navigationMode` and `requireAllSlides` to `CourseDoc` in `packages/runtime-player/src/index.ts`
-- [ ] T610.5 — Add `navigationMode` and `requireAllSlides` to CourseDoc type in `packages/scorm-packager/src/index.ts`
-- [ ] T610.6 — Expose `navigationMode` selector in the authoring UI course settings panel: radio button "Free navigation" / "Linear (questions required)"
-- [ ] T610.7 — Run tests for affected files: `courses.test.ts`, `courseApi.test.ts`, `converters.test.ts` — update any that fail due to schema changes
-- [ ] T610.8 — Run full test suite: `pnpm test` — all green before continuing
-- [ ] T610.9 — Push and verify CI green
-- [ ] T610.10 — Refine the generated code
-- [ ] T610.11 — A reviewer will generate `docs/issues/issues-T610.md` with detected problems; resolve them before terminating this block
+- [x] T610.1 — Add `navigationMode: 'free' | 'linear-strict'` to `CourseSettings` in `packages/authoring-ui/src/types/course.ts`
+- [x] T610.2 — Add `requireAllSlides: boolean` to `CourseSettings` (default `false`; when `true`, course cannot be marked complete until all slides are visited)
+- [x] T610.3 — Add `navigationMode` and `requireAllSlides` to Mongoose schema in `backend/api/src/models/Course.ts` with defaults (`'free'`, `false`)
+- [x] T610.4 — Add `navigationMode` and `requireAllSlides` to `CourseDoc` in `packages/runtime-player/src/index.ts`
+- [x] T610.5 — Add `navigationMode` and `requireAllSlides` to CourseDoc type in `packages/scorm-packager/src/index.ts`
+- [x] T610.6 — Expose `navigationMode` selector in the authoring UI course settings panel: radio button "Free navigation" / "Linear (questions required)"
+- [x] T610.7 — Run tests for affected files: `courses.test.ts`, `courseApi.test.ts`, `converters.test.ts` — update any that fail due to schema changes
+- [x] T610.8 — Run full test suite: `pnpm test` — all green before continuing
+- [x] T610.9 — Push and verify CI green
+- [x] T610.10 — Refine the generated code
+- [x] T610.11 — A reviewer will generate `docs/issues/issues-T610.md` with detected problems; resolve them before terminating this block
 
 ### T611 — Block Next button until required questions are answered
 > Depends on T610. Root cause: `goNext()` navigates unconditionally — no gate exists.
 > See `audit-consolidado.md` NAV-01 for root cause and fix pattern.
-- [ ] T611.1 — Add `mandatory: boolean` field to `QuestionScoring` in `packages/authoring-ui/src/types/questions.ts` (default `false`)
-- [ ] T611.2 — Add mandatory toggle to `ScoringFeedbackForm` in `QuestionPropertiesPanel.tsx` (label: "Required — learner must answer before advancing")
-- [ ] T611.3 — Update `converters.ts` bidirectional conversion: preserve `mandatory` field in `QuestionScoring` round-trip
-- [ ] T611.4 — Add `visitedSlides: Set<number>` to `PlayerState` in `packages/runtime-player/src/index.ts`
-- [ ] T611.5 — Create `slideIsComplete(state, slideIndex): boolean` in runtime player:
+- [x] T611.1 — Add `mandatory: boolean` field to `QuestionScoring` in `packages/authoring-ui/src/types/questions.ts` (default `false`)
+- [x] T611.2 — Add mandatory toggle to `ScoringFeedbackForm` in `QuestionPropertiesPanel.tsx` (label: "Required — learner must answer before advancing")
+- [x] T611.3 — Update `converters.ts` bidirectional conversion: preserve `mandatory` field in `QuestionScoring` round-trip (passthrough — no change needed)
+- [x] T611.4 — Add `visitedSlides: Set<number>` to `PlayerState` in `packages/runtime-player/src/index.ts` (already present from v0.5.22)
+- [x] T611.5 — Create `slideIsComplete(state, slideIndex): boolean` in runtime player:
   - `'free'` mode → always returns `true`
   - `'linear-strict'` mode → returns `true` only if all widgets with `extendedProperties.scoring.mandatory === true` on that slide have `answered: true` in `state.questionStates`
-- [ ] T611.6 — Update `goNext()`: call `slideIsComplete()` before navigating; if `false`, return without navigating (button already visually disabled)
-- [ ] T611.7 — Update `renderNavButtons()`: render Next button with `disabled` attribute and visual indication when `navigationMode === 'linear-strict'` and `!slideIsComplete(state, state.currentSlide)`
-- [ ] T611.8 — Update `handleSubmit()` and `handleWidgetScore()`: after recording the answer, re-evaluate `slideIsComplete()` and re-enable Next button if the slide is now complete
-- [ ] T611.9 — Run tests for affected files: `converters.test.ts`, `registerQuestionBlocks.test.ts`, all `runtime-player/src/__tests__/` — update any that fail
-- [ ] T611.10 — E2E test (`question-widget.spec.ts`): in `linear-strict` mode → drag mandatory MC question → do NOT answer → attempt Next → verify button disabled; answer question → verify Next enabled; add to `@regression` tag
+- [x] T611.6 — Update `goNext()`: call `slideIsComplete()` before navigating; if `false`, return without navigating (button already visually disabled)
+- [x] T611.7 — Update `renderNavButtons()`: render Next button with `disabled` attribute and visual indication when `navigationMode === 'linear-strict'` and `!slideIsComplete(state, state.currentSlide)`
+- [x] T611.8 — Update `handleSubmit()` and `handleWidgetScore()`: after recording the answer, re-evaluate `slideIsComplete()` and re-enable Next button if the slide is now complete
+- [x] T611.9 — Run tests for affected files: `converters.test.ts`, `registerQuestionBlocks.test.ts`, all `runtime-player/src/__tests__/` — update any that fail
+- [x] T611.10 — E2E test (`question-widget.spec.ts`): in `linear-strict` mode → drag mandatory MC question → do NOT answer → attempt Next → verify button disabled; answer question → verify Next enabled; add to `@regression` tag
 - [ ] T611.11 — Run full test suite + push + verify CI green
 - [ ] T611.12 — Refine the generated code
 - [ ] T611.13 — A reviewer will generate `docs/issues/issues-T611.md` with detected problems; resolve them before terminating this block

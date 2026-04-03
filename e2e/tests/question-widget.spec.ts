@@ -494,3 +494,97 @@ test.describe('Question Widget: Fast slide switch race condition (T611-07)', () 
     await expect(restoredTextarea).toHaveValue('T611-07 race condition sentinel', { timeout: 10_000 })
   })
 })
+
+// T611.10 — @regression: Mandatory question blocks Next button in linear-strict mode
+// Verifies that when navigationMode is 'linear-strict' and a slide has a mandatory
+// multiple choice question, the Next button in the runtime player is disabled until
+// the question is answered. This prevents learners from progressing without completing
+// required assessments.
+test.describe('T611 — mandatory question navigation gate', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression T611.10 — Next button disabled until mandatory MC question is answered in linear-strict mode', async ({ editorPage, page, context }) => {
+    test.setTimeout(90_000)
+
+    // ── Step 1: Set navigation mode to linear-strict ──
+    await editorPage.openCourseSettings()
+    await editorPage.setNavigationMode('linear-strict')
+    await editorPage.closeCourseSettings()
+
+    // ── Step 2: Add a Multiple Choice question widget ──
+    await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
+    const mc = editorPage.canvasComponent('[data-gjs-type="question-mc"]')
+    await expect(mc).toBeVisible({ timeout: 15_000 })
+
+    // ── Step 3: Select the question and mark it as mandatory ──
+    await mc.click()
+    await page.waitForTimeout(300)
+
+    await editorPage.propsTab.click()
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+
+    // Find and check the mandatory checkbox
+    const mandatoryCheckbox = panel.getByTestId('mandatory-checkbox')
+    await expect(mandatoryCheckbox).toBeVisible({ timeout: 5_000 })
+    const isChecked = await mandatoryCheckbox.isChecked()
+    if (!isChecked) {
+      await mandatoryCheckbox.click()
+    }
+    await page.waitForTimeout(500)  // Allow checkbox state to settle
+
+    // Wait for autosave
+    await page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    ).catch(() => page.waitForTimeout(1000))
+
+    // ── Step 4: Open the preview in a new popup ──
+    const [preview] = await Promise.all([
+      context.waitForEvent('page'),
+      editorPage.previewButton.click(),
+    ])
+    await preview.waitForLoadState('networkidle')
+
+    // ── Step 5: Verify the Next button is disabled ──
+    const nextBtn = preview.locator('[data-nav-next]')
+    await expect(nextBtn).toBeVisible({ timeout: 10_000 })
+
+    // Check that the button is disabled (has disabled attribute or opacity < 1)
+    const isDisabled = await nextBtn.evaluate((el: HTMLElement) => {
+      const btn = el as HTMLButtonElement
+      return btn.disabled === true || window.getComputedStyle(btn).opacity === '0.4'
+    })
+    expect(isDisabled, 'Next button should be disabled when question is unanswered').toBe(true)
+
+    // ── Step 6: Answer the question (click first radio option) ──
+    // The runtime player renders the MC question; find and click a radio button
+    const firstOption = preview.locator('input[type="radio"]').first()
+    await expect(firstOption).toBeVisible({ timeout: 10_000 })
+    await firstOption.click()
+
+    // If there's a submit button for the question, click it
+    const submitBtn = preview.locator('button:has-text("Submit")').first()
+    if (await submitBtn.isVisible().catch(() => false)) {
+      await submitBtn.click()
+      await preview.waitForTimeout(500)  // Wait for submission processing
+    }
+
+    // ── Step 7: Verify the Next button is now enabled ──
+    // Re-check the button's disabled state after answering
+    const isNowEnabled = await nextBtn.evaluate((el: HTMLElement) => {
+      const btn = el as HTMLButtonElement
+      return btn.disabled === false && window.getComputedStyle(btn).opacity !== '0.4'
+    })
+    expect(isNowEnabled, 'Next button should be enabled after question is answered').toBe(true)
+
+    // Clean up: close the preview popup
+    await preview.close()
+  })
+})
