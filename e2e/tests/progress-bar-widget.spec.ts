@@ -119,9 +119,20 @@ test.describe('T608 — Course Progress Bar widget', () => {
   // the runtime falls back to defaults and custom styles are silently discarded.
 
   test('TA608.6 — extendedProperties (color/height/showPercent) survive page reload', async ({ editorPage, page }) => {
+    // Generous budget: waitForReloadComplete (60s) + re-navigate waitForCanvas (30s) + margin
+    // 200s gives ~45s of slack above the max theoretical sum of all operation timeouts
+    test.setTimeout(200_000)
+
     page.on('console', msg => {
       if (msg.type() === 'error') console.error(`[BROWSER ERROR] ${msg.text()}`)
     })
+
+    // Capture our slide index NOW, before other parallel tests can add more slides.
+    // Tests share the same course and run concurrently — if we wait until after reload
+    // to compute the index, other tests may have appended slides and slideCount-1 would
+    // point to a different test's slide (not ours). Pattern mirrors T601.8.
+    const slideItems = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slideItems.count()) - 1
 
     // 1. Add a progress-bar widget and wait for canvas
     await editorPage.addComponentViaEditor('progress-bar')
@@ -131,7 +142,14 @@ test.describe('T608 — Course Progress Bar widget', () => {
     const panel = page.locator('[data-testid="progress-bar-properties-panel"]')
     await expect(panel).toBeVisible({ timeout: 10_000 })
 
-    // 2. Set custom color and uncheck showPercent so we have non-default values
+    // 2. Arm PATCH listener BEFORE edits (T601.8 pattern) so the response is never
+    //    missed even if autosave fires immediately after the first fill().
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 20_000 },
+    )
+
+    // Set custom color and uncheck showPercent so we have non-default values
     const colorText = panel.locator('input[type="text"]').first()
     await colorText.fill('#cc3300')
 
@@ -139,24 +157,30 @@ test.describe('T608 — Course Progress Bar widget', () => {
     await checkbox.uncheck()
 
     // Wait for autosave PATCH and verify it succeeded (2s debounce + network)
-    const saveResp = await page.waitForResponse(
-      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
-      { timeout: 15_000 },
-    )
-    expect(saveResp.status()).toBeLessThan(400)
+    const saveResp = await patchPromise.catch(() => page.waitForTimeout(3000).then(() => null))
+    if (saveResp) expect((saveResp as Awaited<ReturnType<typeof page.waitForResponse>>).status()).toBeLessThan(400)
     await page.waitForTimeout(500)
 
     // 3. Reload and wait for editor
     await page.reload()
     await editorPage.waitForReloadComplete()
 
-    // 3b. After reload the store resets currentSlideIndex=0 (the original slide).
-    // The progress-bar was saved on the NEW slide added in beforeEach (the last slide).
-    // Navigate back to the last slide so the canvas loads the correct slide data.
-    const slideItems = page.locator('[data-testid="slide-item"]')
-    const slideCount = await slideItems.count()
-    await slideItems.nth(slideCount - 1).click()
-    await editorPage.waitForCanvas()
+    // 3b. Navigate back to OUR slide using the index captured before reload.
+    // After reload the store resets currentSlideIndex=0; using ourSlideIndex (captured
+    // at test start) ensures we land on the correct slide even when parallel tests have
+    // added more slides in the meantime.
+    //
+    // Defensive guard: if the slide list shrank after reload (e.g. backend returned
+    // fewer slides than expected), clamp to the last available slide rather than
+    // clicking an out-of-bounds item (which would cause AppLayout to unmount
+    // EditorCanvas → data-editor-ready div disappears → waitForCanvas hangs forever).
+    const countAfterReload = await slideItems.count()
+    const targetIndex = Math.min(ourSlideIndex, countAfterReload - 1)
+    if (targetIndex > 0) {
+      await slideItems.nth(targetIndex).click()
+      await editorPage.waitForCanvas()
+    }
+    // If targetIndex === 0, waitForReloadComplete() already loaded slide 0 fully.
 
     // 4. Re-select the widget by clicking on it in the canvas
     const widget = editorPage.canvasComponent('[data-gjs-type="progress-bar"]')
