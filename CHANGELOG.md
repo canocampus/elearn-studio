@@ -30,6 +30,13 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.23] — 2026-04-03 — Housekeeping: Renumber duplicate Phase 6 task blocks (T600–T608 → T650–T658)
+
+### Changed
+- **tasks.md** (`commit a4f4f3b`) — Phase 6 task blocks T600–T608 (Test Coverage Expansion) renumbered to T650–T658 to resolve a numbering conflict with Phase 2.6 blocks T600–T608 (Beta Review Fixes). All 9 task headers, subtask IDs, the priority-order comment, Phase 6 closing tasks (`T650.REVIEW`, `T651.REVIEW`, `T653.REVIEW`, `T650.CI`, `T650.COVERAGE`), and the Task Dependency Map were updated. Phase 2.6 T600–T608 and all other files (CHANGELOG, WORKING_CONTEXT, docs/) were left untouched — their T60X references are all Phase 2.6 and remain correct.
+
+---
+
 ## [0.5.22] — 2026-04-03 — Progress Bar Refinements: suspend_data v:2, visitedSlides Persistence, E2E TA608.6
 
 ### Added
