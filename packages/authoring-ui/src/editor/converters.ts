@@ -226,14 +226,18 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
         top: `${w.bounds?.y ?? 0}px`,
         width: `${w.bounds?.width ?? 100}px`,
         height: `${w.bounds?.height ?? 50}px`,
-        'z-index': w.layer,
+        'z-index': String(w.layer),
         display: displayValue,
       },
       // GrapesJS will store these custom fields in the component model.
       // actions must be an empty array (not our ActionSequence[]) — GrapesJS's loadData
       // calls .forEach on componentDef.actions; if undefined it crashes with TypeError.
+      // properties must be omitted for GENERATED_CONTENT_TYPES: GrapesJS's Style Manager
+      // PropertyComposite calls new model_Properties(this.get('properties') || [], ...)
+      // expecting an array. Passing our { style: {...} } object crashes with TypeError
+      // (reading 'forEach') during loadData. Style data is already in the `style` field.
       actions: [],
-      properties: props,
+      ...(GENERATED_CONTENT_TYPES.has(w.type) ? {} : { properties: props }),
       elearnActions: w.actions ?? [],
       extendedProperties: w.extendedProperties ?? {},
     }
