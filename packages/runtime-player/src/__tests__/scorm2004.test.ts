@@ -356,6 +356,8 @@ describe('requireAllSlides gate (T612)', () => {
 
     // Course must NOT be marked complete — completion_status should remain 'incomplete'
     expect(store['cmi.completion_status']).not.toBe('completed')
+    // Player must have navigated to slide 1 (first unvisited) — cmi.location proves goToSlide() was called
+    expect(store['cmi.location']).toBe('1')
 
     document.body.removeChild(container)
   })

@@ -992,10 +992,17 @@ function init(
         const idx = parseInt(loc, 10)
         if (!isNaN(idx) && idx >= 0 && idx < course.slides.length) {
           state.currentSlide = idx
-          // Seed visitedSlides with all slides up to and including the restored slide,
-          // so progress bar and requireAllSlides reflect prior session progress.
-          for (let i = 0; i <= idx; i++) {
-            state.visitedSlides.add(i)
+          // Seed visitedSlides to approximate prior-session progress.
+          // In linear-strict mode, slides are visited in order, so [0..idx] is safe.
+          // In free mode, the learner may have jumped non-sequentially; we can only
+          // guarantee the restored slide itself was visited — seeding more would be wrong
+          // and could incorrectly allow requireAllSlides gate to pass.
+          if (course.settings?.navigationMode === 'linear-strict') {
+            for (let i = 0; i <= idx; i++) {
+              state.visitedSlides.add(i)
+            }
+          } else {
+            state.visitedSlides.add(idx)
           }
         }
       }
