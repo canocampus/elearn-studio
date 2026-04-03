@@ -133,10 +133,12 @@ const SECTION_TITLE_STYLE: React.CSSProperties = {
 interface ScoringFeedbackProps {
   weight: number
   attempts: number
+  mandatory?: boolean
   feedbackCorrect: string
   feedbackIncorrect: string
   onWeightChange: (v: number) => void
   onAttemptsChange: (v: number) => void
+  onMandatoryChange: (v: boolean) => void
   onFeedbackCorrectChange: (v: string) => void
   onFeedbackIncorrectChange: (v: string) => void
 }
@@ -144,10 +146,12 @@ interface ScoringFeedbackProps {
 function ScoringFeedbackForm({
   weight,
   attempts,
+  mandatory = false,
   feedbackCorrect,
   feedbackIncorrect,
   onWeightChange,
   onAttemptsChange,
+  onMandatoryChange,
   onFeedbackCorrectChange,
   onFeedbackIncorrectChange,
 }: ScoringFeedbackProps) {
@@ -180,6 +184,16 @@ function ScoringFeedbackForm({
           </div>
         </div>
         <div style={{ fontSize: 10, color: '#6c7086' }}>-1 attempts = unlimited</div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#cdd6f4', cursor: 'pointer', marginTop: 6 }}>
+          <input
+            type="checkbox"
+            checked={mandatory}
+            onChange={e => onMandatoryChange(e.target.checked)}
+            data-testid="mandatory-checkbox"
+            style={{ accentColor: '#89b4fa' }}
+          />
+          Required — learner must answer before advancing
+        </label>
       </div>
       <div style={SECTION_STYLE}>
         <div style={SECTION_TITLE_STYLE}>Feedback</div>
@@ -302,10 +316,12 @@ function MCPropertiesForm({ component }: { component: Component }) {
       <ScoringFeedbackForm
         weight={ep.scoring.weight}
         attempts={ep.scoring.attempts}
+        mandatory={ep.scoring.mandatory}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
         onWeightChange={w => update({ scoring: { ...ep.scoring, weight: w } })}
         onAttemptsChange={a => update({ scoring: { ...ep.scoring, attempts: a } })}
+        onMandatoryChange={v => update({ scoring: { ...ep.scoring, mandatory: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />
@@ -360,10 +376,12 @@ function TFPropertiesForm({ component }: { component: Component }) {
       <ScoringFeedbackForm
         weight={ep.scoring.weight}
         attempts={ep.scoring.attempts}
+        mandatory={ep.scoring.mandatory}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
         onWeightChange={w => update({ scoring: { ...ep.scoring, weight: w } })}
         onAttemptsChange={a => update({ scoring: { ...ep.scoring, attempts: a } })}
+        onMandatoryChange={v => update({ scoring: { ...ep.scoring, mandatory: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />
@@ -466,10 +484,12 @@ function FillPropertiesForm({ component }: { component: Component }) {
       <ScoringFeedbackForm
         weight={ep.scoring.weight}
         attempts={ep.scoring.attempts}
+        mandatory={ep.scoring.mandatory}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
         onWeightChange={w => update({ scoring: { ...ep.scoring, weight: w } })}
         onAttemptsChange={a => update({ scoring: { ...ep.scoring, attempts: a } })}
+        onMandatoryChange={v => update({ scoring: { ...ep.scoring, mandatory: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />

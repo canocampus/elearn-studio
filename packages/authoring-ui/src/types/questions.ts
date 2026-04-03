@@ -14,6 +14,8 @@ export interface QuestionScoring {
   weight: number
   /** Max attempts: -1 = unlimited. */
   attempts: number
+  /** When true and navigationMode is linear-strict, learner cannot advance until this question is answered. */
+  mandatory?: boolean
 }
 
 // ---------------------------------------------------------------------------

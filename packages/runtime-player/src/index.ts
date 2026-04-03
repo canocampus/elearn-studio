@@ -273,7 +273,7 @@ function renderNavButtons(w: BaseWidget): string {
   const style = positionStyle(w.bounds)
   return `<div class="el-widget el-nav" id="w-${w.id}" style="${style};display:flex;gap:8px;align-items:center;">
     <button class="el-nav-prev el-btn-nav" data-action="prev" style="flex:1;height:100%;cursor:pointer;">&#8592; Back</button>
-    <button class="el-nav-next el-btn-nav" data-action="next" style="flex:1;height:100%;cursor:pointer;">Next &#8594;</button>
+    <button class="el-nav-next el-btn-nav" data-action="next" data-nav-next="true" style="flex:1;height:100%;cursor:pointer;">Next &#8594;</button>
   </div>`
 }
 
@@ -631,6 +631,7 @@ function goToSlide(state: PlayerState, index: number): void {
 
   updateScoreDisplays(state)
   updateProgressBars(state)
+  updateNavButtons(state)
   applyVolumeToSlide(container)
   scormReport(state, 'incomplete')
 
@@ -638,7 +639,36 @@ function goToSlide(state: PlayerState, index: number): void {
   prefetchSlideAssets(course.slides, index)
 }
 
+/** Returns true if the learner may leave the given slide.
+ *  In 'linear-strict' mode, all questions with scoring.mandatory === true must be answered.
+ *  In 'free' mode (or when no navigationMode is set), always returns true.
+ */
+function slideIsComplete(state: PlayerState, slideIndex: number): boolean {
+  if (state.course.settings?.navigationMode !== 'linear-strict') return true
+  const slide = state.course.slides[slideIndex]
+  if (!slide) return true
+  for (const widget of slide.widgets) {
+    const scoring = (widget.extendedProperties.scoring as { mandatory?: boolean } | undefined)
+    if (scoring?.mandatory) {
+      const qs = state.questionStates.get(widget.id)
+      if (!qs?.answered) return false
+    }
+  }
+  return true
+}
+
+/** Update the disabled state of all Next nav buttons based on slideIsComplete. */
+function updateNavButtons(state: PlayerState): void {
+  const complete = slideIsComplete(state, state.currentSlide)
+  state.container.querySelectorAll<HTMLButtonElement>('[data-nav-next]').forEach(btn => {
+    btn.disabled = !complete
+    btn.style.opacity = complete ? '' : '0.4'
+    btn.style.cursor = complete ? 'pointer' : 'not-allowed'
+  })
+}
+
 function goNext(state: PlayerState): void {
+  if (!slideIsComplete(state, state.currentSlide)) return
   if (state.currentSlide < state.course.slides.length - 1) {
     goToSlide(state, state.currentSlide + 1)
   }
@@ -807,6 +837,7 @@ function handleSubmit(state: PlayerState, widgetId: string): void {
   if (submitBtn) submitBtn.disabled = true
 
   updateScoreDisplays(state)
+  updateNavButtons(state)
   scormReport(state, 'incomplete')
 }
 
@@ -833,6 +864,7 @@ function attachEvents(state: PlayerState): void {
       answered: true,
     })
     updateScoreDisplays(state)
+    updateNavButtons(state)
     scormReport(state, 'incomplete')
   })
 
