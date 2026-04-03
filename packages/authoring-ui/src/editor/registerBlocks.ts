@@ -240,10 +240,6 @@ function registerNavButtonsWidget(editor: Editor): void {
         actions: [],
         elearnActions: [],
         extendedProperties: {},
-        content: `
-          <button style="padding:8px 16px;margin-right:8px;background:#64748b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">← Previous</button>
-          <button style="padding:8px 16px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Next →</button>
-        `,
         style: {
           width: '240px',
           height: '50px',
@@ -252,6 +248,11 @@ function registerNavButtonsWidget(editor: Editor): void {
           'z-index': '1',
         },
         traits: [NAME_TRAIT],
+      },
+    },
+    view: {
+      onRender(this: { el: HTMLElement }) {
+        this.el.innerHTML = `<button style="padding:8px 16px;margin-right:8px;background:#64748b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">← Previous</button><button style="padding:8px 16px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Next →</button>`
       },
     },
   })
@@ -308,10 +309,6 @@ function registerScoreQuizWidget(editor: Editor): void {
         actions: [],
         elearnActions: [],
         extendedProperties: {},
-        content: `
-          <div style="font-size:13px;color:#64748b;margin-bottom:4px;">Quiz Score</div>
-          <div style="font-size:28px;font-weight:bold;color:#4f46e5;">0 / 0</div>
-        `,
         style: {
           width: '160px',
           height: '70px',
@@ -324,6 +321,11 @@ function registerScoreQuizWidget(editor: Editor): void {
           display: 'block',
         },
         traits: [NAME_TRAIT],
+      },
+    },
+    view: {
+      onRender(this: { el: HTMLElement }) {
+        this.el.innerHTML = `<div style="font-size:13px;color:#64748b;margin-bottom:4px;">Quiz Score</div><div style="font-size:28px;font-weight:bold;color:#4f46e5;">0 / 0</div>`
       },
     },
   })
@@ -341,10 +343,6 @@ function registerScoreFieldWidget(editor: Editor): void {
         actions: [],
         elearnActions: [],
         extendedProperties: {},
-        content: `
-          <span style="font-size:13px;color:#64748b;">Score: </span>
-          <span style="font-size:13px;font-weight:bold;color:#0f172a;">—</span>
-        `,
         style: {
           width: '140px',
           height: '36px',
@@ -358,6 +356,11 @@ function registerScoreFieldWidget(editor: Editor): void {
           'align-items': 'center',
         },
         traits: [NAME_TRAIT],
+      },
+    },
+    view: {
+      onRender(this: { el: HTMLElement }) {
+        this.el.innerHTML = `<span style="font-size:13px;color:#64748b;">Score: </span><span style="font-size:13px;font-weight:bold;color:#0f172a;">—</span>`
       },
     },
   })
@@ -375,12 +378,6 @@ function registerMediaPlayerWidget(editor: Editor): void {
         actions: [],
         elearnActions: [],
         extendedProperties: {},
-        content: `
-          <div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;color:#94a3b8;font-size:13px;gap:8px;">
-            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21" fill="currentColor" stroke="none"/></svg>
-            <span>Media Player</span>
-          </div>
-        `,
         style: {
           width: '320px',
           height: '200px',
@@ -391,6 +388,11 @@ function registerMediaPlayerWidget(editor: Editor): void {
           display: 'block',
         },
         traits: [NAME_TRAIT, { type: 'text', name: 'src', label: 'Media URL' }, { type: 'select', name: 'mediaType', label: 'Type', default: 'video', options: [{ id: 'video', name: 'Video' }, { id: 'audio', name: 'Audio' }] }],
+      },
+    },
+    view: {
+      onRender(this: { el: HTMLElement }) {
+        this.el.innerHTML = `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;color:#94a3b8;font-size:13px;gap:8px;"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21" fill="currentColor" stroke="none"/></svg><span>Media Player</span></div>`
       },
     },
   })
