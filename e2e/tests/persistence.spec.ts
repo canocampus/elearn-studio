@@ -439,9 +439,11 @@ test.describe('T612 — courseSettings navigationMode + requireAllSlides persist
     const saveResp = await patchPromise.catch(() => null)
     if (saveResp) expect(saveResp.status()).toBeLessThan(400)
 
-    // 3. Reload and wait for editor to be fully ready
+    // 3. Reload and wait for editor to be ready
+    // Use waitForReady() only (not waitForReloadComplete) — this test never adds a slide,
+    // so the GrapesJS canvas iframe is not present; we only need the toolbar to be visible.
     await page.reload()
-    await editorPage.waitForReloadComplete()
+    await editorPage.waitForReady()
 
     // 4. Reopen Course Settings and verify the values survived the round-trip
     const dialogAfter = await editorPage.openCourseSettings()
@@ -453,11 +455,13 @@ test.describe('T612 — courseSettings navigationMode + requireAllSlides persist
     const requireCheckboxAfter = page.getByTestId('require-all-slides-checkbox')
     await expect(requireCheckboxAfter).toBeChecked({ timeout: 5_000 })
 
-    // Cleanup — restore defaults so other tests are not affected
+    // Cleanup — restore defaults so parallel tests are not affected by lingering settings.
+    // IMPORTANT: uncheck requireAllSlides BEFORE switching mode to 'free' — the checkbox
+    // is conditionally rendered only when navigationMode === 'linear-strict'. Changing the
+    // mode first removes the checkbox from the DOM and makes the uncheck() call fail.
+    await page.getByTestId('require-all-slides-checkbox').uncheck()
     await editorPage.setNavigationMode('free')
-    await requireCheckboxAfter.uncheck()
     await page.getByTestId('course-settings-save').click()
-    await dialogAfter.waitFor({ state: 'hidden', timeout: 5_000 })
     await page.waitForTimeout(2_500)  // allow debounced autosave to flush
   })
 })
