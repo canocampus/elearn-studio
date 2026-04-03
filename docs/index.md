@@ -20,7 +20,7 @@ For course authors and instructional designers:
 | [Getting Started](user-guide/01-getting-started.md) | First course walkthrough, interface tour |
 | [Editor Overview](user-guide/02-editor-overview.md) | GrapesJS canvas, panels, slide navigation |
 | [Working with Slides](user-guide/03-working-with-slides.md) | Add, duplicate, delete, reorder, templates |
-| [Widgets](user-guide/04-widgets.md) | All widget types: text, image, button, shape, media, nav controls |
+| [Widgets](user-guide/04-widgets.md) | All widget types: text, image, button, shape, media player, audio narration, progress bar, volume control, nav controls |
 | [Questions](user-guide/05-questions.md) | MC, True/False, Fill-in-Blank, Match, Drag, Arrange, Hotspot |
 | [Actions Editor](user-guide/06-actions-editor.md) | 13 action types, events, variables, conditions, shared sequences |
 | [Screenshot Simulations](user-guide/07-screenshot-simulations.md) | Recorder workflow, hotspot editor, 3 play modes |
@@ -107,3 +107,4 @@ Detailed problem reports and resolutions by phase (archived for reference):
 - Phase 3: [T030](issues/issues-T030.md), [T034](issues/issues-T034.md), [T035](issues/issues-T035.md)
 - Phase 4: [T041](issues/issues-T041.md), [T042](issues/issues-T042.md), [T043](issues/issues-T043.md)
 - Phase 5: [T500](issues/issues-T500.md), [T501](issues/issues-T501.md), [T502](issues/issues-T502.md), [T503](issues/issues-T503.md), [T504](issues/issues-T504.md), [T505](issues/issues-T505.md)
+- Phase 2.6 (Beta Review): [T600](issues/issues-T600.md), [T601](issues/issues-T601.md), [T602](issues/issues-T602.md), [T603](issues/issues-T603.md), [T604](issues/issues-T604.md), [T605](issues/issues-T605.md), [T606](issues/issues-T606.md), [T607](issues/issues-T607.md), [T608](issues/issues-T608.md), [TA608](issues/issues-TA608.md), [T609](issues/issues-T609.md), [TA609](issues/issues-TA609.md)

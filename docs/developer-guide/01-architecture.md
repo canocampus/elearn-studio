@@ -102,14 +102,17 @@ erDiagram
 type Widget =
   | TextWidget
   | ImageWidget
-  | ButtonWidget
+  | ButtonWidget          // type: 'button' | 'done-button'
   | ShapeWidget
-  | QuestionWidget       // type: 'question-mc' | 'question-tf' | 'question-fill' | ...
-  | MediaWidget
-  | NavigationWidget
+  | QuestionWidget        // type: 'question-mc' | 'question-tf' | 'question-fill' | ...
+  | MediaWidget           // type: 'media-player'
+  | AudioNarrationWidget  // type: 'audio-narration'
+  | ProgressBarWidget     // type: 'progress-bar'
+  | VolumeControlWidget   // type: 'volume-control'
+  | NavigationWidget      // type: 'nav-buttons'
   | ScoreWidget
-  | ScreenshotSimWidget  // type: 'screenshot-sim'
-  | PhaserSimWidget      // type: 'phaser-sim'
+  | ScreenshotSimWidget   // type: 'screenshot-sim'
+  | PhaserSimWidget       // type: 'phaser-sim'
 
 interface BaseWidget {
   id: string
@@ -169,12 +172,12 @@ flowchart TD
 
 | File | Responsibility |
 |---|---|
-| `index.ts` | Entry point — SCORM init, slide navigation orchestration |
+| `index.ts` | Entry point — SCORM init, slide navigation, `updateProgressBars()`, `applyVolumeToSlide()` |
 | `widgets/phaserSimWidget.ts` | Mounts/unmounts `phaser-bundle.js` lazily per slide |
 | `sim/` | Screenshot simulation player (Konva-based) |
 | `questions/` | Delegates evaluation to `question-engine` |
 | `actions/` | Executes Action Sequence DSL steps |
-| `suspend.ts` | Serialises/deserialises progress to SCORM suspend_data |
+| `suspend.ts` | Serialises/deserialises progress (schema v:2 — includes `visitedSlides`) to SCORM suspend_data |
 
 **GrapesJS Storage Manager flow (authoring side):**
 

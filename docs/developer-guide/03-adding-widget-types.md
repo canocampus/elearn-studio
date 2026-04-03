@@ -10,19 +10,22 @@ When you need this: you're adding a new interactive element (e.g., a hotspot map
 
 ## Overview
 
-Every widget type requires changes in four places:
+Every widget type requires changes in **five** places (steps 1–4 are mandatory, step 5 if the widget has a properties panel):
 
 ```
 1. packages/authoring-ui/src/editor/registerBlocks.ts   — GrapesJS Block + Component
 2. packages/authoring-ui/src/editor/converters.ts        — Widget ↔ GrapesJS converter
 3. packages/authoring-ui/src/types/course.ts             — TypeScript type union
 4. packages/runtime-player/src/                          — Runtime renderer
+5. backend/api/src/models/Widget.ts                      — Backend WIDGET_TYPES enum
 ```
 
 Optionally, if the widget has configurable properties:
 ```
-5. packages/authoring-ui/src/components/sidebar/         — Properties panel
+6. packages/authoring-ui/src/components/sidebar/         — Properties panel
 ```
+
+> **Do not skip step 5.** The backend validates `widget.type` against the `WIDGET_TYPES` enum in `Widget.ts`. If the new type is not listed there, every `PATCH /courses/:id` call that includes the widget will return `500`. This mistake was discovered during T607 (audio-narration) when the widget was fully working in the editor but silently rejected by the API on save.
 
 ---
 
@@ -78,8 +81,10 @@ In `packages/authoring-ui/src/types/course.ts`, add to the `WidgetType` union an
 ```typescript
 // Add to the WidgetType union
 export type WidgetType =
-  | 'text' | 'image' | 'button' | 'rectangle'
+  | 'text' | 'image' | 'button' | 'done-button' | 'nav-buttons' | 'rectangle'
   | 'question-mc' | 'question-tf' | 'question-fill' | 'question-match'
+  | 'media-player' | 'audio-narration' | 'progress-bar' | 'volume-control'
+  | 'score-display'
   | 'screenshot-sim' | 'phaser-sim'
   | 'flip-card'   // ← add here
 
@@ -89,6 +94,19 @@ export interface FlipCardExtendedProps {
   backText: string
 }
 ```
+
+## Step 2b — Add the type to the backend enum
+
+In `backend/api/src/models/Widget.ts`, add the new type to the `WIDGET_TYPES` enum:
+
+```typescript
+export enum WIDGET_TYPES {
+  // ... existing types ...
+  FLIP_CARD = 'flip-card',   // ← add here
+}
+```
+
+The Mongoose schema uses this enum to validate `widget.type` on every PATCH. Omitting this step causes `500` errors on save — see overview note above.
 
 ---
 
@@ -175,37 +193,59 @@ case 'flip-card':
 
 ## Step 5 — Add a Properties panel (optional)
 
-If the widget has properties too complex for GrapesJS traits (e.g., nested arrays), add a React sidebar panel:
+If the widget has properties too complex for GrapesJS traits (e.g., nested arrays, color pickers, file pickers), add a React sidebar panel.
+
+**Always use the `useExtendedProperties` hook** to read and write `extendedProperties`. Using a plain variable (no `useState`) is the root cause of the T602 regression — React never re-renders, every user edit is silently reverted by the stale closure on the next render cycle.
 
 ```typescript
 // packages/authoring-ui/src/components/sidebar/FlipCardPropertiesPanel.tsx
 
-import { useEditorStore } from '../../store/editorStore'
+import { useExtendedProperties } from '../../hooks/useExtendedProperties'
+
+interface FlipCardEP {
+  frontText: string
+  backText: string
+}
 
 export function FlipCardPropertiesPanel() {
-  const { selectedWidget, updateWidgetProps } = useEditorStore()
-  if (selectedWidget?.type !== 'flip-card') return null
-
-  const { frontText, backText } = selectedWidget.extendedProperties as FlipCardExtendedProps
+  const [props, setProps] = useExtendedProperties<FlipCardEP>({
+    frontText: 'Front',
+    backText: 'Back',
+  })
 
   return (
-    <div className="properties-panel">
+    <div data-testid="flip-card-properties-panel">
       <label>Front text</label>
       <input
-        value={frontText}
-        onChange={e => updateWidgetProps({ frontText: e.target.value })}
+        value={props.frontText}
+        onChange={e => setProps({ frontText: e.target.value })}
       />
       <label>Back text</label>
       <input
-        value={backText}
-        onChange={e => updateWidgetProps({ backText: e.target.value })}
+        value={props.backText}
+        onChange={e => setProps({ backText: e.target.value })}
       />
     </div>
   )
 }
 ```
 
-Render this panel from `packages/authoring-ui/src/components/sidebar/PropertiesPanel.tsx` when `selectedWidget.type === 'flip-card'`.
+The `useExtendedProperties` hook (in `packages/authoring-ui/src/hooks/`) subscribes to the GrapesJS model via `component:update`, writes changes back with `component.set('extendedProperties', next)`, and includes an `isLocalRef` guard to prevent the update-subscription loop.
+
+Wire the panel in `packages/authoring-ui/src/components/sidebar/PropertiesPanel.tsx`:
+
+```typescript
+// In the switch/conditional that selects the panel:
+if (selectedType === 'flip-card') return <FlipCardPropertiesPanel />
+```
+
+And export a type guard from the panel file for the selector:
+
+```typescript
+export function isFlipCardWidgetType(type: string): boolean {
+  return type === 'flip-card'
+}
+```
 
 ---
 
@@ -213,12 +253,26 @@ Render this panel from `packages/authoring-ui/src/components/sidebar/PropertiesP
 
 - [ ] `packages/authoring-ui/src/editor/registerBlocks.ts` — Block + Component registration
 - [ ] `packages/authoring-ui/src/types/course.ts` — `WidgetType` union + `ExtendedProps` interface
+- [ ] **`backend/api/src/models/Widget.ts`** — `WIDGET_TYPES` enum (causes 500 on save if omitted)
 - [ ] `packages/authoring-ui/src/editor/converters.ts` — verify `extendedProperties` roundtrip
 - [ ] `packages/runtime-player/src/widgets/<type>Widget.ts` — renderer
 - [ ] `packages/runtime-player/src/index.ts` — register renderer in widget switch
-- [ ] `packages/authoring-ui/src/components/sidebar/` — properties panel (if needed)
+- [ ] `packages/authoring-ui/src/components/sidebar/` — properties panel using `useExtendedProperties` hook (if needed)
 - [ ] Unit test for the renderer in `packages/runtime-player/src/__tests__/`
-- [ ] Unit test for extended props in `packages/authoring-ui/src/__tests__/`
+- [ ] E2E test covering: block visible, props panel opens, extendedProperties survive reload
+
+### Special whitelists to check
+
+Two additional whitelists in `converters.ts` may need updating depending on the widget:
+
+| Whitelist constant | What it controls | Add your type if... |
+|---|---|---|
+| `WIDGETS_WITH_SRC_TRAIT` | Widgets that carry a `src` HTML attribute (audio/video/image source) | Your widget renders `<audio src>`, `<video src>`, or `<img src>` |
+| `GENERATED_CONTENT_TYPES` | Widgets whose `innerHTML` is generated by `view.onRender()`, not authored as HTML | Your widget uses `onRender()` to build a DOM preview (not editable text) |
+
+If your widget type belongs in `GENERATED_CONTENT_TYPES`, the converter discards `innerHTML` during save (correct) and rebuilds it from `extendedProperties` during load. If you forget this, you may see stale HTML bleed into saves.
+
+If your widget type belongs in `WIDGETS_WITH_SRC_TRAIT`, the converter preserves the `src` attribute during the GrapesJS ↔ Widget round-trip. Omitting this causes `src` to be dropped on reload (the T607 bug that affected `media-player` and `audio-narration`).
 
 ---
 
