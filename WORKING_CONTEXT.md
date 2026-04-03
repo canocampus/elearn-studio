@@ -172,7 +172,7 @@ assignment is not calling `component.setStyle()` correctly.
 
 | What | Where |
 |---|---|
-| Task list | `docs/tasks.md` |
+| Task list | `tasks.md` |
 | Beta review issues | `docs/issues/issues-BETA-R1.md` |
 | Per-task issues | `docs/issues/issues-TXX.md` |
 | Change history | `CHANGELOG.md` |

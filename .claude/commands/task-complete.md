@@ -9,7 +9,7 @@
 
 ## Step 1 — Update tasks.md
 
-Mark every completed subtask as `[x]` in `docs/tasks.md`.
+Mark every completed subtask as `[x]` in `tasks.md`.
 If subtasks were added during implementation that were not in the original list,
 add them before marking done.
 

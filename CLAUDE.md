@@ -9,7 +9,7 @@
 
 ```
 1. Read WORKING_CONTEXT.md — current state, known broken things, what NOT to retry
-2. Read docs/tasks.md — find the active block and its current status
+2. Read tasks.md — find the active block and its current status
 3. Do NOT start coding until both files are read
 ```
 
@@ -31,7 +31,7 @@ The command is in `.claude/commands/task-complete.md`.
 **Do NOT mark a task [x] without running /task-complete.**
 
 The 6 steps are:
-1. Update `docs/tasks.md`
+1. Update `tasks.md`
 2. Update `docs/issues/issues-TXX.md`
 3. Update `CHANGELOG.md` with version bump
 4. Update `WORKING_CONTEXT.md`
