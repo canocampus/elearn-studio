@@ -5,11 +5,13 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useEditorStore } from '../../store/editorStore'
-import { addSlide, deleteSlide, nextSlideTitle } from '../../api/courseApi'
+import { addSlide, deleteSlide, nextSlideTitle, updateCourse } from '../../api/courseApi'
 import { invalidateCourseCache } from '../../editor/storageManager'
 import { useToast } from '../ui/Toast'
 import { useDebugMode } from '../../hooks/useDebugMode'
 import { saveUserTemplate } from '../../templates/courseTemplates'
+import { CourseSettingsDialog } from './CourseSettingsDialog'
+import type { CourseSettings } from '../../types/course'
 
 interface TopToolbarProps {
   onPreview: () => void
@@ -23,6 +25,7 @@ interface TopToolbarProps {
 
 export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleInspector, inspectorOpen, onToggleHistory, historyOpen }: TopToolbarProps) {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const toast = useToast()
   const isDebug = useDebugMode()
   const course = useEditorStore(s => s.course)
@@ -100,8 +103,33 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
     }
   }
 
+  async function handleSaveSettings(updated: CourseSettings) {
+    if (!course) return
+    setShowSettings(false)
+    setIsSaving(true)
+    setSaveError(null)
+    try {
+      const saved = await updateCourse(course._id, { settings: updated })
+      invalidateCourseCache()
+      setCourse(saved)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setSaveError(msg)
+      toast.error(`Failed to save settings: ${msg}`)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
     <>
+    {showSettings && course && (
+      <CourseSettingsDialog
+        settings={course.settings}
+        onSave={handleSaveSettings}
+        onCancel={() => setShowSettings(false)}
+      />
+    )}
     {showSaveTemplate && course && (
       <SaveTemplateDialog
         defaultName={`${course.title} Template`}
@@ -116,6 +144,16 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
       {isSaving && <span role="status" aria-live="polite" style={styles.savingBadge}>Saving…</span>}
 
       <span style={styles.spacer} />
+
+      <button
+        style={styles.btn}
+        onClick={() => setShowSettings(true)}
+        title="Course settings"
+        disabled={!course}
+        data-testid="course-settings-btn"
+      >
+        Settings
+      </button>
 
       <button style={{ ...styles.btn, ...styles.btnSecondary }} onClick={() => setShowNewCourseDialog(true)} title="New course">
         New Course

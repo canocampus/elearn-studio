@@ -66,6 +66,8 @@ const CourseSettingsSchema = new Schema(
     height: { type: Number, default: 768 },
     passingScore: { type: Number, default: 80 },
     allowReview: { type: Boolean, default: true },
+    navigationMode: { type: String, enum: ['free', 'linear-strict'], default: 'free' },
+    requireAllSlides: { type: Boolean, default: false },
   },
   { _id: false }
 )

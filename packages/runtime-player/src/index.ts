@@ -53,6 +53,8 @@ interface CourseSettings {
   height: number
   passingScore: number
   remediationSlideId?: string
+  navigationMode?: 'free' | 'linear-strict'
+  requireAllSlides?: boolean
 }
 
 interface SCORMMetadata {

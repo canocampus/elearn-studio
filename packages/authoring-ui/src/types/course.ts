@@ -84,11 +84,15 @@ export interface Resource {
   mimeType: string
 }
 
+export type NavigationMode = 'free' | 'linear-strict'
+
 export interface CourseSettings {
   width: number
   height: number
   passingScore: number
   allowReview: boolean
+  navigationMode?: NavigationMode
+  requireAllSlides?: boolean
 }
 
 export interface SCORMMetadata {

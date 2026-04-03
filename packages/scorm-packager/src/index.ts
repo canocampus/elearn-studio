@@ -53,6 +53,8 @@ export interface CourseSettings {
   width: number
   height: number
   passingScore?: number
+  navigationMode?: 'free' | 'linear-strict'
+  requireAllSlides?: boolean
 }
 
 export interface SCORMMetadata {
