@@ -55,7 +55,10 @@ function parsePx(value: string | undefined, fallback: number): number {
  * not user-edited content. We must NOT capture their content back into properties
  * or it will overwrite the user's actual data on the next store() cycle.
  */
-const GENERATED_CONTENT_TYPES = new Set(['question-mc', 'question-tf', 'question-fill'])
+const GENERATED_CONTENT_TYPES = new Set([
+  'question-mc', 'question-tf', 'question-fill',
+  'progress-bar', 'audio-narration', 'volume-control',
+])
 
 /**
  * Widget types whose CSS `display` value must be 'flex' rather than 'block'.
