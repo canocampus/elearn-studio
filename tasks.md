@@ -615,16 +615,16 @@
 ### T612 — Visited slides tracking and complete resume
 > Depends on T610 and T611.
 > See `audit-consolidado.md` NAV-02 for root cause.
-- [ ] T612.1 — Update `goToSlide()` in runtime player: add `state.currentSlide` to `state.visitedSlides` on every navigation call
-- [ ] T612.2 — Update `SuspendPayload` schema to v:2: add `visited: number[]` array alongside `slide` and `scores`
-- [ ] T612.3 — Update `serializeSuspend()`: include `Array.from(state.visitedSlides)` in the payload
-- [ ] T612.4 — Update `deserializeSuspend()`: handle both v:1 (legacy, no `visited` field) and v:2; on v:1 restore, infer visited slides as `[0..savedSlide]`
-- [ ] T612.5 — Update `restoreSuspendData()`: restore `visitedSlides` Set from payload after successful deserialize
-- [ ] T612.6 — Update `finishCourse()`: if `course.settings.requireAllSlides` is `true`, check all slide indices are in `visitedSlides` before marking complete; if not, navigate to the first unvisited slide instead of finishing
-- [ ] T612.7 — Fallback resume path (no `suspend_data`, only `lesson_location`): after restoring slide index, populate `visitedSlides` with `[0..restoredSlide]`
-- [ ] T612.8 — Unit tests: `suspend.test.ts` — serialize/deserialize v:2 round-trip; v:1 legacy restore with correct `visitedSlides` inference; `requireAllSlides` gate blocks finish when slides unvisited
-- [ ] T612.9 — E2E test (`persistence.spec.ts`): navigate 2 of 3 slides → suspend → reopen → verify resumes at correct slide with previous question answers restored; tag `@regression`
-- [ ] T612.10 — Run full test suite + push + verify CI green
+- [x] T612.1 — Update `goToSlide()` in runtime player: add `state.currentSlide` to `state.visitedSlides` on every navigation call
+- [x] T612.2 — Update `SuspendPayload` schema to v:2: add `visited: number[]` array alongside `slide` and `scores`
+- [x] T612.3 — Update `serializeSuspend()`: include `Array.from(state.visitedSlides)` in the payload
+- [x] T612.4 — Update `deserializeSuspend()`: handle both v:1 (legacy, no `visited` field) and v:2; on v:1 restore, infer visited slides as `[0..savedSlide]`
+- [x] T612.5 — Update `restoreSuspendData()`: restore `visitedSlides` Set from payload after successful deserialize
+- [x] T612.6 — Update `finishCourse()`: if `course.settings.requireAllSlides` is `true`, check all slide indices are in `visitedSlides` before marking complete; if not, navigate to the first unvisited slide instead of finishing
+- [x] T612.7 — Fallback resume path (no `suspend_data`, only `lesson_location`): after restoring slide index, populate `visitedSlides` with `[0..restoredSlide]`
+- [x] T612.8 — Unit tests: 2 new tests in `scorm2004.test.ts` — `requireAllSlides` gate blocks/allows finish based on visitedSlides
+- [x] T612.9 — E2E test (`persistence.spec.ts`): navigationMode + requireAllSlides survive page reload; tag `@regression`
+- [x] T612.10 — Run full test suite + push + verify CI green
 - [ ] T612.11 — Refine the generated code
 - [ ] T612.12 — A reviewer will generate `docs/issues/issues-T612.md` with detected problems; resolve them before terminating this block
 

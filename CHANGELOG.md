@@ -37,6 +37,20 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.25] — 2026-04-04 — T612: visitedSlides Gate + requireAllSlides finishCourse Guard
+
+### Added
+- **`finishCourse()` requireAllSlides gate** (`packages/runtime-player/src/index.ts`) — If `course.settings.requireAllSlides` is `true`, `finishCourse()` iterates all slide indices and navigates to the first unvisited slide instead of marking the course complete. Learners are forced to visit every slide before completion.
+- **Legacy `lesson_location` fallback seeds `visitedSlides`** (`packages/runtime-player/src/index.ts`) — When `restoreSuspendData()` fails and only `lesson_location` is available (v:1 SCORM data), `visitedSlides` is now seeded with all indices `[0..restoredSlide]` so the progress bar and `requireAllSlides` gate reflect prior-session progress.
+- **T612.8 unit tests** (`packages/runtime-player/src/__tests__/scorm2004.test.ts`) — 2 new `@regression` tests for the `requireAllSlides` gate: (1) finish blocked when not all slides visited, (2) finish succeeds when all slides visited. 256 tests total.
+- **T612.9 E2E regression test** (`e2e/tests/persistence.spec.ts`) — `@regression` test verifying `navigationMode` and `requireAllSlides` courseSettings survive a full page reload. Guards against the backend round-trip dropping the T610/T612 fields silently.
+
+### Fixed
+- **H-01: Optional chaining on `extendedProperties?.scoring`** (`packages/runtime-player/src/index.ts`) — Prevents `TypeError` when migrated widgets have `extendedProperties: null`.
+- **H-02: `console.warn` in `updateNavButtons()`** when no `[data-nav-next]` buttons found in linear-strict mode — prevents silent gating bypass going unnoticed.
+
+---
+
 ## [0.5.24] — 2026-04-04 — T610 + T611: SCORM Navigation — Mandatory Question Gating
 
 ### Added
