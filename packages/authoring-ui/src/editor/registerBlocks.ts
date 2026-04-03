@@ -231,6 +231,7 @@ function registerRectangleWidget(editor: Editor): void {
 
 function registerNavButtonsWidget(editor: Editor): void {
   editor.Components.addType('nav-buttons', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Nav Buttons',
@@ -300,6 +301,7 @@ function registerDoneButtonWidget(editor: Editor): void {
 
 function registerScoreQuizWidget(editor: Editor): void {
   editor.Components.addType('score-quiz', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Quiz Score',
@@ -334,6 +336,7 @@ function registerScoreQuizWidget(editor: Editor): void {
 
 function registerScoreFieldWidget(editor: Editor): void {
   editor.Components.addType('score-field', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Score Field',
@@ -369,6 +372,7 @@ function registerScoreFieldWidget(editor: Editor): void {
 
 function registerMediaPlayerWidget(editor: Editor): void {
   editor.Components.addType('media-player', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Media Player',
@@ -410,6 +414,7 @@ function registerMediaPlayerWidget(editor: Editor): void {
 
 function registerAudioNarrationWidget(editor: Editor): void {
   editor.Components.addType('audio-narration', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Audio Narration',
@@ -449,6 +454,7 @@ function registerAudioNarrationWidget(editor: Editor): void {
 
 function registerProgressBarWidget(editor: Editor): void {
   editor.Components.addType('progress-bar', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Progress Bar',
@@ -488,6 +494,7 @@ function registerProgressBarWidget(editor: Editor): void {
 
 function registerVolumeControlWidget(editor: Editor): void {
   editor.Components.addType('volume-control', {
+    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Volume Control',

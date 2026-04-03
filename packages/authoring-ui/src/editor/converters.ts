@@ -254,9 +254,15 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
       def.src = props.src
     }
 
-    // Pre-render widget previews into def.content so GrapesJS natively displays
-    // the widget on load. onRender() may not fire during programmatic
-    // loadProjectData(), but GrapesJS always renders def.content.
+    // Pre-render question widget previews into def.content so GrapesJS natively
+    // displays the widget on load. Question widgets use extendFnView: ['initialize']
+    // and onRender() to display content; def.content provides the initial render
+    // before onRender() fires on first mount.
+    // Non-question widgets (progress-bar, audio-narration, etc.) use extendFnView
+    // and onRender() exclusively — do NOT set def.content for them because GrapesJS
+    // parses nested HTML content strings into child component definitions during
+    // loadData(), and those auto-generated child definitions lack `actions: []`,
+    // causing "Cannot read properties of undefined (reading 'forEach')" crashes.
     if (w.type === 'question-mc') {
       const raw = w.extendedProperties as Partial<MCExtendedProps> | undefined
       const ep: MCExtendedProps = raw?.options ? (raw as MCExtendedProps) : MC_DEFAULT_EXTENDED
@@ -269,20 +275,6 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
       const raw = w.extendedProperties as Partial<FillExtendedProps> | undefined
       const ep: FillExtendedProps = raw?.scoring ? (raw as FillExtendedProps) : FILL_DEFAULT_EXTENDED
       def.content = buildFillPreviewHTML(ep)
-    } else if (w.type === 'progress-bar') {
-      def.content = `<div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;gap:4px;"><div style="width:100%;background:#e2e8f0;border-radius:99px;overflow:hidden;"><div style="width:40%;height:12px;background:#4f46e5;border-radius:99px;"></div></div><div style="font-size:11px;color:#64748b;text-align:right;">40%</div></div>`
-    } else if (w.type === 'audio-narration') {
-      def.content = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:10px;color:#94a3b8;font-size:13px;"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><span>Audio Narration</span></div>`
-    } else if (w.type === 'volume-control') {
-      def.content = `<div style="width:100%;height:100%;display:flex;align-items:center;gap:8px;padding:0 8px;box-sizing:border-box;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><input type="range" min="0" max="100" value="80" style="flex:1;cursor:pointer;" /></div>`
-    } else if (w.type === 'nav-buttons') {
-      def.content = `<button style="padding:8px 16px;margin-right:8px;background:#64748b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">← Previous</button><button style="padding:8px 16px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Next →</button>`
-    } else if (w.type === 'score-quiz') {
-      def.content = `<div style="font-size:13px;color:#64748b;margin-bottom:4px;">Quiz Score</div><div style="font-size:28px;font-weight:bold;color:#4f46e5;">0 / 0</div>`
-    } else if (w.type === 'score-field') {
-      def.content = `<span style="font-size:13px;color:#64748b;">Score: </span><span style="font-size:13px;font-weight:bold;color:#0f172a;">—</span>`
-    } else if (w.type === 'media-player') {
-      def.content = `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;color:#94a3b8;font-size:13px;gap:8px;"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21" fill="currentColor" stroke="none"/></svg><span>Media Player</span></div>`
     }
     return def
   })
