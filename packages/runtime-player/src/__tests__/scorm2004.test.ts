@@ -315,6 +315,82 @@ describe('SCORM 2004 success_status values', () => {
   })
 })
 
+// ─── requireAllSlides gate (T612 regression) ─────────────────────────────────
+
+describe('requireAllSlides gate (T612)', () => {
+  beforeEach(() => {
+    // @ts-expect-error test cleanup
+    delete window.API_1484_11
+    // @ts-expect-error test cleanup
+    delete window.API
+  })
+
+  it('T612 regression — finish button navigates to first unvisited slide when requireAllSlides=true', async () => {
+    const store: Record<string, string> = {}
+    const api2004 = makeScorm2004Api(store)
+    // @ts-expect-error injecting LMS mock
+    window.API_1484_11 = api2004
+
+    const { init } = await import('../index')
+    const container = document.createElement('div')
+    container.id = 'test-require-all-slides'
+    document.body.appendChild(container)
+
+    // 3-slide course with requireAllSlides enabled; passMark=0 so score is not the blocker
+    init('test-require-all-slides', {
+      _id: 'ras1', title: 'T', slides: [
+        { id: 's0', title: 'Slide 0', widgets: [] },
+        { id: 's1', title: 'Slide 1', widgets: [] },
+        { id: 's2', title: 'Slide 2', widgets: [] },
+      ],
+      settings: { width: 1024, height: 768, passingScore: 0, requireAllSlides: true },
+      metadata: { identifier: 'T', masteryScore: 0 },
+    })
+
+    // Player starts on slide 0 — slides 1 and 2 have NOT been visited
+    // Clicking finish should navigate to slide 1 (first unvisited), not complete the course
+    const finishBtn = document.createElement('button')
+    finishBtn.dataset.action = 'finish'
+    container.appendChild(finishBtn)
+    finishBtn.click()
+
+    // Course must NOT be marked complete — completion_status should remain 'incomplete'
+    expect(store['cmi.completion_status']).not.toBe('completed')
+
+    document.body.removeChild(container)
+  })
+
+  it('T612 regression — finish succeeds when requireAllSlides=true and all slides visited', async () => {
+    const store: Record<string, string> = {}
+    const api2004 = makeScorm2004Api(store)
+    // @ts-expect-error injecting LMS mock
+    window.API_1484_11 = api2004
+
+    const { init } = await import('../index')
+    const container = document.createElement('div')
+    container.id = 'test-require-all-slides-full'
+    document.body.appendChild(container)
+
+    init('test-require-all-slides-full', {
+      _id: 'ras2', title: 'T', slides: [
+        { id: 's0', title: 'Slide 0', widgets: [] },
+      ],
+      settings: { width: 1024, height: 768, passingScore: 0, requireAllSlides: true },
+      metadata: { identifier: 'T', masteryScore: 0 },
+    })
+
+    // Single-slide course — slide 0 is visited on init; finish should complete
+    const finishBtn = document.createElement('button')
+    finishBtn.dataset.action = 'finish'
+    container.appendChild(finishBtn)
+    finishBtn.click()
+
+    expect(store['cmi.completion_status']).toBe('completed')
+
+    document.body.removeChild(container)
+  })
+})
+
 // ─── SCORM 1.2 CMI fields (regression) ───────────────────────────────────────
 
 describe('SCORM 1.2 CMI field mapping (regression)', () => {

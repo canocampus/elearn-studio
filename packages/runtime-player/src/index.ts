@@ -685,6 +685,18 @@ function goPrev(state: PlayerState): void {
 }
 
 function finishCourse(state: PlayerState): void {
+  // If requireAllSlides is active, ensure every slide has been visited before finishing.
+  if (state.course.settings?.requireAllSlides) {
+    const totalSlides = state.course.slides.length
+    for (let i = 0; i < totalSlides; i++) {
+      if (!state.visitedSlides.has(i)) {
+        // Navigate to the first unvisited slide instead of finishing
+        goToSlide(state, i)
+        return
+      }
+    }
+  }
+
   const score = calculateCurrentScore(state)
   const passMark = state.course.metadata?.masteryScore ?? state.course.settings?.passingScore ?? state.passMark
   const passed = score >= passMark
@@ -973,13 +985,18 @@ function init(
   if (scormApi) {
     const restored = restoreSuspendData(state, scormApi, course.slides.length)
     if (!restored) {
-      // Legacy fallback: restore slide location only
+      // Legacy fallback: restore slide location only (no full suspend_data available)
       const locationKey = scormApi.version === '2004' ? 'cmi.location' : 'cmi.core.lesson_location'
       const loc = scormApi.getValue(locationKey)
       if (loc) {
         const idx = parseInt(loc, 10)
         if (!isNaN(idx) && idx >= 0 && idx < course.slides.length) {
           state.currentSlide = idx
+          // Seed visitedSlides with all slides up to and including the restored slide,
+          // so progress bar and requireAllSlides reflect prior session progress.
+          for (let i = 0; i <= idx; i++) {
+            state.visitedSlides.add(i)
+          }
         }
       }
     }

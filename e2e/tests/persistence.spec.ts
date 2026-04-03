@@ -403,3 +403,61 @@ test.describe('Session Persistence', () => {
     await expect(page).not.toHaveURL(/\/login/)
   })
 })
+
+// T612 — SCORM Navigation: courseSettings persistence regression
+// Verifies that navigationMode and requireAllSlides survive a full page reload.
+// These fields gate finishCourse() in the runtime player (T612.6) — if they are lost
+// during the store→backend→reload round-trip the requireAllSlides gate silently stops
+// working, allowing learners to finish without visiting all slides.
+test.describe('T612 — courseSettings navigationMode + requireAllSlides persist across reload @regression', () => {
+  test('T612 regression — navigationMode and requireAllSlides survive page reload', async ({ editorPage, page }) => {
+    test.setTimeout(120_000)
+
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.error(`[BROWSER ERROR] ${msg.text()}`)
+    })
+
+    // 1. Open Course Settings and configure linear-strict + requireAllSlides
+    const dialog = await editorPage.openCourseSettings()
+
+    await editorPage.setNavigationMode('linear-strict')
+
+    const requireCheckbox = page.getByTestId('require-all-slides-checkbox')
+    await requireCheckbox.check()
+    await expect(requireCheckbox).toBeChecked({ timeout: 3_000 })
+
+    // 2. Save the dialog (settings are persisted to the backend via PATCH)
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    )
+
+    await page.getByTestId('course-settings-save').click()
+    await dialog.waitFor({ state: 'hidden', timeout: 5_000 })
+
+    // Wait for autosave PATCH and verify it succeeded
+    const saveResp = await patchPromise.catch(() => null)
+    if (saveResp) expect(saveResp.status()).toBeLessThan(400)
+
+    // 3. Reload and wait for editor to be fully ready
+    await page.reload()
+    await editorPage.waitForReloadComplete()
+
+    // 4. Reopen Course Settings and verify the values survived the round-trip
+    const dialogAfter = await editorPage.openCourseSettings()
+    await expect(dialogAfter).toBeVisible({ timeout: 10_000 })
+
+    const modeSelect = page.getByTestId('navigation-mode-select')
+    await expect(modeSelect).toHaveValue('linear-strict', { timeout: 5_000 })
+
+    const requireCheckboxAfter = page.getByTestId('require-all-slides-checkbox')
+    await expect(requireCheckboxAfter).toBeChecked({ timeout: 5_000 })
+
+    // Cleanup — restore defaults so other tests are not affected
+    await editorPage.setNavigationMode('free')
+    await requireCheckboxAfter.uncheck()
+    await page.getByTestId('course-settings-save').click()
+    await dialogAfter.waitFor({ state: 'hidden', timeout: 5_000 })
+    await page.waitForTimeout(2_500)  // allow debounced autosave to flush
+  })
+})
