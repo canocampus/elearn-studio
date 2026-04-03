@@ -3,53 +3,146 @@
 ## Session Protocol — Read This First Every Session
 
 > These rules exist because without them: documentation gets skipped, context is
-> lost between sessions, and the same bugs get reintroduced.
+> lost between sessions, tests break silently, and the same bugs get reintroduced.
+> Every rule here exists because of a real observed failure in this project.
 
-### 1. Start of session — always do this first
+---
+
+### Rule 1 — Start of session
 
 ```
 1. Read WORKING_CONTEXT.md — current state, known broken things, what NOT to retry
-2. Read tasks.md — find the active block and its current status
+2. Read docs/tasks.md — find the active block and its current status
 3. Do NOT start coding until both files are read
 ```
 
-### 2. During work — visual verification is mandatory for UI tasks
+---
 
-Any task that touches GrapesJS, widgets, slides, the canvas iframe, or the runtime
-player requires a Playwright verification before it can be marked done:
+### Rule 2 — After every code change: run tests immediately
 
-- Run the relevant E2E spec (see `.claude/commands/task-complete.md` for the mapping)
-- If the spec fails → fix the regression, do not mark the task done
-- If the task adds new UI behavior → add a new E2E test covering it
-- Read `.claude/skills/elearn-e2e-qa/SKILL.md` before writing any test
+**Every time a file is edited**, before moving to the next subtask:
 
-### 3. End of every task block — run /task-complete
+```bash
+# Run tests for the affected package
+pnpm --filter <package> test -- --reporter=verbose
 
-After completing any task block (TXX), run `/task-complete` and follow every step.
-The command is in `.claude/commands/task-complete.md`.
+# If the change touches multiple packages
+pnpm test
+```
 
-**Do NOT mark a task [x] without running /task-complete.**
+**If any test fails:**
+- If the failure is caused by the current change → fix it before continuing
+- If the failure appears pre-existing → **it is NOT acceptable to ignore it**
+  - Investigate the failure
+  - If it is genuinely pre-existing: document it in `docs/issues/issues-TXX.md`
+    under a new entry and add to `WORKING_CONTEXT.md` "Known Issues"
+  - Never mark a task `[x]` while tests are red, regardless of cause
 
-The 6 steps are:
-1. Update `tasks.md`
-2. Update `docs/issues/issues-TXX.md`
-3. Update `CHANGELOG.md` with version bump
-4. Update `WORKING_CONTEXT.md`
-5. Run relevant E2E spec and confirm passing
+**Test warnings (non-breaking) must NOT be ignored:**
+- Warnings indicate deficiencies in the test or in the production code
+- Each warning must be either fixed or explicitly documented as a known issue
+- A warning that is silently ignored will become a bug in a future session
+
+---
+
+### Rule 3 — When editing a component: update its tests
+
+**Every time a file is edited**, search for ALL related tests:
+
+```bash
+# Find all test files that reference the changed module
+grep -r "ComponentName\|functionName\|'module-name'" \
+  --include="*.test.*" --include="*.spec.*" -l
+```
+
+Run every test found. If any fail due to the change:
+- **Update the test** to reflect the new correct behaviour
+- **Never comment out or delete a test** unless the functionality it covers
+  has been explicitly removed
+- **Never mark the task done** until all related tests pass
+
+**High-risk files and their related tests — always check these pairs:**
+
+| File changed | Tests to run |
+|---|---|
+| `converters.ts` | `converters.test.ts` |
+| `registerBlocks.ts` | `registerBlocks.test.ts` + `grapesjs-integration.spec.ts` |
+| `registerQuestionBlocks.ts` | `registerQuestionBlocks.test.ts` + `question-widget.spec.ts` |
+| `QuestionPropertiesPanel.tsx` | `question-widget.spec.ts` + `authoring-ui-layer.spec.ts` |
+| `storageManager.ts` | `storageManager.test.ts` + `persistence.spec.ts` |
+| `initEditor.ts` | `initEditor.test.ts` + `grapesjs-integration.spec.ts` |
+| `assetManager.ts` | `image-upload.spec.ts` |
+| `runtime-player/src/index.ts` | ALL tests in `runtime-player/src/__tests__/` |
+| `runtime-player/src/suspend.ts` | `suspend.test.ts` |
+| `backend/api/src/routes/courses.ts` | `courses.test.ts` |
+| `backend/api/src/routes/assets.ts` | `assets.test.ts` |
+| `backend/api/src/routes/auth.ts` | `auth.test.ts` |
+| `scorm-packager/src/index.ts` | ALL tests in `scorm-packager/src/__tests__/` |
+
+---
+
+### Rule 4 — End of every task block: full suite + push + verify CI
+
+After completing any task block (TXX), in this exact order:
+
+**Step 1 — Full test suite**
+```bash
+pnpm test
+```
+All tests must be green. No exceptions. No "pre-existing failures" left unresolved.
+
+**Step 2 — Run /task-complete**
+Follow every step in `.claude/commands/task-complete.md`:
+1. Update `docs/tasks.md` — mark completed subtasks `[x]`
+2. Update `docs/issues/issues-TXX.md` — CRITICAL and HIGH resolved
+3. Update `CHANGELOG.md` — version bump + entry
+4. Update `WORKING_CONTEXT.md` — all 5 sections
+5. Run relevant E2E spec — confirm passing
 6. Commit with conventional format
 
-### 4. Context window management
+**Step 3 — Push and verify CI (mandatory every block)**
+```bash
+git push origin <branch>
+```
+Then verify GitHub Actions:
+- Check the Actions tab for the workflow triggered by the push
+- Wait for it to complete
+- **If CI fails: fix before starting the next task block**
+- **Do NOT start the next block with a failing CI**
+- This is mandatory after every task block, not occasional
 
-When approaching 70% of the context window:
-- Update `WORKING_CONTEXT.md` with current state before compacting
-- Run `/compact`
-- After compact: re-read `WORKING_CONTEXT.md` to restore context
+---
 
-### 5. Never repeat failed approaches
+### Rule 5 — Visual verification for UI tasks
+
+Any task that touches GrapesJS, widgets, slides, the canvas iframe, or the runtime
+player requires Playwright verification before it can be marked done:
+
+```bash
+pnpm --filter e2e playwright test <spec-name>
+pnpm --filter e2e playwright test   # full suite
+```
+
+If the spec fails → fix the regression, do not mark done.
+If the task adds new UI behaviour → add a new E2E test.
+Read `.claude/skills/elearn-e2e-qa/SKILL.md` before writing any test.
+
+---
+
+### Rule 6 — Never repeat failed approaches
 
 Before starting any implementation, check `WORKING_CONTEXT.md` section
 "What Was Attempted and Failed". Do not retry any listed approach
 without an explicit instruction to do so.
+
+---
+
+### Rule 7 — Context window management
+
+When approaching 70% of the context window:
+1. Update `WORKING_CONTEXT.md` with current state
+2. Run `/compact`
+3. After compact: re-read `WORKING_CONTEXT.md` to restore context .
 
 
 

@@ -37,6 +37,9 @@
 - **v0.5.10** — Defensive guards for missing `w.bounds` in `grapesjsFromWidgets`
 - **v0.5.9** — E2E suite expanded 73 → 90 tests; Moodle SCORM integration tests
 - **v0.5.8** — Four persistence race condition fixes (BUG-T800-01 through BUG-T800-04)
+- **Audit consolidado** — 4 auditorías integradas en `docs/issues/audit-consolidado.md`;
+  bugs sistémicos pendientes: C-01 (actions engine), C-02 (sharedSequences),
+  C-03 (SCORM assets), NAV-01 a NAV-04 (navegación)
 
 Full history: `CHANGELOG.md`
 
@@ -183,3 +186,4 @@ assignment is not calling `component.setStyle()` correctly.
 | GrapesJS init | `packages/authoring-ui/src/editor/initEditor.ts` |
 | Storage converter | `packages/authoring-ui/src/editor/converters.ts` |
 | E2E QA skill | `.claude/skills/elearn-e2e-qa/SKILL.md` |
+| Audit consolidado (bugs sistémicos) | `docs/issues/audit-consolidado.md` |

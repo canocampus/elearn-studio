@@ -560,6 +560,97 @@
 ### Phase 2.6 — Closing Tasks
 - [x] TA260.TEST — Full E2E suite passes with all bug fixes applied; FM-01 regression test covers all 4 previously broken widgets (done-button, question-tf, question-fill, media-player); question property persistence verified for all 3 question types; new widgets (audio-narration, progress-bar, volume-control) have at least one E2E test each; 126 tests passing on CI (confirmed 2026-04-03)
 - [x] TA260.DOCS — `docs/user-guide/04-widgets.md` updated with audio-narration, progress-bar, volume-control sections; `docs/user-guide/05-questions.md` includes correct-answer marking steps; `CHANGELOG.md` current through v0.5.22
+---
+
+## PHASE 2.7 — SCORM Navigation Integration
+
+> **Context:** The nav-buttons widget works at a basic level (prev/next navigate between
+> slides). suspend/resume via cmi.suspend_data is correctly implemented (suspend.ts).
+> However, the real SCORM navigation integration is incomplete in 4 critical areas
+> that define the difference between a toy course and a real LMS-compatible one.
+>
+> Full analysis and root causes: `docs/issues/audit-consolidado.md` section C-05.
+>
+> **Prerequisite:** Phase 2.6 must be complete and all tests green before starting.
+>
+> **Implementation order:** T610 → T611 → T612 → T613
+> (shared types first, then runtime logic, then packager)
+
+---
+
+### T610 — Add navigationMode to CourseSettings
+> Foundational — must complete before T611, T612, T613.
+> This field must be propagated consistently across all 4 packages.
+- [ ] T610.1 — Add `navigationMode: 'free' | 'linear-strict'` to `CourseSettings` in `packages/authoring-ui/src/types/course.ts`
+- [ ] T610.2 — Add `requireAllSlides: boolean` to `CourseSettings` (default `false`; when `true`, course cannot be marked complete until all slides are visited)
+- [ ] T610.3 — Add `navigationMode` and `requireAllSlides` to Mongoose schema in `backend/api/src/models/Course.ts` with defaults (`'free'`, `false`)
+- [ ] T610.4 — Add `navigationMode` and `requireAllSlides` to `CourseDoc` in `packages/runtime-player/src/index.ts`
+- [ ] T610.5 — Add `navigationMode` and `requireAllSlides` to CourseDoc type in `packages/scorm-packager/src/index.ts`
+- [ ] T610.6 — Expose `navigationMode` selector in the authoring UI course settings panel: radio button "Free navigation" / "Linear (questions required)"
+- [ ] T610.7 — Run tests for affected files: `courses.test.ts`, `courseApi.test.ts`, `converters.test.ts` — update any that fail due to schema changes
+- [ ] T610.8 — Run full test suite: `pnpm test` — all green before continuing
+- [ ] T610.9 — Push and verify CI green
+- [ ] T610.10 — Refine the generated code
+- [ ] T610.11 — A reviewer will generate `docs/issues/issues-T610.md` with detected problems; resolve them before terminating this block
+
+### T611 — Block Next button until required questions are answered
+> Depends on T610. Root cause: `goNext()` navigates unconditionally — no gate exists.
+> See `audit-consolidado.md` NAV-01 for root cause and fix pattern.
+- [ ] T611.1 — Add `mandatory: boolean` field to `QuestionScoring` in `packages/authoring-ui/src/types/questions.ts` (default `false`)
+- [ ] T611.2 — Add mandatory toggle to `ScoringFeedbackForm` in `QuestionPropertiesPanel.tsx` (label: "Required — learner must answer before advancing")
+- [ ] T611.3 — Update `converters.ts` bidirectional conversion: preserve `mandatory` field in `QuestionScoring` round-trip
+- [ ] T611.4 — Add `visitedSlides: Set<number>` to `PlayerState` in `packages/runtime-player/src/index.ts`
+- [ ] T611.5 — Create `slideIsComplete(state, slideIndex): boolean` in runtime player:
+  - `'free'` mode → always returns `true`
+  - `'linear-strict'` mode → returns `true` only if all widgets with `extendedProperties.scoring.mandatory === true` on that slide have `answered: true` in `state.questionStates`
+- [ ] T611.6 — Update `goNext()`: call `slideIsComplete()` before navigating; if `false`, return without navigating (button already visually disabled)
+- [ ] T611.7 — Update `renderNavButtons()`: render Next button with `disabled` attribute and visual indication when `navigationMode === 'linear-strict'` and `!slideIsComplete(state, state.currentSlide)`
+- [ ] T611.8 — Update `handleSubmit()` and `handleWidgetScore()`: after recording the answer, re-evaluate `slideIsComplete()` and re-enable Next button if the slide is now complete
+- [ ] T611.9 — Run tests for affected files: `converters.test.ts`, `registerQuestionBlocks.test.ts`, all `runtime-player/src/__tests__/` — update any that fail
+- [ ] T611.10 — E2E test (`question-widget.spec.ts`): in `linear-strict` mode → drag mandatory MC question → do NOT answer → attempt Next → verify button disabled; answer question → verify Next enabled; add to `@regression` tag
+- [ ] T611.11 — Run full test suite + push + verify CI green
+- [ ] T611.12 — Refine the generated code
+- [ ] T611.13 — A reviewer will generate `docs/issues/issues-T611.md` with detected problems; resolve them before terminating this block
+
+### T612 — Visited slides tracking and complete resume
+> Depends on T610 and T611.
+> See `audit-consolidado.md` NAV-02 for root cause.
+- [ ] T612.1 — Update `goToSlide()` in runtime player: add `state.currentSlide` to `state.visitedSlides` on every navigation call
+- [ ] T612.2 — Update `SuspendPayload` schema to v:2: add `visited: number[]` array alongside `slide` and `scores`
+- [ ] T612.3 — Update `serializeSuspend()`: include `Array.from(state.visitedSlides)` in the payload
+- [ ] T612.4 — Update `deserializeSuspend()`: handle both v:1 (legacy, no `visited` field) and v:2; on v:1 restore, infer visited slides as `[0..savedSlide]`
+- [ ] T612.5 — Update `restoreSuspendData()`: restore `visitedSlides` Set from payload after successful deserialize
+- [ ] T612.6 — Update `finishCourse()`: if `course.settings.requireAllSlides` is `true`, check all slide indices are in `visitedSlides` before marking complete; if not, navigate to the first unvisited slide instead of finishing
+- [ ] T612.7 — Fallback resume path (no `suspend_data`, only `lesson_location`): after restoring slide index, populate `visitedSlides` with `[0..restoredSlide]`
+- [ ] T612.8 — Unit tests: `suspend.test.ts` — serialize/deserialize v:2 round-trip; v:1 legacy restore with correct `visitedSlides` inference; `requireAllSlides` gate blocks finish when slides unvisited
+- [ ] T612.9 — E2E test (`persistence.spec.ts`): navigate 2 of 3 slides → suspend → reopen → verify resumes at correct slide with previous question answers restored; tag `@regression`
+- [ ] T612.10 — Run full test suite + push + verify CI green
+- [ ] T612.11 — Refine the generated code
+- [ ] T612.12 — A reviewer will generate `docs/issues/issues-T612.md` with detected problems; resolve them before terminating this block
+
+### T613 — SCORM 2004 sequencing conditioned by navigationMode
+> Depends on T610. Currently sequencing XML is syntactically correct but always
+> permissive regardless of course settings. See `audit-consolidado.md` NAV-04.
+- [ ] T613.1 — Pass `course.settings.navigationMode` from the export route (`backend/api/src/routes/courses.ts`) through to the SCORM packager
+- [ ] T613.2 — Update `packages/scorm-packager/src/index.ts` manifest builder to accept `navigationMode`
+- [ ] T613.3 — For `navigationMode: 'free'`: keep current permissive sequencing — no change to existing output
+- [ ] T613.4 — For `navigationMode: 'linear-strict'`: generate `<imsss:sequencingRules>` that:
+  - Disable choice navigation: `<imsss:choiceExit>false</imsss:choiceExit>`
+  - Require current SCO completion before advancing: `<imsss:preConditionRule>` based on `objectiveProgressStatus`
+- [ ] T613.5 — Unit tests (`scorm-packager/src/__tests__/`): manifest for `'free'` matches current snapshot (no regression); manifest for `'linear-strict'` contains correct sequencing rule elements
+- [ ] T613.6 — Integration test (`moodle-scorm.spec.ts`, opt-in via `E2E_MOODLE=1`): export `linear-strict` course → import into Moodle → verify LMS blocks forward slide jump
+- [ ] T613.7 — Run full test suite + push + verify CI green
+- [ ] T613.8 — Refine the generated code
+- [ ] T613.9 — A reviewer will generate `docs/issues/issues-T613.md` with detected problems; resolve them before terminating this block
+
+### Phase 2.7 — Closing Tasks
+- [ ] T270.TEST — Full E2E gate (all must pass):
+  (a) `linear-strict` course with mandatory MC question: Next disabled until answered → enabled after answer → navigation proceeds
+  (b) Suspend mid-course → resume → correct slide restored + previous question answers intact
+  (c) `requireAllSlides: true` → attempt finish without visiting all slides → redirects to first unvisited slide
+  (d) SCORM 2004 `linear-strict` export → Moodle blocks forward jump (manual or E2E_MOODLE=1)
+  All existing 126 tests still green; no regressions introduced
+- [ ] T270.DOCS — Update `docs/user-guide/09-publishing.md`: navigation mode explanation (Free vs Linear); update `docs/scorm-guide/scorm2004.md`: sequencing behaviour per mode; update `docs/user-guide/05-questions.md`: mandatory question toggle description
 
 ---
 
