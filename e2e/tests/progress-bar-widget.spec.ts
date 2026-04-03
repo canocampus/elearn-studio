@@ -150,6 +150,14 @@ test.describe('T608 — Course Progress Bar widget', () => {
     await page.reload()
     await editorPage.waitForReloadComplete()
 
+    // 3b. After reload the store resets currentSlideIndex=0 (the original slide).
+    // The progress-bar was saved on the NEW slide added in beforeEach (the last slide).
+    // Navigate back to the last slide so the canvas loads the correct slide data.
+    const slideItems = page.locator('[data-testid="slide-item"]')
+    const slideCount = await slideItems.count()
+    await slideItems.nth(slideCount - 1).click()
+    await editorPage.waitForCanvas()
+
     // 4. Re-select the widget by clicking on it in the canvas
     const widget = editorPage.canvasComponent('[data-gjs-type="progress-bar"]')
     await expect(widget).toBeVisible({ timeout: 15_000 })
