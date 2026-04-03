@@ -14,6 +14,7 @@ Technical reference for contributors and developers extending eLearn Studio.
 | [04 — Adding Phaser Simulations](./04-adding-phaser-simulations.md) | New Phaser simulation type from scene to runtime |
 | [05 — Observability](./05-observability.md) | Logs, traces, metrics — Loki, Tempo, Prometheus, Grafana |
 | [06 — Contributing](./06-contributing.md) | Branch naming, commit format, PR checklist, OpenAPI regeneration |
+| [07 — Authentication](./07-authentication.md) | JWT access tokens, refresh tokens, Bearer injection, 401 handling, E2E auth setup |
 
 ---
 

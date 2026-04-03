@@ -95,18 +95,18 @@ export interface FlipCardExtendedProps {
 }
 ```
 
-## Step 2b — Add the type to the backend enum
+## Step 2b — Add the type to the backend whitelist
 
-In `backend/api/src/models/Widget.ts`, add the new type to the `WIDGET_TYPES` enum:
+In `backend/api/src/models/Widget.ts`, add the new type to the `WIDGET_TYPES` const array:
 
 ```typescript
-export enum WIDGET_TYPES {
+export const WIDGET_TYPES = [
   // ... existing types ...
-  FLIP_CARD = 'flip-card',   // ← add here
-}
+  'flip-card',   // ← add here
+] as const
 ```
 
-The Mongoose schema uses this enum to validate `widget.type` on every PATCH. Omitting this step causes `500` errors on save — see overview note above.
+The Mongoose schema uses this array to validate `widget.type` on every PATCH. Omitting this step causes `500` errors on save — see overview note above.
 
 ---
 
@@ -200,7 +200,7 @@ If the widget has properties too complex for GrapesJS traits (e.g., nested array
 ```typescript
 // packages/authoring-ui/src/components/sidebar/FlipCardPropertiesPanel.tsx
 
-import { useExtendedProperties } from '../../hooks/useExtendedProperties'
+import { useExtendedProperties } from '../QuestionPropertiesPanel'  // Defined inline in that file
 
 interface FlipCardEP {
   frontText: string
@@ -230,7 +230,7 @@ export function FlipCardPropertiesPanel() {
 }
 ```
 
-The `useExtendedProperties` hook (in `packages/authoring-ui/src/hooks/`) subscribes to the GrapesJS model via `component:update`, writes changes back with `component.set('extendedProperties', next)`, and includes an `isLocalRef` guard to prevent the update-subscription loop.
+The `useExtendedProperties` hook (defined inline in `packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) subscribes to the GrapesJS model via `change:extendedProperties` events, writes changes back with `component.set('extendedProperties', next)`, and includes an `isLocalRef` guard to prevent the update-subscription loop. If you need this hook in multiple properties panels, consider extracting it to `packages/authoring-ui/src/hooks/useExtendedProperties.ts`.
 
 Wire the panel in `packages/authoring-ui/src/components/sidebar/PropertiesPanel.tsx`:
 
@@ -273,6 +273,97 @@ Two additional whitelists in `converters.ts` may need updating depending on the 
 If your widget type belongs in `GENERATED_CONTENT_TYPES`, the converter discards `innerHTML` during save (correct) and rebuilds it from `extendedProperties` during load. If you forget this, you may see stale HTML bleed into saves.
 
 If your widget type belongs in `WIDGETS_WITH_SRC_TRAIT`, the converter preserves the `src` attribute during the GrapesJS ↔ Widget round-trip. Omitting this causes `src` to be dropped on reload (the T607 bug that affected `media-player` and `audio-narration`).
+
+### Media Widget Source Resolution (Garage / S3 presigned URLs)
+
+**Why `src` cannot be stored as a raw path**
+
+Garage, the S3-compatible asset storage, serves all media files via presigned URLs. These URLs expire after a short period (typically 1 hour). The raw path (e.g., `/assets/my-video.mp4`) must be resolved to a presigned URL at **render time**, not at save time. Storing a presigned URL in the database is futile — it will be expired by the time the author reloads the slide or the learner plays the course.
+
+**The `WIDGETS_WITH_SRC_TRAIT` whitelist**
+
+From `packages/authoring-ui/src/editor/converters.ts`:
+
+```typescript
+const WIDGETS_WITH_SRC_TRAIT = new Set(['image', 'media-player', 'audio-narration'])
+```
+
+This whitelist controls which widget types have `src` as a GrapesJS component trait (a model-level attribute). When the converter restores a slide on load, it only sets the `src` attribute on components in this set:
+
+```typescript
+// From grapesjsFromWidgets()
+const WIDGETS_WITH_SRC_TRAIT = new Set(['image', 'media-player', 'audio-narration'])
+if (WIDGETS_WITH_SRC_TRAIT.has(w.type) && typeof props?.src === 'string' && props.src) {
+  def.src = props.src  // ← Triggers change:src event on load
+}
+```
+
+Setting `src` as a root-level GrapesJS model attribute is essential because it triggers the `change:src` event, which fires the presigned-URL resolution handler.
+
+**How presigned URL resolution works at render time**
+
+From `packages/authoring-ui/src/editor/registerBlocks.ts` (image widget implementation):
+
+```typescript
+view: {
+  initialize(props: unknown) {
+    // Register a listener for the change:src event
+    ;(this as any).listenTo(
+      (this as any).model,
+      'change:src',
+      (this as any).resolveAndSetSrc.bind(this as any),
+    )
+  },
+
+  onRender() {
+    // Trigger presigned URL resolution on initial mount
+    (this as any).resolveAndSetSrc()
+  },
+
+  resolveAndSetSrc(this: unknown) {
+    // Read the asset path (e.g., '/assets/my-image.png')
+    const src: string = ((this as any).model.get('src') as string) ?? ''
+    if (!src.startsWith('/assets/')) return
+    const objectName = src.slice('/assets/'.length)
+    const el = (this as any).el as HTMLElement
+
+    // Fetch the presigned URL asynchronously
+    resolveAssetUrl(objectName)
+      .then((presignedUrl: string) => {
+        // STALE DOM REFERENCE GUARD:
+        // If the component was removed from the canvas while the request
+        // was in-flight, el.isConnected will be false. Do not try to update
+        // a detached DOM node — it is wasted work and masks real errors.
+        if (!el.isConnected) return
+        el.setAttribute('src', presignedUrl)
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.warn('[registerBlocks] resolveAndSetSrc failed for', objectName, '—', msg)
+      })
+  },
+}
+```
+
+**Key points:**
+
+1. The `initialize()` hook registers a listener on `change:src` so resolution is triggered whenever the author changes the image/audio/video file.
+2. The `onRender()` hook calls `resolveAndSetSrc()` once on mount to handle the initial load case.
+3. The `resolveAndSetSrc()` method checks `el.isConnected` before updating the DOM — this is the **stale DOM reference guard**. If the component was removed from the canvas while the fetch was in-flight, the guard prevents a crash or silent error.
+4. On error, the handler logs a warning with the specific error message (network timeout, 401, 403, 500, etc.) so the author can diagnose the issue.
+
+**When to add your widget type to `WIDGETS_WITH_SRC_TRAIT`**
+
+Add your widget type to the whitelist if it:
+- Renders an `<img src>`, `<audio src>`, or `<video src>` element
+- Stores the asset path (e.g., `/assets/my-file.ext`) in `properties.src` or `extendedProperties`
+- Needs the `src` attribute to be resolved to a presigned URL on load and on every file change
+
+If you do NOT add your widget type to the whitelist but the widget stores `src` in `properties`, the `src` value will still be captured and saved to the database (via `widgetsFromGrapesjs`), but it will NOT be restored as a GrapesJS model attribute on load. The result: the change:src event never fires, and presigned-URL resolution never happens. The browser will try to load `/assets/my-file.ext` directly — which fails because the path is not publicly accessible without a presigned URL. Authors will see a broken image/audio/video in the slide preview, and learners will see the same in the LMS.
+
+**TTL / caching considerations**
+
+Presigned URLs expire. Do not cache them in component state beyond the current session. Each time a slide loads (or an author changes a file), the presigned URL must be fetched fresh from the backend. The `resolveAssetUrl()` call happens asynchronously on every mount and on every `change:src` event — this is correct and intentional.
 
 ---
 
