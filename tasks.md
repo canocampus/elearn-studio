@@ -558,8 +558,8 @@
 - [x] TA609.6 — Reviewer generated `docs/issues/issues-TA609.md`; all CRITICAL and HIGH resolved; 5 E2E tests passing (T609.1–T609.5)
 
 ### Phase 2.6 — Closing Tasks
-- [ ] TA260.TEST — Full E2E suite passes with all bug fixes applied; FM-01 regression test covers all 4 previously broken widgets (done-button, question-tf, question-fill, media-player); question property persistence verified for all 3 question types; new widgets (audio-narration, progress-bar, volume-control) have at least one E2E test each
-- [ ] TA260.DOCS — Update `docs/user-guide/04-widgets.md` with new widgets; update `docs/user-guide/05-questions.md` with correct-answer marking instructions; update `CHANGELOG.md` with all fixes as a new version entry
+- [x] TA260.TEST — Full E2E suite passes with all bug fixes applied; FM-01 regression test covers all 4 previously broken widgets (done-button, question-tf, question-fill, media-player); question property persistence verified for all 3 question types; new widgets (audio-narration, progress-bar, volume-control) have at least one E2E test each; 126 tests passing on CI (confirmed 2026-04-03)
+- [x] TA260.DOCS — `docs/user-guide/04-widgets.md` updated with audio-narration, progress-bar, volume-control sections; `docs/user-guide/05-questions.md` includes correct-answer marking steps; `CHANGELOG.md` current through v0.5.22
 
 ---
 
