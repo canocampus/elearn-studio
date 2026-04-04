@@ -202,20 +202,16 @@ export async function resolveAssetUrl(objectName: string): Promise<string> {
 }
 
 export async function uploadAsset(file: File): Promise<AssetUploadResult> {
-  const { useAuthStore } = await import('../store/authStore')
-  const token = useAuthStore.getState().accessToken
+  const { apiFetch } = await import('./apiClient')
 
   const formData = new FormData()
   formData.append('file', file)
-  const headers: Record<string, string> = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const API_BASE = import.meta.env.VITE_API_URL ?? ''
-  const res = await fetch(`${API_BASE}/assets`, {
+  // apiFetch handles Bearer injection and silent token refresh on 401.
+  // Do NOT set Content-Type — browser must set it with the multipart boundary.
+  const res = await apiFetch('/assets', {
     method: 'POST',
     body: formData,
-    headers,
-    credentials: 'include',
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '')

@@ -211,9 +211,8 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
       data: { accessToken, user: { id: user.id, email: user.email, role: user.role } },
     })
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error)
     logger.error({ error }, 'User login failed')
-    res.status(500).json({ success: false, error: `Internal server error: ${msg}` })
+    res.status(500).json({ success: false, error: 'Internal server error' })
   }
 })
 

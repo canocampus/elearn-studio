@@ -276,16 +276,14 @@ describe('DELETE /courses/:id/slides/:slideId', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 200 with slide removed when slideId does not match any slide (no-op pull)', async () => {
-    // MongoDB $pull with no matching subdocument is a no-op — course returns 200 with slides unchanged
+  it('returns 404 when slideId does not match any slide (A-05 regression)', async () => {
+    // A-05: DELETE slide must return 404 when slideId doesn't exist, not silently 200
     const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'C' })
     const id = created.data._id
     await request(app).post(`/courses/${id}/slides`).set(auth).send({ title: 'S1' })
 
     const res = await request(app).delete(`/courses/${id}/slides/non-existent-slide-id`).set(auth)
-    // The route returns 200 with unchanged slides (MongoDB $pull is a no-op)
-    expect(res.status).toBe(200)
-    expect(res.body.data.slides).toHaveLength(1)
+    expect(res.status).toBe(404)
   })
 })
 

@@ -646,6 +646,12 @@ coursesRouter.delete('/:id/slides/:slideId', async (req, res) => {
     res.status(400).json({ success: false, error: 'Invalid course id' })
     return
   }
+  // Verify the slide exists before pulling it so a missing slideId returns 404 not 200.
+  const before = await Course.findOne({ _id: req.params.id, deletedAt: null, 'slides.id': req.params.slideId })
+  if (!before) {
+    res.status(404).json({ success: false, error: 'Course or slide not found' })
+    return
+  }
   const course = await Course.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },
     { $pull: { slides: { id: req.params.slideId } } },
