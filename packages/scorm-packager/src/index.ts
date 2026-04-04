@@ -41,7 +41,7 @@ export type {
   CourseDoc,
 } from '@elearn-studio/shared-types'
 
-import type { Bounds, BaseWidget, Slide, CourseSettings, SCORMMetadata, CourseDoc } from '@elearn-studio/shared-types'
+import type { CourseDoc } from '@elearn-studio/shared-types'
 
 // ─── Options ──────────────────────────────────────────────────────────────────
 

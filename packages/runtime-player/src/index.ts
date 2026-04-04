@@ -28,9 +28,8 @@ import {
 import { saveSuspendData, restoreSuspendData } from './suspend'
 import { EventDispatcher } from './actions/dispatcher'
 import { createExecutionContext } from './actions/context'
-import type { ActionSequence, SharedActionSequence } from './actions/types'
 import type {
-  Bounds, BaseWidget, Slide, CourseSettings, SCORMMetadata, CourseDoc,
+  Bounds, BaseWidget, Slide, CourseSettings, CourseDoc,
   FillMatchType,
 } from '@elearn-studio/shared-types'
 
