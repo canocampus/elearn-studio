@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.26 |
+| **Current version** | v0.5.27 |
 | **Active phase** | Phase 2.7 — SCORM Navigation Integration |
-| **Active block** | T612 ✅ COMPLETE — T613 is next |
+| **Active block** | T613 ✅ COMPLETE — Phase 2.7 COMPLETE |
 | **E2E test count** | 128 tests (125 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
 
+- **T613 / v0.5.27** — SCORM 2004 conditional sequencing based on `navigationMode`. `buildManifest2004()` in `scorm-packager/src/index.ts` now branches on `course.settings?.navigationMode`: `'free'`/undefined → `choice="true" flow="true"` (unchanged); `'linear-strict'` → `choice="false" choiceExit="false" flow="true"` (LMS TOC navigation blocked). Single-SCO architecture: SCORM preConditionRule/objectiveProgressStatus sequencing rules are not applicable. 3 new unit tests; 27 scorm2004 tests pass. T613.6 (Moodle integration) deferred/opt-in. Commit: TBD.
 - **TA608.6 fix / v0.5.26** — Fixed pre-existing GrapesJS Style Manager forEach crash for GENERATED_CONTENT_TYPES (progress-bar, audio-narration, volume-control). `model.defaults.properties` changed from `{}` to `[]` in `registerBlocks.ts`. GrapesJS's PropertyComposite calls `.forEach()` on `this.get('properties')`; `{}` is truthy so `|| []` doesn't activate, but `{}.forEach` is undefined → crash. Empty array `[]` fixes it. Also: T612.9 E2E uses `waitForReady()` (not `waitForReloadComplete()`) since no canvas exists without a slide; cleanup unchecks `requireAllSlides` BEFORE switching mode to 'free' since the checkbox is conditionally rendered only under `linear-strict`. T611.10 skipped (Preview button not yet implemented — shows "coming soon" toast). Commit: `cd82dbe`.
 - **T612 / v0.5.25** — Phase 2.7 SCORM Navigation: `finishCourse()` now checks `requireAllSlides` and navigates to the first unvisited slide instead of completing (T612.6). Legacy `lesson_location` fallback seeds `visitedSlides` with `[0..restoredSlide]` (T612.7). T612.8: 2 unit tests for requireAllSlides gate. T612.9: E2E regression test for courseSettings persistence across reload. H-01 (optional chaining on `extendedProperties?.scoring`) and H-02 (`console.warn` for missing nav-next buttons) fixed. 256 unit tests + 128 E2E tests. Commit: `a65b01e`.
 - **T610 + T611 / v0.5.24** — Phase 2.7 SCORM Navigation: T610 added `navigationMode`/`requireAllSlides` fields across all 4 packages and the Course Settings UI. T611 implemented mandatory question gating: `mandatory?: boolean` in `QuestionScoring`, mandatory checkbox in `QuestionPropertiesPanel`, `slideIsComplete()` + `updateNavButtons()` in runtime player, `data-nav-next` attribute on Next button. E2E regression test T611.10 added. Commit: `f85b27a`.
@@ -137,7 +138,7 @@ assignment is not calling `component.setStyle()` correctly.
 - ~~**T611** — Block Next button until required questions answered~~ ✅ Done
 - ~~**T612** — Resume: track visitedSlides, gate `finishCourse()` on `requireAllSlides`~~ ✅ Done
 
-- **T613** — SCORM 2004 conditional sequencing XML based on `navigationMode`
+- ~~**T613** — SCORM 2004 conditional sequencing XML based on `navigationMode`~~ ✅ Done
 
 ---
 

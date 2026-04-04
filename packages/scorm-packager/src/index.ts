@@ -156,10 +156,17 @@ function buildManifest2004(course: CourseDoc): string {
       .ele('title').txt(title).up()
   // SCORM 2004 uses completionThreshold (normalized) instead of masteryscore
   item.ele('adlcp:completionThreshold').txt(completionThreshold).up()
-  // Linear sequencing: allow choice navigation and flow, let content set completion/success
+  // Sequencing: controlMode depends on navigationMode.
+  // 'free' (default): choice navigation enabled — LMS TOC is freely accessible.
+  // 'linear-strict': choice and choiceExit disabled — LMS must not allow learner
+  //   to jump to a different TOC item; slide-level gating is enforced by the runtime player.
+  const isLinearStrict = course.settings?.navigationMode === 'linear-strict'
+  const controlModeAttrs = isLinearStrict
+    ? { choice: 'false', choiceExit: 'false', flow: 'true' }
+    : { choice: 'true', flow: 'true' }
   item
     .ele('imsss:sequencing')
-      .ele('imsss:controlMode', { choice: 'true', flow: 'true' }).up()
+      .ele('imsss:controlMode', controlModeAttrs).up()
       .ele('imsss:deliveryControls', { completionSetByContent: 'true', objectiveSetByContent: 'true' }).up()
     .up()
   item.up() // close item

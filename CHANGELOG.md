@@ -37,6 +37,28 @@ First tagged release. Delivers a functional end-to-end authoring pipeline: visua
 
 ---
 
+## [0.5.27] — 2026-04-04 — T613: SCORM 2004 conditional sequencing based on navigationMode
+
+### Changed
+- **`buildManifest2004()` conditional `imsss:controlMode`** (`packages/scorm-packager/src/index.ts`) — `<imsss:controlMode>` attributes now depend on `course.settings.navigationMode`. `'free'` (or undefined) keeps existing permissive sequencing: `choice="true" flow="true"`. `'linear-strict'` emits `choice="false" choiceExit="false" flow="true"` — signals to the LMS that TOC navigation is restricted; slide-level gating is enforced by the runtime player.
+
+### Added
+- **3 unit tests for T613** (`packages/scorm-packager/src/__tests__/scorm2004.test.ts`) — `'free'` mode regression (choice="true" preserved), undefined defaults to free, `'linear-strict'` produces `choice="false" choiceExit="false"`. 27 scorm2004 tests pass (up from 24).
+
+### Notes
+- Single-SCO architecture: SCORM `<imsss:sequencingRules>` with `preConditionRule` based on `objectiveProgressStatus` is not applicable — those rules operate across multiple SCOs. For our single-SCO design, `choice="false"` prevents the LMS from showing a jumpable TOC; all slide-level navigation control happens inside the runtime player.
+
+---
+
+## [0.5.26] — 2026-04-04 — TA608.6 fix + T612 HIGH-01/HIGH-02 + T612.9/T611.10 E2E fixes
+
+### Fixed
+- **TA608.6: GrapesJS Style Manager `forEach` crash** (`packages/authoring-ui/src/editor/registerBlocks.ts`) — Changed `model.defaults.properties: {}` to `properties: []` for `audio-narration`, `progress-bar`, and `volume-control` blocks. GrapesJS `PropertyComposite.loadData()` calls `.forEach()` on `this.get('properties')`; `{}` is truthy so `|| []` fallback never activates but `{}.forEach` is `undefined` → `TypeError`. Empty array `[]` fixes the crash.
+- **T612 HIGH-01: Missing `cmi.location` assertion** (`packages/runtime-player/src/__tests__/scorm2004.test.ts`) — Added `expect(store['cmi.location']).toBe('1')` to the requireAllSlides regression test to verify `goToSlide()` was actually called, not just that completion was blocked.
+- **T612 HIGH-02: Free-mode legacy fallback seeded wrong `visitedSlides`** (`packages/runtime-player/src/index.ts`) — The legacy `lesson_location` fallback now seeds `visitedSlides` conditionally: `linear-strict` mode seeds `[0..restoredSlide]` (safe: linear ordering guaranteed); `free` mode seeds only `[restoredSlide]` (safe: learner may have jumped non-sequentially).
+
+---
+
 ## [0.5.25] — 2026-04-04 — T612: visitedSlides Gate + requireAllSlides finishCourse Guard
 
 ### Added

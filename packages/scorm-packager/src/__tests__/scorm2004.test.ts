@@ -178,6 +178,46 @@ describe('imsmanifest.xml — SCORM 2004 schema', () => {
   })
 })
 
+// ─── T613 — imsss:controlMode based on navigationMode ────────────────────────
+
+describe('T613 — imsss:controlMode based on navigationMode', () => {
+  async function getManifest(navigationMode?: 'free' | 'linear-strict'): Promise<string> {
+    const settings = navigationMode
+      ? { width: 1024, height: 768, navigationMode }
+      : { width: 1024, height: 768 }
+    const outDir = path.join(tempDir, `nav-${navigationMode ?? 'undefined'}`)
+    const zipPath = await packSCORM2004(
+      makeCourse({ settings }),
+      outDir,
+      { playerPath: fakePlayerPath },
+    )
+    return new AdmZip(zipPath).getEntry('imsmanifest.xml')!.getData().toString('utf-8')
+  }
+
+  it('free mode generates choice="true" flow="true" (permissive — regression)', async () => {
+    const manifest = await getManifest('free')
+    expect(manifest).toContain('choice="true"')
+    expect(manifest).toContain('flow="true"')
+    expect(manifest).not.toContain('choiceExit')
+  })
+
+  it('undefined navigationMode defaults to free — choice="true" flow="true"', async () => {
+    const manifest = await getManifest(undefined)
+    expect(manifest).toContain('choice="true"')
+    expect(manifest).toContain('flow="true"')
+    expect(manifest).not.toContain('choiceExit')
+  })
+
+  it('linear-strict mode generates choice="false" choiceExit="false" flow="true"', async () => {
+    const manifest = await getManifest('linear-strict')
+    expect(manifest).toContain('choice="false"')
+    expect(manifest).toContain('choiceExit="false"')
+    expect(manifest).toContain('flow="true"')
+    // Must NOT allow free TOC navigation
+    expect(manifest).not.toContain('choice="true"')
+  })
+})
+
 // ─── masteryScore → completionThreshold conversion ───────────────────────────
 
 describe('completionThreshold normalisation', () => {

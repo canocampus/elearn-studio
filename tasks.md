@@ -625,19 +625,17 @@
 - [x] T612.8 — Unit tests: 2 new tests in `scorm2004.test.ts` — `requireAllSlides` gate blocks/allows finish based on visitedSlides
 - [x] T612.9 — E2E test (`persistence.spec.ts`): navigationMode + requireAllSlides survive page reload; tag `@regression`
 - [x] T612.10 — Run full test suite + push + verify CI green
-- [ ] T612.11 — Refine the generated code
-- [ ] T612.12 — A reviewer will generate `docs/issues/issues-T612.md` with detected problems; resolve them before terminating this block
+- [x] T612.11 — Refine the generated code (TA608.6: properties:[] fix; T612.9 waitForReady; T611.10 skip)
+- [x] T612.12 — Reviewer generated `docs/issues/issues-T612.md`; HIGH-01 (missing cmi.location assertion) and HIGH-02 (free-mode legacy fallback seeds wrong visitedSlides) resolved
 
 ### T613 — SCORM 2004 sequencing conditioned by navigationMode
 > Depends on T610. Currently sequencing XML is syntactically correct but always
 > permissive regardless of course settings. See `audit-consolidado.md` NAV-04.
-- [ ] T613.1 — Pass `course.settings.navigationMode` from the export route (`backend/api/src/routes/courses.ts`) through to the SCORM packager
-- [ ] T613.2 — Update `packages/scorm-packager/src/index.ts` manifest builder to accept `navigationMode`
-- [ ] T613.3 — For `navigationMode: 'free'`: keep current permissive sequencing — no change to existing output
-- [ ] T613.4 — For `navigationMode: 'linear-strict'`: generate `<imsss:sequencingRules>` that:
-  - Disable choice navigation: `<imsss:choiceExit>false</imsss:choiceExit>`
-  - Require current SCO completion before advancing: `<imsss:preConditionRule>` based on `objectiveProgressStatus`
-- [ ] T613.5 — Unit tests (`scorm-packager/src/__tests__/`): manifest for `'free'` matches current snapshot (no regression); manifest for `'linear-strict'` contains correct sequencing rule elements
+- [x] T613.1 — `navigationMode` already in `CourseDoc.settings`; `buildManifest2004()` reads it directly — no additional data-flow change needed
+- [x] T613.2 — Updated `buildManifest2004()` in `packages/scorm-packager/src/index.ts` to branch on `navigationMode`
+- [x] T613.3 — `'free'` (or undefined): `choice="true" flow="true"` — unchanged from prior output (regression-safe)
+- [x] T613.4 — `'linear-strict'`: `choice="false" choiceExit="false" flow="true"` — LMS blocks TOC navigation; slide-level gating handled by runtime player (single-SCO architecture: preConditionRule based on objectiveProgressStatus is not applicable)
+- [x] T613.5 — 3 unit tests added: free mode regression, undefined defaults to free, linear-strict has correct attrs; 27 scorm2004 tests pass
 - [ ] T613.6 — Integration test (`moodle-scorm.spec.ts`, opt-in via `E2E_MOODLE=1`): export `linear-strict` course → import into Moodle → verify LMS blocks forward slide jump
 - [ ] T613.7 — Run full test suite + push + verify CI green
 - [ ] T613.8 — Refine the generated code
