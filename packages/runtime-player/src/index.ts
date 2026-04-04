@@ -396,34 +396,42 @@ function renderPhaserSim(w: BaseWidget): string {
 }
 
 function renderWidget(w: BaseWidget): string {
-  if (!w.visible) return ''
+  let html: string
   switch (w.type) {
-    case 'text':         return renderText(w)
-    case 'image':        return renderImage(w)
-    case 'rectangle':    return renderRectangle(w)
-    case 'button':       return renderButton(w)
-    case 'nav-buttons':  return renderNavButtons(w)
-    case 'done-button':     return renderDoneButton(w)
-    case 'suspend-button':  return renderSuspendButton(w)
-    case 'score-field':  return renderScoreField(w)
-    case 'score-quiz':   return renderScoreQuiz(w)
-    case 'media-player':     return renderMediaPlayer(w)
-    case 'audio-narration':  return renderAudioNarration(w)
-    case 'progress-bar':     return renderProgressBar(w)
-    case 'volume-control':   return renderVolumeControl(w)
-    case 'question-mc':     return renderMCQuestion(w)
-    case 'question-tf':     return renderTFQuestion(w)
-    case 'question-fill':   return renderFillQuestion(w)
-    case 'question-match':  return renderMatchItems(w)
-    case 'question-drag':   return renderDragObjects(w)
-    case 'question-drop':   return renderDropTarget(w)
-    case 'question-arrange':return renderArrangeObjects(w)
-    case 'question-order':  return renderOrderText(w)
-    case 'question-hotspot':   return renderHotspot(w)
-    case 'screenshot-sim':     return renderScreenshotSim(w)
-    case 'phaser-sim':         return renderPhaserSim(w)
+    case 'text':         html = renderText(w);          break
+    case 'image':        html = renderImage(w);         break
+    case 'rectangle':    html = renderRectangle(w);     break
+    case 'button':       html = renderButton(w);        break
+    case 'nav-buttons':  html = renderNavButtons(w);    break
+    case 'done-button':     html = renderDoneButton(w);     break
+    case 'suspend-button':  html = renderSuspendButton(w);  break
+    case 'score-field':  html = renderScoreField(w);    break
+    case 'score-quiz':   html = renderScoreQuiz(w);     break
+    case 'media-player':     html = renderMediaPlayer(w);     break
+    case 'audio-narration':  html = renderAudioNarration(w);  break
+    case 'progress-bar':     html = renderProgressBar(w);     break
+    case 'volume-control':   html = renderVolumeControl(w);   break
+    case 'question-mc':     html = renderMCQuestion(w);    break
+    case 'question-tf':     html = renderTFQuestion(w);    break
+    case 'question-fill':   html = renderFillQuestion(w);  break
+    case 'question-match':  html = renderMatchItems(w);    break
+    case 'question-drag':   html = renderDragObjects(w);   break
+    case 'question-drop':   html = renderDropTarget(w);    break
+    case 'question-arrange':html = renderArrangeObjects(w);break
+    case 'question-order':  html = renderOrderText(w);     break
+    case 'question-hotspot':   html = renderHotspot(w);         break
+    case 'screenshot-sim':     html = renderScreenshotSim(w);   break
+    case 'phaser-sim':         html = renderPhaserSim(w);       break
     default: return ''
   }
+  // Widgets with visible:false are rendered hidden so show/hide actions can operate on them.
+  // Inject display:none and data-hidden into the outer element's style attribute.
+  if (!w.visible) {
+    html = html
+      .replace(`id="w-${w.id}"`, `id="w-${w.id}" data-hidden="true"`)
+      .replace(/style="/, 'style="display:none;')
+  }
+  return html
 }
 
 // ─── Slide asset prefetching (T042.3) ─────────────────────────────────────────

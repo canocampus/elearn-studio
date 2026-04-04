@@ -178,7 +178,7 @@ describe('T605.4 — renderSlide() HTML output', () => {
     expect(el.style.height).toBe('80px')
   })
 
-  it('does not render invisible widgets (visible: false)', () => {
+  it('renders invisible widgets hidden so show/hide actions can operate on them (visible: false)', () => {
     init('renderer-test', makeCourse([
       {
         id: 's1', title: 'Slide 1',
@@ -186,8 +186,11 @@ describe('T605.4 — renderSlide() HTML output', () => {
       },
     ]))
 
-    const el = container.querySelector('#w-w-hidden')
-    expect(el).toBeNull()
+    const el = container.querySelector<HTMLElement>('#w-w-hidden')
+    expect(el).not.toBeNull()
+    // Must start with display:none and data-hidden so show() action can restore it
+    expect(el!.style.display).toBe('none')
+    expect(el!.getAttribute('data-hidden')).toBe('true')
   })
 
   it('renders multiple widgets in z-index layer order', () => {
