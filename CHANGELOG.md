@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.31] — 2026-04-04 — D-01: introduce @elearn-studio/shared-types as monorepo type authority
+
+### Refactored
+- **New package `packages/shared-types/`** — Single source of truth for all domain types shared across the monorepo: `WidgetType`, `BaseWidget`, `Bounds`, `CourseDoc`, `Slide`, `SlideTemplate`, `Resource`, `CourseSettings`, `SCORMMetadata`, `NavigationMode`, `SharedActionSequence`, `ActionSequence`, and all question types (`QuestionType`, `MCExtendedProperties`, `TFExtendedProperties`, `FillExtendedProperties`, `MC_DEFAULT_EXTENDED`, `TF_DEFAULT_EXTENDED`, `FILL_DEFAULT_EXTENDED`). Prior to D-01 these were defined in `authoring-ui/src/types/` and duplicated or re-exported ad-hoc in other packages.
+- **Dual CJS + ESM build** — `packages/shared-types/package.json` adds `"module": "dist/esm/index.js"` alongside `"main": "dist/index.js"`. `tsconfig.esm.json` builds the ESM output (`module: ESNext`, `moduleResolution: Bundler`) so Vite/Rollup consumers (authoring-ui) can statically analyse named exports. Node.js consumers (backend, scorm-packager) use the CJS output.
+- **Migrated consumers** — `authoring-ui`, `backend/api`, `runtime-player`, and `scorm-packager` all updated to import domain types from `@elearn-studio/shared-types`. Local type definitions removed where they duplicated shared-types.
+- **`CourseDoc` optional fields** — `templates?`, `resources?`, `sharedSequences?`, `deletedAt?`, `createdAt?`, `updatedAt?`, `passingScore?`, `masteryScore?` made optional to match real test fixtures and allow intentional fallback tests.
+- **`WidgetType` export** — `scorm-packager/src/index.ts` now re-exports `WidgetType` so test helpers can type `makeWidget(type: WidgetType)` without widening to `string`.
+
+### Technical note
+24 files changed, 790 insertions(+), 850 deletions(−). All 1444 tests across 8 packages pass. Pre-existing TS2367 warnings for `widget.type === 'question-arrange'` / `'question-order'` in runtime-player (these types not yet in `WIDGET_TYPES`) left as-is — build succeeds with warnings; to be addressed when those widgets are implemented.
+
+---
+
 ## [0.5.30] — 2026-04-04 — GrapesJS-React refactor: eliminate isLocalRef pattern
 
 ### Refactored

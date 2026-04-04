@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-04 — GrapesJS-React refactor: isLocalRef pattern fully eliminated (v0.5.30)
+> Last updated: 2026-04-04 — D-01: @elearn-studio/shared-types introduced as monorepo type authority (v0.5.31)
 
 ---
 
@@ -11,7 +11,7 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.30 |
+| **Current version** | v0.5.31 |
 | **Active phase** | Audit consolidado cleanup ✅ CLOSED |
 | **Active block** | — All audit issues resolved |
 | **E2E test count** | 128 tests (125 passing, 3 skipped incl. T611.10) |
@@ -19,6 +19,8 @@
 ---
 
 ## What Was Last Done
+
+- **D-01 shared-types refactor / v0.5.31** — Introduced `packages/shared-types/` as single source of truth for all widget/course/action/question types across the monorepo. Migrated `WidgetType`, `BaseWidget`, `Bounds`, `CourseDoc`, `Slide`, `SlideTemplate`, `Resource`, `CourseSettings`, `SCORMMetadata`, `NavigationMode`, `ActionSequence`, `SharedActionSequence`, and all question types out of `authoring-ui/src/types/` into `@elearn-studio/shared-types`. Added dual CJS + ESM build (`dist/index.js` + `dist/esm/index.js`) so Vite/Rollup consumers (authoring-ui) can statically analyse named exports and Node.js consumers (backend, scorm-packager) get CJS. Made `CourseDoc.templates?`, `resources?`, `sharedSequences?`, `deletedAt?`, `createdAt?`, `updatedAt?` optional and `passingScore?`/`masteryScore?` optional to match real fixtures and allow intentional fallback tests. Fixed `courseHasPhaserSim.test.ts` `makeWidget(type: WidgetType)` narrowing issue. 24 files changed, 790 insertions, 850 deletions. All 1444 tests across 8 packages pass. Commit: `f73576e`.
 
 - **GrapesJS-React refactor / v0.5.30** — Fully eliminated the `isLocalRef` / `useRef(false)` anti-pattern from all 6 property panels. `AnimationPropertiesPanel` split into outer (null checks) + inner (`AnimationPanelContent`, receives guaranteed non-null `Component`) to fix null-safety crash from `component as never` cast. `QuestionPropertiesPanel` local `useExtendedProperties<T>` hook (49 lines with `isLocalRef`) replaced with a 7-line thin wrapper delegating to `useComponentProperty`. All panels now use shared `useComponentProperty<T>` / `useExtendedProperty<T>` from `hooks/useComponentProperty.ts`. 644 unit tests pass. Pending: commit.
 - **Audit consolidado closure / v0.5.29** — Closed all remaining open ALTO and DEUDA TÉCNICA issues. A-06: replaced misleading "atomic single write" comment with accurate race-condition note in `PATCH /slides/reorder`. D-03: deleted 9 debug/test files from repo root (PHP, JS — untracked, already in .gitignore). D-05: deleted 4 `rollup.config-*.mjs` temp files from `packages/runtime-player/` (untracked, already in .gitignore). Confirmed A-01, A-05, A-07 already fixed in T600-T608. Confirmed D-04 untracked and in .gitignore. 131/131 backend API tests pass.
@@ -46,7 +48,8 @@
 - **Audit consolidado** — 4 auditorías integradas en `docs/issues/audit-consolidado.md`;
   todos los issues ALTO y DEUDA TÉCNICA cerrados (v0.5.29).
   bugs sistémicos pendientes (críticos, no iniciados): C-01 (actions engine), C-02 (sharedSequences),
-  C-03 (SCORM assets), C-04 (question form React state — **already fixed** en T602), C-05/NAV-01 a NAV-04 (navegación — **already fixed** en T610-T613)
+  C-03 (SCORM assets), C-04 (question form React state — **already fixed** en T602), C-05/NAV-01 a NAV-04 (navegación — **already fixed** en T610-T613).
+  D-01 shared-types refactor — **completed** en v0.5.31.
 
 Full history: `CHANGELOG.md`
 
@@ -141,8 +144,13 @@ assignment is not calling `component.setStyle()` correctly.
 - ~~**T610** — Add `navigationMode`/`requireAllSlides` to CourseSettings~~ ✅ Done
 - ~~**T611** — Block Next button until required questions answered~~ ✅ Done
 - ~~**T612** — Resume: track visitedSlides, gate `finishCourse()` on `requireAllSlides`~~ ✅ Done
-
 - ~~**T613** — SCORM 2004 conditional sequencing XML based on `navigationMode`~~ ✅ Done
+
+### Audit Consolidado — Bugs Sistémicos (next up)
+- ~~**D-01** — `@elearn-studio/shared-types` as monorepo type authority~~ ✅ Done (v0.5.31)
+- **C-01** — Wire actions engine to runtime-player ← **NEXT**
+- **C-02** — `sharedSequences` Mongoose model support
+- **C-03** — SCORM export asset bundling
 
 ---
 
