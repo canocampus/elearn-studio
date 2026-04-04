@@ -6,17 +6,6 @@
 
 import type { Component } from 'grapesjs'
 import type { BaseWidget, Bounds, WidgetType } from '../types/course'
-import {
-  MC_DEFAULT_EXTENDED,
-  TF_DEFAULT_EXTENDED,
-  FILL_DEFAULT_EXTENDED,
-} from '../types/questions'
-import type { MCExtendedProps, TFExtendedProps, FillExtendedProps } from '../types/questions'
-import {
-  buildMCPreviewHTML,
-  buildTFPreviewHTML,
-  buildFillPreviewHTML,
-} from './registerQuestionBlocks'
 
 /**
  * Shape of a GrapesJS component definition as produced by grapesjsFromWidgets.
@@ -258,28 +247,12 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
       def.src = props.src
     }
 
-    // Pre-render question widget previews into def.content so GrapesJS natively
-    // displays the widget on load. Question widgets use extendFnView: ['initialize']
-    // and onRender() to display content; def.content provides the initial render
-    // before onRender() fires on first mount.
-    // Non-question widgets (progress-bar, audio-narration, etc.) use extendFnView
-    // and onRender() exclusively — do NOT set def.content for them because GrapesJS
-    // parses nested HTML content strings into child component definitions during
-    // loadData(), and those auto-generated child definitions lack `actions: []`,
-    // causing "Cannot read properties of undefined (reading 'forEach')" crashes.
-    if (w.type === 'question-mc') {
-      const raw = w.extendedProperties as Partial<MCExtendedProps> | undefined
-      const ep: MCExtendedProps = raw?.options ? (raw as MCExtendedProps) : MC_DEFAULT_EXTENDED
-      def.content = buildMCPreviewHTML(ep)
-    } else if (w.type === 'question-tf') {
-      const raw = w.extendedProperties as Partial<TFExtendedProps> | undefined
-      const ep: TFExtendedProps = raw?.scoring ? (raw as TFExtendedProps) : TF_DEFAULT_EXTENDED
-      def.content = buildTFPreviewHTML(ep)
-    } else if (w.type === 'question-fill') {
-      const raw = w.extendedProperties as Partial<FillExtendedProps> | undefined
-      const ep: FillExtendedProps = raw?.scoring ? (raw as FillExtendedProps) : FILL_DEFAULT_EXTENDED
-      def.content = buildFillPreviewHTML(ep)
-    }
+    // Do NOT set def.content for any composite widget type (questions, nav-buttons,
+    // score-quiz, media-player, etc.). GrapesJS parses HTML content strings into
+    // child component definitions during loadData(), and those auto-generated child
+    // definitions lack `actions: []`, causing "Cannot read properties of undefined
+    // (reading 'forEach')" crashes. All composite widgets use extendFnView and
+    // onRender() exclusively to render their preview content.
     return def
   })
 }
