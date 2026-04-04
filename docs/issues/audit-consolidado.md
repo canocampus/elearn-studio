@@ -548,7 +548,7 @@ ante un problema que ya no existe con React 18.
 
 ---
 
-## Foto actual del audit — 2026-04-04 (v0.5.30)
+## Foto actual del audit — 2026-04-04 (v0.5.35)
 
 | ID | Nivel | Descripción | Estado |
 |---|---|---|---|
@@ -573,5 +573,9 @@ ante un problema que ya no existe con React 18.
 | D-04 | DEUDA | openapi.json / generated.ts commiteados | ✅ CERRADO (v0.5.29) |
 | D-05 | DEUDA | Rollup config temporales commiteados | ✅ CERRADO (v0.5.29) |
 | R-01 | REFACTOR | isLocalRef pattern en 6 property panels | ✅ CERRADO (v0.5.30) |
+| CRÍTICO-01 (T621) | CRÍTICO | Stale closure en useExtendedProperties | ✅ CERRADO (64a2ed9 + v0.5.35) |
+| CRÍTICO-02 (T620) | CRÍTICO | Optimistic update ausente en useComponentProperty | ✅ CERRADO (64a2ed9 + v0.5.35) |
+| CRÍTICO-03 (T623) | CRÍTICO | Prototype chain hack en image widget initialize() | ✅ CERRADO (64a2ed9 + v0.5.35) |
+| CRÍTICO-04 (T622) | CRÍTICO | Sin banner persistente de error de guardado | ✅ CERRADO (64a2ed9 + v0.5.35) |
 
-**Todos los críticos cerrados:** C-01 (df7af97 v0.5.32), C-02 (5c59d6d v0.5.33), C-03 (v0.5.34), D-01 (f73576e v0.5.31). Audit consolidado 100% resuelto.
+**Todos los críticos cerrados:** C-01 (df7af97 v0.5.32), C-02 (5c59d6d v0.5.33), C-03 (v0.5.34), D-01 (f73576e v0.5.31). Phase 2.8 CRÍTICO-01 a CRÍTICO-04 (64a2ed9 v0.5.35). Audit consolidado 100% resuelto.

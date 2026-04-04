@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-04 — C-03: SCORM export asset bundling + E2E gate (v0.5.34)
+> Last updated: 2026-04-04 — Phase 2.8: Authoring UI Hardening (v0.5.35)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.34 |
-| **Active phase** | Audit consolidado — COMPLETO |
-| **Active block** | — (todos los críticos cerrados) |
+| **Current version** | v0.5.35 |
+| **Active phase** | Phase 2.8 — Authoring UI Hardening (COMPLETO) |
+| **Active block** | — (todos completados) |
 | **E2E test count** | 131 tests (128 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **Phase 2.8 Authoring UI Hardening / v0.5.35** — Four CRÍTICO fixes from Gemini code audit. T620: `useComponentProperty.ts` applies optimistic `setValue(newValue)` before `comp.set()` so controlled inputs never freeze; `latestRef = useRef(value)` tracks latest value to prevent stale closures. T621: `useExtendedProperties` wrapper reads `comp.get('extendedProperties')` directly (always current via Backbone.set) rather than stale closure `ep` — eliminates cascade-edit data loss. T622: `SaveErrorBanner.tsx` persistent red banner below TopToolbar; reads `saveError` from Zustand; Retry calls `editor.store()`, clears optimistically on success, updates message on failure; non-dismissible by design; SlideList navigation blocked when `saveError !== null`; TopToolbar "Save failed" badge added. T623: `extendFnView: ['initialize']` added to image widget view — removes `Object.getPrototypeOf(Object.getPrototypeOf(this))` prototype chain hack. 649 unit tests pass. Commit: `64a2ed9`.
 
 - **C-03 SCORM export asset bundling / v0.5.34** — Verified the full 4-step asset pipeline in `backend/api/src/routes/courses.ts` was already implemented: `collectAssetSrcs()` extracts `/assets/<uuid>.ext` srcs from all slide widgets, `downloadAssets()` streams each object from Garage S3 to a tmpdir, `rewriteAssetSrcs()` deep-clones the course replacing `/assets/` with `assets/` (relative), `packSCORM12(rewrittenCourse, tmpDir, { assetPaths })` bundles assets into the ZIP. Added E2E gate tests to `packages/scorm-packager/src/__tests__/index.test.ts`: C-03a verifies asset file appears in ZIP at `assets/<uuid>.png`; C-03b verifies `index.html` contains relative `assets/<uuid>.png` and NOT `/assets/<uuid>.png`. 46 scorm-packager tests pass. Commit: included in v0.5.34.
 
@@ -156,6 +158,12 @@ assignment is not calling `component.setStyle()` correctly.
 - ~~**C-01** — Wire actions engine to runtime-player~~ ✅ Done (v0.5.32)
 - ~~**C-02** — `sharedSequences` Mongoose model support~~ ✅ Done (v0.5.33)
 - ~~**C-03** — SCORM export asset bundling~~ ✅ Done (v0.5.34)
+
+### Phase 2.8 — Authoring UI Hardening — COMPLETO ✅
+- ~~**T620** — Fix optimistic update in useComponentProperty~~ ✅ Done (64a2ed9 v0.5.35)
+- ~~**T621** — Fix stale closure in useExtendedProperties~~ ✅ Done (64a2ed9 v0.5.35)
+- ~~**T622** — Save error blocking banner (SaveErrorBanner)~~ ✅ Done (64a2ed9 v0.5.35)
+- ~~**T623** — Replace prototype chain hack in image widget~~ ✅ Done (64a2ed9 v0.5.35)
 
 ### Audit consolidado — COMPLETO ✅
 Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerrados.

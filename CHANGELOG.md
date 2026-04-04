@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.35] — 2026-04-04 — Phase 2.8: Authoring UI Hardening (CRÍTICO-01 through CRÍTICO-04)
+
+### Fixed
+- **T620 — Optimistic update in `useComponentProperty`** (`packages/authoring-ui/src/hooks/useComponentProperty.ts`) — `setValue(newValue)` now fires before `comp.set()` so controlled inputs never freeze or bounce back. Added `latestRef = useRef(value)` to track latest state and prevent stale closures in the `update()` callback.
+- **T621 — Stale closure in `useExtendedProperties`** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — `update(patch)` now reads `comp.get('extendedProperties')` directly (synchronous Backbone read, always current) rather than spreading over the stale closure variable `ep`. Eliminates data loss on rapid cascading edits (add option + change question text in quick succession).
+- **T622 — Persistent save error banner** (`packages/authoring-ui/src/components/ui/SaveErrorBanner.tsx`, `AppLayout.tsx`, `TopToolbar.tsx`, `SlideList.tsx`) — New `SaveErrorBanner` component renders a permanent `role="alert"` red banner below TopToolbar when `saveError !== null`. Retry button calls `editor.store()`, clears error optimistically on success, updates message on failure. Slide navigation blocked while error is active. TopToolbar shows "Save failed" badge.
+- **T623 — Prototype chain hack in image widget** (`packages/authoring-ui/src/editor/registerBlocks.ts`) — Replaced `Object.getPrototypeOf(Object.getPrototypeOf(this)).initialize.call(this, props)` with `extendFnView: ['initialize']`, letting GrapesJS call parent `initialize()` automatically via its public extension API.
+
+### Added
+- **`packages/authoring-ui/src/__tests__/SaveErrorBanner.test.tsx`** — 5 unit tests: renders nothing when saveError null; renders banner when saveError set; retry success clears banner; retry failure updates message; no-op when editor is null.
+
+---
+
 ## [0.5.34] — 2026-04-04 — C-03: SCORM export asset bundling + path rewriting
 
 ### Fixed
