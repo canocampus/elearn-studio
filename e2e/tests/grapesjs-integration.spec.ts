@@ -215,12 +215,16 @@ test.describe('AnimationPropertiesPanel — FM-06 regression', () => {
     await page.waitForTimeout(200)
 
     // Rename it
+    // NOTE: input[value="..."] is a CSS attribute selector. After fill() fires React's
+    // onChange which re-renders the controlled input, the DOM attribute updates to the
+    // new value — making the original locator stale. Use page.keyboard.press() which
+    // doesn't need to re-locate the element, to press Tab after filling.
     const nameInput = page.locator('input[value="New Animation"]')
     await nameInput.click({ clickCount: 3 })
     await nameInput.fill('FM-06 sentinel name')
-    await nameInput.press('Tab')
+    await page.keyboard.press('Tab')
     // Immediately switch slides — well within the 2s debounce window
-    // AnimationPropertiesPanel.save() must call editor.store() synchronously
+    // The animation is persisted via onChange → updateAnimation → setEp → comp.set()
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
     await slides.last().click()
