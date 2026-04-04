@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.32] — 2026-04-04 — C-01: wire actions engine E2E gate (show/hide/call-sequence)
+
+### Fixed
+- **`renderWidget()` invisible widget bug** (`packages/runtime-player/src/index.ts`) — widgets with `visible: false` were omitted from the DOM entirely (`return ''`), making `show` actions a silent no-op. Now rendered with `style="display:none"` and `data-hidden="true"` so `executeShow()` can find and reveal them.
+- **`slideRenderer.test.ts`** — updated test `'does not render invisible widgets'` to assert the new correct behaviour: element is present in DOM, `style.display === 'none'`, `data-hidden === 'true'`.
+
+### Added
+- **`e2e/tests/runtime-player-actions.spec.ts`** — C-01 E2E regression gate. Reads the built `dist/player.js`, inlines it into a bare HTML page via `page.setContent()`, injects a crafted course JSON, and asserts DOM mutations produced by the actions engine. Three tests:
+  - C-01.1 — hide action sets `display:none` + `data-hidden="true"` on button click
+  - C-01.2 — show action removes `display:none` / `data-hidden` on an initially-hidden widget
+  - C-01.3 — call-sequence action executes a `sharedSequence` that calls hide
+
+### Technical note
+All 256 runtime-player unit tests + 3 new C-01 E2E tests pass (481ms / 259ms / 296ms). Gate of closure per audit-consolidado: "show/hide and call-sequence executed by the real runtime player, verified with an E2E test that checks the resulting DOM."
+
+---
+
 ## [0.5.31] — 2026-04-04 — D-01: introduce @elearn-studio/shared-types as monorepo type authority
 
 ### Refactored

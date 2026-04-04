@@ -552,7 +552,7 @@ ante un problema que ya no existe con React 18.
 
 | ID | Nivel | Descripción | Estado |
 |---|---|---|---|
-| C-01 | CRÍTICO | Motor de acciones no cableado al runtime | 🔴 Abierto |
+| C-01 | CRÍTICO | Motor de acciones no cableado al runtime | ✅ CERRADO (df7af97 + v0.5.32) |
 | C-02 | CRÍTICO | sharedSequences roto E2E | 🔴 Abierto |
 | C-03 | CRÍTICO | SCORM export no empaqueta assets | 🔴 Abierto |
 | C-04 | CRÍTICO | React state en formularios de preguntas | ✅ CERRADO (T602 + v0.5.30) |

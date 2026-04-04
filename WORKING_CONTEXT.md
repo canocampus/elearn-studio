@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-04 — D-01: @elearn-studio/shared-types introduced as monorepo type authority (v0.5.31)
+> Last updated: 2026-04-04 — C-01: wire actions engine E2E gate — show/hide/call-sequence (v0.5.32)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.31 |
-| **Active phase** | Audit consolidado cleanup ✅ CLOSED |
-| **Active block** | — All audit issues resolved |
-| **E2E test count** | 128 tests (125 passing, 3 skipped incl. T611.10) |
+| **Current version** | v0.5.32 |
+| **Active phase** | Audit consolidado — bugs sistémicos |
+| **Active block** | C-02 — sharedSequences Mongoose + runtime |
+| **E2E test count** | 131 tests (128 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **C-01 actions engine E2E gate / v0.5.32** — Wired actions engine to runtime player with full E2E verification. Root bug: `renderWidget()` in `packages/runtime-player/src/index.ts` was returning `''` for `visible: false` widgets, making `show` actions impossible (no DOM element to operate on). Fix: render invisible widgets with `style="display:none"` + `data-hidden="true"` so `executeShow()` can find and reveal them. `slideRenderer.test.ts` updated to assert new behavior. New E2E spec `e2e/tests/runtime-player-actions.spec.ts` with 3 tests (C-01.1 hide, C-01.2 show, C-01.3 call-sequence) — all green at 259–481ms. Commit: `df7af97`.
 
 - **D-01 shared-types refactor / v0.5.31** — Introduced `packages/shared-types/` as single source of truth for all widget/course/action/question types across the monorepo. Migrated `WidgetType`, `BaseWidget`, `Bounds`, `CourseDoc`, `Slide`, `SlideTemplate`, `Resource`, `CourseSettings`, `SCORMMetadata`, `NavigationMode`, `ActionSequence`, `SharedActionSequence`, and all question types out of `authoring-ui/src/types/` into `@elearn-studio/shared-types`. Added dual CJS + ESM build (`dist/index.js` + `dist/esm/index.js`) so Vite/Rollup consumers (authoring-ui) can statically analyse named exports and Node.js consumers (backend, scorm-packager) get CJS. Made `CourseDoc.templates?`, `resources?`, `sharedSequences?`, `deletedAt?`, `createdAt?`, `updatedAt?` optional and `passingScore?`/`masteryScore?` optional to match real fixtures and allow intentional fallback tests. Fixed `courseHasPhaserSim.test.ts` `makeWidget(type: WidgetType)` narrowing issue. 24 files changed, 790 insertions, 850 deletions. All 1444 tests across 8 packages pass. Commit: `f73576e`.
 
@@ -148,8 +150,8 @@ assignment is not calling `component.setStyle()` correctly.
 
 ### Audit Consolidado — Bugs Sistémicos (next up)
 - ~~**D-01** — `@elearn-studio/shared-types` as monorepo type authority~~ ✅ Done (v0.5.31)
-- **C-01** — Wire actions engine to runtime-player ← **NEXT**
-- **C-02** — `sharedSequences` Mongoose model support
+- ~~**C-01** — Wire actions engine to runtime-player~~ ✅ Done (v0.5.32)
+- **C-02** — `sharedSequences` Mongoose model support ← **NEXT**
 - **C-03** — SCORM export asset bundling
 
 ---
