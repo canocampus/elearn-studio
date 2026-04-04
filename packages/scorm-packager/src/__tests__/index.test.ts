@@ -763,6 +763,7 @@ describe('C-03 — asset bundling and path rewriting gate', () => {
           properties: { src: `assets/${assetUuid}.png` },  // already rewritten (relative)
           visible: true,
           layer: 1,
+          extendedProperties: {},
         }],
       }],
     })
@@ -796,6 +797,7 @@ describe('C-03 — asset bundling and path rewriting gate', () => {
           properties: { src: `assets/${assetUuid}.png` },  // relative — as rewritten by backend
           visible: true,
           layer: 1,
+          extendedProperties: {},
         }],
       }],
     })
