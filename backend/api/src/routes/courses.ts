@@ -552,7 +552,10 @@ coursesRouter.patch('/:id/slides/reorder', async (req, res) => {
   }
   const orderedIds = body.orderedIds as string[]
 
-  // Fetch the course once and reorder in-memory — atomic single write
+  // NOTE: This is a read-then-write, not a true atomic operation.
+  // A concurrent reorder between the findOne and findOneAndUpdate could cause a
+  // lost update. In practice the risk is low (reorder is a manual UI drag operation),
+  // but do not assume this is safe under high concurrency.
   const course = await Course.findOne({ _id: req.params.id, deletedAt: null })
   if (!course) {
     res.status(404).json({ success: false, error: 'Course not found' })
