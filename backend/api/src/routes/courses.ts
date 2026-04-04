@@ -9,6 +9,78 @@ import { Course } from '../models/Course'
 import { AuditLog } from '../models/AuditLog'
 import { logAudit } from '../lib/auditLogger'
 import { packSCORM12 } from '@elearn-studio/scorm-packager'
+import { getObject } from '../storage/s3'
+import { pipeline } from 'stream/promises'
+import * as fss from 'fs'
+
+// C-03: objectName pattern for asset srcs stored in the course — matches UUID + whitelisted ext
+const ASSET_SRC_RE = /^\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.[a-z0-9]+)$/
+
+/**
+ * C-03: Extract all asset objectNames referenced in widget properties.src fields.
+ * Returns a deduplicated map: objectName → relative zip path ("assets/<objectName>").
+ */
+function collectAssetSrcs(slides: Array<{ widgets: Array<{ properties?: Record<string, unknown> }> }>): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const slide of slides) {
+    for (const widget of slide.widgets) {
+      const src = widget.properties?.src
+      if (typeof src === 'string') {
+        const m = ASSET_SRC_RE.exec(src)
+        if (m) map.set(m[1], `assets/${m[1]}`)
+      }
+    }
+  }
+  return map
+}
+
+/**
+ * C-03: Deep-clone the course object and rewrite all widget properties.src from
+ * "/assets/<objectName>" to "assets/<objectName>" (relative path within ZIP).
+ */
+function rewriteAssetSrcs<T extends { slides: Array<{ widgets: Array<{ properties?: Record<string, unknown> }> }> }>(course: T): T {
+  return {
+    ...course,
+    slides: course.slides.map(slide => ({
+      ...slide,
+      widgets: slide.widgets.map(widget => {
+        const src = widget.properties?.src
+        if (typeof src === 'string' && ASSET_SRC_RE.test(src)) {
+          return {
+            ...widget,
+            properties: { ...widget.properties, src: src.replace(/^\/assets\//, 'assets/') },
+          }
+        }
+        return widget
+      }),
+    })),
+  }
+}
+
+/**
+ * C-03: Download all referenced assets from Garage into <tmpDir>/assets/.
+ * Returns assetPaths array for packSCORM12.
+ */
+async function downloadAssets(
+  assetMap: Map<string, string>,
+  tmpDir: string,
+): Promise<Array<{ localPath: string; zipPath: string }>> {
+  const assetsDir = path.join(tmpDir, 'assets')
+  if (!fss.existsSync(assetsDir)) fss.mkdirSync(assetsDir, { recursive: true })
+
+  const assetPaths: Array<{ localPath: string; zipPath: string }> = []
+  for (const [objectName, zipPath] of assetMap.entries()) {
+    const localPath = path.join(tmpDir, zipPath)
+    try {
+      const { stream } = await getObject(objectName)
+      await pipeline(stream, fss.createWriteStream(localPath))
+      assetPaths.push({ localPath, zipPath })
+    } catch {
+      // Non-fatal: if asset is missing in storage, skip it (don't abort the whole export)
+    }
+  }
+  return assetPaths
+}
 
 // Limit per-user SCORM export requests — exports are CPU/disk intensive
 const exportLimiter = rateLimit({
@@ -800,7 +872,15 @@ coursesRouter.post('/:id/export/scorm12', exportLimiter, async (req, res) => {
     // PLAYER_JS_PATH env var allows Docker to provide a pre-built player.js at a
     // known location (e.g. /app/player.js), avoiding reliance on workspace path resolution.
     const playerPath = process.env.PLAYER_JS_PATH
-    const zipPath = await packSCORM12(course.toObject(), tmpDir, playerPath ? { playerPath } : undefined)
+    // C-03: download referenced assets from Garage and rewrite src paths to relative
+    const courseObj = course.toObject()
+    const assetMap = collectAssetSrcs(courseObj.slides)
+    const assetPaths = await downloadAssets(assetMap, tmpDir)
+    const rewrittenCourse = rewriteAssetSrcs(courseObj)
+    const zipPath = await packSCORM12(rewrittenCourse, tmpDir, {
+      ...(playerPath ? { playerPath } : {}),
+      assetPaths,
+    })
     const safeTitle = course.title.replace(/[^a-z0-9_-]/gi, '_').slice(0, 64) || 'course'
     const fileName = `${safeTitle}_scorm12.zip`
     res.download(zipPath, fileName, () => {

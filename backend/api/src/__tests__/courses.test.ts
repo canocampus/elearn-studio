@@ -1,7 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { Readable } from 'stream'
 import request from 'supertest'
 import { app } from '../app'
 import { authHeader } from './authHelper'
+import { getObject } from '../storage/s3'
 
 vi.mock('../storage/s3', () => ({
   s3Client:    {},
@@ -152,6 +154,46 @@ describe('POST /courses/:id/export/scorm12', () => {
     const res = await request(app).post('/courses/000000000000000000000001/export/scorm12').set(auth)
     expect(res.status).toBe(404)
   })
+
+  it('calls getObject for each asset src in widgets (C-03 regression)', async () => {
+    const mockGetObject = vi.mocked(getObject)
+    mockGetObject.mockResolvedValue({
+      stream: Readable.from(Buffer.from('fake-image-data')),
+      contentType: 'image/png',
+      contentLength: 15,
+    })
+
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'C03 Test' })
+    const courseId = created.data._id
+
+    // Add a slide, then patch it with an image widget referencing a Garage asset
+    const { body: slideBody } = await request(app)
+      .post(`/courses/${courseId}/slides`)
+      .set(auth)
+      .send({ title: 'S1' })
+    const slideId = slideBody.data.slides.at(-1).id
+
+    await request(app)
+      .patch(`/courses/${courseId}/slides/${slideId}`)
+      .set(auth)
+      .send({
+        widgets: [
+          {
+            id: 'w1',
+            type: 'image',
+            bounds: { x: 0, y: 0, width: 100, height: 100 },
+            properties: { src: '/assets/a1b2c3d4-e5f6-4789-abcd-ef0123456789.png' },
+          },
+        ],
+      })
+
+    mockGetObject.mockClear()
+
+    const res = await request(app).post(`/courses/${courseId}/export/scorm12`).set(auth)
+    expect([200, 500]).toContain(res.status)
+    // getObject must have been called with the uuid key (C-03 asset bundling)
+    expect(mockGetObject).toHaveBeenCalledWith('a1b2c3d4-e5f6-4789-abcd-ef0123456789.png')
+  }, 30000)
 })
 
 // ---------------------------------------------------------------------------
