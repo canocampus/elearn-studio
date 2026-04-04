@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-04 — C-01: wire actions engine E2E gate — show/hide/call-sequence (v0.5.32)
+> Last updated: 2026-04-04 — C-02: sharedSequences end-to-end (v0.5.33)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.32 |
+| **Current version** | v0.5.33 |
 | **Active phase** | Audit consolidado — bugs sistémicos |
-| **Active block** | C-02 — sharedSequences Mongoose + runtime |
+| **Active block** | C-03 — SCORM export asset bundling |
 | **E2E test count** | 131 tests (128 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **C-02 sharedSequences end-to-end / v0.5.33** — Three-layer fix: (1) `packages/shared-types/src/course.ts` — `sharedSequences?: SharedActionSequence[]` added to `CourseDoc` (part of D-01 v0.5.31); (2) `packages/runtime-player/src/index.ts` — `course.sharedSequences ?? []` passed into actions context; (3) `backend/api/src/models/Course.ts` — `SharedActionSequenceSchema` + `sharedSequences` field added to Mongoose schema, PUT allowlist updated. Regression test in `courses.test.ts`. `call-sequence` action verified end-to-end via C-01.3 E2E test. Commit: `5c59d6d`.
 
 - **C-01 actions engine E2E gate / v0.5.32** — Wired actions engine to runtime player with full E2E verification. Root bug: `renderWidget()` in `packages/runtime-player/src/index.ts` was returning `''` for `visible: false` widgets, making `show` actions impossible (no DOM element to operate on). Fix: render invisible widgets with `style="display:none"` + `data-hidden="true"` so `executeShow()` can find and reveal them. `slideRenderer.test.ts` updated to assert new behavior. New E2E spec `e2e/tests/runtime-player-actions.spec.ts` with 3 tests (C-01.1 hide, C-01.2 show, C-01.3 call-sequence) — all green at 259–481ms. Commit: `df7af97`.
 
@@ -151,8 +153,8 @@ assignment is not calling `component.setStyle()` correctly.
 ### Audit Consolidado — Bugs Sistémicos (next up)
 - ~~**D-01** — `@elearn-studio/shared-types` as monorepo type authority~~ ✅ Done (v0.5.31)
 - ~~**C-01** — Wire actions engine to runtime-player~~ ✅ Done (v0.5.32)
-- **C-02** — `sharedSequences` Mongoose model support ← **NEXT**
-- **C-03** — SCORM export asset bundling
+- ~~**C-02** — `sharedSequences` Mongoose model support~~ ✅ Done (v0.5.33)
+- **C-03** — SCORM export asset bundling ← **NEXT**
 
 ---
 

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.33] — 2026-04-04 — C-02: sharedSequences end-to-end (backend + shared-types + runtime)
+
+### Fixed
+- **`backend/api/src/models/Course.ts`** — added `SharedActionSequenceSchema { name, actions }` and `sharedSequences: [SharedActionSequenceSchema]` (default `[]`) to `CourseSchema`. Added `sharedSequences` to `CourseUpdatePayload` allowlist in `PUT /courses/:id`.
+- **`packages/shared-types/src/course.ts`** — `CourseDoc.sharedSequences?: SharedActionSequence[]` already present from D-01 (v0.5.31).
+- **`packages/runtime-player/src/index.ts`** — actions context initialised with `course.sharedSequences ?? []`, enabling `call-sequence` to look up sequences by name.
+
+### Added
+- **`backend/api/src/__tests__/courses.test.ts`** — C-02 regression test: persists and returns `sharedSequences` via PUT/GET round-trip.
+
+### Technical note
+`call-sequence` action was conceptually implemented but functionally dead (sharedSequences never persisted by backend nor passed to runtime). All three layers now complete. E2E verified by C-01.3 in `e2e/tests/runtime-player-actions.spec.ts` (passes a `sharedSequences` array and asserts the resulting DOM mutation). 131 API tests pass. Commit: `5c59d6d`.
+
+---
+
 ## [0.5.32] — 2026-04-04 — C-01: wire actions engine E2E gate (show/hide/call-sequence)
 
 ### Fixed
