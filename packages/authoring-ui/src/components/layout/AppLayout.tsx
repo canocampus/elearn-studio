@@ -36,6 +36,7 @@ import { EditorCanvas } from '../editor/EditorCanvas'
 import { SimulationEditor } from '../simulation/SimulationEditor'
 import { PhaserSimPreviewModal } from '../simulation/PhaserSimPreviewModal'
 import { PanelErrorBoundary } from '../ui/ErrorBoundary'
+import { SaveErrorBanner } from '../ui/SaveErrorBanner'
 import { useDebugMode } from '../../hooks/useDebugMode'
 import { CourseInspector } from '../debug/CourseInspector'
 import { CourseHistory } from '../debug/CourseHistory'
@@ -124,6 +125,8 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
         onToggleHistory={() => setShowHistory(v => !v)}
         historyOpen={showHistory}
       />
+      {/* T622 — persistent save-error banner, shown below TopToolbar when save fails */}
+      <SaveErrorBanner />
       {import.meta.env.DEV && isDebug && <ActionsDebugOverlay />}
       {import.meta.env.DEV && isDebug && showInspector && (
         <CourseInspector onClose={() => setShowInspector(false)} />

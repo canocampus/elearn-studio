@@ -34,6 +34,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
   const setCurrentSlideIndex = useEditorStore(s => s.setCurrentSlideIndex)
   const isSaving = useEditorStore(s => s.isSaving)
   const setIsSaving = useEditorStore(s => s.setIsSaving)
+  const saveError = useEditorStore(s => s.saveError)
   const setSaveError = useEditorStore(s => s.setSaveError)
   const setShowNewCourseDialog = useEditorStore(s => s.setShowNewCourseDialog)
 
@@ -142,6 +143,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
       <span style={styles.separator} />
       <span style={styles.courseTitle}>{course?.title ?? '—'}</span>
       {isSaving && <span role="status" aria-live="polite" style={styles.savingBadge}>Saving…</span>}
+      {!isSaving && saveError && <span role="status" aria-live="polite" style={styles.saveErrorBadge}>Save failed</span>}
 
       <span style={styles.spacer} />
 
@@ -342,6 +344,14 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#1e3a2f',
     padding: '2px 8px',
     borderRadius: 4,
+  },
+  saveErrorBadge: {
+    fontSize: 11,
+    color: '#f38ba8',
+    background: '#3a1e1e',
+    padding: '2px 8px',
+    borderRadius: 4,
+    fontWeight: 600,
   },
   spacer: {
     flex: 1,

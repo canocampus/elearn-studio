@@ -98,19 +98,17 @@ function registerImageWidget(editor: Editor): void {
         traits: [NAME_TRAIT, { type: 'text', name: 'alt', label: 'Alt text' }],
       },
     },
+    // T623: extendFnView tells GrapesJS to call the parent initialize()
+    // automatically, eliminating the brittle Object.getPrototypeOf(…) chain.
+    extendFnView: ['initialize'],
     view: ({
       // T605.2 — Double-click opens the Asset Manager (single-click just selects).
       events: { dblclick: 'onImageClick' },
 
-      initialize(props: unknown) {
-        // Call GrapesJS ComponentImageView parent initialize.
-        // It registers the change:src → updateSrc listener and sets classEmpty.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const parent = Object.getPrototypeOf(Object.getPrototypeOf(this as any)) as {
-          initialize?: (p: unknown) => void
-        }
-        parent.initialize?.call(this, props)
-        // Also resolve presigned URLs whenever the root-level src property changes.
+      initialize(this: unknown) {
+        // Register presigned-URL resolver on src changes via the public
+        // Backbone.listenTo API. The parent initialize() (GrapesJS
+        // ComponentImageView) is called automatically by extendFnView.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(this as any).listenTo(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

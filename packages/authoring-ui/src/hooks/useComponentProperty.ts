@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Component } from 'grapesjs'
 
 type GjsComponent = Component & {
@@ -32,13 +32,20 @@ export function useComponentProperty<T>(
     return (raw !== undefined && raw !== null ? raw : defaultValue) as T
   })
 
+  // T620: latestRef tracks the most-recent committed value so that closures
+  // (e.g. useExtendedProperty.update) can always read the latest without
+  // depending on stale React state from the last render cycle. (T621 fix)
+  const latestRef = useRef(value)
+  latestRef.current = value
+
   useEffect(() => {
     const raw = comp.get(key)
     setValue((raw !== undefined && raw !== null ? raw : defaultValue) as T)
 
     function onChange() {
       const updated = comp.get(key)
-      setValue((updated !== undefined && updated !== null ? updated : defaultValue) as T)
+      const val = (updated !== undefined && updated !== null ? updated : defaultValue) as T
+      setValue(val)
     }
 
     comp.on(`change:${key}`, onChange)
@@ -49,6 +56,9 @@ export function useComponentProperty<T>(
   }, [component, key])
 
   function update(newValue: T) {
+    // T620: apply optimistic React state update immediately so controlled inputs
+    // (value={state} + onChange) never freeze waiting for the Backbone event.
+    setValue(newValue)
     comp.set(key, newValue)
   }
 

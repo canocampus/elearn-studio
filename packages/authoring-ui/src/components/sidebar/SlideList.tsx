@@ -27,6 +27,7 @@ export function SlideList() {
   const setCourse = useEditorStore(s => s.setCourse)
   const currentSlideIndex = useEditorStore(s => s.currentSlideIndex)
   const setCurrentSlideIndex = useEditorStore(s => s.setCurrentSlideIndex)
+  const saveError = useEditorStore(s => s.saveError)
   const setSaveError = useEditorStore(s => s.setSaveError)
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -196,7 +197,7 @@ export function SlideList() {
             isDropTarget={dropIndex === index && dragIndex !== index}
             canDelete={canDelete}
             isProcessing={isProcessing}
-            onClick={() => setCurrentSlideIndex(index)}
+            onClick={() => { if (!saveError) setCurrentSlideIndex(index) }}
             onDoubleClick={() => startEditing(slide)}
             onDuplicate={() => handleDuplicate(slide)}
             onDelete={() => handleDelete(slide, index)}

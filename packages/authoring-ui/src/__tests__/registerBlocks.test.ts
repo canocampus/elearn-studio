@@ -452,17 +452,16 @@ describe('T600.2 — image widget resolveAndSetSrc', () => {
     mockModel.get.mockReturnValue('/assets/slide/widget.png')
     mockResolveAssetUrl.mockResolvedValue('https://s3.example.com/widget-presigned')
 
-    // The initialize() implementation calls Object.getPrototypeOf(Object.getPrototypeOf(this))
-    // to reach the grandparent prototype. A plain object literal would make that null.
-    // Create a two-level prototype chain so the lookup returns a non-null object.
-    const fakeThis = Object.assign(Object.create(Object.create({})), {
+    // T623: initialize() no longer uses Object.getPrototypeOf chains.
+    // extendFnView handles parent init; a plain object is sufficient here.
+    const fakeThis = {
       model: mockModel,
       el: mockEl,
       listenTo: mockListenTo,
       resolveAndSetSrc: function (this: unknown) {
         ;(imageView.resolveAndSetSrc as (this: unknown) => void).call(this)
       },
-    })
+    }
 
     ;(imageView.initialize as (this: unknown, props: unknown) => void).call(fakeThis, {})
 

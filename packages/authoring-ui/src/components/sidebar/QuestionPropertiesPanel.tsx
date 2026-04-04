@@ -45,7 +45,13 @@ function useExtendedProperties<T extends object>(
 ): [T, (patch: Partial<T>) => void] {
   const [ep, setEp] = useComponentProperty<T>(component, 'extendedProperties', defaults)
   function update(patch: Partial<T>) {
-    setEp({ ...ep, ...patch })
+    // T621: read from GrapesJS model (always current — comp.set is synchronous)
+    // instead of the stale 'ep' closure captured at last render. This prevents
+    // rapid cascading updates (e.g. add option then change question text) from
+    // clobbering intermediate state.
+    const comp = component as { get(k: string): unknown }
+    const latest = (comp.get('extendedProperties') as T | undefined) ?? defaults
+    setEp({ ...latest, ...patch })
   }
   return [ep, update]
 }
