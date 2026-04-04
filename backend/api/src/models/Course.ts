@@ -81,6 +81,14 @@ const SCORMMetadataSchema = new Schema(
   { _id: false }
 )
 
+const SharedActionSequenceSchema = new Schema(
+  {
+    name: { type: String, required: true },
+    actions: { type: [ActionSchema], default: [] },
+  },
+  { _id: false }
+)
+
 const CourseSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
@@ -89,6 +97,7 @@ const CourseSchema = new Schema(
     resources: { type: [Schema.Types.Mixed], default: [] },
     settings: { type: CourseSettingsSchema, default: () => ({}) },
     metadata: { type: SCORMMetadataSchema, default: () => ({}) },
+    sharedSequences: { type: [SharedActionSequenceSchema], default: [] },
     deletedAt: { type: Date, default: null },
   },
   { timestamps: true }

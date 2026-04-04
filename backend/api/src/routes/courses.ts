@@ -107,6 +107,7 @@ interface CourseUpdatePayload {
   resources?: unknown[]
   settings?: unknown
   metadata?: unknown
+  sharedSequences?: unknown[]
 }
 
 /**
@@ -308,12 +309,12 @@ coursesRouter.put('/:id', async (req, res) => {
   }
 
   // C-01: allowlist only writable fields — never pass raw req.body to Mongoose
-  const { title, slides, templates, resources, settings, metadata } =
+  const { title, slides, templates, resources, settings, metadata, sharedSequences } =
     req.body as CourseUpdatePayload
 
   const course = await Course.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },
-    { $set: { title, slides, templates, resources, settings, metadata } },
+    { $set: { title, slides, templates, resources, settings, metadata, sharedSequences } },
     { new: true, runValidators: true }
   )
   if (!course) {
@@ -322,7 +323,7 @@ coursesRouter.put('/:id', async (req, res) => {
   }
   if (req.user) {
     void logAudit(req.params.id, 'course.update', req.user, {
-      fields: Object.keys({ title, slides, templates, resources, settings, metadata }).filter(
+      fields: Object.keys({ title, slides, templates, resources, settings, metadata, sharedSequences }).filter(
         k => (req.body as CourseUpdatePayload)[k as keyof CourseUpdatePayload] !== undefined
       ),
     })

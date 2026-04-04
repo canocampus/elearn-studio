@@ -113,6 +113,27 @@ describe('PUT /courses/:id — C-01 field allowlisting', () => {
     const res = await request(app).put('/courses/bad-id').set(auth).send({ title: 'x' })
     expect(res.status).toBe(400)
   })
+
+  it('persists and returns sharedSequences (C-02 regression)', async () => {
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'SharedSeq' })
+    const id = created.data._id
+
+    const sharedSequences = [
+      { name: 'onCorrect', actions: [{ type: 'navigate-next', params: {} }] },
+    ]
+    const put = await request(app)
+      .put(`/courses/${id}`)
+      .set(auth)
+      .send({ title: 'SharedSeq', sharedSequences })
+    expect(put.status).toBe(200)
+    expect(put.body.data.sharedSequences).toHaveLength(1)
+    expect(put.body.data.sharedSequences[0].name).toBe('onCorrect')
+
+    const get = await request(app).get(`/courses/${id}`).set(auth)
+    expect(get.status).toBe(200)
+    expect(get.body.data.sharedSequences).toHaveLength(1)
+    expect(get.body.data.sharedSequences[0].name).toBe('onCorrect')
+  })
 })
 
 describe('DELETE /courses/:id — soft delete', () => {
