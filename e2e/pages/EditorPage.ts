@@ -325,7 +325,7 @@ export class EditorPage {
    * Click the Preview button and return the runtime player page (new popup/window).
    * The preview opens in a new window/popup that must be tracked separately.
    */
-  async openPreview(context: any) {
+  async openPreview(context: import('@playwright/test').BrowserContext) {
     const [popup] = await Promise.all([
       context.waitForEvent('page'),
       this.previewButton.click(),
