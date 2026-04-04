@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.29] — 2026-04-04 — Audit consolidado: close A-01/A-05/A-06/A-07/D-03/D-04/D-05
+
+### Fixed
+- **A-06**: Replaced misleading "atomic single write" comment in `PATCH /courses/:id/slides/reorder` with accurate note documenting the read-then-write race condition and its low practical risk (`backend/api/src/routes/courses.ts`)
+- **D-03**: Deleted debug/test files from repo root (`checkauth.php`, `checklockout.php`, `debug-moodle-*.js`, `directlogin.php`, `disable-tours.php`, `fixlogin.php`, `testauth.php`, `testlogin.php`) — files were untracked and already covered by `.gitignore`
+- **D-05**: Deleted stale `rollup.config-*.mjs` temp files from `packages/runtime-player/` — untracked, already in `.gitignore`
+
+### Confirmed closed (fixed in prior sessions, verified this session)
+- **A-01**: `uploadAsset()` already uses `apiFetch` from `apiClient.ts` with 401+refresh handling
+- **A-05**: DELETE slide already returns 404 when `slideId` not found; regression test present in `courses.test.ts`
+- **A-07**: `/auth/login` already returns generic `'Internal server error'` without leaking internal message
+- **D-04**: `openapi.json` and `generated.ts` were never committed; already covered by `.gitignore`
+
+---
+
 ## [0.5.28] — 2026-04-04 — Phase 2.7 issue cleanup + docs
 
 ### Fixed

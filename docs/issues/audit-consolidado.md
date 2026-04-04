@@ -137,6 +137,8 @@ function MCPropertiesForm({ component }: { component: Component }) {
 
 ### A-01 — uploadAsset() no usa apiClient — falla silenciosamente al expirar token
 
+> **Estado: CERRADO** — Resuelto en T600-T608. `uploadAsset()` usa `apiFetch` de `apiClient.ts`.
+
 `packages/authoring-ui/src/api/courseApi.ts:184-205` usa `fetch` directo.
 El resto de llamadas van por `apiClient.ts` que hace refresh automático
 del access token en 401. Cuando el token caduca, todas las llamadas del
@@ -194,6 +196,8 @@ El widget `media-player` tiene traits `src` y `mediaType` en el modelo pero:
 
 ### A-05 — DELETE /courses/:id/slides/:slideId semántica incorrecta
 
+> **Estado: CERRADO** — Resuelto en T600-T608. El filtro usa `'slides.id': slideId` y devuelve 404 si no existe. Test de regresión en `courses.test.ts`.
+
 `backend/api/src/routes/courses.ts:643-662` — el filtro del update solo
 comprueba el curso, no que `slides.id = slideId` exista. Borrar un slideId
 inexistente devuelve 200. La API no puede confiar en que la UI lo proteja.
@@ -212,6 +216,8 @@ if (!result) return res.status(404).json({ success: false, error: 'Slide not fou
 
 ### A-06 — Reorder de slides no es atómico aunque el comentario diga que sí
 
+> **Estado: CERRADO** — Resuelto 2026-04-04. Comentario reemplazado por nota precisa sobre el riesgo de lost update bajo concurrencia. Opción elegida: documentar el riesgo (fix mínimo), no implementar optimistic locking dado que el reorder es operación manual de UI con riesgo bajo.
+
 `backend/api/src/routes/courses.ts:482-499` hace findOne → reorder en memoria →
 findOneAndUpdate. Hay ventana de lost update entre la lectura y la escritura.
 El comentario dice "atomic single write" — esto es incorrecto y engañoso.
@@ -222,6 +228,8 @@ explícitamente el riesgo en el comentario y en `WORKING_CONTEXT.md`.
 ---
 
 ### A-07 — /auth/login filtra mensajes internos en errores 500
+
+> **Estado: CERRADO** — Resuelto en T600-T608. `auth.ts` ya devuelve el mensaje genérico `'Internal server error'` sin incluir `msg`.
 
 `backend/api/src/routes/auth.ts:213-216` devuelve
 `Internal server error: ${msg}` — expone detalles internos inconsistentes
@@ -275,6 +283,8 @@ Flujos end-to-end que DEBEN tener test de integración antes de marcarlos como d
 
 ### D-03 — Ficheros de debug/test en raíz del repositorio
 
+> **Estado: CERRADO** — Resuelto 2026-04-04. Ficheros eliminados del working directory. Nunca estuvieron en git (untracked). `.gitignore` ya los cubría.
+
 Encontrados en la raíz: `checkauth.php`, `checklockout.php`,
 `debug-moodle-course.js`, `debug-moodle-login.js`, `directlogin.php`,
 `disable-tours.php`, `testauth.php`, `testlogin.php`, `tracker.php`,
@@ -286,12 +296,16 @@ Añadir a `.gitignore` y eliminar del repo.
 
 ### D-04 — openapi.json y generated.ts commiteados en git
 
+> **Estado: CERRADO** — Confirmado 2026-04-04. Ambos ficheros están en `.gitignore` y nunca fueron commiteados (untracked). No se requiere acción.
+
 `backend/api/openapi.json` y `packages/authoring-ui/src/api/generated.ts`
 son ficheros generados que deben estar en `.gitignore`.
 
 ---
 
 ### D-05 — Rollup config temporales commiteados
+
+> **Estado: CERRADO** — Resuelto 2026-04-04. Los 4 ficheros `rollup.config-*.mjs` eliminados del working directory. Nunca estuvieron en git. `.gitignore` ya los cubría.
 
 `packages/runtime-player/rollup.config-177*.mjs` (4 ficheros).
 Añadir `rollup.config-*.mjs` a `.gitignore` y eliminar.
