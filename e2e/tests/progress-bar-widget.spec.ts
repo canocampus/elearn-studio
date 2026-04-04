@@ -182,11 +182,26 @@ test.describe('T608 — Course Progress Bar widget', () => {
     }
     // If targetIndex === 0, waitForReloadComplete() already loaded slide 0 fully.
 
-    // 4. Re-select the widget by clicking on it in the canvas
+    // 4. Verify the widget exists in canvas, then re-select it via JS bridge.
+    // Canvas clicks are unreliable in parallel mode (iframe focus races); the JS bridge
+    // is the proven pattern (same as GAP-02.3 and T601.7) for post-reload re-selection.
     const widget = editorPage.canvasComponent('[data-gjs-type="progress-bar"]')
     await expect(widget).toBeVisible({ timeout: 15_000 })
-    await widget.click()
-    await page.waitForTimeout(300)
+
+    await page.evaluate(() => {
+      const ed = (window as unknown as Record<string, unknown>).__elearn_editor as {
+        getComponents: () => { first: () => unknown }
+        select: (c: unknown) => void
+      }
+      const first = ed.getComponents().first()
+      if (first) ed.select(first)
+    })
+    await page.waitForTimeout(500)
+
+    // Switch to Props tab and confirm the panel is visible (proves selection is active)
+    await editorPage.propsTab.click()
+    const reloadedPanel = page.locator('[data-testid="progress-bar-properties-panel"]')
+    await expect(reloadedPanel).toBeVisible({ timeout: 10_000 })
 
     // 5. Read extendedProperties from the reloaded GrapesJS model
     const extProps = await page.evaluate(() => {

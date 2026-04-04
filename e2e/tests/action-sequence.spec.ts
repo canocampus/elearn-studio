@@ -128,8 +128,11 @@ test.describe('Action Sequence Editor: Panel with widget selected (GAP-02)', () 
     await patchPromise.catch(() => page.waitForTimeout(3000))
 
     // Reload and restore editor state
+    // waitForReloadComplete() waits for toolbar + slide 0 canvas — prevents concurrent
+    // editor.load() calls (which crash with "Cannot read properties of undefined") when
+    // slides.nth(ourSlideIndex).click() fires before the initial load finishes.
     await page.reload()
-    await editorPage.waitForReady()
+    await editorPage.waitForReloadComplete()
 
     // Return to our slide
     await slides.nth(ourSlideIndex).click()
