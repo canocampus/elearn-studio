@@ -588,3 +588,113 @@ test.describe('T611 — mandatory question navigation gate', () => {
     await preview.close()
   })
 })
+
+// T620.5 — @regression: optimistic update in useComponentProperty prevents input bounce-back.
+// Without the fix (setValue before comp.set), React would re-render the textarea with the
+// stale Backbone model value, reverting the user's typed characters.
+test.describe('Question Widget: Optimistic update — no bounce-back (T620.5)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression T620.5 — rapid typing in MC question text shows no bounce-back (optimistic update)', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
+    await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 15_000 })
+
+    await editorPage.canvasComponent('[data-gjs-type="question-mc"]').click()
+    await editorPage.propsTab.click()
+
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+
+    const textarea = panel.locator('textarea').first()
+    await textarea.clear()
+
+    // Type quickly — without the optimistic update fix each character fires a
+    // model:change event that would re-render and overwrite the typed value.
+    const expected = 'T620.5 rapid typing regression sentinel'
+    await textarea.pressSequentially(expected, { delay: 20 })
+
+    // The textarea must hold the full typed string — no partial bounce-back.
+    await expect(textarea).toHaveValue(expected, { timeout: 5_000 })
+  })
+})
+
+// T621.5 — @regression: stale closure in useExtendedProperties.
+// Without the fix, calling update() with new options would read the stale closure value
+// of ep from the previous render, losing the concurrent question-text change.
+test.describe('Question Widget: Stale closure — concurrent edit persistence (T621.5)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression T621.5 — add MC option then change question text: both changes survive reload', async ({ editorPage, page }) => {
+    test.setTimeout(90_000)
+
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
+    await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 15_000 })
+
+    await editorPage.canvasComponent('[data-gjs-type="question-mc"]').click()
+    await editorPage.propsTab.click()
+
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+
+    // Step 1: Add a 4th option (default has 3).
+    await panel.getByRole('button', { name: '+ Add' }).click()
+    await page.waitForTimeout(300)
+
+    // Step 2: Immediately edit the question text — this is the concurrent write
+    // that the stale-closure bug would cause to be lost on save.
+    const textarea = panel.locator('textarea').first()
+    await textarea.fill('T621.5 stale closure regression sentinel')
+    await textarea.press('Tab')
+
+    // Wait for autosave PATCH to confirm both changes reached the backend.
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 20_000 },
+    )
+    await patchPromise.catch(() => page.waitForTimeout(3000))
+
+    // Reload and navigate back.
+    await page.reload()
+    await editorPage.waitForReloadComplete()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select and open Props.
+    const questionComp = editorPage.canvasComponent('[data-gjs-type="question-mc"]')
+    await expect(questionComp).toBeVisible({ timeout: 15_000 })
+    await questionComp.click()
+    await editorPage.propsTab.click()
+
+    const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
+    const panelVisible = await restoredPanel.isVisible().catch(() => false)
+    if (!panelVisible) {
+      await questionComp.click()
+      await editorPage.propsTab.click()
+    }
+    await expect(restoredPanel).toBeVisible({ timeout: 10_000 })
+
+    // Both changes must have survived: 4 options and the edited question text.
+    const removeButtons = restoredPanel.locator('button[title="Remove"]')
+    await expect(removeButtons).toHaveCount(4, { timeout: 5_000 })
+
+    const restoredTextarea = restoredPanel.locator('textarea').first()
+    await expect(restoredTextarea).toHaveValue('T621.5 stale closure regression sentinel', { timeout: 5_000 })
+  })
+})

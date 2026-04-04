@@ -66,6 +66,14 @@ Full history: `CHANGELOG.md`
 
 > Full details in `docs/issues/issues-BETA-R1.md`. Fix order: T600 → T601 → T602 → T603 → T604 → T605 → T606 → T607 → T608 → T609
 
+### 🟡 E2E FLAKES (pre-existing, not caused by Phase 2.8)
+
+| ID | Test | Symptom | Passes in isolation |
+|---|---|---|---|
+| FLAKE-01 | `action-sequence.spec.ts` GAP-02.3 | `[data-testid="action-item"]` not visible after reload in full suite | ✅ Yes — passes alone |
+
+Root cause: parallel-suite cross-slide-index contamination — GrapesJS `loadData()` fails silently when another worker's PATCH races with the reload. The Navigate action is saved correctly; the failure is in the re-selection step under load. Not a product bug.
+
 ### 🔴 CRITICAL
 
 | ID | Description | Task |
@@ -186,6 +194,10 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 | Audio Narration | ✅ Working | Block + canvas preview + Props panel (T607); runtime `<audio>` rendering |
 | Progress Bar | ✅ Working | Block + Props panel (T608); runtime `visitedSlides` progress tracking |
 | Volume Control | ✅ Working | Block + Props panel (T609); runtime global volume/mute with `applyVolumeToSlide()` |
+| SaveErrorBanner | ✅ Working | Persistent red banner on autosave failure (T622); Retry button clears on success; nav blocked when `saveError !== null` |
+| useComponentProperty | ✅ Working | Optimistic `setValue` before `comp.set()`; no bounce-back on rapid typing (T620) |
+| useExtendedProperties | ✅ Working | Reads `comp.get('extendedProperties')` directly; stale closure eliminated (T621) |
+| Image widget initialize | ✅ Working | `extendFnView: ['initialize']` — prototype chain hack removed (T623) |
 
 ---
 

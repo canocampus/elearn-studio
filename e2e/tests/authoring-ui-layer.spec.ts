@@ -249,3 +249,51 @@ test.describe('T608.6 — TopToolbar Delete Slide', () => {
     await expect(page.getByTitle('Delete current slide')).toBeVisible()
   })
 })
+
+// T622.7 — @regression: persistent save-error banner (SaveErrorBanner).
+// Without the fix there was no UI feedback when autosave failed, leaving the user
+// unaware of data-loss risk. The banner must appear on 500 and clear on retry success.
+test.describe('Authoring UI: Save error banner (T622.7)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression T622.7 — PATCH 500 shows save-error banner; Retry on 200 clears it', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    // ── Phase 1: mock PATCH to return 500 ──
+    let mockStatus = 500
+    await page.route('**/courses/**', async (route) => {
+      if (route.request().method() !== 'PATCH') {
+        await route.continue()
+        return
+      }
+      await route.fulfill({ status: mockStatus, body: JSON.stringify({ error: 'Simulated save failure' }) })
+    })
+
+    // Drag a widget to trigger autosave.
+    await editorPage.dragBlockToCanvas('Text', 300, 200)
+
+    // Wait for the banner to appear — autosave fires within 2s debounce.
+    const banner = page.locator('[role="alert"]')
+    await expect(banner).toBeVisible({ timeout: 15_000 })
+
+    // ── Phase 2: allow PATCH to succeed, then click Retry ──
+    mockStatus = 200
+
+    const retryPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 10_000 },
+    )
+
+    await page.getByRole('button', { name: /retry/i }).click()
+    await retryPromise.catch(() => page.waitForTimeout(2000))
+
+    // Banner must be gone.
+    await expect(banner).not.toBeVisible({ timeout: 10_000 })
+  })
+})
