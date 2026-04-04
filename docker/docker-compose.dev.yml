@@ -194,7 +194,8 @@ services:
       - moodle_data:/bitnami/moodle
       - moodle_moodledata:/bitnami/moodledata
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/login/index.php | grep -q 'login' || exit 1"]
+      # Bitnami Moodle image ships PHP but not wget/curl — use php to probe the login page
+      test: ["CMD-SHELL", "php -r \"$$r=@file_get_contents('http://localhost:8080/login/index.php',false,stream_context_create(['http'=>['timeout'=>3]]));exit($$r!==false&&strpos($$r,'login')!==false?0:1);\""]
       interval: 30s
       timeout: 10s
       retries: 10
