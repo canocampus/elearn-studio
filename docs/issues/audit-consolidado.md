@@ -96,6 +96,8 @@ y verifique que: (a) el ZIP contiene `assets/uuid.png`, (b) el HTML apunta a
 
 ### C-04 — React state bug: formularios de propiedades de preguntas no reactivos
 
+> **Estado: CERRADO** — Resuelto en dos fases: T602 (2026-04-03) introdujo `useExtendedProperties<T>` con `useState` + Backbone subscription + `isLocalRef` loop prevention. Refactor v0.5.30 (2026-04-04) eliminó `isLocalRef` y delegó a `useComponentProperty` como thin wrapper — React 18 automatic batching hace el flag innecesario. Los 3 formularios (MC, TF, Fill) se re-renderizan correctamente y persisten todos los cambios. 23 E2E tests de question-widget pasan.
+
 **Impacto:** BETA-01, BETA-02, BETA-03, BETA-08, BETA-09, BETA-13.
 Los tres formularios (MC, TF, Fill) leen `ep` como variable plana — no como
 React state. Cuando `component.set('extendedProperties', ...)` se llama,
@@ -362,6 +364,8 @@ en 4 aspectos críticos que definen la diferencia entre un curso de juguete y un
 
 #### NAV-01 — Botón "Next" NO se bloquea cuando hay preguntas obligatorias sin responder
 
+> **Estado: CERRADO** — Resuelto en T611 (v0.5.24, 2026-04-04). Campo `mandatory: boolean` añadido a `QuestionScoring`. `slideIsComplete()` comprueba todas las preguntas `mandatory: true` del slide actual. `updateNavButtons()` activa/desactiva el botón `data-nav-next`. Se re-evalúa en `handleSubmit()`. Checkbox "Required" en `QuestionPropertiesPanel`. E2E test T611.10 (skipped pending Preview button). 128 E2E tests totales.
+
 **Estado actual:** `goNext()` no tiene ninguna comprobación. Navega siempre al slide
 siguiente sin verificar si el slide actual contiene preguntas sin responder.
 
@@ -394,6 +398,8 @@ pregunta. El LMS registra el curso como completado pero sin evidencia real de ap
 
 #### NAV-02 — Resume no restaura en el slide correcto de forma consistente
 
+> **Estado: CERRADO** — Resuelto en T612 (v0.5.25, 2026-04-04). `visitedSlides: Set<number>` añadido a `PlayerState` y persisted en `suspend_data` v:2. `restoreSuspendData()` reconstruye el Set con bounds checking; v:1 payloads se seeden con `[currentSlide]` para backwards compat. Fallback `lesson_location` seeds `visitedSlides` con `[0..restoredSlide]`. `updateProgressBars()` y nav buttons actualizados en `goToSlide()`. Unit tests actualizados + 2 nuevos.
+
 **Estado actual:** `suspend.ts` guarda y restaura `currentSlide` correctamente via
 `cmi.suspend_data`. Pero hay dos casos no cubiertos:
 
@@ -417,6 +423,8 @@ pregunta. El LMS registra el curso como completado pero sin evidencia real de ap
 ---
 
 #### NAV-03 — `CourseSettings` no tiene modo de navegación configurable
+
+> **Estado: CERRADO** — Resuelto en T610 (v0.5.24, 2026-04-04). `navigationMode: 'free' | 'linear-strict'` y `requireAllSlides: boolean` añadidos a `CourseSettings` (authoring-ui `types/course.ts`), `CourseDoc` del runtime player, Mongoose schema (`Course.ts`), y `CourseSettingsDialog`. Propagado a `buildManifest2004()` del packager (NAV-04).
 
 **Estado actual:**
 ```typescript
@@ -452,6 +460,8 @@ y al backend (añadir al schema de Mongoose).
 
 #### NAV-04 — SCORM sequencing en SCORM 2004 es solo sintaxis, no lógica real
 
+> **Estado: CERRADO** — Resuelto en T613 (v0.5.27, 2026-04-04). `buildManifest2004()` en `scorm-packager/src/index.ts` branchia en `course.settings?.navigationMode`: `'free'`/undefined → `choice="true" flow="true"` (sin cambio); `'linear-strict'` → `choice="false" choiceExit="false" flow="true"`. 3 unit tests nuevos; 27 scorm2004 tests pasan. T613.6 (Moodle E2E) deferred/opt-in via `E2E_MOODLE=1`.
+
 **Estado actual:** El packager genera XML de sequencing correcto para SCORM 2004
 (`packages/scorm-packager/src/index.ts:157`) con `imsss:sequencing` y reglas de flow.
 Pero las reglas de sequencing son estáticas y permisivas — permiten choice navigation
@@ -479,12 +489,12 @@ permitirá al alumno saltar a cualquier slide aunque no haya completado el anter
 |---|---|
 | Navegar prev/next entre slides | ✅ Funciona |
 | Guardar posición al salir (suspend) | ✅ Funciona |
-| Reanudar en el slide correcto | ✅ Parcial (suspend_data) / ⚠️ Incompleto (lesson_location fallback) |
-| Bloquear "Next" con preguntas sin responder | ❌ No implementado |
-| Modo de navegación configurable (libre vs lineal) | ❌ No implementado |
-| Tracking de slides visitados | ❌ No implementado |
-| Sequencing SCORM 2004 condicionado por settings | ❌ Sintaxis correcta, lógica ausente |
-| Marcar curso completo solo si todos los slides visitados | ❌ No implementado |
+| Reanudar en el slide correcto | ✅ Completo (suspend_data v:2 + lesson_location fallback) |
+| Bloquear "Next" con preguntas sin responder | ✅ Implementado en T611 |
+| Modo de navegación configurable (libre vs lineal) | ✅ Implementado en T610 |
+| Tracking de slides visitados | ✅ Implementado en T612 |
+| Sequencing SCORM 2004 condicionado por settings | ✅ Implementado en T613 |
+| Marcar curso completo solo si todos los slides visitados | ✅ Implementado en T612 (`requireAllSlides`) |
 
 ---
 
@@ -501,3 +511,67 @@ permitirá al alumno saltar a cualquier slide aunque no haya completado el anter
 sin responder → botón Next desactivado, (b) responda la pregunta → Next activo,
 (c) complete el curso, cierre y reabra → reanuda en el slide correcto con
 respuestas anteriores restauradas.
+
+---
+
+## NIVEL REFACTOR — Integración GrapesJS/React
+
+### R-01 — Patrón `isLocalRef` eliminado de todos los property panels
+
+> **Estado: CERRADO** — Completado 2026-04-04 (v0.5.30)
+
+**Contexto:** Auditoría GrapesJS/React (PDF) detectó un anti-patrón en los 6 property panels:
+`useRef(false)` se armaba antes de `component.set()` para suprimir el evento Backbone
+`change:key` e impedir que volviera a entrar en React state. Este patrón es frágil,
+dificulta el seguimiento del flujo de datos, e introduce riesgo de stale-closure.
+
+**Panels migrados a `useComponentProperty<T>` / `useExtendedProperty<T>`:**
+
+| Panel | Hook usado | Cambio principal |
+|---|---|---|
+| `ButtonPropertiesPanel` | `useComponentProperty<string>` | content, NavButtonChildLabel subcmp |
+| `AudioNarrationPropertiesPanel` | `useComponentProperty<string>` + `useExtendedProperty<boolean>` | src, autoplay, controls |
+| `MediaPlayerPropertiesPanel` | `useComponentProperty<string>` + `useExtendedProperty<boolean>` | src, mediaType, autoplay, controls, loop |
+| `ProgressBarPropertiesPanel` | `useExtendedProperty` | color, height, showPercent |
+| `AnimationPropertiesPanel` | `useComponentProperty<Record<string,unknown>>` | Split outer/inner para null-safety |
+| `QuestionPropertiesPanel` | Wrapper → `useComponentProperty` | Thin wrapper preserva `Partial<T>` API |
+
+**Hook compartido:** `packages/authoring-ui/src/hooks/useComponentProperty.ts`
+- `useComponentProperty<T>(component, key, defaultValue)` — suscripción a `change:key`; cleanup via `component.off()`
+- `useExtendedProperty<T>(component, subKey, defaultValue)` — sub-clave de `extendedProperties`
+- 16 unit tests
+
+**¿Por qué React 18 elimina la necesidad de `isLocalRef`?**
+Automatic batching agrupa todos los `setState` del mismo microtask — incluyendo los
+disparados por eventos Backbone. No hay re-renderizado extra. El flag era defensivo
+ante un problema que ya no existe con React 18.
+
+---
+
+## Foto actual del audit — 2026-04-04 (v0.5.30)
+
+| ID | Nivel | Descripción | Estado |
+|---|---|---|---|
+| C-01 | CRÍTICO | Motor de acciones no cableado al runtime | 🔴 Abierto |
+| C-02 | CRÍTICO | sharedSequences roto E2E | 🔴 Abierto |
+| C-03 | CRÍTICO | SCORM export no empaqueta assets | 🔴 Abierto |
+| C-04 | CRÍTICO | React state en formularios de preguntas | ✅ CERRADO (T602 + v0.5.30) |
+| C-05/NAV-01 | CRÍTICO | Botón Next sin gate de preguntas obligatorias | ✅ CERRADO (T611) |
+| C-05/NAV-02 | CRÍTICO | Resume inconsistente / visitedSlides ausente | ✅ CERRADO (T612) |
+| C-05/NAV-03 | CRÍTICO | CourseSettings sin navigationMode | ✅ CERRADO (T610) |
+| C-05/NAV-04 | CRÍTICO | SCORM 2004 sequencing sin lógica real | ✅ CERRADO (T613) |
+| A-01 | ALTO | uploadAsset() no usa apiClient | ✅ CERRADO (T600-T608) |
+| A-02 | ALTO | Positioning drag inicial en 4 widgets | ✅ CERRADO (T600) |
+| A-03 | ALTO | AM thumbnail icono genérico | ✅ CERRADO (T601) |
+| A-04 | ALTO | Media Player sin panel ni AM | ✅ CERRADO (T604) |
+| A-05 | ALTO | DELETE slide semántica incorrecta | ✅ CERRADO (T600-T608) |
+| A-06 | ALTO | Reorder slides no atómico | ✅ CERRADO (v0.5.29) |
+| A-07 | ALTO | /auth/login filtra mensajes internos | ✅ CERRADO (T600-T608) |
+| D-01 | DEUDA | Tipos duplicados sin fuente única | 🔴 Abierto (estratégico) |
+| D-02 | DEUDA | Tests unitarios sin integración E2E | 🟡 Parcial (C-01/C-02/C-03 pendientes) |
+| D-03 | DEUDA | Ficheros debug en raíz del repo | ✅ CERRADO (v0.5.29) |
+| D-04 | DEUDA | openapi.json / generated.ts commiteados | ✅ CERRADO (v0.5.29) |
+| D-05 | DEUDA | Rollup config temporales commiteados | ✅ CERRADO (v0.5.29) |
+| R-01 | REFACTOR | isLocalRef pattern en 6 property panels | ✅ CERRADO (v0.5.30) |
+
+**Pendiente crítico:** C-01 (actions engine), C-02 (sharedSequences), C-03 (SCORM assets) — ninguno iniciado.

@@ -15,8 +15,10 @@
  */
 
 import { useState } from 'react'
+import type { Component } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
 import { PathEditorCanvas } from '../konva/PathEditorCanvas'
+import { useComponentProperty } from '../../hooks/useComponentProperty'
 
 // ─── Types (mirrored from runtime-player/src/animations/animator.ts) ────────
 
@@ -58,33 +60,20 @@ function newAnimation(): AnimationPath {
   }
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Inner panel — only rendered when component is guaranteed non-null ────────
 
-export function AnimationPropertiesPanel() {
-  const editor = useEditorStore(s => s.editor)
-  const selectedComponentType = useEditorStore(s => s.selectedComponentType)
+const EMPTY_EP: Record<string, unknown> = {}
+
+function AnimationPanelContent({ component }: { component: Component }) {
+  const [ep, setEp] = useComponentProperty<Record<string, unknown>>(
+    component,
+    'extendedProperties',
+    EMPTY_EP,
+  )
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pathEditorOpen, setPathEditorOpen] = useState(false)
 
-  if (!editor || !selectedComponentType) {
-    return (
-      <div style={{ padding: 16, color: '#6c7086', fontSize: 12, textAlign: 'center' }}>
-        Select a widget to manage its animations.
-      </div>
-    )
-  }
-
-  const component = editor.getSelected()
-  if (!component) {
-    return (
-      <div style={{ padding: 16, color: '#6c7086', fontSize: 12, textAlign: 'center' }}>
-        Select a widget to manage its animations.
-      </div>
-    )
-  }
-
-  const ep = (component.get('extendedProperties') ?? {}) as Record<string, unknown>
   const animations: AnimationPath[] = Array.isArray(ep.animations)
     ? (ep.animations as AnimationPath[])
     : []
@@ -95,9 +84,10 @@ export function AnimationPropertiesPanel() {
   const selected = animations.find(a => a.id === resolvedSelectedId) ?? null
 
   // ── Persistence helper ──────────────────────────────────────────────────
+  // setEp writes to component.set('extendedProperties', ...) which triggers
+  // the debounced autosave in initEditor.ts. Never call editor.store() directly.
   function save(updated: AnimationPath[]) {
-    component!.set('extendedProperties', { ...ep, animations: updated })
-    editor?.store().catch(err => console.error('[AnimationPropertiesPanel] store failed:', err))
+    setEp({ ...ep, animations: updated })
   }
 
   // ── CRUD ────────────────────────────────────────────────────────────────
@@ -247,6 +237,26 @@ export function AnimationPropertiesPanel() {
       )}
     </div>
   )
+}
+
+// ─── Outer component — null checks only ──────────────────────────────────────
+
+const emptyState = (
+  <div style={{ padding: 16, color: '#6c7086', fontSize: 12, textAlign: 'center' }}>
+    Select a widget to manage its animations.
+  </div>
+)
+
+export function AnimationPropertiesPanel() {
+  const editor = useEditorStore(s => s.editor)
+  const selectedComponentType = useEditorStore(s => s.selectedComponentType)
+
+  if (!editor || !selectedComponentType) return emptyState
+
+  const component = editor.getSelected()
+  if (!component) return emptyState
+
+  return <AnimationPanelContent component={component} />
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────

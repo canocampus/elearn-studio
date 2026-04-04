@@ -10,9 +10,9 @@
  *   - Show percentage text (checkbox) — stored in extendedProperties
  */
 
-import { useState, useEffect, useRef } from 'react'
 import type { Component } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
+import { useExtendedProperty } from '../../hooks/useComponentProperty'
 
 // ---------------------------------------------------------------------------
 // Type guard
@@ -69,134 +69,13 @@ const CHECKBOX_ROW_STYLE: React.CSSProperties = {
 }
 
 // ---------------------------------------------------------------------------
-// Extended properties helpers
-// ---------------------------------------------------------------------------
-
-interface ProgressBarExtendedProperties {
-  color?: string
-  height?: number
-  showPercent?: boolean
-  [key: string]: unknown
-}
-
-function getExtended(component: Component): ProgressBarExtendedProperties {
-  const raw = component.get('extendedProperties' as 'type')
-  return (raw && typeof raw === 'object' ? raw : {}) as ProgressBarExtendedProperties
-}
-
-function useExtendedString(
-  component: Component,
-  key: keyof ProgressBarExtendedProperties,
-  defaultValue: string,
-): [string, (v: string) => void] {
-  const [value, setValue] = useState<string>(() => {
-    const ext = getExtended(component)
-    return typeof ext[key] === 'string' ? (ext[key] as string) : defaultValue
-  })
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    const ext = getExtended(component)
-    setValue(typeof ext[key] === 'string' ? (ext[key] as string) : defaultValue)
-
-    function onChange() {
-      if (isLocalRef.current) { isLocalRef.current = false; return }
-      const updated = getExtended(component)
-      setValue(typeof updated[key] === 'string' ? (updated[key] as string) : defaultValue)
-    }
-
-    component.on('change:extendedProperties', onChange)
-    return () => { component.off('change:extendedProperties', onChange) }
-  }, [component, key, defaultValue])
-
-  function update(v: string) {
-    isLocalRef.current = true
-    setValue(v)
-    const current = getExtended(component)
-    component.set('extendedProperties', { ...current, [key]: v })
-  }
-
-  return [value, update]
-}
-
-function useExtendedNum(
-  component: Component,
-  key: keyof ProgressBarExtendedProperties,
-  defaultValue: number,
-): [number, (v: number) => void] {
-  const [value, setValue] = useState<number>(() => {
-    const ext = getExtended(component)
-    return typeof ext[key] === 'number' ? (ext[key] as number) : defaultValue
-  })
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    const ext = getExtended(component)
-    setValue(typeof ext[key] === 'number' ? (ext[key] as number) : defaultValue)
-
-    function onChange() {
-      if (isLocalRef.current) { isLocalRef.current = false; return }
-      const updated = getExtended(component)
-      setValue(typeof updated[key] === 'number' ? (updated[key] as number) : defaultValue)
-    }
-
-    component.on('change:extendedProperties', onChange)
-    return () => { component.off('change:extendedProperties', onChange) }
-  }, [component, key, defaultValue])
-
-  function update(v: number) {
-    isLocalRef.current = true
-    setValue(v)
-    const current = getExtended(component)
-    component.set('extendedProperties', { ...current, [key]: v })
-  }
-
-  return [value, update]
-}
-
-function useExtendedBool(
-  component: Component,
-  key: keyof ProgressBarExtendedProperties,
-  defaultValue: boolean,
-): [boolean, (v: boolean) => void] {
-  const [value, setValue] = useState<boolean>(() => {
-    const ext = getExtended(component)
-    return key in ext ? Boolean(ext[key]) : defaultValue
-  })
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    const ext = getExtended(component)
-    setValue(key in ext ? Boolean(ext[key]) : defaultValue)
-
-    function onChange() {
-      if (isLocalRef.current) { isLocalRef.current = false; return }
-      const updated = getExtended(component)
-      setValue(key in updated ? Boolean(updated[key]) : defaultValue)
-    }
-
-    component.on('change:extendedProperties', onChange)
-    return () => { component.off('change:extendedProperties', onChange) }
-  }, [component, key, defaultValue])
-
-  function update(v: boolean) {
-    isLocalRef.current = true
-    setValue(v)
-    const current = getExtended(component)
-    component.set('extendedProperties', { ...current, [key]: v })
-  }
-
-  return [value, update]
-}
-
-// ---------------------------------------------------------------------------
 // Appearance section
 // ---------------------------------------------------------------------------
 
 function AppearanceSection({ component }: { component: Component }) {
-  const [color, setColor] = useExtendedString(component, 'color', '#4f46e5')
-  const [height, setHeight] = useExtendedNum(component, 'height', 12)
-  const [showPercent, setShowPercent] = useExtendedBool(component, 'showPercent', true)
+  const [color, setColor] = useExtendedProperty<string>(component, 'color', '#4f46e5')
+  const [height, setHeight] = useExtendedProperty<number>(component, 'height', 12)
+  const [showPercent, setShowPercent] = useExtendedProperty<boolean>(component, 'showPercent', true)
 
   return (
     <div style={SECTION_STYLE}>

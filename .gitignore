@@ -16,7 +16,6 @@ packages/authoring-ui/src/api/generated.ts
 
 # Debug / scratch files (not part of source)
 *.php
-GEMINI.md
 design-guide.md
 test-claude.docx
 test.png

@@ -13,9 +13,9 @@
  * Playback options live in extendedProperties to match the widget data model.
  */
 
-import { useState, useEffect, useRef } from 'react'
 import type { Component, Editor } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
+import { useComponentProperty, useExtendedProperty } from '../../hooks/useComponentProperty'
 
 // ---------------------------------------------------------------------------
 // Type guard
@@ -85,90 +85,6 @@ const CHECKBOX_ROW_STYLE: React.CSSProperties = {
 }
 
 // ---------------------------------------------------------------------------
-// useTrait — bidirectional sync for a named trait on the component
-// ---------------------------------------------------------------------------
-
-function useTrait(component: Component, traitName: string, defaultValue: string): [string, (v: string) => void] {
-  const [value, setValue] = useState<string>(() => {
-    const raw = component.get(traitName as 'type')
-    return typeof raw === 'string' && raw ? raw : defaultValue
-  })
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    const raw = component.get(traitName as 'type')
-    setValue(typeof raw === 'string' && raw ? raw : defaultValue)
-
-    function onChange() {
-      if (isLocalRef.current) { isLocalRef.current = false; return }
-      const updated = component.get(traitName as 'type')
-      setValue(typeof updated === 'string' && updated ? updated : defaultValue)
-    }
-
-    component.on(`change:${traitName}`, onChange)
-    return () => { component.off(`change:${traitName}`, onChange) }
-  }, [component, traitName, defaultValue])
-
-  function update(v: string) {
-    isLocalRef.current = true
-    setValue(v)
-    component.set(traitName as 'type', v)
-  }
-
-  return [value, update]
-}
-
-// ---------------------------------------------------------------------------
-// useExtendedBool — bidirectional sync for a boolean flag in extendedProperties
-// ---------------------------------------------------------------------------
-
-interface AudioExtendedProperties {
-  autoplay?: boolean
-  controls?: boolean
-  [key: string]: unknown
-}
-
-function getExtended(component: Component): AudioExtendedProperties {
-  const raw = component.get('extendedProperties' as 'type')
-  return (raw && typeof raw === 'object' ? raw : {}) as AudioExtendedProperties
-}
-
-function useExtendedBool(
-  component: Component,
-  key: keyof AudioExtendedProperties,
-  defaultValue: boolean,
-): [boolean, (v: boolean) => void] {
-  const [value, setValue] = useState<boolean>(() => {
-    const ext = getExtended(component)
-    return key in ext ? Boolean(ext[key]) : defaultValue
-  })
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    const ext = getExtended(component)
-    setValue(key in ext ? Boolean(ext[key]) : defaultValue)
-
-    function onChange() {
-      if (isLocalRef.current) { isLocalRef.current = false; return }
-      const updated = getExtended(component)
-      setValue(key in updated ? Boolean(updated[key]) : defaultValue)
-    }
-
-    component.on('change:extendedProperties', onChange)
-    return () => { component.off('change:extendedProperties', onChange) }
-  }, [component, key, defaultValue])
-
-  function update(v: boolean) {
-    isLocalRef.current = true
-    setValue(v)
-    const current = getExtended(component)
-    component.set('extendedProperties', { ...current, [key]: v })
-  }
-
-  return [value, update]
-}
-
-// ---------------------------------------------------------------------------
 // AudioSourceSection — URL input + Asset Manager picker
 // ---------------------------------------------------------------------------
 
@@ -209,7 +125,7 @@ function openAudioPicker(editor: Editor, onPick: (src: string) => void) {
 }
 
 function AudioSourceSection({ editor, component }: { editor: Editor; component: Component }) {
-  const [src, setSrc] = useTrait(component, 'src', '')
+  const [src, setSrc] = useComponentProperty<string>(component, 'src', '')
 
   function handleChooseAudio() {
     openAudioPicker(editor, (picked) => {
@@ -248,8 +164,8 @@ function AudioSourceSection({ editor, component }: { editor: Editor; component: 
 // ---------------------------------------------------------------------------
 
 function PlaybackOptionsSection({ component }: { component: Component }) {
-  const [autoplay, setAutoplay] = useExtendedBool(component, 'autoplay', false)
-  const [controls, setControls] = useExtendedBool(component, 'controls', true)
+  const [autoplay, setAutoplay] = useExtendedProperty<boolean>(component, 'autoplay', false)
+  const [controls, setControls] = useExtendedProperty<boolean>(component, 'controls', true)
 
   return (
     <div style={SECTION_STYLE}>

@@ -14,9 +14,10 @@
  * using the GrapesJS Asset Manager, same pattern as the image widget (registerBlocks.ts).
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import type { Component, Editor } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
+import { useComponentProperty } from '../../hooks/useComponentProperty'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -78,38 +79,6 @@ const BUTTON_STYLE: React.CSSProperties = {
   cursor: 'pointer',
   textAlign: 'left' as const,
   fontFamily: 'inherit',
-}
-
-// ---------------------------------------------------------------------------
-// useCaption — bidirectional sync for component 'content' attribute
-// ---------------------------------------------------------------------------
-
-function getContent(component: Component): string {
-  const raw = component.get('content')
-  return typeof raw === 'string' ? raw : ''
-}
-
-function useCaption(component: Component): [string, (value: string) => void] {
-  const [caption, setCaption] = useState<string>(() => getContent(component))
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    setCaption(getContent(component))
-    function onContentChange() {
-      if (isLocalRef.current) { isLocalRef.current = false; return }
-      setCaption(getContent(component))
-    }
-    component.on('change:content', onContentChange)
-    return () => { component.off('change:content', onContentChange) }
-  }, [component])
-
-  function updateCaption(value: string) {
-    isLocalRef.current = true  // Arm before component.set() — GrapesJS fires synchronously
-    setCaption(value)
-    component.set('content', value)
-  }
-
-  return [caption, updateCaption]
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +157,7 @@ function BackgroundImageSection({ editor, component }: { editor: Editor; compone
 // ---------------------------------------------------------------------------
 
 function ButtonPropertiesForm({ editor, component }: { editor: Editor; component: Component }) {
-  const [caption, updateCaption] = useCaption(component)
+  const [caption, updateCaption] = useComponentProperty<string>(component, 'content', '')
 
   return (
     <>
@@ -211,10 +180,7 @@ function ButtonPropertiesForm({ editor, component }: { editor: Editor; component
 // ---------------------------------------------------------------------------
 // NavButtonsPropertiesForm — for 'nav-buttons'
 // Reads/writes prev and next labels from the first two child components.
-//
-// isLocalRef pattern applied per-child: arm BEFORE child.set() because
-// GrapesJS Backbone.Events fires change:content synchronously.
-// Also registers listeners so undo/redo syncs back to the form.
+// Each child gets its own useComponentProperty hook instance.
 // ---------------------------------------------------------------------------
 
 const NAV_BUTTON_DEFAULTS = {
@@ -222,69 +188,34 @@ const NAV_BUTTON_DEFAULTS = {
   nextLabel: 'Next →',
 } as const
 
-function getNavChildContent(component: Component): { prevLabel: string; nextLabel: string } {
-  const children = component.components()
-  const raw0 = children.at(0)?.get('content')
-  const raw1 = children.at(1)?.get('content')
-  return {
-    prevLabel: typeof raw0 === 'string' ? raw0 : NAV_BUTTON_DEFAULTS.prevLabel,
-    nextLabel: typeof raw1 === 'string' ? raw1 : NAV_BUTTON_DEFAULTS.nextLabel,
-  }
+function NavButtonChildLabel({
+  child,
+  label,
+  placeholder,
+}: {
+  child: Component
+  label: string
+  placeholder: string
+}) {
+  const [value, setValue] = useComponentProperty<string>(child, 'content', placeholder)
+
+  return (
+    <>
+      <label style={LABEL_STYLE}>{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        style={{ ...FIELD_STYLE, marginBottom: 8 }}
+        placeholder={placeholder}
+      />
+    </>
+  )
 }
 
 function NavButtonsPropertiesForm({ editor, component }: { editor: Editor; component: Component }) {
   const prevChild = component.components().at(0)
   const nextChild = component.components().at(1)
-
-  const [prevLabel, setPrevLabel] = useState<string>(
-    () => getNavChildContent(component).prevLabel,
-  )
-  const [nextLabel, setNextLabel] = useState<string>(
-    () => getNavChildContent(component).nextLabel,
-  )
-  const isPrevLocalRef = useRef(false)
-  const isNextLocalRef = useRef(false)
-
-  useEffect(() => {
-    const labels = getNavChildContent(component)
-    setPrevLabel(labels.prevLabel)
-    setNextLabel(labels.nextLabel)
-
-    const prev = component.components().at(0)
-    const next = component.components().at(1)
-
-    function onPrevChange() {
-      if (isPrevLocalRef.current) { isPrevLocalRef.current = false; return }
-      const raw = component.components().at(0)?.get('content')
-      setPrevLabel(typeof raw === 'string' ? raw : NAV_BUTTON_DEFAULTS.prevLabel)
-    }
-    function onNextChange() {
-      if (isNextLocalRef.current) { isNextLocalRef.current = false; return }
-      const raw = component.components().at(1)?.get('content')
-      setNextLabel(typeof raw === 'string' ? raw : NAV_BUTTON_DEFAULTS.nextLabel)
-    }
-
-    prev?.on('change:content', onPrevChange)
-    next?.on('change:content', onNextChange)
-    return () => {
-      prev?.off('change:content', onPrevChange)
-      next?.off('change:content', onNextChange)
-    }
-  }, [component])
-
-  function updatePrevLabel(value: string) {
-    if (!prevChild) return
-    isPrevLocalRef.current = true  // Arm before component.set() — GrapesJS fires synchronously
-    setPrevLabel(value)
-    prevChild.set('content', value)
-  }
-
-  function updateNextLabel(value: string) {
-    if (!nextChild) return
-    isNextLocalRef.current = true  // Arm before component.set() — GrapesJS fires synchronously
-    setNextLabel(value)
-    nextChild.set('content', value)
-  }
 
   if (!prevChild || !nextChild) {
     return (
@@ -298,20 +229,14 @@ function NavButtonsPropertiesForm({ editor, component }: { editor: Editor; compo
     <>
       <div style={SECTION_STYLE}>
         <div style={SECTION_TITLE_STYLE}>Button Labels</div>
-        <label style={LABEL_STYLE}>Previous Button</label>
-        <input
-          type="text"
-          value={prevLabel}
-          onChange={e => updatePrevLabel(e.target.value)}
-          style={{ ...FIELD_STYLE, marginBottom: 8 }}
+        <NavButtonChildLabel
+          child={prevChild}
+          label="Previous Button"
           placeholder={NAV_BUTTON_DEFAULTS.prevLabel}
         />
-        <label style={LABEL_STYLE}>Next Button</label>
-        <input
-          type="text"
-          value={nextLabel}
-          onChange={e => updateNextLabel(e.target.value)}
-          style={FIELD_STYLE}
+        <NavButtonChildLabel
+          child={nextChild}
+          label="Next Button"
           placeholder={NAV_BUTTON_DEFAULTS.nextLabel}
         />
       </div>

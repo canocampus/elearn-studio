@@ -16,9 +16,9 @@
  * match the widget data model used by PhaserSim and other rich widget types.
  */
 
-import { useState, useEffect, useRef } from 'react'
 import type { Component, Editor } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
+import { useComponentProperty, useExtendedProperty } from '../../hooks/useComponentProperty'
 
 // ---------------------------------------------------------------------------
 // Type guard
@@ -88,91 +88,6 @@ const CHECKBOX_ROW_STYLE: React.CSSProperties = {
 }
 
 // ---------------------------------------------------------------------------
-// useTrait — bidirectional sync for a named trait on the component
-// ---------------------------------------------------------------------------
-
-function useTrait(component: Component, traitName: string, defaultValue: string): [string, (v: string) => void] {
-  const [value, setValue] = useState<string>(() => {
-    const raw = component.get(traitName as 'type')
-    return typeof raw === 'string' && raw ? raw : defaultValue
-  })
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    const raw = component.get(traitName as 'type')
-    setValue(typeof raw === 'string' && raw ? raw : defaultValue)
-
-    function onChange() {
-      if (isLocalRef.current) { isLocalRef.current = false; return }
-      const updated = component.get(traitName as 'type')
-      setValue(typeof updated === 'string' && updated ? updated : defaultValue)
-    }
-
-    component.on(`change:${traitName}`, onChange)
-    return () => { component.off(`change:${traitName}`, onChange) }
-  }, [component, traitName, defaultValue])
-
-  function update(v: string) {
-    isLocalRef.current = true
-    setValue(v)
-    component.set(traitName as 'type', v)
-  }
-
-  return [value, update]
-}
-
-// ---------------------------------------------------------------------------
-// useExtendedBool — bidirectional sync for a boolean flag in extendedProperties
-// ---------------------------------------------------------------------------
-
-interface ExtendedProperties {
-  autoplay?: boolean
-  controls?: boolean
-  loop?: boolean
-  [key: string]: unknown
-}
-
-function getExtended(component: Component): ExtendedProperties {
-  const raw = component.get('extendedProperties' as 'type')
-  return (raw && typeof raw === 'object' ? raw : {}) as ExtendedProperties
-}
-
-function useExtendedBool(
-  component: Component,
-  key: keyof ExtendedProperties,
-  defaultValue: boolean,
-): [boolean, (v: boolean) => void] {
-  const [value, setValue] = useState<boolean>(() => {
-    const ext = getExtended(component)
-    return key in ext ? Boolean(ext[key]) : defaultValue
-  })
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    const ext = getExtended(component)
-    setValue(key in ext ? Boolean(ext[key]) : defaultValue)
-
-    function onChange() {
-      if (isLocalRef.current) { isLocalRef.current = false; return }
-      const updated = getExtended(component)
-      setValue(key in updated ? Boolean(updated[key]) : defaultValue)
-    }
-
-    component.on('change:extendedProperties', onChange)
-    return () => { component.off('change:extendedProperties', onChange) }
-  }, [component, key, defaultValue])
-
-  function update(v: boolean) {
-    isLocalRef.current = true
-    setValue(v)
-    const current = getExtended(component)
-    component.set('extendedProperties', { ...current, [key]: v })
-  }
-
-  return [value, update]
-}
-
-// ---------------------------------------------------------------------------
 // MediaSourceSection — URL input + Asset Manager picker
 // ---------------------------------------------------------------------------
 
@@ -189,7 +104,7 @@ function openMediaPicker(editor: Editor, component: Component, onPick: (src: str
 }
 
 function MediaSourceSection({ editor, component }: { editor: Editor; component: Component }) {
-  const [src, setSrc] = useTrait(component, 'src', '')
+  const [src, setSrc] = useComponentProperty<string>(component, 'src', '')
 
   function handleChooseMedia() {
     openMediaPicker(editor, component, (picked) => {
@@ -228,7 +143,7 @@ function MediaSourceSection({ editor, component }: { editor: Editor; component: 
 // ---------------------------------------------------------------------------
 
 function MediaTypeSection({ component }: { component: Component }) {
-  const [mediaType, setMediaType] = useTrait(component, 'mediaType', 'video')
+  const [mediaType, setMediaType] = useComponentProperty<string>(component, 'mediaType', 'video')
 
   return (
     <div style={SECTION_STYLE}>
@@ -251,9 +166,9 @@ function MediaTypeSection({ component }: { component: Component }) {
 // ---------------------------------------------------------------------------
 
 function PlaybackOptionsSection({ component }: { component: Component }) {
-  const [autoplay, setAutoplay] = useExtendedBool(component, 'autoplay', false)
-  const [controls, setControls] = useExtendedBool(component, 'controls', true)
-  const [loop, setLoop] = useExtendedBool(component, 'loop', false)
+  const [autoplay, setAutoplay] = useExtendedProperty<boolean>(component, 'autoplay', false)
+  const [controls, setControls] = useExtendedProperty<boolean>(component, 'controls', true)
+  const [loop, setLoop] = useExtendedProperty<boolean>(component, 'loop', false)
 
   return (
     <div style={SECTION_STYLE}>

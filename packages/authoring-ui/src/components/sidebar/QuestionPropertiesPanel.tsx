@@ -12,9 +12,9 @@
  * which triggers the canvas preview refresh via the listenTo hook in registerQuestionBlocks.ts.
  */
 
-import { useState, useEffect, useRef } from 'react'
 import type { Component } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
+import { useComponentProperty } from '../../hooks/useComponentProperty'
 import {
   MC_DEFAULT_EXTENDED,
   TF_DEFAULT_EXTENDED,
@@ -30,61 +30,23 @@ import type {
 } from '../../types/questions'
 
 // ---------------------------------------------------------------------------
-// useExtendedProperties — bidirectional sync between React form and GrapesJS model.
+// useExtendedProperties — thin wrapper around useComponentProperty.
 //
-// Root cause fixed (T602 / BETA-01 through BETA-03, BETA-08, BETA-09, BETA-13):
-// All three forms previously read extendedProperties as a plain variable (no useState).
-// React did not re-render when the user typed — every keystroke was captured by the
-// onChange handler, written to the GrapesJS model, but the form value immediately
-// reverted because the stale closure still held the original value.
-//
-// This hook:
-//   1. Initialises form state from the GrapesJS model at mount time.
-//   2. Subscribes to model 'change:extendedProperties' events so that external
-//      changes (e.g. undo/redo, reload) update the form without a full re-mount.
-//   3. Skips the external-change handler when the change originated locally
-//      (isLocalRef flag) to prevent a double-setState loop.
+// Provides patch-merge semantics (Partial<T> update) over the shared hook,
+// keeping the public API stable for all three form components below.
+// The isLocalRef guard is no longer needed — React 18 automatic batching
+// handles all setState calls (including those triggered by Backbone events)
+// in the same microtask, so there is no double-setState loop to prevent.
 // ---------------------------------------------------------------------------
 
 function useExtendedProperties<T extends object>(
   component: Component,
   defaults: T,
 ): [T, (patch: Partial<T>) => void] {
-  const [ep, setEp] = useState<T>(
-    () => (component.get('extendedProperties') as T | undefined) ?? defaults,
-  )
-  const isLocalRef = useRef(false)
-
-  useEffect(() => {
-    // Sync state when a different component is selected (component prop changes).
-    setEp((component.get('extendedProperties') as T | undefined) ?? defaults)
-
-    function onExternalChange() {
-      if (isLocalRef.current) {
-        isLocalRef.current = false
-        return
-      }
-      setEp((component.get('extendedProperties') as T | undefined) ?? defaults)
-    }
-
-    component.on('change:extendedProperties', onExternalChange)
-    return () => { component.off('change:extendedProperties', onExternalChange) }
-  // Intentional: `defaults` is a stable module-level constant (MC_DEFAULT_EXTENDED etc.)
-  // and never changes. Only `component` changes (different widget selected), triggering
-  // re-subscription. Adding `defaults` to the dep array would cause spurious re-runs.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [component])
-
+  const [ep, setEp] = useComponentProperty<T>(component, 'extendedProperties', defaults)
   function update(patch: Partial<T>) {
-    const next = { ...ep, ...patch }
-    isLocalRef.current = true  // Arm guard BEFORE component.set() — GrapesJS may fire synchronously
-    setEp(next)
-    component.set('extendedProperties', next)
-    // NOTE: component.set() fires component:update, which triggers the debounced
-    // autosave in initEditor.ts. Do NOT call editor.store() here — calling it on
-    // every keystroke creates racing PATCH requests that overwrite newer data.
+    setEp({ ...ep, ...patch })
   }
-
   return [ep, update]
 }
 

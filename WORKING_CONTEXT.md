@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-04 — Audit consolidado fully closed — A-01/A-05/A-06/A-07/D-03/D-04/D-05 resolved (v0.5.29)
+> Last updated: 2026-04-04 — GrapesJS-React refactor: isLocalRef pattern fully eliminated (v0.5.30)
 
 ---
 
@@ -11,7 +11,7 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.29 |
+| **Current version** | v0.5.30 |
 | **Active phase** | Audit consolidado cleanup ✅ CLOSED |
 | **Active block** | — All audit issues resolved |
 | **E2E test count** | 128 tests (125 passing, 3 skipped incl. T611.10) |
@@ -20,6 +20,7 @@
 
 ## What Was Last Done
 
+- **GrapesJS-React refactor / v0.5.30** — Fully eliminated the `isLocalRef` / `useRef(false)` anti-pattern from all 6 property panels. `AnimationPropertiesPanel` split into outer (null checks) + inner (`AnimationPanelContent`, receives guaranteed non-null `Component`) to fix null-safety crash from `component as never` cast. `QuestionPropertiesPanel` local `useExtendedProperties<T>` hook (49 lines with `isLocalRef`) replaced with a 7-line thin wrapper delegating to `useComponentProperty`. All panels now use shared `useComponentProperty<T>` / `useExtendedProperty<T>` from `hooks/useComponentProperty.ts`. 644 unit tests pass. Pending: commit.
 - **Audit consolidado closure / v0.5.29** — Closed all remaining open ALTO and DEUDA TÉCNICA issues. A-06: replaced misleading "atomic single write" comment with accurate race-condition note in `PATCH /slides/reorder`. D-03: deleted 9 debug/test files from repo root (PHP, JS — untracked, already in .gitignore). D-05: deleted 4 `rollup.config-*.mjs` temp files from `packages/runtime-player/` (untracked, already in .gitignore). Confirmed A-01, A-05, A-07 already fixed in T600-T608. Confirmed D-04 untracked and in .gitignore. 131/131 backend API tests pass.
 - **Phase 2.7 closure / v0.5.28** — Resolved all open MEDIUM and LOW issues from T611 and T612, and completed T270.DOCS. Code fixes: `QuestionScoringInfo` interface replaces ad-hoc casts; `mandatory: false` added to all three question default scoring configs; `goNext()` clarifying comment; `slideIsComplete()` JSDoc expanded; `finishCourse()` wraps navigation in try-catch; `restoreSuspendData()` warns when out-of-bounds visited indices are dropped; module-level `_noNavNextWarned` flag prevents repeated console.warn per session. Docs updated: `09-publishing.md` (Navigation Mode section), `scorm2004.md` (Sequencing per mode section), `05-questions.md` (Mandatory questions section). T613.6 marked deferred (Moodle E2E, opt-in via `E2E_MOODLE=1`). All 256 runtime-player + 628 authoring-ui tests pass.
 - **T613 / v0.5.27** — SCORM 2004 conditional sequencing based on `navigationMode`. `buildManifest2004()` in `scorm-packager/src/index.ts` now branches on `course.settings?.navigationMode`: `'free'`/undefined → `choice="true" flow="true"` (unchanged); `'linear-strict'` → `choice="false" choiceExit="false" flow="true"` (LMS TOC navigation blocked). Single-SCO architecture: SCORM preConditionRule/objectiveProgressStatus sequencing rules are not applicable. 3 new unit tests; 27 scorm2004 tests pass. Reviewer: 0 issues. T613.6 (Moodle integration) deferred/opt-in. Commit: `5c9b8d8`.

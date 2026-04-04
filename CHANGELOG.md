@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.30] — 2026-04-04 — GrapesJS-React refactor: eliminate isLocalRef pattern
+
+### Refactored
+- **AnimationPropertiesPanel** (`packages/authoring-ui/src/components/sidebar/AnimationPropertiesPanel.tsx`) — Split into outer (`AnimationPropertiesPanel`, null guards only) and inner (`AnimationPanelContent`, receives non-null `Component`) components. Fixes null-safety crash where `component as never` cast would call `.get()` on null. Removed direct `editor.store()` call; persistence handled by debounced autosave in `initEditor.ts`.
+- **QuestionPropertiesPanel** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — Replaced 49-line local `useExtendedProperties<T>` hook (which contained the `isLocalRef` / `useRef(false)` flag, `useState`, `useEffect`, and `useRef` imports) with a 7-line thin wrapper delegating to `useComponentProperty`. Public API preserved — `MCPropertiesForm`, `TFPropertiesForm`, and `FillPropertiesForm` unchanged.
+
+### Completed
+- **`isLocalRef` pattern fully eliminated** — All 6 property panels (`ButtonPropertiesPanel`, `AudioNarrationPropertiesPanel`, `MediaPlayerPropertiesPanel`, `ProgressBarPropertiesPanel`, `AnimationPropertiesPanel`, `QuestionPropertiesPanel`) now use shared hooks `useComponentProperty<T>` / `useExtendedProperty<T>` from `packages/authoring-ui/src/hooks/useComponentProperty.ts`. The `isLocalRef` / `useRef(false)` anti-pattern is gone from the entire `authoring-ui` codebase.
+
+### Technical note
+React 18 automatic batching renders all `setState` calls (including those triggered by Backbone `change:*` events) in the same microtask. The `isLocalRef` guard was used to suppress re-entry when `component.set()` fired `change:extendedProperties` synchronously — no longer needed. Removing it simplifies the subscription pattern and eliminates a class of subtle stale-closure bugs.
+
+644 unit tests pass.
+
+---
+
 ## [0.5.29] — 2026-04-04 — Audit consolidado: close A-01/A-05/A-06/A-07/D-03/D-04/D-05
 
 ### Fixed
