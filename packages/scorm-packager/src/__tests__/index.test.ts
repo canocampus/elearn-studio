@@ -734,3 +734,86 @@ describe('Integration tests', () => {
     })
   })
 })
+
+// ─── C-03 gate: asset bundling + path rewriting ────────────────────────────
+// Gate of closure for audit-consolidado C-03:
+//   (a) ZIP contains `assets/<uuid>.png`
+//   (b) index.html embeds the course JSON with relative `assets/<uuid>.png`
+//       — NOT the auth-protected `/assets/<uuid>.png` absolute path.
+// This verifies the packager's half of the pipeline.  The backend's half
+// (collectAssetSrcs + rewriteAssetSrcs + downloadAssets in courses.ts) is
+// tested in backend/api/src/__tests__/courses.test.ts.
+
+describe('C-03 — asset bundling and path rewriting gate', () => {
+  it('C-03a — ZIP contains asset file at assets/<uuid>.png', async () => {
+    const assetUuid = 'a1b2c3d4-e5f6-4789-abcd-ef0123456789'
+    const assetDir = path.join(tempDir, 'c03-assets')
+    fs.mkdirSync(assetDir, { recursive: true })
+    const assetFile = path.join(assetDir, `${assetUuid}.png`)
+    fs.writeFileSync(assetFile, Buffer.from('\x89PNG\r\n\x1a\n'))  // minimal PNG header
+
+    const course = makeCourse({
+      slides: [{
+        id: 's1',
+        title: 'Slide 1',
+        widgets: [{
+          id: 'w1',
+          type: 'image',
+          bounds: { x: 0, y: 0, width: 200, height: 150 },
+          properties: { src: `assets/${assetUuid}.png` },  // already rewritten (relative)
+          visible: true,
+          layer: 1,
+        }],
+      }],
+    })
+
+    const outputDir = path.join(tempDir, 'c03-test-a')
+    const zipPath = await packSCORM12(course, outputDir, {
+      playerPath: fakePlayerPath,
+      assetPaths: [{ localPath: assetFile, zipPath: `assets/${assetUuid}.png` }],
+    })
+
+    const zip = new AdmZip(zipPath)
+    const assetEntry = zip.getEntry(`assets/${assetUuid}.png`)
+    expect(assetEntry).not.toBeNull()
+  })
+
+  it('C-03b — index.html embeds relative asset path, not absolute /assets/ path', async () => {
+    const assetUuid = 'b2c3d4e5-f6a7-4890-bcde-f01234567890'
+    const assetDir = path.join(tempDir, 'c03-assets-b')
+    fs.mkdirSync(assetDir, { recursive: true })
+    const assetFile = path.join(assetDir, `${assetUuid}.png`)
+    fs.writeFileSync(assetFile, Buffer.from('fake image'))
+
+    const course = makeCourse({
+      slides: [{
+        id: 's1',
+        title: 'Slide 1',
+        widgets: [{
+          id: 'w1',
+          type: 'image',
+          bounds: { x: 0, y: 0, width: 200, height: 150 },
+          properties: { src: `assets/${assetUuid}.png` },  // relative — as rewritten by backend
+          visible: true,
+          layer: 1,
+        }],
+      }],
+    })
+
+    const outputDir = path.join(tempDir, 'c03-test-b')
+    const zipPath = await packSCORM12(course, outputDir, {
+      playerPath: fakePlayerPath,
+      assetPaths: [{ localPath: assetFile, zipPath: `assets/${assetUuid}.png` }],
+    })
+
+    const zip = new AdmZip(zipPath)
+    const htmlEntry = zip.getEntry('index.html')
+    expect(htmlEntry).not.toBeNull()
+    const html = htmlEntry!.getData().toString('utf8')
+
+    // (b) HTML must reference relative path: assets/<uuid>.png
+    expect(html).toContain(`assets/${assetUuid}.png`)
+    // (b) HTML must NOT reference the auth-protected absolute path: /assets/<uuid>.png
+    expect(html).not.toContain(`/assets/${assetUuid}.png`)
+  })
+})

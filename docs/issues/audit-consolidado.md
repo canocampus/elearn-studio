@@ -554,7 +554,7 @@ ante un problema que ya no existe con React 18.
 |---|---|---|---|
 | C-01 | CRÍTICO | Motor de acciones no cableado al runtime | ✅ CERRADO (df7af97 + v0.5.32) |
 | C-02 | CRÍTICO | sharedSequences roto E2E | ✅ CERRADO (5c59d6d + v0.5.33) |
-| C-03 | CRÍTICO | SCORM export no empaqueta assets | 🔴 Abierto |
+| C-03 | CRÍTICO | SCORM export no empaqueta assets | ✅ CERRADO (courses.ts + v0.5.34) |
 | C-04 | CRÍTICO | React state en formularios de preguntas | ✅ CERRADO (T602 + v0.5.30) |
 | C-05/NAV-01 | CRÍTICO | Botón Next sin gate de preguntas obligatorias | ✅ CERRADO (T611) |
 | C-05/NAV-02 | CRÍTICO | Resume inconsistente / visitedSlides ausente | ✅ CERRADO (T612) |
@@ -568,10 +568,10 @@ ante un problema que ya no existe con React 18.
 | A-06 | ALTO | Reorder slides no atómico | ✅ CERRADO (v0.5.29) |
 | A-07 | ALTO | /auth/login filtra mensajes internos | ✅ CERRADO (T600-T608) |
 | D-01 | DEUDA | Tipos duplicados sin fuente única | ✅ CERRADO (f73576e + v0.5.31) |
-| D-02 | DEUDA | Tests unitarios sin integración E2E | 🟡 Parcial (C-03 pendiente) |
+| D-02 | DEUDA | Tests unitarios sin integración E2E | ✅ CERRADO (C-01/C-02/C-03 E2E gates added) |
 | D-03 | DEUDA | Ficheros debug en raíz del repo | ✅ CERRADO (v0.5.29) |
 | D-04 | DEUDA | openapi.json / generated.ts commiteados | ✅ CERRADO (v0.5.29) |
 | D-05 | DEUDA | Rollup config temporales commiteados | ✅ CERRADO (v0.5.29) |
 | R-01 | REFACTOR | isLocalRef pattern en 6 property panels | ✅ CERRADO (v0.5.30) |
 
-**Pendiente crítico:** C-03 (SCORM assets) — único crítico abierto. C-01 cerrado (df7af97 v0.5.32), C-02 cerrado (5c59d6d v0.5.33), D-01 cerrado (f73576e v0.5.31).
+**Todos los críticos cerrados:** C-01 (df7af97 v0.5.32), C-02 (5c59d6d v0.5.33), C-03 (v0.5.34), D-01 (f73576e v0.5.31). Audit consolidado 100% resuelto.

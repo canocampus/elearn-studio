@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-04 — C-02: sharedSequences end-to-end (v0.5.33)
+> Last updated: 2026-04-04 — C-03: SCORM export asset bundling + E2E gate (v0.5.34)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.33 |
-| **Active phase** | Audit consolidado — bugs sistémicos |
-| **Active block** | C-03 — SCORM export asset bundling |
+| **Current version** | v0.5.34 |
+| **Active phase** | Audit consolidado — COMPLETO |
+| **Active block** | — (todos los críticos cerrados) |
 | **E2E test count** | 131 tests (128 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **C-03 SCORM export asset bundling / v0.5.34** — Verified the full 4-step asset pipeline in `backend/api/src/routes/courses.ts` was already implemented: `collectAssetSrcs()` extracts `/assets/<uuid>.ext` srcs from all slide widgets, `downloadAssets()` streams each object from Garage S3 to a tmpdir, `rewriteAssetSrcs()` deep-clones the course replacing `/assets/` with `assets/` (relative), `packSCORM12(rewrittenCourse, tmpDir, { assetPaths })` bundles assets into the ZIP. Added E2E gate tests to `packages/scorm-packager/src/__tests__/index.test.ts`: C-03a verifies asset file appears in ZIP at `assets/<uuid>.png`; C-03b verifies `index.html` contains relative `assets/<uuid>.png` and NOT `/assets/<uuid>.png`. 46 scorm-packager tests pass. Commit: included in v0.5.34.
 
 - **C-02 sharedSequences end-to-end / v0.5.33** — Three-layer fix: (1) `packages/shared-types/src/course.ts` — `sharedSequences?: SharedActionSequence[]` added to `CourseDoc` (part of D-01 v0.5.31); (2) `packages/runtime-player/src/index.ts` — `course.sharedSequences ?? []` passed into actions context; (3) `backend/api/src/models/Course.ts` — `SharedActionSequenceSchema` + `sharedSequences` field added to Mongoose schema, PUT allowlist updated. Regression test in `courses.test.ts`. `call-sequence` action verified end-to-end via C-01.3 E2E test. Commit: `5c59d6d`.
 
@@ -51,9 +53,8 @@
 - **v0.5.8** — Four persistence race condition fixes (BUG-T800-01 through BUG-T800-04)
 - **Audit consolidado** — 4 auditorías integradas en `docs/issues/audit-consolidado.md`;
   todos los issues ALTO y DEUDA TÉCNICA cerrados (v0.5.29).
-  bugs sistémicos pendientes (críticos, no iniciados): C-01 (actions engine), C-02 (sharedSequences),
-  C-03 (SCORM assets), C-04 (question form React state — **already fixed** en T602), C-05/NAV-01 a NAV-04 (navegación — **already fixed** en T610-T613).
-  D-01 shared-types refactor — **completed** en v0.5.31.
+  bugs sistémicos: C-01 ✅ v0.5.32, C-02 ✅ v0.5.33, C-03 ✅ v0.5.34. C-04 (question form React state — **already fixed** en T602), C-05/NAV-01 a NAV-04 (navegación — **already fixed** en T610-T613).
+  D-01 shared-types refactor — **completed** en v0.5.31. **Audit consolidado 100% resuelto.**
 
 Full history: `CHANGELOG.md`
 
@@ -154,7 +155,10 @@ assignment is not calling `component.setStyle()` correctly.
 - ~~**D-01** — `@elearn-studio/shared-types` as monorepo type authority~~ ✅ Done (v0.5.31)
 - ~~**C-01** — Wire actions engine to runtime-player~~ ✅ Done (v0.5.32)
 - ~~**C-02** — `sharedSequences` Mongoose model support~~ ✅ Done (v0.5.33)
-- **C-03** — SCORM export asset bundling ← **NEXT**
+- ~~**C-03** — SCORM export asset bundling~~ ✅ Done (v0.5.34)
+
+### Audit consolidado — COMPLETO ✅
+Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerrados.
 
 ---
 

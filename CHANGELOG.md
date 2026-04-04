@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.34] — 2026-04-04 — C-03: SCORM export asset bundling + path rewriting
+
+### Fixed
+- **`backend/api/src/routes/courses.ts`** — Full 4-step asset pipeline already present: `collectAssetSrcs()` extracts `/assets/<uuid>.ext` from all slide widgets; `downloadAssets()` streams each object from Garage S3 to a tmpdir; `rewriteAssetSrcs()` deep-clones the course replacing absolute `/assets/` prefixes with relative `assets/` paths; `packSCORM12(rewrittenCourse, tmpDir, { assetPaths })` bundles all assets into the ZIP.
+
+### Added
+- **`packages/scorm-packager/src/__tests__/index.test.ts`** — C-03 gate tests (2 new tests, total 46):
+  - **C-03a** — verifies asset file is present in ZIP at `assets/<uuid>.png`
+  - **C-03b** — verifies `index.html` contains relative `assets/<uuid>.png` and NOT `/assets/<uuid>.png`
+
+### Technical note
+Gate of closure per audit-consolidado: "packSCORM12 embeds relative asset paths and all referenced assets are present in the ZIP." Audit consolidado 100% resuelto: C-01 ✅ C-02 ✅ C-03 ✅ D-01 ✅ D-02 ✅.
+
+---
+
 ## [0.5.33] — 2026-04-04 — C-02: sharedSequences end-to-end (backend + shared-types + runtime)
 
 ### Fixed
