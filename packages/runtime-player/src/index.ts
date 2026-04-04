@@ -26,6 +26,9 @@ import {
   type PhaserSimConfig,
 } from './widgets/phaserSimWidget'
 import { saveSuspendData, restoreSuspendData } from './suspend'
+import { EventDispatcher } from './actions/dispatcher'
+import { createExecutionContext } from './actions/context'
+import type { ActionSequence, SharedActionSequence } from './actions/types'
 
 // ─── Embedded types (mirror authoring-ui/types) ───────────────────────────────
 
@@ -39,7 +42,7 @@ interface BaseWidget {
   visible: boolean
   properties: Record<string, unknown>
   extendedProperties: Record<string, unknown>
-  actions: Array<{ event: string; actions: unknown[] }>
+  actions: ActionSequence[]
 }
 
 interface Slide {
@@ -68,6 +71,7 @@ interface CourseDoc {
   slides: Slide[]
   settings: CourseSettings
   metadata: SCORMMetadata
+  sharedSequences?: SharedActionSequence[]
 }
 
 // ─── Question inline types ────────────────────────────────────────────────────
@@ -186,6 +190,8 @@ interface PlayerState {
   phaserCleanups: Array<() => void>
   /** Slide indices visited this session — used to calculate progress bar fill. */
   visitedSlides: Set<number>
+  /** Actions engine event dispatcher — null until init() wires it up. */
+  dispatcher: EventDispatcher | null
 }
 
 // ─── Global volume state (persists across slides, not stored in SCORM) ────────
@@ -547,6 +553,18 @@ function scormReport(state: PlayerState, status: 'passed' | 'failed' | 'incomple
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 function goToSlide(state: PlayerState, index: number): void {
+  // Fire exitSlide for widgets on the slide we're leaving
+  if (state.dispatcher) {
+    const leavingSlide = state.course.slides[state.currentSlide]
+    if (leavingSlide) {
+      state.dispatcher.fireSlideEvent(
+        'exitSlide',
+        leavingSlide.widgets.map(w => ({ widgetId: w.id, sequences: w.actions })),
+      )
+    }
+    state.dispatcher.teardown()
+  }
+
   // Cancel any running demo timer from the previous slide's sim player
   state.simCleanup?.()
   state.simCleanup = null
@@ -643,6 +661,19 @@ function goToSlide(state: PlayerState, index: number): void {
   updateNavButtons(state)
   applyVolumeToSlide(container)
   scormReport(state, 'incomplete')
+
+  // Wire actions engine: attach widget event listeners, then fire enterSlide
+  if (state.dispatcher) {
+    for (const w of slide.widgets) {
+      if (!w.visible || !w.actions?.length) continue
+      const el = container.querySelector<HTMLElement>(`#w-${w.id}`)
+      if (el) state.dispatcher.attachWidget(el, w.id, w.actions)
+    }
+    state.dispatcher.fireSlideEvent(
+      'enterSlide',
+      slide.widgets.map(w => ({ widgetId: w.id, sequences: w.actions })),
+    )
+  }
 
   // Prefetch assets for the next 2 slides (T042.3)
   prefetchSlideAssets(course.slides, index)
@@ -876,6 +907,16 @@ function handleSubmit(state: PlayerState, widgetId: string): void {
   updateScoreDisplays(state)
   updateNavButtons(state)
   scormReport(state, 'incomplete')
+
+  // Fire question lifecycle events for authored action sequences
+  if (state.dispatcher && widget.actions?.length) {
+    state.dispatcher.fireWidgetEvent(widgetId, 'questionAnswered', widget.actions)
+    if (correct) {
+      state.dispatcher.fireWidgetEvent(widgetId, 'questionCorrect', widget.actions)
+    } else {
+      state.dispatcher.fireWidgetEvent(widgetId, 'questionIncorrect', widget.actions)
+    }
+  }
 }
 
 // ─── Event delegation ─────────────────────────────────────────────────────────
@@ -999,7 +1040,48 @@ function init(
     simCleanup: null,
     phaserCleanups: [],
     visitedSlides: new Set<number>(),
+    dispatcher: null,
   }
+
+  // Build the ExecutionContext that bridges the actions engine to player internals
+  const scormBridge = scormApi
+    ? {
+        getValue: (key: string) => scormApi.getValue(key),
+        setValue: (key: string, value: string) => { scormApi.setValue(key, value) },
+        commit: () => { scormApi.commit() },
+        finish: () => { scormApi.finish() },
+      }
+    : null
+
+  const ctx = createExecutionContext({
+    container,
+    scorm: scormBridge,
+    sharedSequences: course.sharedSequences ?? [],
+    navigation: {
+      goToIndex: (i) => { goToSlide(state, i) },
+      getCurrentIndex: () => state.currentSlide,
+      getSlideCount: () => course.slides.length,
+      getSlides: () => course.slides.map(s => ({ id: s.id, title: s.title })),
+    },
+    scoring: {
+      scoreQuestion: (widgetId) => { handleSubmit(state, widgetId) },
+      scoreQuiz: () => { finishCourse(state) },
+      getCurrentScore: () => calculateCurrentScore(state),
+    },
+    getWidget: (widgetId) => {
+      const slide = course.slides[state.currentSlide]
+      const w = slide?.widgets.find(x => x.id === widgetId)
+      if (!w) return undefined
+      return {
+        id: w.id,
+        type: w.type,
+        el: container.querySelector<HTMLElement>(`#w-${w.id}`),
+        extendedProperties: w.extendedProperties,
+      }
+    },
+  })
+
+  state.dispatcher = new EventDispatcher(ctx)
 
   // Attempt to restore full suspend state (slide + question scores) from cmi.suspend_data.
   // Falls back to the version-appropriate location key if no suspend_data is present.
