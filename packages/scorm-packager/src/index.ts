@@ -29,47 +29,19 @@ import {
 } from './aicc'
 export type { PackAICCOptions } from './aicc'
 
-// ─── Embedded course types (mirror authoring-ui) ──────────────────────────────
+// ─── Course types from shared-types (D-01) ────────────────────────────────────
 
-export interface Bounds { x: number; y: number; width: number; height: number }
+export type {
+  Bounds,
+  BaseWidget,
+  WidgetType,
+  Slide,
+  CourseSettings,
+  SCORMMetadata,
+  CourseDoc,
+} from '@elearn-studio/shared-types'
 
-export interface BaseWidget {
-  id: string
-  type: string
-  bounds: Bounds
-  layer: number
-  visible: boolean
-  properties: Record<string, unknown>
-  extendedProperties: Record<string, unknown>
-}
-
-export interface Slide {
-  id: string
-  title: string
-  widgets: BaseWidget[]
-}
-
-export interface CourseSettings {
-  width: number
-  height: number
-  passingScore?: number
-  navigationMode?: 'free' | 'linear-strict'
-  requireAllSlides?: boolean
-}
-
-export interface SCORMMetadata {
-  identifier?: string
-  version?: string
-  masteryScore?: number
-}
-
-export interface CourseDoc {
-  _id: string
-  title: string
-  slides: Slide[]
-  settings: CourseSettings
-  metadata: SCORMMetadata
-}
+import type { Bounds, BaseWidget, Slide, CourseSettings, SCORMMetadata, CourseDoc } from '@elearn-studio/shared-types'
 
 // ─── Options ──────────────────────────────────────────────────────────────────
 

@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { courseHasPhaserSim, type CourseDoc } from '../index'
+import { courseHasPhaserSim, type CourseDoc, type WidgetType } from '../index'
 
-function makeWidget(type: string) {
+function makeWidget(type: WidgetType) {
   return {
     id: `w-${type}`,
     type,
@@ -17,13 +17,19 @@ function makeWidget(type: string) {
   }
 }
 
-function makeCourse(widgetTypes: string[]): CourseDoc {
+function makeCourse(widgetTypes: WidgetType[]): CourseDoc {
   return {
     _id: 'course-1',
     title: 'Test',
     slides: [
       { id: 's1', title: 'Slide 1', widgets: widgetTypes.map(makeWidget) },
     ],
+    templates: [],
+    resources: [],
+    sharedSequences: [],
+    deletedAt: null,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
     settings: { width: 1024, height: 768, passingScore: 80 },
     metadata: { version: '1.0', masteryScore: 80 },
   }

@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@elearn-studio/shared-types": "workspace:*",
     "lz-string": "^1.5.0"
   },
   "devDependencies": {

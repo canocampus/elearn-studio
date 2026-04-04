@@ -29,54 +29,10 @@ import { saveSuspendData, restoreSuspendData } from './suspend'
 import { EventDispatcher } from './actions/dispatcher'
 import { createExecutionContext } from './actions/context'
 import type { ActionSequence, SharedActionSequence } from './actions/types'
-
-// ─── Embedded types (mirror authoring-ui/types) ───────────────────────────────
-
-interface Bounds { x: number; y: number; width: number; height: number }
-
-interface BaseWidget {
-  id: string
-  type: string
-  bounds: Bounds
-  layer: number
-  visible: boolean
-  properties: Record<string, unknown>
-  extendedProperties: Record<string, unknown>
-  actions: ActionSequence[]
-}
-
-interface Slide {
-  id: string
-  title: string
-  widgets: BaseWidget[]
-}
-
-interface CourseSettings {
-  width: number
-  height: number
-  passingScore: number
-  remediationSlideId?: string
-  navigationMode?: 'free' | 'linear-strict'
-  requireAllSlides?: boolean
-}
-
-interface SCORMMetadata {
-  identifier?: string
-  masteryScore: number
-}
-
-interface CourseDoc {
-  _id: string
-  title: string
-  slides: Slide[]
-  settings: CourseSettings
-  metadata: SCORMMetadata
-  sharedSequences?: SharedActionSequence[]
-}
-
-// ─── Question inline types ────────────────────────────────────────────────────
-
-type FillMatchType = 'exact' | 'regex' | 'case-insensitive'
+import type {
+  Bounds, BaseWidget, Slide, CourseSettings, SCORMMetadata, CourseDoc,
+  FillMatchType,
+} from '@elearn-studio/shared-types'
 
 /** Scoring config stored in extendedProperties.scoring for question widgets. */
 interface QuestionScoringInfo {

@@ -12,6 +12,7 @@
     "gen:api-client": "pnpm --filter api run gen:openapi && npx openapi-typescript ../../backend/api/openapi.json -o src/api/generated.ts"
   },
   "dependencies": {
+    "@elearn-studio/shared-types": "workspace:*",
     "@grapesjs/react": "^2.0.0",
     "@tiptap/react": "^2.4.0",
     "@tiptap/starter-kit": "^2.4.0",

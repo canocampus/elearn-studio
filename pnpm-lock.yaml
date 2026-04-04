@@ -44,6 +44,9 @@ importers:
       '@elearn-studio/scorm-packager':
         specifier: workspace:*
         version: link:../../packages/scorm-packager
+      '@elearn-studio/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
       '@opentelemetry/exporter-otlp-http':
         specifier: ^0.26.0
         version: 0.26.0(@opentelemetry/api@1.9.1)
@@ -222,6 +225,9 @@ importers:
 
   packages/authoring-ui:
     dependencies:
+      '@elearn-studio/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
       '@grapesjs/react':
         specifier: ^2.0.0
         version: 2.0.0(grapesjs@0.21.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -347,6 +353,9 @@ importers:
 
   packages/runtime-player:
     dependencies:
+      '@elearn-studio/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
       lz-string:
         specifier: ^1.5.0
         version: 1.5.0
@@ -381,6 +390,9 @@ importers:
 
   packages/scorm-packager:
     dependencies:
+      '@elearn-studio/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
       archiver:
         specifier: ^7.0.1
         version: 7.0.1
@@ -411,6 +423,15 @@ importers:
         version: 0.5.16
       typescript:
         specifier: ^5.4.5
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.37)(jsdom@29.0.1(@noble/hashes@1.8.0))(terser@5.46.1)
+
+  packages/shared-types:
+    devDependencies:
+      typescript:
+        specifier: ^5.5.0
         version: 5.9.3
       vitest:
         specifier: ^1.6.0

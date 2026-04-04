@@ -11,6 +11,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@elearn-studio/shared-types": "workspace:*",
     "archiver": "^7.0.1",
     "dotenv": "^16.4.5",
     "xmlbuilder2": "^3.1.1"
