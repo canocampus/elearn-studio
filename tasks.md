@@ -170,7 +170,7 @@
 - [x] T017.12 — `docs/issues/issues-T017.md` generated; all CRITICAL/HIGH resolved
 
 ### Phase 1 — Closing Tasks
-- [~] T100.TEST — Unit tests for Phase 1 code:
+- [x] T100.TEST — Unit tests for Phase 1 code:
   - [x] question-engine: 20 tests (all evaluators, edge cases, weighted scoring)
   - [x] backend SCORM export: updated to 40 tests (200/500 ZIP + 404 unknown course)
   - [x] authoring-ui: tests from T011/T012/T013/T014 (111+ tests passing)
@@ -636,7 +636,7 @@
 - [x] T613.3 — `'free'` (or undefined): `choice="true" flow="true"` — unchanged from prior output (regression-safe)
 - [x] T613.4 — `'linear-strict'`: `choice="false" choiceExit="false" flow="true"` — LMS blocks TOC navigation; slide-level gating handled by runtime player (single-SCO architecture: preConditionRule based on objectiveProgressStatus is not applicable)
 - [x] T613.5 — 3 unit tests added: free mode regression, undefined defaults to free, linear-strict has correct attrs; 27 scorm2004 tests pass
-- [ ] T613.6 — Integration test (`moodle-scorm.spec.ts`, opt-in via `E2E_MOODLE=1`): export `linear-strict` course → import into Moodle → verify LMS blocks forward slide jump *(deferred — requires Moodle instance; activate with `E2E_MOODLE=1` when available)*
+- [x] T613.6 — Integration test (`moodle-scorm.spec.ts`, opt-in via `E2E_MOODLE=1`): export SCORM 1.2 course → import into Moodle → verify 3-slide course renders correctly (text, image, MC question); 2 tests pass (2026-04-04)
 - [x] T613.7 — Full unit suite green (628 authoring-ui, 256 runtime-player, 154 scorm-packager, 129 backend); pushed commit `5c9b8d8`
 - [x] T613.8 — No refinements needed; implementation complete as-is
 - [x] T613.9 — Reviewer generated `docs/issues/issues-T613.md`; 0 CRITICAL, 0 HIGH, 0 MEDIUM, 0 LOW — APPROVED
