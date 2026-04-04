@@ -76,6 +76,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Build shared-types (required before tests)
+        run: pnpm --filter @elearn-studio/shared-types run build
+
       - name: Test (unit + integration, all packages)
         run: pnpm --filter '!@elearn-studio/e2e' -r run test
 
