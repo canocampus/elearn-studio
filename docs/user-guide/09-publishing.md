@@ -73,6 +73,30 @@ You can preview your course directly in eLearn Studio without exporting:
 
 ---
 
+## Navigation mode
+
+The **Navigation Mode** setting controls how learners move through your course. You configure it in the **Course Settings** dialog (click the gear icon in the top toolbar).
+
+| Mode | Behaviour |
+|---|---|
+| **Free** (default) | Learners can navigate to any slide at any time using the table of contents or Next/Previous buttons. No restrictions. |
+| **Linear (strict)** | Learners must complete each slide in order. They cannot jump to an arbitrary slide. If a slide contains mandatory questions, the learner must answer them before the Next button becomes active. |
+
+### How navigation mode affects the exported package
+
+When you publish a course in **SCORM 2004** format, eLearn Studio writes the navigation mode into the manifest as `imsss:controlMode` attributes:
+
+| Mode | `imsss:controlMode` |
+|---|---|
+| Free | `choice="true" flow="true"` |
+| Linear (strict) | `choice="false" choiceExit="false" flow="true"` |
+
+With `choice="false"` the LMS table of contents does not allow learners to jump directly to an item. `flow="true"` keeps sequential Next/Previous navigation active.
+
+> ℹ️ **SCORM 1.2 note:** SCORM 1.2 does not support `imsss` sequencing elements. In SCORM 1.2, the linear-strict gate is enforced entirely inside the Runtime Player — the LMS table of contents is not affected.
+
+---
+
 ## Re-publishing after changes
 
 You can publish your course as many times as needed. Each export creates a fresh ZIP file with your latest changes.

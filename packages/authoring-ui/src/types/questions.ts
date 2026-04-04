@@ -45,7 +45,7 @@ export const MC_DEFAULT_EXTENDED: MCExtendedProps = {
   ],
   feedbackCorrect: 'Correct!',
   feedbackIncorrect: 'Incorrect. Try again.',
-  scoring: { weight: 100, attempts: -1 },
+  scoring: { weight: 100, attempts: -1, mandatory: false },
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ export const TF_DEFAULT_EXTENDED: TFExtendedProps = {
   correctAnswer: true,
   feedbackCorrect: 'Correct!',
   feedbackIncorrect: 'Incorrect. Try again.',
-  scoring: { weight: 100, attempts: -1 },
+  scoring: { weight: 100, attempts: -1, mandatory: false },
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ export const FILL_DEFAULT_EXTENDED: FillExtendedProps = {
   matchType: 'case-insensitive',
   feedbackCorrect: 'Correct!',
   feedbackIncorrect: 'Incorrect. Try again.',
-  scoring: { weight: 100, attempts: -1 },
+  scoring: { weight: 100, attempts: -1, mandatory: false },
 }
 
 // ---------------------------------------------------------------------------

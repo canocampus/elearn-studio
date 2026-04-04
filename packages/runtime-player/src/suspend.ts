@@ -167,11 +167,17 @@ export function restoreSuspendData(
 
   // Restore visited slide indices (v:2+). For v:1 payloads (no visited field),
   // seed with just the current slide so progress doesn't show 0% on resume.
-  state.visitedSlides = new Set(
-    Array.isArray(payload.visited)
-      ? payload.visited.filter(n => typeof n === 'number' && n >= 0 && n < slideCount)
-      : [payload.slide],
-  )
+  if (Array.isArray(payload.visited)) {
+    const filtered = payload.visited.filter(n => typeof n === 'number' && n >= 0 && n < slideCount)
+    if (filtered.length < payload.visited.length) {
+      console.warn(
+        `[ELearnPlayer] restoreSuspendData: dropped ${payload.visited.length - filtered.length} out-of-bounds visited slide index/indices — course may have been edited since last session.`,
+      )
+    }
+    state.visitedSlides = new Set(filtered)
+  } else {
+    state.visitedSlides = new Set([payload.slide])
+  }
 
   state.questionStates.clear()
   for (const [widgetId, q] of payload.scores) {

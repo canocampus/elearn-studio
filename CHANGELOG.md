@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.28] — 2026-04-04 — Phase 2.7 issue cleanup + docs
+
+### Fixed
+- **T611 M-02**: Replaced ad-hoc `{ mandatory?: boolean }` inline cast with a shared `QuestionScoringInfo` interface used consistently across `slideIsComplete()` and `handleSubmit()` (`packages/runtime-player/src/index.ts`)
+- **T611 M-03**: Added `mandatory: false` to all three default question scoring configs (`MC_DEFAULT_EXTENDED`, `TF_DEFAULT_EXTENDED`, `FILL_DEFAULT_EXTENDED` in `packages/authoring-ui/src/types/questions.ts`) — ensures MongoDB serialisation always includes the field
+- **T611 L-01**: Added clarifying comment to `goNext()`: defensive check is intentional even though `updateNavButtons()` also gates the button
+- **T611 L-02**: Expanded `slideIsComplete()` JSDoc to document mandatory field absence semantics and MongoDB persistence behaviour
+- **T612 MEDIUM-01**: Wrapped `goToSlide(state, i)` in try-catch inside `finishCourse()` to prevent an unhandled navigation error from breaking the finish gate
+- **T612 MEDIUM-02**: `restoreSuspendData()` in `suspend.ts` now logs a `console.warn` when out-of-bounds visited slide indices are dropped (course edited since last session)
+- **T612 LOW-01**: Updated `finishCourse()` comment to read "Find the first unvisited slide (lowest index)"
+- **T612 LOW-02**: Added module-level `_noNavNextWarned` flag to `index.ts` so the "no nav-next buttons found" warning fires at most once per player session
+
+### Documentation
+- `docs/user-guide/09-publishing.md`: Added **Navigation Mode** section explaining Free vs Linear-strict, LMS TOC behaviour, `imsss:controlMode` table, and SCORM 1.2 note
+- `docs/scorm-guide/scorm2004.md`: Added **Sequencing and Navigation Mode** section with controlMode table, XML examples, and single-SCO architecture note
+- `docs/user-guide/05-questions.md`: Added **Mandatory questions** section describing the mandatory toggle and its interaction with linear-strict mode
+
+---
+
 ## [0.0.1-beta] — 2026-03-29 — First Public Beta
 
 First tagged release. Delivers a functional end-to-end authoring pipeline: visual slide editor (GrapesJS), question widgets, screenshot and Phaser simulations, SCORM 1.2/2004 export, Moodle validation, JWT auth, S3 asset storage, and a 73-test E2E suite. All CRITICAL and HIGH issues resolved. Known deferred items documented in `docs/issues/`.

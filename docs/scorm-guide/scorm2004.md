@@ -73,6 +73,7 @@ The Runtime Player checks for `window.API_1484_11` before `window.API`. A SCORM 
         <title>My Course</title>
         <adlcp:completionThreshold>0.80</adlcp:completionThreshold>
         <imsss:sequencing>
+          <!-- controlMode attributes depend on navigationMode (see Sequencing section below) -->
           <imsss:controlMode choice="true" flow="true"/>
           <imsss:deliveryControls
             completionSetByContent="true"
@@ -84,6 +85,27 @@ The Runtime Player checks for `window.API_1484_11` before `window.API`. A SCORM 
 ```
 
 `completionThreshold` is derived from `course.metadata.masteryScore` divided by 100, formatted to 2 decimal places. `completionSetByContent="true"` means the Runtime Player is responsible for setting `cmi.completion_status` — the LMS does not set it on its own.
+
+---
+
+## Sequencing and Navigation Mode
+
+The `imsss:controlMode` attributes in the manifest reflect the course **Navigation Mode** setting:
+
+| `navigationMode` | `choice` | `choiceExit` | `flow` | Effect |
+|---|---|---|---|---|
+| `free` (default) | `true` | *(absent)* | `true` | LMS TOC allows learner to jump to any item; Next/Prev also available |
+| `linear-strict` | `false` | `false` | `true` | LMS TOC does not allow jumping; learner must use Next/Prev in order |
+
+**Implementation note:** eLearn Studio uses a single-SCO architecture — all slides are inside one SCO. This means SCORM `<imsss:sequencingRules>` with `preConditionRule` (which operate across multiple SCO items) are not used. The `choice`/`choiceExit` attributes on the root item are the correct and sufficient signal for single-SCO linear gating at the LMS level. Slide-level mandatory-question gating is enforced by the Runtime Player.
+
+```xml
+<!-- Free navigation (default) -->
+<imsss:controlMode choice="true" flow="true"/>
+
+<!-- Linear-strict navigation -->
+<imsss:controlMode choice="false" choiceExit="false" flow="true"/>
+```
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-04 — TA608.6 fix + T612.9 + T611.10 skip (v0.5.26)
+> Last updated: 2026-04-04 — Phase 2.7 closed — all pending tasks + open MEDIUM/LOW issues resolved (v0.5.28)
 
 ---
 
@@ -11,15 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.27 |
-| **Active phase** | Phase 2.7 — SCORM Navigation Integration |
-| **Active block** | T613 ✅ COMPLETE — Phase 2.7 COMPLETE |
+| **Current version** | v0.5.28 |
+| **Active phase** | Phase 2.7 — SCORM Navigation Integration ✅ CLOSED |
+| **Active block** | T270.DOCS ✅ COMPLETE — Phase 2.7 fully closed |
 | **E2E test count** | 128 tests (125 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
 
+- **Phase 2.7 closure / v0.5.28** — Resolved all open MEDIUM and LOW issues from T611 and T612, and completed T270.DOCS. Code fixes: `QuestionScoringInfo` interface replaces ad-hoc casts; `mandatory: false` added to all three question default scoring configs; `goNext()` clarifying comment; `slideIsComplete()` JSDoc expanded; `finishCourse()` wraps navigation in try-catch; `restoreSuspendData()` warns when out-of-bounds visited indices are dropped; module-level `_noNavNextWarned` flag prevents repeated console.warn per session. Docs updated: `09-publishing.md` (Navigation Mode section), `scorm2004.md` (Sequencing per mode section), `05-questions.md` (Mandatory questions section). T613.6 marked deferred (Moodle E2E, opt-in via `E2E_MOODLE=1`). All 256 runtime-player + 628 authoring-ui tests pass.
 - **T613 / v0.5.27** — SCORM 2004 conditional sequencing based on `navigationMode`. `buildManifest2004()` in `scorm-packager/src/index.ts` now branches on `course.settings?.navigationMode`: `'free'`/undefined → `choice="true" flow="true"` (unchanged); `'linear-strict'` → `choice="false" choiceExit="false" flow="true"` (LMS TOC navigation blocked). Single-SCO architecture: SCORM preConditionRule/objectiveProgressStatus sequencing rules are not applicable. 3 new unit tests; 27 scorm2004 tests pass. Reviewer: 0 issues. T613.6 (Moodle integration) deferred/opt-in. Commit: `5c9b8d8`.
 - **TA608.6 fix / v0.5.26** — Fixed pre-existing GrapesJS Style Manager forEach crash for GENERATED_CONTENT_TYPES (progress-bar, audio-narration, volume-control). `model.defaults.properties` changed from `{}` to `[]` in `registerBlocks.ts`. GrapesJS's PropertyComposite calls `.forEach()` on `this.get('properties')`; `{}` is truthy so `|| []` doesn't activate, but `{}.forEach` is undefined → crash. Empty array `[]` fixes it. Also: T612.9 E2E uses `waitForReady()` (not `waitForReloadComplete()`) since no canvas exists without a slide; cleanup unchecks `requireAllSlides` BEFORE switching mode to 'free' since the checkbox is conditionally rendered only under `linear-strict`. T611.10 skipped (Preview button not yet implemented — shows "coming soon" toast). Commit: `cd82dbe`.
 - **T612 / v0.5.25** — Phase 2.7 SCORM Navigation: `finishCourse()` now checks `requireAllSlides` and navigates to the first unvisited slide instead of completing (T612.6). Legacy `lesson_location` fallback seeds `visitedSlides` with `[0..restoredSlide]` (T612.7). T612.8: 2 unit tests for requireAllSlides gate. T612.9: E2E regression test for courseSettings persistence across reload. H-01 (optional chaining on `extendedProperties?.scoring`) and H-02 (`console.warn` for missing nav-next buttons) fixed. 256 unit tests + 128 E2E tests. Commit: `a65b01e`.

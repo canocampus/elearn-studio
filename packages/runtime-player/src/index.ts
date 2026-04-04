@@ -74,6 +74,13 @@ interface CourseDoc {
 
 type FillMatchType = 'exact' | 'regex' | 'case-insensitive'
 
+/** Scoring config stored in extendedProperties.scoring for question widgets. */
+interface QuestionScoringInfo {
+  weight?: number
+  attempts?: number
+  mandatory?: boolean
+}
+
 // ─── SCORM APIs and adapter ───────────────────────────────────────────────────
 
 interface SCORM12API {
@@ -187,6 +194,8 @@ interface PlayerState {
 let _globalVolume = 0.8
 /** Whether audio is currently muted. */
 let _globalMuted = false
+/** Suppress repeated "no nav-next buttons" warning after the first occurrence. */
+let _noNavNextWarned = false
 
 // ─── Question evaluation (inlined from question-engine) ───────────────────────
 
@@ -639,16 +648,22 @@ function goToSlide(state: PlayerState, index: number): void {
   prefetchSlideAssets(course.slides, index)
 }
 
-/** Returns true if the learner may leave the given slide.
- *  In 'linear-strict' mode, all questions with scoring.mandatory === true must be answered.
- *  In 'free' mode (or when no navigationMode is set), always returns true.
+/**
+ * Returns true if the learner may leave the given slide.
+ * In 'linear-strict' mode, all questions with scoring.mandatory === true must be answered.
+ * In 'free' mode (or when no navigationMode is set), always returns true.
+ *
+ * Note: a widget absent from questionStates means it has never been submitted.
+ * // Missing entry means unanswered; answered must be explicitly true.
+ * Note: mandatory is persisted in MongoDB as part of extendedProperties.scoring —
+ * absent field (undefined) is treated as false (non-mandatory), matching the authoring default.
  */
 function slideIsComplete(state: PlayerState, slideIndex: number): boolean {
   if (state.course.settings?.navigationMode !== 'linear-strict') return true
   const slide = state.course.slides[slideIndex]
   if (!slide) return true
   for (const widget of slide.widgets) {
-    const scoring = (widget.extendedProperties?.scoring as { mandatory?: boolean } | undefined)
+    const scoring = (widget.extendedProperties?.scoring as QuestionScoringInfo | undefined)
     if (scoring?.mandatory) {
       const qs = state.questionStates.get(widget.id)
       if (!qs?.answered) return false
@@ -661,8 +676,9 @@ function slideIsComplete(state: PlayerState, slideIndex: number): boolean {
 function updateNavButtons(state: PlayerState): void {
   const complete = slideIsComplete(state, state.currentSlide)
   const buttons = state.container.querySelectorAll<HTMLButtonElement>('[data-nav-next]')
-  if (buttons.length === 0 && state.course.settings?.navigationMode === 'linear-strict') {
+  if (buttons.length === 0 && state.course.settings?.navigationMode === 'linear-strict' && !_noNavNextWarned) {
     console.warn('[ELearnPlayer] No nav-next buttons found on slide — mandatory question gating disabled.')
+    _noNavNextWarned = true
   }
   buttons.forEach(btn => {
     btn.disabled = !complete
@@ -672,6 +688,7 @@ function updateNavButtons(state: PlayerState): void {
 }
 
 function goNext(state: PlayerState): void {
+  // Defensive check: also enforced in updateNavButtons() but re-verify at action time
   if (!slideIsComplete(state, state.currentSlide)) return
   if (state.currentSlide < state.course.slides.length - 1) {
     goToSlide(state, state.currentSlide + 1)
@@ -690,8 +707,12 @@ function finishCourse(state: PlayerState): void {
     const totalSlides = state.course.slides.length
     for (let i = 0; i < totalSlides; i++) {
       if (!state.visitedSlides.has(i)) {
-        // Navigate to the first unvisited slide instead of finishing
-        goToSlide(state, i)
+        // Find the first unvisited slide (lowest index) and navigate there instead of finishing
+        try {
+          goToSlide(state, i)
+        } catch (err) {
+          console.error('[ELearnPlayer] finishCourse: failed to navigate to unvisited slide', i, err)
+        }
         return
       }
     }
@@ -792,7 +813,7 @@ function handleSubmit(state: PlayerState, widgetId: string): void {
 
   const feedbackEl = widgetEl.querySelector<HTMLElement>('.el-feedback')
   const ep = widget.extendedProperties
-  const scoring = (ep.scoring as { weight?: number; attempts?: number }) ?? {}
+  const scoring = (ep.scoring as QuestionScoringInfo) ?? {}
   const weight = scoring.weight ?? 100
 
   let correct = false

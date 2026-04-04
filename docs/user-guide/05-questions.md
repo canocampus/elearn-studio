@@ -123,6 +123,22 @@ In the question Properties panel:
 
 ---
 
+## Mandatory questions (linear-strict navigation)
+
+When a course uses **Linear (strict)** navigation mode (see [Publishing — Navigation Mode](09-publishing.md#navigation-mode)), you can mark individual questions as **mandatory**. A mandatory question must be answered before the learner can advance to the next slide.
+
+To make a question mandatory:
+
+1. Click the question block on the canvas to select it.
+2. In the Properties panel, find the **Scoring** section.
+3. Enable the **Mandatory** toggle.
+
+> ⚠️ **Note:** The Mandatory toggle only has effect when the course navigation mode is set to **Linear (strict)**. In Free navigation mode the toggle is ignored and learners can always advance.
+
+> 💡 **Tip:** Use mandatory questions for compliance training where proof of engagement on each question is required before the learner can continue.
+
+---
+
 ## Previewing questions
 
 Click **Preview** in the top toolbar to open the course in the runtime player. Questions are fully interactive in preview — you can answer them and see scoring in action before publishing.
