@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.39] — 2026-04-05 — T634: Fix nav-buttons "missing child buttons" error
+
+### Fixed
+- **T634 — Nav Buttons child components** (`packages/authoring-ui/src/editor/registerBlocks.ts`) — Replaced `onRender()` HTML injection with `defaults.components` so GrapesJS registers the prev/next buttons as proper Component objects. `component.components().at(0/1)` now returns the child components, eliminating the "Nav Buttons component is missing child buttons" error in the Props panel.
+- **T634 — Label persistence** (`packages/authoring-ui/src/editor/converters.ts`) — `widgetsFromGrapesjs` saves child button text as `prevLabel`/`nextLabel` in widget properties; `grapesjsFromWidgets` restores them as `def.components` child content on load. Backward compatible: widgets saved without labels fall back to `'← Previous'` / `'Next →'`.
+
+### Tests
+- **`packages/authoring-ui/src/__tests__/converters.test.ts`** — 6 new regression tests for T634: child label save/restore, backward compat, `actions: []` requirement, non-nav-buttons unchanged.
+- **`e2e/tests/nav-buttons-widget.spec.ts`** — 3 new E2E tests: Props panel shows label inputs (not error), canvas renders two buttons with default labels, label edits update canvas.
+
+---
+
 ## [0.5.38] — 2026-04-05 — T633: Fix button background image (cover/no-repeat + preserve position)
 
 ### Fixed

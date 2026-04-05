@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-05 — T633: Fix button background image cover/no-repeat + preserve position (v0.5.38)
+> Last updated: 2026-04-05 — T634: Fix nav-buttons "missing child buttons" error (v0.5.39)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.38 |
-| **Active phase** | Phase 2.8 — Authoring UI Hardening (COMPLETO) |
-| **Active block** | T634 — Fix nav-buttons "missing child buttons" error |
-| **E2E test count** | 136 tests (133 passing, 3 skipped incl. T611.10) |
+| **Current version** | v0.5.39 |
+| **Active phase** | Phase 2.9 — SCORM & Publishing |
+| **Active block** | T635 — Add SCORM format selector to PublishDialog |
+| **E2E test count** | 139 tests (136 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **T634 — Fix nav-buttons "missing child buttons" error / v0.5.39** — Root cause: `onRender()` HTML injection meant `component.components().at(0/1)` returned `undefined` in `NavButtonsPropertiesForm`, showing the "corrupted" error. Fix: replaced `onRender()` with `defaults.components` — two proper GrapesJS child button objects with `actions: []` (prevents loadData forEach crash). `widgetsFromGrapesjs` saves child labels as `prevLabel`/`nextLabel`; `grapesjsFromWidgets` restores them as child `content` on load with fallback defaults for backward compat. 6 unit tests + 3 E2E tests. Code review: APPROVE (0 CRITICAL/HIGH, 1 MEDIUM: loose type on `GrapesJsComponentDef.components`). Commit: `c7d123f`.
 
 - **T633 — Fix button background image / v0.5.38** — `openBackgroundImagePicker` in `ButtonPropertiesPanel.tsx` switched from `component.setStyle()` (replace) to `component.addStyle()` (merge) so `left/top/width/height` are preserved on background assignment. Added `background-size: cover`, `background-repeat: no-repeat`, `background-position: center`. "Remove Image" clears all 4 background properties. `@regression T633.4` E2E test in `button-widget.spec.ts`. Commits: `d4a6055`.
 
@@ -197,6 +199,10 @@ CORRECT (Fase 5): clientX/zoom, clientY/zoom. Sin ninguna operación de offset.
 ### Audit consolidado — COMPLETO ✅
 Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerrados.
 
+### Phase 2.9 — SCORM & Publishing (ACTIVE)
+- ~~**T634** — Fix nav-buttons "missing child buttons" error~~ ✅ Done (c7d123f v0.5.39)
+- **T635** — Add SCORM format selector to PublishDialog ← **NEXT**
+
 ---
 
 ## Visual Verification Status
@@ -207,7 +213,7 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 | Image widget | ✅ Working | AM thumbnail and filename fixed (T601); placeholder hint + dblclick AM (T605) |
 | Button | ✅ Working | Caption + background image editable (T603) |
 | Done button | ✅ Working | Positioning (T600) + caption + background image (T603) |
-| Nav buttons | ✅ Working | Individual prev/next captions editable (T603) |
+| Nav buttons | ✅ Working | Individual prev/next captions editable (T603); child components via defaults.components — no "missing child" error (T634) |
 | Multiple Choice | ✅ Working | Text, options, correct answer, feedback all editable (T602) |
 | True/False | ✅ Working | Positioning (T600) + correct answer selection (T602) fixed |
 | Fill in Blank | ✅ Working | Positioning (T600) + accepted answer editable (T602) |

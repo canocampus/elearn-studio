@@ -890,7 +890,7 @@
 > Nav buttons renders child buttons via `onRender()` HTML injection. GrapesJS treats
 > these as unknown children and shows "component may be corrupted".
 > The component must define its children as proper GrapesJS child components.
-- [ ] T634.1 — Redefine `nav-buttons` as a container with two proper child `button` components:
+- [x] T634.1 — Redefine `nav-buttons` as a container with two proper child `button` components:
   ```typescript
   editor.Components.addType('nav-buttons', {
     model: {
@@ -909,14 +909,14 @@
   ```
   OR alternatively: mark the component as `customBadge: true` and add a GrapesJS
   `isComponent` function so GrapesJS doesn't try to introspect children
-- [ ] T634.2 — If using child components approach: update `ButtonPropertiesPanel` to
+- [x] T634.2 — If using child components approach: update `ButtonPropertiesPanel` to
   handle the nav-buttons case by editing child components' content
-- [ ] T634.3 — Verify "Nav Buttons component is missing child buttons" error no longer appears
-- [ ] T634.4 — E2E test: drag nav-buttons → select it → verify no error in Props panel; verify
+- [x] T634.3 — Verify "Nav Buttons component is missing child buttons" error no longer appears
+- [x] T634.4 — E2E test: drag nav-buttons → select it → verify no error in Props panel; verify
   prev/next buttons visible in canvas
-- [ ] T634.5 — Run full test suite + push + verify CI green
-- [ ] T634.6 — Refine the generated code
-- [ ] T634.7 — A reviewer will generate `docs/issues/issues-T634.md`; resolve before closing
+- [x] T634.5 — Run full test suite + push + verify CI green
+- [x] T634.6 — Refine the generated code
+- [x] T634.7 — A reviewer will generate `docs/issues/issues-T634.md`; resolve before closing
 
 ### T635 — Add SCORM format selector to PublishDialog (SCORM 2004 / AICC)
 > PublishDialog only shows "Publish SCORM 1.2". Backend already has routes for SCORM 2004
