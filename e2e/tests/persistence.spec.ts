@@ -156,13 +156,22 @@ test.describe('State Persistence', () => {
     ).catch(() => page.waitForTimeout(3000))  // fallback if PATCH already fired
 
     await page.reload()
-    await editorPage.waitForReady()
+    // waitForReloadComplete() waits for toolbar + slide 0 canvas — prevents concurrent
+    // editor.load() calls (which crash with "Cannot read properties of undefined") when
+    // slides.nth(ourSlideIndex).click() fires before the initial load finishes.
+    await editorPage.waitForReloadComplete()
 
     // Navigate back to our slide using the stable index captured before drag.
     // Slides are append-only; other workers' slides land at higher indices,
     // so ourSlideIndex remains valid after reload.
-    await slides.nth(ourSlideIndex).click()
-    await editorPage.waitForCanvas()
+    // Defensive guard: if ourSlideIndex is 0, waitForReloadComplete() already loaded
+    // slide 0 fully — clicking it again would trigger a concurrent load crash.
+    const countAfterReload = await slides.count()
+    const targetIndex = Math.min(ourSlideIndex, countAfterReload - 1)
+    if (targetIndex > 0) {
+      await slides.nth(targetIndex).click()
+      await editorPage.waitForCanvas()
+    }
 
     await expect(editorPage.canvasComponent('[data-gjs-type="rectangle"]')).toBeVisible({ timeout: 15_000 })
   })
