@@ -1,4 +1,4 @@
-import Phaser from 'phaser'
+import * as Phaser from 'phaser'
 import type { InteractiveDiagramSceneDef, DiagramHotspot } from '../types'
 import type { ScoreTracker } from '../ScoreTracker'
 import type { ModeController } from '../ModeController'
