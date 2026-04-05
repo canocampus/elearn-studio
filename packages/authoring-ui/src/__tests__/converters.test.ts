@@ -48,12 +48,23 @@ function makeWidget(overrides: Partial<BaseWidget> = {}): BaseWidget {
  * getInnerHTML() is the authoritative content source for text/button types in real GrapesJS.
  */
 function defToComponent(def: ReturnType<typeof grapesjsFromWidgets>[number]): Component {
+  // Build child component mocks from def.components (used by nav-buttons).
+  // widgetsFromGrapesjs calls c.components().at(0/1) to read child labels.
+  const childDefs = (def.components ?? []) as Array<Record<string, unknown>>
+  const childMocks = childDefs.map(child => ({
+    get: (key: string) => child[key],
+    getStyle: () => ({}),
+    getAttributes: () => ({ id: 'child' }),
+    getId: () => 'child',
+  }))
+
   return {
     getStyle: () => ({ ...(def.style as Record<string, unknown>) }),
     getAttributes: () => ({ ...(def.attributes as Record<string, string>) }),
     getId: () => (def.attributes as Record<string, string>).id,
     get: (key: string) => (def as Record<string, unknown>)[key],
     getInnerHTML: () => def.content as string | undefined,
+    components: () => ({ at: (i: number) => childMocks[i] }),
   } as unknown as Component
 }
 
@@ -483,6 +494,88 @@ describe('widgetsFromGrapesjs — GrapesJS Component → Widget', () => {
     const style = (widget.properties as Record<string, unknown>).style as Record<string, unknown>
     expect(style.border).toBe('1px solid #ccc')
     expect(style.padding).toBe('8px')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T634 — nav-buttons child label persistence (regression guard)
+// Root cause: onRender() injected raw HTML so component.components() was empty.
+// Fix: defaults.components + grapesjsFromWidgets inject proper child defs.
+// ---------------------------------------------------------------------------
+
+describe('T634 — nav-buttons child label persistence', () => {
+  /** Build a mock nav-buttons GrapesJS Component with two child components. */
+  function makeNavButtonsComp(prevLabel: string, nextLabel: string) {
+    const makeChild = (content: string) => ({
+      get: (key: string) => ({ content, type: 'button', actions: [], elearnActions: [], properties: {}, extendedProperties: {} }[key] as unknown),
+      getStyle: () => ({}),
+      getAttributes: () => ({ id: 'child' }),
+      getId: () => 'child',
+    })
+    return {
+      getStyle: () => ({ left: '10px', top: '20px', width: '240px', height: '50px', 'z-index': '1', display: 'flex' }),
+      getAttributes: () => ({ id: 'nb-1' }),
+      getId: () => 'nb-1',
+      get: (key: string) => ({ type: 'nav-buttons', properties: {}, actions: [], extendedProperties: {}, elearnActions: [] }[key] as unknown),
+      components: () => ({
+        at: (i: number) => i === 0 ? makeChild(prevLabel) : i === 1 ? makeChild(nextLabel) : undefined,
+      }),
+    } as unknown as Component
+  }
+
+  it('widgetsFromGrapesjs saves prevLabel / nextLabel from child components', () => {
+    const comp = makeNavButtonsComp('← Atrás', 'Siguiente →')
+    const [widget] = widgetsFromGrapesjs([comp])
+    const props = widget.properties as Record<string, unknown>
+    expect(props.prevLabel).toBe('← Atrás')
+    expect(props.nextLabel).toBe('Siguiente →')
+  })
+
+  it('widgetsFromGrapesjs uses default labels when children are missing', () => {
+    const comp = {
+      getStyle: () => ({ left: '0', top: '0', width: '240px', height: '50px', 'z-index': '1', display: 'flex' }),
+      getAttributes: () => ({ id: 'nb-2' }),
+      getId: () => 'nb-2',
+      get: (key: string) => ({ type: 'nav-buttons', properties: {}, actions: [], extendedProperties: {}, elearnActions: [] }[key] as unknown),
+      components: () => ({ at: () => undefined }),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    const props = widget.properties as Record<string, unknown>
+    expect(props.prevLabel).toBe('← Previous')
+    expect(props.nextLabel).toBe('Next →')
+  })
+
+  it('grapesjsFromWidgets injects two child component defs for nav-buttons', () => {
+    const widget = makeWidget({
+      type: 'nav-buttons',
+      properties: { prevLabel: 'Back', nextLabel: 'Forward' },
+    })
+    const [def] = grapesjsFromWidgets([widget])
+    expect(def.components).toHaveLength(2)
+    expect((def.components![0] as Record<string, unknown>).content).toBe('Back')
+    expect((def.components![1] as Record<string, unknown>).content).toBe('Forward')
+  })
+
+  it('grapesjsFromWidgets uses default labels when prevLabel/nextLabel not saved (backward compat)', () => {
+    const widget = makeWidget({ type: 'nav-buttons', properties: {} })
+    const [def] = grapesjsFromWidgets([widget])
+    expect(def.components).toHaveLength(2)
+    expect((def.components![0] as Record<string, unknown>).content).toBe('← Previous')
+    expect((def.components![1] as Record<string, unknown>).content).toBe('Next →')
+  })
+
+  it('grapesjsFromWidgets child defs always include actions:[] (prevents forEach crash)', () => {
+    const widget = makeWidget({ type: 'nav-buttons', properties: {} })
+    const [def] = grapesjsFromWidgets([widget])
+    expect((def.components![0] as Record<string, unknown>).actions).toEqual([])
+    expect((def.components![1] as Record<string, unknown>).actions).toEqual([])
+  })
+
+  it('non-nav-buttons widget does not get a components field', () => {
+    const widget = makeWidget({ type: 'button', properties: { content: 'Click Me' } })
+    const [def] = grapesjsFromWidgets([widget])
+    expect(def.components).toBeUndefined()
   })
 })
 

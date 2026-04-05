@@ -229,7 +229,6 @@ function registerRectangleWidget(editor: Editor): void {
 
 function registerNavButtonsWidget(editor: Editor): void {
   editor.Components.addType('nav-buttons', {
-    extendFnView: ['initialize'],
     model: {
       defaults: {
         name: 'Nav Buttons',
@@ -247,11 +246,23 @@ function registerNavButtonsWidget(editor: Editor): void {
           'z-index': '1',
         },
         traits: [NAME_TRAIT],
-      },
-    },
-    view: {
-      onRender(this: { el: HTMLElement }) {
-        this.el.innerHTML = `<button style="padding:8px 16px;margin-right:8px;background:#64748b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">← Previous</button><button style="padding:8px 16px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Next →</button>`
+        // T634: Proper GrapesJS child components so component.components().at(0/1)
+        // returns them for NavButtonsPropertiesForm label editing.
+        // Each child must carry actions:[] to prevent the GrapesJS loadData forEach crash.
+        components: [
+          {
+            tagName: 'button', content: '← Previous',
+            droppable: false, draggable: false,
+            actions: [], elearnActions: [], properties: {}, extendedProperties: {},
+            style: { padding: '8px 16px', 'margin-right': '8px', background: '#64748b', color: '#fff', border: 'none', 'border-radius': '4px', cursor: 'pointer', 'font-size': '13px' },
+          },
+          {
+            tagName: 'button', content: 'Next →',
+            droppable: false, draggable: false,
+            actions: [], elearnActions: [], properties: {}, extendedProperties: {},
+            style: { padding: '8px 16px', background: '#4f46e5', color: '#fff', border: 'none', 'border-radius': '4px', cursor: 'pointer', 'font-size': '13px' },
+          },
+        ],
       },
     },
   })

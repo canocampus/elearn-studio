@@ -25,6 +25,12 @@ export interface GrapesJsComponentDef {
   content?: string
   /** Root-level GrapesJS src for image components — triggers change:src and presigned-URL resolution. */
   src?: string
+  /**
+   * Child component definitions — used by composite widget types (e.g. nav-buttons)
+   * that own proper GrapesJS child components rather than raw innerHTML.
+   * Each child must include `actions: []` to prevent the GrapesJS loadData forEach crash.
+   */
+  components?: Record<string, unknown>[]
   properties?: BaseWidget['properties']
   /** GrapesJS-native actions field — always empty array to prevent loadData forEach crash. */
   actions: []
@@ -155,6 +161,15 @@ export function widgetsFromGrapesjs(components: Component[]): BaseWidget[] {
       mergedProps.style = decorativeStyle
     }
 
+    // T634: Persist nav-buttons child labels so they survive the store → load round-trip.
+    // The child components hold the user-edited text in their 'content' model attribute.
+    if (componentType === 'nav-buttons') {
+      const prevChild = c.components().at(0)
+      const nextChild = c.components().at(1)
+      mergedProps.prevLabel = (prevChild?.get('content') as string | undefined) ?? '← Previous'
+      mergedProps.nextLabel = (nextChild?.get('content') as string | undefined) ?? 'Next →'
+    }
+
     return {
       id: attributes.id || c.getId(),
       type: (componentType as WidgetType) || 'rectangle',
@@ -251,8 +266,60 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
     // score-quiz, media-player, etc.). GrapesJS parses HTML content strings into
     // child component definitions during loadData(), and those auto-generated child
     // definitions lack `actions: []`, causing "Cannot read properties of undefined
-    // (reading 'forEach')" crashes. All composite widgets use extendFnView and
-    // onRender() exclusively to render their preview content.
+    // (reading 'forEach')" crashes. Composite widgets that need children must use
+    // def.components (typed child defs) rather than def.content (raw HTML).
+
+    // T634: Restore nav-buttons child components from saved prevLabel / nextLabel.
+    // Always inject both children regardless of whether labels were saved — new widgets
+    // stored before T634 will not have prevLabel/nextLabel in properties, so we fall
+    // back to the defaults. Each child must carry `actions: []` to prevent the GrapesJS
+    // loadData forEach crash during child component initialization.
+    if (w.type === 'nav-buttons') {
+      const prevLabel = typeof props.prevLabel === 'string' ? props.prevLabel : '← Previous'
+      const nextLabel = typeof props.nextLabel === 'string' ? props.nextLabel : 'Next →'
+      def.components = [
+        {
+          tagName: 'button',
+          content: prevLabel,
+          droppable: false,
+          draggable: false,
+          actions: [],
+          elearnActions: [],
+          properties: {},
+          extendedProperties: {},
+          style: {
+            padding: '8px 16px',
+            'margin-right': '8px',
+            background: '#64748b',
+            color: '#fff',
+            border: 'none',
+            'border-radius': '4px',
+            cursor: 'pointer',
+            'font-size': '13px',
+          },
+        },
+        {
+          tagName: 'button',
+          content: nextLabel,
+          droppable: false,
+          draggable: false,
+          actions: [],
+          elearnActions: [],
+          properties: {},
+          extendedProperties: {},
+          style: {
+            padding: '8px 16px',
+            background: '#4f46e5',
+            color: '#fff',
+            border: 'none',
+            'border-radius': '4px',
+            cursor: 'pointer',
+            'font-size': '13px',
+          },
+        },
+      ]
+    }
+
     return def
   })
 }
