@@ -273,6 +273,25 @@ export function initEditor(opts: InitEditorOptions): Editor {
     })
   }
 
+  // T630.UX — Replace the browser's default block drag ghost (full block element,
+  // large rectangle) with a small 24×24 indicator. The ghost is positioned with the
+  // cursor at its top-left corner (hotspot 0,0) so the user can see exactly where the
+  // widget's top-left will land. This makes drop placement predictable and intuitive.
+  {
+    const blockContainer = document.querySelector<HTMLElement>(opts.blockManagerContainer)
+    blockContainer?.addEventListener('dragstart', (e: Event) => {
+      const de = e as DragEvent
+      if (!de.dataTransfer) return
+      const ghost = document.createElement('div')
+      ghost.style.cssText =
+        'position:fixed;top:-9999px;left:-9999px;width:24px;height:24px;' +
+        'background:#6366f1;border-radius:3px;opacity:0.85;pointer-events:none;'
+      document.body.appendChild(ghost)
+      de.dataTransfer.setDragImage(ghost, 0, 0)
+      requestAnimationFrame(() => { document.body.removeChild(ghost) })
+    })
+  }
+
   // T011.7 — Debounced autosave: triggers 2s after the last component:update event.
   // We use editor.store() rather than GrapesJS autosave (which fired on every undo step).
   //
