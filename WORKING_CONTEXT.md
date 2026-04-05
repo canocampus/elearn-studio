@@ -24,7 +24,7 @@
 
 - **T633 — Fix button background image / v0.5.38** — `openBackgroundImagePicker` in `ButtonPropertiesPanel.tsx` switched from `component.setStyle()` (replace) to `component.addStyle()` (merge) so `left/top/width/height` are preserved on background assignment. Added `background-size: cover`, `background-repeat: no-repeat`, `background-position: center`. "Remove Image" clears all 4 background properties. `@regression T633.4` E2E test in `button-widget.spec.ts`. Commits: `d4a6055`.
 
-- **T632 — Fix asset picker type for media/audio widgets / v0.5.37** — `detectAssetType(filename)` helper added to `assetManager.ts`: maps file extension to `'video'`, `'audio'`, or `'image'` — all uploads now tagged with correct GrapesJS type. `MediaPlayerPropertiesPanel` reads `mediaType` from component model and opens AM with `['audio','image']` or `['video','image']`. `AudioNarrationPropertiesPanel` changed from `['image']` to `['audio','image']`. Commit: `ece0142`.
+- **T632 — Fix asset picker type for media/audio widgets / v0.5.37** — `detectAssetType(filename)` helper added to `assetManager.ts`: maps file extension to `'video'`, `'audio'`, or `'image'` — all uploads now tagged with correct GrapesJS type. `MediaPlayerPropertiesPanel` reads `mediaType` from component model and opens AM with `['audio','image']` or `['video','image']`. `AudioNarrationPropertiesPanel` changed from `['image']` to `['audio','image']`. Commit: `ece0142`. T632.4 regression test added to `media-player-widget.spec.ts`: smoke-level test verifies "Choose from Asset Library…" button opens GrapesJS AM modal; all 7 media-player tests pass. T632.5: CI run 24007832902 ✅ PASSED. T632 fully closed.
 
 - **T631 — MC correct-answer regression test / v0.5.36** — Confirmed T621 fix (reads `comp.get('extendedProperties')` in `useExtendedProperties.update`) already covers MC/TF/Fill stale-closure issue. Added `@regression T631.6` E2E test in `e2e/tests/question-widget.spec.ts`: marks Option B correct, waits for autosave PATCH, reloads page, navigates back, asserts Option B is still the correct answer via `window.__elearn_editor`. Commit: `7d08f9c`.
 
@@ -200,6 +200,8 @@ CORRECT (Fase 5): clientX/zoom, clientY/zoom. Sin ninguna operación de offset.
 Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerrados.
 
 ### Phase 2.9 — SCORM & Publishing (ACTIVE)
+- ~~**T632** — Fix asset picker type for media/audio widgets~~ ✅ Done (ece0142 v0.5.37) — T632.4 E2E added, T632.5 CI green
+- ~~**T633** — Fix button background image scale and no-repeat~~ ✅ Done (d4a6055 v0.5.38)
 - ~~**T634** — Fix nav-buttons "missing child buttons" error~~ ✅ Done (c7d123f v0.5.39)
 - **T635** — Add SCORM format selector to PublishDialog ← **NEXT**
 

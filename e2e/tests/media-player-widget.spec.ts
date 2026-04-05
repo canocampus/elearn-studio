@@ -13,6 +13,9 @@ import { test, expect } from '../fixtures'
  * T604.4 — Typing a URL into the src field updates the component model
  * T604.5 — Changing mediaType to "audio" reflects in the select field
  * T604.6 — Playback option checkboxes (controls, autoplay, loop) are present
+ *
+ * T632 — Asset Manager type filtering (@regression T632)
+ * T632.4 — "Choose from Asset Library…" button opens the GrapesJS Asset Manager
  */
 
 test.describe('T604 — Media Player Properties Panel', () => {
@@ -139,5 +142,42 @@ test.describe('T604 — Media Player Properties Panel', () => {
       return ed?.getSelected()?.get('extendedProperties')
     })
     expect((extProps as { autoplay?: boolean })?.autoplay).toBe(true)
+  })
+})
+
+// ─── T632 — Asset Manager type filtering (@regression T632) ───────────────────
+
+test.describe('T632 — Media Player Asset Manager integration', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  // T632.4 — "Choose from Asset Library…" opens AM (smoke: no pre-seeded assets needed)
+  test('T632.4 — "Choose from Asset Library…" button opens the Asset Manager modal (@regression T632)', async ({ editorPage, page }) => {
+    await editorPage.addComponentViaEditor('media-player')
+    await editorPage.page.waitForTimeout(500)
+    await editorPage.propsTab.click()
+
+    const panel = editorPage.page.locator('[data-testid="media-player-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+
+    // The "Choose from Asset Library…" button must be visible (T632: AM type filtering fix)
+    const amButton = panel.getByText('Choose from Asset Library…')
+    await expect(amButton).toBeVisible({ timeout: 5_000 })
+
+    // Click it — the GrapesJS Asset Manager modal should open
+    await amButton.click()
+    await editorPage.page.waitForTimeout(500)
+
+    // AM modal is rendered outside the panel — look for GrapesJS AM container
+    const amModal = page.locator('.gjs-am-assets-cont, [class*="gjs-am"]').first()
+    await expect(amModal).toBeVisible({ timeout: 5_000 })
+
+    // Close the AM by pressing Escape
+    await page.keyboard.press('Escape')
   })
 })
