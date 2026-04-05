@@ -226,3 +226,93 @@ results because both add the iframe's viewport offset internally (which is alrea
 in the iframe event's `clientX/Y`). Use direct math: `clientX - iframeRect.left`.
 
 **Result:** Offset = 0px in both axes across all drop positions. All 656 unit tests pass.
+
+---
+
+## CRITICAL — T630 Phase 4: subtracting iframeRect offset was WRONG again **[RESOLVED]**
+
+### Root cause
+
+Phase 4 computed `x = clientX - iframeRect.left`, `y = clientY - iframeRect.top`.
+
+**Wrong assumption:** `clientX` from `iframeDoc` events is in viewport coordinates, so
+we need to subtract the iframe's position to get canvas-relative coordinates.
+
+**Reality:** Events captured via `iframeDoc.addEventListener('dragover', handler)` carry
+`clientX/Y` in the iframe's **own** coordinate space — they are already canvas-relative.
+The browser's iframe creates its own viewport; `clientX` inside it is measured from the
+iframe's top-left corner, not from the main window's top-left corner.
+
+Subtracting `iframeRect.left` (93.1875px = left panel width) shifted everything 93px to
+the left. This is the exact mirror of Phase 3's error (which added 93px). Both bugs
+stem from the same false belief that iframe-internal events carry viewport coordinates.
+
+### Phase 5 fix (correct): divide by zoom only
+
+```typescript
+const canvasModel = editor.Canvas as unknown as { getZoomDecimal?: () => number }
+const zoom = canvasModel.getZoomDecimal?.() ?? 1
+const x = lastDragEvent.clientX / zoom
+const y = lastDragEvent.clientY / zoom
+comp.addStyle({ left: `${Math.round(x)}px`, top: `${Math.round(y)}px` })
+```
+
+No offset math. `clientX/Y` from `iframeDoc` events ARE canvas coordinates. Only
+divide by `getZoomDecimal()` to account for canvas zoom level (1.0 at 100% zoom).
+
+### Key lesson (canonical)
+
+| Event origin | `clientX/Y` space | What to do |
+|---|---|---|
+| `document` (main window) | Viewport coordinates | Subtract `iframeRect.left/top`, then divide by zoom |
+| `iframeDoc` | Canvas coordinates (iframe-relative) | Divide by zoom only — NO offset subtraction |
+| Passed to `getMouseRelativePos()` | Must be main-window event | Never pass iframe events — adds frameOffset internally (double-counts) |
+| Passed to `getMouseRelativeCanvas()` | Must be main-window event | Same — adds `frameOffset.left` internally |
+
+**Summary:** `getMouseRelativePos` and `getMouseRelativeCanvas` are designed for
+main-window events only. They both add the iframe's viewport offset internally. Passing
+iframe-internal events to either function causes double-counting. Use direct math for
+iframe events: `canvas_x = clientX / zoomDecimal`.
+
+**Result:** Offset = 0px in both axes. All 657 unit tests pass (added T630.8 for zoom).
+
+---
+
+## T630.UX — Drag ghost replaced with small indicator **[RESOLVED]**
+
+The browser's default drag ghost was the full block element (a large rectangle). This
+made drop placement unintuitive: the cursor appeared at the center of the ghost, while
+the widget's top-left landed at the cursor tip — creating a visible mismatch.
+
+**Fix:** `dragstart` listener on the block manager container replaces the ghost with a
+24×24px colored indicator. The drag hotspot is set to (0, 0) — cursor at the top-left
+corner of the ghost — so the cursor tip aligns exactly with where the widget's top-left
+will land. This matches the mental model: "I'm placing the top-left here."
+
+```typescript
+blockContainer?.addEventListener('dragstart', (e: Event) => {
+  const de = e as DragEvent
+  if (!de.dataTransfer) return
+  const ghost = document.createElement('div')
+  ghost.style.cssText =
+    'position:fixed;top:-9999px;left:-9999px;width:24px;height:24px;' +
+    'background:#6366f1;border-radius:3px;opacity:0.85;pointer-events:none;'
+  document.body.appendChild(ghost)
+  de.dataTransfer.setDragImage(ghost, 0, 0)  // hotspot at top-left corner
+  requestAnimationFrame(() => { document.body.removeChild(ghost) })
+})
+```
+
+The ghost is positioned off-screen (`top:-9999px`) until `setDragImage` captures it,
+then removed on the next animation frame to avoid DOM pollution.
+
+---
+
+## Mejora futura — ghost proporcional (deferred)
+
+La solución actual usa un ghost 24×24px con cursor en esquina superior-izquierda.
+Una mejora más intuitiva sería generar un ghost del tamaño real del widget
+con el cursor centrado (offset w/2, h/2), igual que Figma/PowerPoint.
+Descartada por ahora: requiere mapear dimensiones por tipo de bloque en dragstart,
+antes de que el componente GrapesJS exista. Añadir si se implementa un catálogo
+de dimensiones por defecto por tipo de widget.

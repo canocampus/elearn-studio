@@ -148,6 +148,21 @@ assignment is not calling `component.setStyle()` correctly.
 | `pressSequentially` for Moodle login | Characters dropped under CPU load | `page.fill()` |
 | GrapesJS Studio SDK | Paid product | Open-source `grapesjs` npm only |
 
+FAILED (T630 — 5 fases de bug, no repetir ninguna):
+- Fase 1: document.addEventListener('mousemove') en main window → (0,0) en slides 2+
+  REASON: El iframe no propaga eventos al main document.
+- Fase 2: getMouseRelativePos() con evento iframe → Y offset = +iframeRect.top
+  REASON: La función añade frameOffset internamente; con evento iframe lo cuenta dos veces.
+- Fase 3: getMouseRelativeCanvas() con evento iframe → X offset = +93.1875px constante
+  REASON: Misma causa; frameOffset.left = 93.1875px = ancho del panel izquierdo.
+- Fase 4: clientX - iframeRect.left → X offset = -93.1875px (espejo de Fase 3)
+  REASON: clientX de iframeDoc ya es canvas-relativo; restar iframeRect.left es doble resta.
+CORRECT (Fase 5): clientX/zoom, clientY/zoom. Sin ninguna operación de offset.
+  Los eventos de iframeDoc llevan clientX/Y en coordenadas del canvas (iframe-relative).
+  Solo dividir por getZoomDecimal() para normalizar zoom.
+  Commits: a3417e2 (Phase 5), de16eff (UX ghost fix)
+
+
 ---
 
 ## Next Steps (Ordered)
@@ -198,12 +213,14 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 | useComponentProperty | ✅ Working | Optimistic `setValue` before `comp.set()`; no bounce-back on rapid typing (T620) |
 | useExtendedProperties | ✅ Working | Reads `comp.get('extendedProperties')` directly; stale closure eliminated (T621) |
 | Image widget initialize | ✅ Working | `extendFnView: ['initialize']` — prototype chain hack removed (T623) |
+| Block drag-and-drop positioning | ✅ Working | Widget lands at cursor tip (canvas coords); 24×24px ghost indicator (T630 Phase 5 + UX) |
 
 ---
 
 ## Architecture Reminders
 
 - **GrapesJS canvas = iframe** — use `editorPage.canvasComponent()` / `canvasFrame()`, never `page.locator()` on canvas elements directly
+- **GrapesJS iframe coordinates** — `clientX/Y` from `iframeDoc` events are ALREADY canvas-relative. Formula: `x = clientX / zoomDecimal`. Never subtract `iframeRect.left/top`. Never pass iframe events to `getMouseRelativePos()` or `getMouseRelativeCanvas()` — both add frameOffset internally (double-counts). See CLAUDE.md Regla 8.
 - **Phaser = lazy load only** — never bundle into runtime player; dynamic `import()` only
 - **Runtime player = Vanilla JS** — no React/Vue/Angular; runs inside LMS iframes
 - **No localStorage in player** — SCORM `suspend_data` via `LMSSetValue` only

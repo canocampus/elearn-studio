@@ -98,6 +98,36 @@ const { accessToken } = (await loginRes.json()).data
 import { test, expect } from '../fixtures'
 // Provides: { editorPage, page } — editorPage is pre-navigated to '/' and ready
 ```
+### Drag-and-drop desde Block Manager — reglas de coordenadas (CRÍTICO)
+
+Los eventos de drag ocurren DENTRO del iframe del canvas. Todo listener
+debe estar en `iframeDoc`, no en `document` ni `window`.
+
+**Sistema de coordenadas del canvas (lección aprendida en 5 fases de debug T630):**
+
+- `iframeDoc.addEventListener('dragover', handler)` — captura eventos durante el drag
+- `event.clientX/Y` en esos eventos ya son canvas-relativos (NO coordenadas del viewport)
+- Fórmula para obtener posición en el canvas a cualquier zoom:
+  ```typescript
+  const zoom = (editor.Canvas as any).getZoomDecimal?.() ?? 1
+  const canvasX = event.clientX / zoom
+  const canvasY = event.clientY / zoom
+  ```
+- **NUNCA** restar `iframeRect.left/top` a `clientX/Y` de eventos iframeDoc
+- **NUNCA** pasar eventos de iframeDoc a `getMouseRelativePos()` ni `getMouseRelativeCanvas()`
+  — ambas funciones añaden `frameOffset` internamente, lo que double-cuenta el offset
+  cuando el evento ya viene del iframe
+
+**Para verificar posición correcta en E2E:**
+- El widget debe aparecer dentro de ±50px del punto de drop
+- Nunca en (0, 0): indica que `lastDragEvent` era null (listener en main doc, no iframe)
+- Nunca en (100, 100): indica que `content.style` tiene `left/top` hardcodeados
+- Nunca con offset constante en X (e.g. +93px): indica que `getMouseRelativeCanvas`
+  fue llamado con un evento de iframe en lugar de un evento del main window
+
+**Durante HTML5 DnD, `mousemove` está suprimido** — solo `dragover` dispara.
+Por tanto registrar `mousemove` en iframeDoc durante un block drag nunca recibirá eventos.
+
 
 ---
 

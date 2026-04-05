@@ -144,14 +144,71 @@ When approaching 70% of the context window:
 2. Run `/compact`
 3. After compact: re-read `WORKING_CONTEXT.md` to restore context .
 
+---
+### Regla 8 — GrapesJS canvas es un iframe: listeners y sistema de coordenadas
 
+El canvas de GrapesJS vive dentro de un `<iframe>`. Esto tiene DOS consecuencias
+críticas que causaron 5 fases de bug en T630. Lee todo esto antes de tocar cualquier
+lógica de eventos o coordenadas relacionada con el canvas.
 
+#### 8a — Los eventos del iframe NO se propagan al main document
+
+INCORRECTO — nunca hagas esto:
+  document.addEventListener('mousemove', handler)   // no recibe eventos del iframe
+  window.addEventListener('dragover', handler)       // no recibe eventos del iframe
+
+CORRECTO — siempre así:
+  const iframeDoc = editor.Canvas.getFrameEl()?.contentDocument
+  iframeDoc?.addEventListener('dragover', handler)   // recibe eventos del iframe
+
+Afecta a: mousemove, dragover, drop, click, dblclick, keydown, keyup,
+mousedown, mouseup, pointermove — cualquier evento sobre el canvas.
+
+Nota drag-and-drop: HTML5 DnD SUPRIME `mousemove`. Solo dispara `dragover`
+en el elemento bajo el cursor. Para rastrear posición durante un drag,
+escucha `dragover` en iframeDoc — no `mousemove`.
+
+#### 8b — clientX/Y de eventos iframeDoc ya están en coordenadas del canvas
+
+Los eventos capturados vía `iframeDoc.addEventListener()` llevan `clientX/Y`
+en el sistema de coordenadas del iframe (relativo a su top-left = relativo al
+canvas). NO son coordenadas del viewport del main window.
+
+TABLA DE COORDENADAS — obligatoria antes de cualquier cálculo de posición:
+
+  | Origen del evento       | clientX/Y space         | Cómo obtener canvas coords     |
+  |-------------------------|-------------------------|-------------------------------|
+  | document (main window)  | Viewport main window    | clientX - iframeRect.left, /zoom |
+  | iframeDoc               | Canvas (iframe-relative)| Solo /zoom. NO restar iframeRect |
+  | → getMouseRelativePos() | Requiere evento del main | NUNCA pasar eventos del iframe  |
+  | → getMouseRelativeCanvas()| Requiere evento del main | NUNCA pasar eventos del iframe|
+
+Fórmula correcta para eventos de iframeDoc (cualquier zoom):
+  ```typescript
+  const zoom = (editor.Canvas as any).getZoomDecimal?.() ?? 1
+  const canvasX = event.clientX / zoom   // NO restar iframeRect.left
+  const canvasY = event.clientY / zoom   // NO restar iframeRect.top
+  ```
+
+Por qué getMouseRelativePos/Canvas ESTÁN MAL con eventos iframe:
+  Ambas funciones añaden internamente frameOffset.left/top. Si el evento ya
+  viene del iframe (clientX ya es canvas-relativo), añadir frameOffset lo
+  cuenta DOS VECES → offset = +iframeRect.left (93px en este proyecto).
+
+Historial de bugs T630 (no repetir):
+  Fase 1: listeners en main document → (0,0) en slides 2+
+  Fase 2: getMouseRelativePos con eventos iframe → Y offset = +iframeRect.top
+  Fase 3: getMouseRelativeCanvas con eventos iframe → X offset = +93.1875px
+  Fase 4: restar iframeRect.left a clientX del iframe → X offset = -93.1875px
+  Fase 5 ✅: clientX/zoom, sin operaciones de offset — CORRECTO
+---
 ## Project Overview
 
 **eLearn Studio** is an open-source, web-based e-learning authoring platform inspired by
 ToolBook 11.5 (SumTotal Systems, 2012). The goal is to replicate and modernize ToolBook's
 core capabilities: software simulations, rich question/quiz engine, visual action programming,
 advanced simulation via game engine, and SCORM/AICC/xAPI packaging for LMS delivery.
+
 
 ---
 
