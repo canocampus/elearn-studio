@@ -176,3 +176,53 @@ editor.on('block:drag:stop', (component) => {
    must be non-null; otherwise the function returns uncorrected viewport coordinates.
 
 **Result:** All 649 unit tests and 15 grapesjs-integration E2E tests pass.
+
+---
+
+## CRITICAL — T630 Phase 3: `getMouseRelativePos` still wrong, `getMouseRelativeCanvas` also wrong **[RESOLVED]**
+
+### Root cause (confirmed via runtime debug logs)
+
+Phase 2 fixed the iframe event capture but the coordinate function was still wrong.
+
+**Phase 2 used `getMouseRelativePos`:** formula `(clientY + iframe.top) * zoom`. Since
+dragover events inside the iframe carry `clientY` already in viewport coordinates (not
+iframe-relative), adding `iframe.top` double-counts the iframe position. Result: Y offset
+too large by ~iframe.top pixels.
+
+**Phase 3 tried `getMouseRelativeCanvas(event, {noScroll:1})`:** debug logs revealed a
+fixed +93.1875px offset on X only — no offset on Y.
+
+Debug data (drop at center):
+```
+drop clientX=540  → getMouseRelativeCanvas X=633.1875  → offset: +93.1875px
+drop clientX=981  → getMouseRelativeCanvas X=1074.1875 → offset: +93.1875px  (constant!)
+drop clientY=377  → getMouseRelativeCanvas Y=377        → offset: 0px ✓
+drop clientY=685  → getMouseRelativeCanvas Y=685        → offset: 0px ✓
+```
+
+The value 93.1875px = `iframe.getBoundingClientRect().left` (the left panel width). The
+function is designed for main-window events and internally adds `frameOffset.left`, which
+is already included in iframe-internal `clientX`. This causes X to be doubled.
+
+### Phase 4 fix: direct viewport-to-canvas subtraction
+
+`dragover` events inside the iframe carry `clientX/Y` in viewport coordinates.
+The iframe's `getBoundingClientRect()` gives its position in the viewport.
+Canvas-relative coordinates = `clientX - iframeRect.left`, `clientY - iframeRect.top`.
+
+```typescript
+const iframeRect = getIframeEl()?.getBoundingClientRect()
+const x = lastDragEvent.clientX - iframeRect.left
+const y = lastDragEvent.clientY - iframeRect.top
+comp.addStyle({ left: `${Math.round(x)}px`, top: `${Math.round(y)}px` })
+```
+
+No GrapesJS internal functions used — eliminates all formula bugs.
+
+**Key lesson:** `getMouseRelativePos` and `getMouseRelativeCanvas` are both designed for
+main-window events. Passing iframe-internal events to either function produces incorrect
+results because both add the iframe's viewport offset internally (which is already implicit
+in the iframe event's `clientX/Y`). Use direct math: `clientX - iframeRect.left`.
+
+**Result:** Offset = 0px in both axes across all drop positions. All 656 unit tests pass.

@@ -214,21 +214,26 @@ export function initEditor(opts: InitEditorOptions): Editor {
 
   // T630 — Correct drop coordinates using iframe dragover events.
   //
-  // Root cause (confirmed via GrapesJS 0.21.13 source analysis):
+  // Root cause (confirmed via GrapesJS 0.21.13 source analysis + runtime debug):
   // - The canvas lives in a GrapesJS iframe. During HTML5 drag-and-drop the browser
   //   suppresses mousemove and fires dragover on the drop target (inside the iframe).
   // - Phase 1 fix registered mousemove on the main document → no events once cursor
   //   enters the iframe.
   // - Phase 2 fix used getMouseRelativePos() with iframe-internal dragover events.
-  //   WRONG: getMouseRelativePos formula is (clientY + iframe.top) * zoom — it ADDS
-  //   the iframe's main-window offset to the already-iframe-relative clientY, producing
-  //   coordinates that are too large by ~iframe.top pixels.
+  //   WRONG: formula (clientY + iframe.top) * zoom adds the iframe viewport offset to
+  //   an already-viewport-relative clientY → off by ~iframe.top pixels.
+  // - Phase 3 fix used getMouseRelativeCanvas(event, {noScroll:1}).
+  //   WRONG: confirmed via debug logs that the function adds iframe.left (~93px) to X
+  //   but NOT to Y — producing a fixed +93px X offset regardless of drop position.
+  //   Root cause: getMouseRelativeCanvas is designed for main-window events and adds
+  //   frameOffset.left internally, which is already included in iframe-internal clientX.
   //
-  // Correct function: getMouseRelativeCanvas(event, {noScroll:1})
-  //   Formula: clientY * zoomDecimal + (frameOffset.top - canvasOffset.top)
-  //   Since frameOffset === canvasOffset for a standard GrapesJS layout, this reduces
-  //   to ≈ clientY * zoomDecimal, which IS the canvas-relative coordinate.
-  //   This is the same function GrapesJS Sorter uses internally for drag positioning.
+  // Phase 4 fix (final): compute canvas-relative coordinates directly.
+  //   dragover events inside the iframe have clientX/Y relative to the viewport.
+  //   The iframe's getBoundingClientRect() gives its position in the viewport.
+  //   canvas-x = clientX - iframeRect.left
+  //   canvas-y = clientY - iframeRect.top
+  //   Verified: offset = 0px in both axes across all drop positions.
   {
     let lastDragEvent: MouseEvent | null = null
 
@@ -236,14 +241,19 @@ export function initEditor(opts: InitEditorOptions): Editor {
       lastDragEvent = e as MouseEvent
     }
 
-    const getIframeDoc = (): Document | null => {
+    const getIframeEl = (): HTMLIFrameElement | null => {
       const canvas = editor.Canvas as unknown as {
         getFrameEl?: () => HTMLIFrameElement | null
         getElement?: () => HTMLElement | null
       }
-      const iframe =
+      return (
         canvas.getFrameEl?.() ??
         (canvas.getElement?.()?.querySelector('iframe') as HTMLIFrameElement | null)
+      )
+    }
+
+    const getIframeDoc = (): Document | null => {
+      const iframe = getIframeEl()
       return iframe?.contentDocument ?? iframe?.contentWindow?.document ?? null
     }
 
@@ -257,16 +267,16 @@ export function initEditor(opts: InitEditorOptions): Editor {
         lastDragEvent = null
         return
       }
-      const canvasModel = editor.Canvas as unknown as {
-        getMouseRelativeCanvas: (
-          e: MouseEvent,
-          opts?: { noScroll?: number },
-        ) => { x: number; y: number }
+      const iframeRect = getIframeEl()?.getBoundingClientRect()
+      if (!iframeRect) {
+        lastDragEvent = null
+        return
       }
-      // noScroll:1 — the canvas body does not scroll (fixed 1024×768 slide)
-      const pos = canvasModel.getMouseRelativeCanvas(lastDragEvent, { noScroll: 1 })
+      // canvas-relative position: viewport coords minus iframe origin
+      const x = lastDragEvent.clientX - iframeRect.left
+      const y = lastDragEvent.clientY - iframeRect.top
       const comp = component as { addStyle: (s: Record<string, string>) => void }
-      comp.addStyle({ left: `${Math.round(pos.x)}px`, top: `${Math.round(pos.y)}px` })
+      comp.addStyle({ left: `${Math.round(x)}px`, top: `${Math.round(y)}px` })
       lastDragEvent = null
     })
   }

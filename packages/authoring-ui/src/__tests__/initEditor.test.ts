@@ -383,19 +383,21 @@ describe('T800 — triggerAutosave: stopCommand before store', () => {
 })
 
 // ---------------------------------------------------------------------------
-// T630 Phase 3 — block:drag:stop uses getMouseRelativeCanvas (correct formula)
+// T630 Phase 4 — block:drag:stop uses clientX/Y - iframeRect.left/top (final fix)
 //
 // Phase 1 bug: listened to 'mousemove' on main document — suppressed during DnD.
 // Phase 2 bug: used getMouseRelativePos() with iframe-internal dragover events.
-//   getMouseRelativePos formula: (clientY + iframe.top) * zoom
-//   This ADDS the iframe's main-window offset to the already-iframe-relative
-//   clientY, producing coordinates ~iframe.top pixels too large.
+//   getMouseRelativePos formula: (clientY + iframe.top) * zoom — adds iframe viewport
+//   offset to already-viewport-relative clientY → off by ~iframe.top pixels.
+// Phase 3 bug: used getMouseRelativeCanvas(event, {noScroll:1}).
+//   Debug confirmed: adds iframe.left (~93px) to X but not Y → fixed +93px X offset.
+//   Root cause: designed for main-window events; adds frameOffset internally which is
+//   already included in iframe-internal clientX.
 //
-// Phase 3 fix: use getMouseRelativeCanvas(event, {noScroll:1}).
-//   Formula: clientY * zoomDecimal + (frameOffset.top - canvasOffset.top)
-//   For standard GrapesJS layout frameOffset ≈ canvasOffset → result ≈ clientY * zoom
-//   This is canvas-relative, matching the CSS 'top' origin (iframe content top).
-//   This is the same function GrapesJS Sorter uses internally for drag positioning.
+// Phase 4 fix: canvas-relative = clientX/Y − iframeRect.left/top (direct, correct).
+//   dragover events inside the iframe carry clientX/Y in viewport coordinates.
+//   Subtracting the iframe's viewport origin gives canvas-relative coordinates.
+//   Verified: offset = 0px in both axes across all drop positions.
 // ---------------------------------------------------------------------------
 
 describe('T630 — block:drag:stop iframe dragover coordinates', () => {
@@ -403,7 +405,11 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
   let capturedHandlers: Map<string, (e: Event) => void>
   let mockAddEventListener: ReturnType<typeof vi.fn>
   let mockRemoveEventListener: ReturnType<typeof vi.fn>
-  let mockGetMouseRelativeCanvas: ReturnType<typeof vi.fn>
+  let mockGetBoundingClientRect: ReturnType<typeof vi.fn>
+
+  // iframe origin in the viewport: left=100, top=80
+  const IFRAME_LEFT = 100
+  const IFRAME_TOP = 80
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -413,11 +419,14 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
       capturedHandlers.set(event, handler)
     })
     mockRemoveEventListener = vi.fn()
-    mockGetMouseRelativeCanvas = vi.fn().mockReturnValue({ x: 350, y: 250 })
+    mockGetBoundingClientRect = vi.fn().mockReturnValue({ left: IFRAME_LEFT, top: IFRAME_TOP })
 
-    const mockIframeDoc = {
-      addEventListener: mockAddEventListener,
-      removeEventListener: mockRemoveEventListener,
+    const mockIframeEl = {
+      contentDocument: {
+        addEventListener: mockAddEventListener,
+        removeEventListener: mockRemoveEventListener,
+      },
+      getBoundingClientRect: mockGetBoundingClientRect,
     }
 
     const fakeEditor = {
@@ -427,10 +436,7 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
       Commands: { isActive: vi.fn().mockReturnValue(false) },
       store: vi.fn().mockResolvedValue(undefined),
       Canvas: {
-        getFrameEl: vi.fn().mockReturnValue({
-          contentDocument: mockIframeDoc,
-        }),
-        getMouseRelativeCanvas: mockGetMouseRelativeCanvas,
+        getFrameEl: vi.fn().mockReturnValue(mockIframeEl),
       },
     } as unknown as Editor
 
@@ -460,25 +466,26 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
     expect(mockRemoveEventListener).toHaveBeenCalledWith('dragover', expect.any(Function))
   })
 
-  it('T630.3: block:drag:stop calls addStyle with canvas-relative coordinates when dragover was captured', () => {
+  it('T630.3: block:drag:stop calls addStyle with clientX/Y minus iframe origin', () => {
     setup()
     fire('block:drag:start')
 
-    // Simulate a dragover event originating inside the iframe
+    // clientX=400, clientY=300 inside iframe at left=100, top=80 → canvas x=300, y=220
     const dragoverFn = capturedHandlers.get('dragover')!
-    const fakeDragEvent = { clientX: 400, clientY: 300, target: {} }
-    dragoverFn(fakeDragEvent as unknown as Event)
+    dragoverFn({ clientX: 400, clientY: 300, target: {} } as unknown as Event)
 
     const comp = { addStyle: vi.fn() }
     fire('block:drag:stop', comp)
 
-    expect(mockGetMouseRelativeCanvas).toHaveBeenCalledWith(fakeDragEvent, { noScroll: 1 })
-    expect(comp.addStyle).toHaveBeenCalledWith({ left: '350px', top: '250px' })
+    expect(comp.addStyle).toHaveBeenCalledWith({
+      left: `${400 - IFRAME_LEFT}px`,
+      top: `${300 - IFRAME_TOP}px`,
+    })
   })
 
   it('T630.4: block:drag:stop skips addStyle when no dragover was captured (Slide 2+ regression guard)', () => {
-    // This is the critical regression: on Slide 2+ lastDragEvent was null because
-    // the main-doc mousemove never fired. The handler must bail early (not crash/set 0,0).
+    // Critical regression: on Slide 2+ lastDragEvent was null because the main-doc
+    // mousemove never fired. The handler must bail early (not crash/set 0,0).
     setup()
     fire('block:drag:start')
     // No dragover event — lastDragEvent stays null
@@ -486,7 +493,6 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
     const comp = { addStyle: vi.fn() }
     fire('block:drag:stop', comp)
 
-    expect(mockGetMouseRelativeCanvas).not.toHaveBeenCalled()
     expect(comp.addStyle).not.toHaveBeenCalled()
   })
 
@@ -494,42 +500,46 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
     setup()
     fire('block:drag:start')
 
-    const dragoverFn = capturedHandlers.get('dragover')!
-    dragoverFn({ clientX: 400, clientY: 300 } as unknown as Event)
+    capturedHandlers.get('dragover')!({ clientX: 400, clientY: 300 } as unknown as Event)
 
     // component = undefined → drag cancelled, not dropped on canvas
     fire('block:drag:stop', undefined)
 
-    expect(mockGetMouseRelativeCanvas).not.toHaveBeenCalled()
+    // iframeRect should not even be read when component is missing
+    expect(mockGetBoundingClientRect).not.toHaveBeenCalled()
   })
 
   it('T630.6: second drag correctly re-registers listener and applies fresh coordinates', () => {
     setup()
-    mockGetMouseRelativeCanvas.mockReturnValue({ x: 100, y: 100 })
 
-    // First drag cycle
+    // First drag cycle: drop at clientX=200, clientY=150 → canvas x=100, y=70
     fire('block:drag:start')
     capturedHandlers.get('dragover')!({ clientX: 200, clientY: 150 } as unknown as Event)
     const comp1 = { addStyle: vi.fn() }
     fire('block:drag:stop', comp1)
-    expect(comp1.addStyle).toHaveBeenCalledWith({ left: '100px', top: '100px' })
+    expect(comp1.addStyle).toHaveBeenCalledWith({
+      left: `${200 - IFRAME_LEFT}px`,
+      top: `${150 - IFRAME_TOP}px`,
+    })
 
     // Second drag cycle — listener must be re-registered and new coordinates applied
-    mockGetMouseRelativeCanvas.mockReturnValue({ x: 700, y: 500 })
     fire('block:drag:start')
     capturedHandlers.get('dragover')!({ clientX: 700, clientY: 500 } as unknown as Event)
     const comp2 = { addStyle: vi.fn() }
     fire('block:drag:stop', comp2)
-    expect(comp2.addStyle).toHaveBeenCalledWith({ left: '700px', top: '500px' })
+    expect(comp2.addStyle).toHaveBeenCalledWith({
+      left: `${700 - IFRAME_LEFT}px`,
+      top: `${500 - IFRAME_TOP}px`,
+    })
   })
 
   it('T630.7: coordinates are rounded to integers (Math.round applied)', () => {
-    mockGetMouseRelativeCanvas.mockReturnValue({ x: 350.7, y: 249.3 })
     setup()
     fire('block:drag:start')
-    capturedHandlers.get('dragover')!({ clientX: 400, clientY: 300 } as unknown as Event)
+    // clientX=400.7 − 100 = 300.7 → 301; clientY=300.3 − 80 = 220.3 → 220
+    capturedHandlers.get('dragover')!({ clientX: 400.7, clientY: 300.3 } as unknown as Event)
     const comp = { addStyle: vi.fn() }
     fire('block:drag:stop', comp)
-    expect(comp.addStyle).toHaveBeenCalledWith({ left: '351px', top: '249px' })
+    expect(comp.addStyle).toHaveBeenCalledWith({ left: '301px', top: '220px' })
   })
 })
