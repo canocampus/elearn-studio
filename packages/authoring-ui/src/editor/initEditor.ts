@@ -212,38 +212,10 @@ export function initEditor(opts: InitEditorOptions): Editor {
     }
   })
 
-  // T630 — Apply actual drop coordinates when a block is dragged onto the canvas.
-  //
-  // Root cause of the (100,100) bug: block content styles used to hardcode
-  // left:'100px', top:'100px'. Those have been removed. Now we track the mouse
-  // position on the canvas element during block drags and apply it on drop via
-  // block:drag:stop, which fires AFTER the component is fully initialised.
-  //
-  // The canvas element (.gjs-cv-canvas) is the outer div around the iframe.
-  // block:drag:start / block:drag:stop fire only during BlockManager drags,
-  // so the mousemove listener is active only while a block is being dragged.
-  let lastDropX = 200
-  let lastDropY = 200
-
-  const onBlockDragMove = (e: MouseEvent) => {
-    const canvasEl = editor.Canvas.getElement()
-    if (!canvasEl) return
-    const rect = canvasEl.getBoundingClientRect()
-    lastDropX = Math.max(0, Math.round(e.clientX - rect.left))
-    lastDropY = Math.max(0, Math.round(e.clientY - rect.top))
-  }
-
-  editor.on('block:drag:start', () => {
-    document.addEventListener('mousemove', onBlockDragMove)
-  })
-
-  editor.on('block:drag:stop', (component: unknown) => {
-    document.removeEventListener('mousemove', onBlockDragMove)
-    // component is undefined when the drag was cancelled (dropped outside canvas)
-    if (!component) return
-    const comp = component as { addStyle: (s: Record<string, string>) => void }
-    comp.addStyle({ left: `${lastDropX}px`, top: `${lastDropY}px` })
-  })
+  // T630 — GrapesJS dragMode:'absolute' handles drop coordinates natively.
+  // Previously, block content styles hardcoded left:'100px', top:'100px' which
+  // overrode GrapesJS's SorterAbsolute positioning. Removing those styles (done
+  // in registerBlocks.ts et al.) is sufficient — no manual coordinate override needed.
 
   // T011.7 — Debounced autosave: triggers 2s after the last component:update event.
   // We use editor.store() rather than GrapesJS autosave (which fired on every undo step).
