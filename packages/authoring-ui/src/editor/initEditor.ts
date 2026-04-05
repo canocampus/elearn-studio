@@ -220,20 +220,19 @@ export function initEditor(opts: InitEditorOptions): Editor {
   // - Phase 1 fix registered mousemove on the main document → no events once cursor
   //   enters the iframe.
   // - Phase 2 fix used getMouseRelativePos() with iframe-internal dragover events.
-  //   WRONG: formula (clientY + iframe.top) * zoom adds the iframe viewport offset to
-  //   an already-viewport-relative clientY → off by ~iframe.top pixels.
+  //   WRONG: adds iframeRect offset to clientX/Y which are already viewport-relative.
   // - Phase 3 fix used getMouseRelativeCanvas(event, {noScroll:1}).
-  //   WRONG: confirmed via debug logs that the function adds iframe.left (~93px) to X
-  //   but NOT to Y — producing a fixed +93px X offset regardless of drop position.
-  //   Root cause: getMouseRelativeCanvas is designed for main-window events and adds
-  //   frameOffset.left internally, which is already included in iframe-internal clientX.
+  //   WRONG: debug confirmed +93px constant X offset = getMouseRelativeCanvas adds
+  //   frameOffset.left internally (designed for main-window events).
+  // - Phase 4 tried clientX - iframeRect.left.
+  //   WRONG: the browser fires dragover events captured on iframeDoc with clientX/Y
+  //   already in the iframe's own coordinate space (= canvas coordinates). The iframe
+  //   has its own viewport; clientX inside it is already canvas-relative. Subtracting
+  //   iframeRect.left subtracted the offset AGAIN, shifting widgets 93px to the left.
   //
-  // Phase 4 fix (final): compute canvas-relative coordinates directly.
-  //   dragover events inside the iframe have clientX/Y relative to the viewport.
-  //   The iframe's getBoundingClientRect() gives its position in the viewport.
-  //   canvas-x = clientX - iframeRect.left
-  //   canvas-y = clientY - iframeRect.top
-  //   Verified: offset = 0px in both axes across all drop positions.
+  // Phase 5 fix (correct): clientX/Y from iframeDoc events ARE canvas-relative.
+  //   No offset subtraction needed. Divide by getZoomDecimal() to account for zoom.
+  //   At 100% zoom zoomDecimal=1 → x = clientX, y = clientY.
   {
     let lastDragEvent: MouseEvent | null = null
 
@@ -241,19 +240,14 @@ export function initEditor(opts: InitEditorOptions): Editor {
       lastDragEvent = e as MouseEvent
     }
 
-    const getIframeEl = (): HTMLIFrameElement | null => {
+    const getIframeDoc = (): Document | null => {
       const canvas = editor.Canvas as unknown as {
         getFrameEl?: () => HTMLIFrameElement | null
         getElement?: () => HTMLElement | null
       }
-      return (
+      const iframe =
         canvas.getFrameEl?.() ??
         (canvas.getElement?.()?.querySelector('iframe') as HTMLIFrameElement | null)
-      )
-    }
-
-    const getIframeDoc = (): Document | null => {
-      const iframe = getIframeEl()
       return iframe?.contentDocument ?? iframe?.contentWindow?.document ?? null
     }
 
@@ -267,14 +261,12 @@ export function initEditor(opts: InitEditorOptions): Editor {
         lastDragEvent = null
         return
       }
-      const iframeRect = getIframeEl()?.getBoundingClientRect()
-      if (!iframeRect) {
-        lastDragEvent = null
-        return
-      }
-      // canvas-relative position: viewport coords minus iframe origin
-      const x = lastDragEvent.clientX - iframeRect.left
-      const y = lastDragEvent.clientY - iframeRect.top
+      // clientX/Y from iframeDoc dragover events are already in canvas coordinate space.
+      // Divide by zoomDecimal (zoom/100) so the position is correct at any zoom level.
+      const canvasModel = editor.Canvas as unknown as { getZoomDecimal?: () => number }
+      const zoom = canvasModel.getZoomDecimal?.() ?? 1
+      const x = lastDragEvent.clientX / zoom
+      const y = lastDragEvent.clientY / zoom
       const comp = component as { addStyle: (s: Record<string, string>) => void }
       comp.addStyle({ left: `${Math.round(x)}px`, top: `${Math.round(y)}px` })
       lastDragEvent = null

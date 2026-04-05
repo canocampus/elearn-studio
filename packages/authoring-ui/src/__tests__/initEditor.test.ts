@@ -383,21 +383,19 @@ describe('T800 — triggerAutosave: stopCommand before store', () => {
 })
 
 // ---------------------------------------------------------------------------
-// T630 Phase 4 — block:drag:stop uses clientX/Y - iframeRect.left/top (final fix)
+// T630 Phase 5 — block:drag:stop uses clientX/Y / zoomDecimal (correct formula)
 //
 // Phase 1 bug: listened to 'mousemove' on main document — suppressed during DnD.
-// Phase 2 bug: used getMouseRelativePos() with iframe-internal dragover events.
-//   getMouseRelativePos formula: (clientY + iframe.top) * zoom — adds iframe viewport
-//   offset to already-viewport-relative clientY → off by ~iframe.top pixels.
-// Phase 3 bug: used getMouseRelativeCanvas(event, {noScroll:1}).
-//   Debug confirmed: adds iframe.left (~93px) to X but not Y → fixed +93px X offset.
-//   Root cause: designed for main-window events; adds frameOffset internally which is
-//   already included in iframe-internal clientX.
+// Phase 2 bug: getMouseRelativePos — formula adds iframeRect offset to clientX/Y which
+//   are already viewport-relative (the iframe has its own coordinate space).
+// Phase 3 bug: getMouseRelativeCanvas — adds frameOffset.left (+93px) to X.
+// Phase 4 bug: subtracted iframeRect.left from clientX — debug misread; clientX from
+//   iframeDoc events is already canvas-relative (iframe has its own coordinate space);
+//   subtracting offset shifted widgets 93px to the left.
 //
-// Phase 4 fix: canvas-relative = clientX/Y − iframeRect.left/top (direct, correct).
-//   dragover events inside the iframe carry clientX/Y in viewport coordinates.
-//   Subtracting the iframe's viewport origin gives canvas-relative coordinates.
-//   Verified: offset = 0px in both axes across all drop positions.
+// Phase 5 fix: clientX/Y from iframeDoc dragover events ARE canvas coordinates.
+//   Divide by getZoomDecimal() (zoom/100) to account for canvas zoom.
+//   At 100% zoom (default): zoomDecimal=1 → x=clientX, y=clientY.
 // ---------------------------------------------------------------------------
 
 describe('T630 — block:drag:stop iframe dragover coordinates', () => {
@@ -405,11 +403,7 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
   let capturedHandlers: Map<string, (e: Event) => void>
   let mockAddEventListener: ReturnType<typeof vi.fn>
   let mockRemoveEventListener: ReturnType<typeof vi.fn>
-  let mockGetBoundingClientRect: ReturnType<typeof vi.fn>
-
-  // iframe origin in the viewport: left=100, top=80
-  const IFRAME_LEFT = 100
-  const IFRAME_TOP = 80
+  let mockGetZoomDecimal: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -419,14 +413,11 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
       capturedHandlers.set(event, handler)
     })
     mockRemoveEventListener = vi.fn()
-    mockGetBoundingClientRect = vi.fn().mockReturnValue({ left: IFRAME_LEFT, top: IFRAME_TOP })
+    mockGetZoomDecimal = vi.fn().mockReturnValue(1) // 100% zoom by default
 
-    const mockIframeEl = {
-      contentDocument: {
-        addEventListener: mockAddEventListener,
-        removeEventListener: mockRemoveEventListener,
-      },
-      getBoundingClientRect: mockGetBoundingClientRect,
+    const mockIframeDoc = {
+      addEventListener: mockAddEventListener,
+      removeEventListener: mockRemoveEventListener,
     }
 
     const fakeEditor = {
@@ -436,7 +427,8 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
       Commands: { isActive: vi.fn().mockReturnValue(false) },
       store: vi.fn().mockResolvedValue(undefined),
       Canvas: {
-        getFrameEl: vi.fn().mockReturnValue(mockIframeEl),
+        getFrameEl: vi.fn().mockReturnValue({ contentDocument: mockIframeDoc }),
+        getZoomDecimal: mockGetZoomDecimal,
       },
     } as unknown as Editor
 
@@ -466,21 +458,18 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
     expect(mockRemoveEventListener).toHaveBeenCalledWith('dragover', expect.any(Function))
   })
 
-  it('T630.3: block:drag:stop calls addStyle with clientX/Y minus iframe origin', () => {
+  it('T630.3: block:drag:stop calls addStyle with clientX/Y directly (at zoom=1)', () => {
     setup()
     fire('block:drag:start')
 
-    // clientX=400, clientY=300 inside iframe at left=100, top=80 → canvas x=300, y=220
+    // clientX/Y from iframeDoc events are canvas-relative at zoom=1
     const dragoverFn = capturedHandlers.get('dragover')!
     dragoverFn({ clientX: 400, clientY: 300, target: {} } as unknown as Event)
 
     const comp = { addStyle: vi.fn() }
     fire('block:drag:stop', comp)
 
-    expect(comp.addStyle).toHaveBeenCalledWith({
-      left: `${400 - IFRAME_LEFT}px`,
-      top: `${300 - IFRAME_TOP}px`,
-    })
+    expect(comp.addStyle).toHaveBeenCalledWith({ left: '400px', top: '300px' })
   })
 
   it('T630.4: block:drag:stop skips addStyle when no dragover was captured (Slide 2+ regression guard)', () => {
@@ -505,41 +494,44 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
     // component = undefined → drag cancelled, not dropped on canvas
     fire('block:drag:stop', undefined)
 
-    // iframeRect should not even be read when component is missing
-    expect(mockGetBoundingClientRect).not.toHaveBeenCalled()
+    expect(mockGetZoomDecimal).not.toHaveBeenCalled()
   })
 
   it('T630.6: second drag correctly re-registers listener and applies fresh coordinates', () => {
     setup()
 
-    // First drag cycle: drop at clientX=200, clientY=150 → canvas x=100, y=70
+    // First drag cycle
     fire('block:drag:start')
     capturedHandlers.get('dragover')!({ clientX: 200, clientY: 150 } as unknown as Event)
     const comp1 = { addStyle: vi.fn() }
     fire('block:drag:stop', comp1)
-    expect(comp1.addStyle).toHaveBeenCalledWith({
-      left: `${200 - IFRAME_LEFT}px`,
-      top: `${150 - IFRAME_TOP}px`,
-    })
+    expect(comp1.addStyle).toHaveBeenCalledWith({ left: '200px', top: '150px' })
 
     // Second drag cycle — listener must be re-registered and new coordinates applied
     fire('block:drag:start')
     capturedHandlers.get('dragover')!({ clientX: 700, clientY: 500 } as unknown as Event)
     const comp2 = { addStyle: vi.fn() }
     fire('block:drag:stop', comp2)
-    expect(comp2.addStyle).toHaveBeenCalledWith({
-      left: `${700 - IFRAME_LEFT}px`,
-      top: `${500 - IFRAME_TOP}px`,
-    })
+    expect(comp2.addStyle).toHaveBeenCalledWith({ left: '700px', top: '500px' })
   })
 
   it('T630.7: coordinates are rounded to integers (Math.round applied)', () => {
     setup()
     fire('block:drag:start')
-    // clientX=400.7 − 100 = 300.7 → 301; clientY=300.3 − 80 = 220.3 → 220
-    capturedHandlers.get('dragover')!({ clientX: 400.7, clientY: 300.3 } as unknown as Event)
+    capturedHandlers.get('dragover')!({ clientX: 350.7, clientY: 249.3 } as unknown as Event)
     const comp = { addStyle: vi.fn() }
     fire('block:drag:stop', comp)
-    expect(comp.addStyle).toHaveBeenCalledWith({ left: '301px', top: '220px' })
+    expect(comp.addStyle).toHaveBeenCalledWith({ left: '351px', top: '249px' })
+  })
+
+  it('T630.8: coordinates are divided by zoom when canvas is zoomed (regression guard)', () => {
+    mockGetZoomDecimal.mockReturnValue(0.5) // 50% zoom
+    setup()
+    fire('block:drag:start')
+    // At 50% zoom, clientX=300 in the iframe maps to canvas coordinate 600
+    capturedHandlers.get('dragover')!({ clientX: 300, clientY: 200 } as unknown as Event)
+    const comp = { addStyle: vi.fn() }
+    fire('block:drag:stop', comp)
+    expect(comp.addStyle).toHaveBeenCalledWith({ left: '600px', top: '400px' })
   })
 })
