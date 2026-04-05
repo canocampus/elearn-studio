@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-04 — Phase 2.8: Authoring UI Hardening (v0.5.35)
+> Last updated: 2026-04-05 — T631: MC correct-answer persistence regression test (v0.5.36)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.35 |
+| **Current version** | v0.5.36 |
 | **Active phase** | Phase 2.8 — Authoring UI Hardening (COMPLETO) |
 | **Active block** | — (todos completados) |
-| **E2E test count** | 131 tests (128 passing, 3 skipped incl. T611.10) |
+| **E2E test count** | 132 tests (129 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **T631 — MC correct-answer regression test / v0.5.36** — Confirmed T621 fix (reads `comp.get('extendedProperties')` in `useExtendedProperties.update`) already covers MC/TF/Fill stale-closure issue. Added `@regression T631.6` E2E test in `e2e/tests/question-widget.spec.ts`: marks Option B correct, waits for autosave PATCH, reloads page, navigates back, asserts Option B is still the correct answer via `window.__elearn_editor`. Commit: `7d08f9c`.
 
 - **Phase 2.8 Authoring UI Hardening / v0.5.35** — Four CRÍTICO fixes from Gemini code audit. T620: `useComponentProperty.ts` applies optimistic `setValue(newValue)` before `comp.set()` so controlled inputs never freeze; `latestRef = useRef(value)` tracks latest value to prevent stale closures. T621: `useExtendedProperties` wrapper reads `comp.get('extendedProperties')` directly (always current via Backbone.set) rather than stale closure `ep` — eliminates cascade-edit data loss. T622: `SaveErrorBanner.tsx` persistent red banner below TopToolbar; reads `saveError` from Zustand; Retry calls `editor.store()`, clears optimistically on success, updates message on failure; non-dismissible by design; SlideList navigation blocked when `saveError !== null`; TopToolbar "Save failed" badge added. T623: `extendFnView: ['initialize']` added to image widget view — removes `Object.getPrototypeOf(Object.getPrototypeOf(this))` prototype chain hack. 649 unit tests pass. Commit: `64a2ed9`.
 

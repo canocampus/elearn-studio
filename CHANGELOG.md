@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.36] — 2026-04-05 — T631: MC/TF/Fill correct-answer persistence regression test
+
+### Fixed
+- **T631 — Confirm T621 stale-closure fix is complete** — Verified `useExtendedProperties.update()` already reads from `comp.get('extendedProperties')` (synchronous Backbone model, always current) per T621. No additional code change required.
+
+### Added
+- **`e2e/tests/question-widget.spec.ts`** — `@regression T631.6`: New E2E test verifies MC correct-answer (Option B radio) persists through full autosave + page reload cycle. Reads `window.__elearn_editor.getSelected().get('extendedProperties')` to assert model state both before save and after reload.
+
+---
+
 ## [0.5.35] — 2026-04-04 — Phase 2.8: Authoring UI Hardening (CRÍTICO-01 through CRÍTICO-04)
 
 ### Fixed
