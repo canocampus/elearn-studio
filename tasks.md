@@ -772,6 +772,285 @@
 
 ---
 
+## PHASE 2.9 — Beta Review Round 2: Honest Remediation
+
+> **Context:** Manual authoring test by project owner (2026-04-05) found that many bugs
+> supposedly fixed in Phase 2.6 are still present. Root cause: Claude Code has been
+> patching symptoms rather than fixing underlying causes.
+>
+> **Audit source:** `docs/issues/errores-beta-R2.txt` (owner test report)
+> **Prior art:** `docs/issues/audit-consolidado.md`
+>
+> **Critical finding before starting:**
+> The positioning "fix" (adding `left:'100px', top:'100px'` to block content) does NOT
+> use actual drop coordinates. Everything always appears at (100,100). This must be
+> fixed properly as T630 before any other UI work.
+>
+> **Before starting each task:** Run `pnpm test` to confirm baseline. If tests are red
+> BEFORE your changes, document the failure in `WORKING_CONTEXT.md` before proceeding.
+
+---
+
+### T630 — Fix drag-and-drop positioning using actual drop coordinates (ROOT CAUSE)
+> The current approach hardcodes `left:'100px', top:'100px'` in block content definitions.
+> With `dragMode:'absolute'`, GrapesJS should set `left/top` from the drop event — but
+> it's not working. This task investigates WHY and implements a proper fix.
+- [ ] T630.1 — Debug: add `console.log` in `component:add` handler to print the component's
+  style AFTER GrapesJS finishes placing it. Determine if GrapesJS is setting drop coordinates
+  at all, or if the hardcoded block content styles are overriding them
+- [ ] T630.2 — Debug: check GrapesJS version and whether `dragMode:'absolute'` relies on
+  the `stylable` property being set on each component type. Run `editor.DragComponents` to
+  inspect the drag handler in use
+- [ ] T630.3 — If GrapesJS is not applying drop coordinates: use the `block:drag:stop` or
+  `canvas:drop` GrapesJS event to capture the real canvas-relative drop coordinates:
+  ```typescript
+  editor.on('block:drag:stop', (component, block) => {
+    // component is the newly added component
+    // Read actual mouse position relative to canvas and apply it
+  })
+  ```
+- [ ] T630.4 — If `block:drag:stop` doesn't provide coordinates: intercept at the canvas
+  iframe level — mount a `dragover`/`drop` listener on the canvas iframe container that
+  records the last `clientX/clientY`, then in `component:add` apply those coordinates
+  (adjusting for iframe offset)
+- [ ] T630.5 — Remove all hardcoded `left:'100px', top:'100px'` from block `content` in
+  `registerBlocks.ts` and `registerQuestionBlocks.ts` AFTER the above fix is confirmed
+  working — otherwise widgets will always appear at (100,100)
+- [ ] T630.6 — **Progress bar**: change default to `left:'50px', top:'50px', width:'80%'`
+  (not `width:'100%'`) to avoid full-slide-width-on-drop confusion
+- [ ] T630.7 — E2E tests: drag each block type to different canvas positions and verify
+  the widget appears near the drop coordinates (±50px tolerance). Update `grapesjs-integration.spec.ts`
+- [ ] T630.8 — Run full test suite + push + verify CI green
+- [ ] T630.9 — Refine the generated code
+- [ ] T630.10 — A reviewer will generate `docs/issues/issues-T630.md`; resolve before closing
+
+### T631 — Fix stale closure in useExtendedProperties (MC/TF/Fill still broken)
+> Root cause: `useExtendedProperties.update(patch)` spreads over `ep` from the render
+> closure, not the latest model value. T621 added `latestRef` inside `useComponentProperty`
+> but that ref is not accessible to `useExtendedProperties`. The fix must use `comp.get()`
+> directly — reading from the Backbone model is always current.
+- [ ] T631.1 — Update `useExtendedProperties` in `QuestionPropertiesPanel.tsx` to read
+  directly from the GrapesJS model instead of the closure:
+  ```typescript
+  function update(patch: Partial<T>) {
+    const current = (comp.get('extendedProperties') as T | undefined) ?? defaults
+    const next = { ...current, ...patch }
+    setEp(next)          // React state (optimistic, for immediate re-render)
+    comp.set('extendedProperties', next)  // GrapesJS model
+  }
+  ```
+  Where `comp` must be in scope — pass it from the outer `useComponentProperty` hook or
+  capture it via `useRef`
+- [ ] T631.2 — Verify the MC radio button for marking correct answer works end-to-end:
+  mark option B → switch slide → return → confirm option B is still marked correct
+- [ ] T631.3 — Verify TF correct answer (True/False radio) persists across slide switch
+- [ ] T631.4 — Verify Fill accepted answer persists across slide switch
+- [ ] T631.5 — Run tests: `question-widget.spec.ts` all 23 tests must pass
+- [ ] T631.6 — E2E test: mark MC correct answer → wait autosave → reload page → confirm correct answer still marked; tag `@regression`
+- [ ] T631.7 — Run full test suite + push + verify CI green
+- [ ] T631.8 — Refine the generated code
+- [ ] T631.9 — A reviewer will generate `docs/issues/issues-T631.md`; resolve before closing
+
+### T632 — Fix asset picker type for Media Player and Audio Narration
+> Both still use `types: ['image']` — user gets image picker when they need video/audio.
+> The comment "GrapesJS AM uses 'image' type for all assets" is incorrect.
+- [ ] T632.1 — In `MediaPlayerPropertiesPanel.tsx`: change AM open to filter by media type:
+  ```typescript
+  editor.AssetManager.open({
+    types: ['video', 'audio', 'image'],  // accept all; user selects per mediaType
+    select(asset, complete) { ... }
+  })
+  ```
+- [ ] T632.2 — In `AudioNarrationPropertiesPanel.tsx`: open AM with audio-appropriate filter:
+  ```typescript
+  editor.AssetManager.open({
+    types: ['audio', 'image'],  // image fallback for external URLs
+    select(asset, complete) { ... }
+  })
+  ```
+- [ ] T632.3 — If GrapesJS AM doesn't support video/audio type filtering natively, implement
+  a custom asset picker modal that shows all uploaded assets and filters by file extension
+  (`.mp4`, `.webm`, `.mp3`, `.ogg`, `.wav`) when opened from media/audio context
+- [ ] T632.4 — E2E test: drag media-player → open media picker → confirm video/audio assets
+  are selectable (not just images)
+- [ ] T632.5 — Run full test suite + push + verify CI green
+- [ ] T632.6 — Refine the generated code
+- [ ] T632.7 — A reviewer will generate `docs/issues/issues-T632.md`; resolve before closing
+
+### T633 — Fix button background image: scale and no repeat
+> Background image applied via `setStyle({'background-image': 'url(...)'})` but without
+> `background-size: cover` and `background-repeat: no-repeat`. Also: assigning an image
+> resets the button position (component re-renders to defaults).
+- [ ] T633.1 — In `ButtonPropertiesPanel.tsx`, update `setStyle` call to include:
+  ```typescript
+  component.setStyle({
+    'background-image': `url("${src}")`,
+    'background-size': 'cover',
+    'background-repeat': 'no-repeat',
+    'background-position': 'center',
+  })
+  ```
+- [ ] T633.2 — Investigate why assigning background image resets button position.
+  Check if `component.setStyle()` is replacing ALL styles (including `left/top`) instead
+  of merging. If so, use `component.addStyle()` or explicitly merge with existing styles:
+  ```typescript
+  const existing = component.getStyle()
+  component.setStyle({
+    ...existing,  // preserve left, top, width, height
+    'background-image': `url("${src}")`,
+    'background-size': 'cover',
+    'background-repeat': 'no-repeat',
+    'background-position': 'center',
+  })
+  ```
+- [ ] T633.3 — Same fix for `done-button` and `nav-buttons` background image assignment
+- [ ] T633.4 — E2E test: assign background image to button → verify `background-size: cover`
+  is set in canvas; verify button position has not changed after assignment
+- [ ] T633.5 — Run full test suite + push + verify CI green
+- [ ] T633.6 — Refine the generated code
+- [ ] T633.7 — A reviewer will generate `docs/issues/issues-T633.md`; resolve before closing
+
+### T634 — Fix nav-buttons "missing child buttons" error
+> Nav buttons renders child buttons via `onRender()` HTML injection. GrapesJS treats
+> these as unknown children and shows "component may be corrupted".
+> The component must define its children as proper GrapesJS child components.
+- [ ] T634.1 — Redefine `nav-buttons` as a container with two proper child `button` components:
+  ```typescript
+  editor.Components.addType('nav-buttons', {
+    model: {
+      defaults: {
+        name: 'Nav Buttons',
+        tagName: 'div',
+        droppable: false,
+        components: [
+          { type: 'button', content: '← Previous', ... },
+          { type: 'button', content: 'Next →', ... },
+        ],
+        ...
+      }
+    }
+  })
+  ```
+  OR alternatively: mark the component as `customBadge: true` and add a GrapesJS
+  `isComponent` function so GrapesJS doesn't try to introspect children
+- [ ] T634.2 — If using child components approach: update `ButtonPropertiesPanel` to
+  handle the nav-buttons case by editing child components' content
+- [ ] T634.3 — Verify "Nav Buttons component is missing child buttons" error no longer appears
+- [ ] T634.4 — E2E test: drag nav-buttons → select it → verify no error in Props panel; verify
+  prev/next buttons visible in canvas
+- [ ] T634.5 — Run full test suite + push + verify CI green
+- [ ] T634.6 — Refine the generated code
+- [ ] T634.7 — A reviewer will generate `docs/issues/issues-T634.md`; resolve before closing
+
+### T635 — Add SCORM format selector to PublishDialog (SCORM 2004 / AICC)
+> PublishDialog only shows "Publish SCORM 1.2". Backend already has routes for SCORM 2004
+> and AICC export. The dialog needs a format selector.
+- [ ] T635.1 — Add format selector to `PublishDialog.tsx`:
+  ```typescript
+  type ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'
+  // Radio or select: SCORM 1.2 (recommended) | SCORM 2004 | AICC
+  ```
+- [ ] T635.2 — Pass selected format to `onConfirm(format)` callback
+- [ ] T635.3 — Update `TopToolbar.tsx` publish handler to call the appropriate export
+  endpoint based on format:
+  - `scorm12` → `POST /courses/:id/export/scorm12`
+  - `scorm2004` → `POST /courses/:id/export/scorm2004`
+  - `aicc` → `POST /courses/:id/export/aicc`
+- [ ] T635.4 — Add tooltip/description per format: SCORM 1.2 (widest LMS support), SCORM 2004
+  (modern sequencing), AICC (legacy LMS)
+- [ ] T635.5 — E2E test: open publish dialog → verify all 3 format options visible; select
+  SCORM 2004 → confirm export → verify ZIP downloaded; tag `@regression`
+- [ ] T635.6 — Run full test suite + push + verify CI green
+- [ ] T635.7 — Refine the generated code
+- [ ] T635.8 — A reviewer will generate `docs/issues/issues-T635.md`; resolve before closing
+
+### T636 — Fix copy/paste between slides preserving position
+> GrapesJS Ctrl+C/V works within a slide. Cross-slide paste loses coordinates because
+> the clipboard data doesn't include left/top, and the paste handler creates components
+> at default position.
+- [ ] T636.1 — Implement a custom GrapesJS command `elearn:copy` that captures the selected
+  component's current style (including `left`, `top`, `width`, `height`) along with its
+  serialized JSON
+- [ ] T636.2 — Implement a custom GrapesJS command `elearn:paste` that reads the stored
+  component data and creates a new component with the original `left/top` preserved
+- [ ] T636.3 — Register keyboard shortcuts: intercept `Ctrl+C` / `Ctrl+V` inside the
+  GrapesJS canvas to use the custom commands:
+  ```typescript
+  editor.Keymaps.add('elearn:copy', 'ctrl+c', 'elearn:copy')
+  editor.Keymaps.add('elearn:paste', 'ctrl+v', 'elearn:paste')
+  ```
+- [ ] T636.4 — Store the copied component data in a module-level variable (not localStorage)
+  accessible across slide switches
+- [ ] T636.5 — E2E test: add widget to slide 1 at position ~(300,200) → Ctrl+C → navigate
+  to slide 2 → Ctrl+V → verify widget appears near (300,200); tag `@regression`
+- [ ] T636.6 — Run full test suite + push + verify CI green
+- [ ] T636.7 — Refine the generated code
+- [ ] T636.8 — A reviewer will generate `docs/issues/issues-T636.md`; resolve before closing
+
+### T637 — Fix text widget: cursor loss and text selection
+> Text widget loses cursor position while typing and doesn't allow text selection for
+> bold/italic/underline. Root cause: GrapesJS `editable:true` uses native contenteditable
+> inside the iframe, but the editor's global click handlers intercept focus.
+- [ ] T637.1 — Investigate: add `console.log` on `editor.on('component:toggled')` and
+  `editor.on('component:selected')` to see if a component selection event fires mid-typing
+  and interrupts the contenteditable focus
+- [ ] T637.2 — If selection events are interrupting: add a guard that prevents
+  `component:selected` from triggering while `editor.Commands.isActive('text-edit')`
+- [ ] T637.3 — For text formatting (bold/italic/underline): GrapesJS's RTE (Rich Text Editor)
+  provides these via `editor.RichTextEditor`. Ensure the RTE toolbar appears on text
+  selection by configuring `editor.getConfig().richTextEditor` options
+- [ ] T637.4 — Add RTE configuration in `initEditor.ts`:
+  ```typescript
+  rte: {
+    actions: ['bold', 'italic', 'underline', 'strikethrough', 'link']
+  }
+  ```
+- [ ] T637.5 — E2E test: double-click text widget → type "Hello" → verify cursor doesn't
+  jump to start; select "Hello" → verify bold button appears in RTE toolbar
+- [ ] T637.6 — Run full test suite + push + verify CI green
+- [ ] T637.7 — Refine the generated code
+- [ ] T637.8 — A reviewer will generate `docs/issues/issues-T637.md`; resolve before closing
+
+### T638 — Fix typography changes not affecting Quiz Score and Score Field
+> Changes in Style Manager typography don't apply to the generated text inside these widgets
+> because `onRender()` injects hardcoded HTML with inline styles that override GrapesJS styles.
+- [ ] T638.1 — Rewrite `quiz-score` and `score-field` component views to NOT inject hardcoded
+  inline styles — use CSS classes instead, so GrapesJS Style Manager overrides work
+- [ ] T638.2 — Or: update the `view` to re-render on `change:style` event using the current
+  component styles:
+  ```typescript
+  initialize() {
+    this.listenTo(this.model, 'change:style', this.onRender.bind(this))
+  }
+  onRender() {
+    const style = this.model.getStyle()
+    const fontSize = style['font-size'] || '16px'
+    const color = style['color'] || '#0f172a'
+    this.el.innerHTML = `<div style="font-size:${fontSize};color:${color}">...</div>`
+  }
+  ```
+- [ ] T638.3 — Make the widget titles ("Quiz Score", "Score:") editable via a trait or
+  the GrapesJS text editing mode
+- [ ] T638.4 — Same fix for `score-field`
+- [ ] T638.5 — E2E test: change font-size in Style Manager for quiz-score → verify the
+  rendered text in canvas reflects the new size
+- [ ] T638.6 — Run full test suite + push + verify CI green
+- [ ] T638.7 — Refine the generated code
+- [ ] T638.8 — A reviewer will generate `docs/issues/issues-T638.md`; resolve before closing
+
+### Phase 2.9 — Closing Tasks
+- [ ] T290.TEST — Complete manual authoring test by project owner covering all items in
+  `docs/issues/errores-beta-R2.txt`: every widget drags to approximately the cursor drop
+  position; MC/TF/Fill correct answer markings persist; media/audio pickers show correct
+  asset types; button background scales correctly without position reset; nav-buttons
+  shows no "corrupted" error; SCORM 2004 and AICC export options available; copy/paste
+  preserves position across slides; text widget cursor doesn't jump; typography changes
+  apply to quiz/score widgets. All 131+ automated tests still green.
+- [ ] T290.DOCS — Update `WORKING_CONTEXT.md` Visual Verification Status for all affected
+  components; update `docs/issues/audit-consolidado.md` with any new findings
+
+---
+
 ## PHASE 2.5 — Cross-Cutting Concerns & Production Readiness
 
 > **Context:** Phase 0–2 delivered the core authoring loop. This phase closes the gaps that

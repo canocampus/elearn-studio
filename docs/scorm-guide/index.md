@@ -73,6 +73,21 @@ graph TD
 
 ---
 
+## Asset Bundling
+
+All SCORM packages automatically include assets referenced by the course. The export endpoint:
+
+1. Scans all widgets for asset references (e.g., images, audio, video, screenshots)
+2. Downloads assets from Garage S3 storage
+3. Rewrites asset paths in the course HTML from absolute (`/assets/uuid`) to relative (`assets/uuid`)
+4. Bundles assets into the ZIP under the `assets/` folder
+
+This ensures the course package is **self-contained and runs offline** in any LMS without external asset requests.
+
+The `phaser-bundle.js` file is automatically included only when the course contains at least one Phaser simulation widget, keeping packages minimal.
+
+---
+
 ## Sections
 
 | File | Contents |

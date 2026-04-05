@@ -13,9 +13,9 @@ When you need this: you're adding a new interactive element (e.g., a hotspot map
 Every widget type requires changes in **five** places (steps 1–4 are mandatory, step 5 if the widget has a properties panel):
 
 ```
-1. packages/authoring-ui/src/editor/registerBlocks.ts   — GrapesJS Block + Component
-2. packages/authoring-ui/src/editor/converters.ts        — Widget ↔ GrapesJS converter
-3. packages/authoring-ui/src/types/course.ts             — TypeScript type union
+1. packages/shared-types/src/widgets.ts                  — Add to Widget union type
+2. packages/authoring-ui/src/editor/registerBlocks.ts   — GrapesJS Block + Component
+3. packages/authoring-ui/src/editor/converters.ts        — Widget ↔ GrapesJS converter
 4. packages/runtime-player/src/                          — Runtime renderer
 5. backend/api/src/models/Widget.ts                      — Backend WIDGET_TYPES enum
 ```
@@ -25,11 +25,41 @@ Optionally, if the widget has configurable properties:
 6. packages/authoring-ui/src/components/sidebar/         — Properties panel
 ```
 
-> **Do not skip step 5.** The backend validates `widget.type` against the `WIDGET_TYPES` enum in `Widget.ts`. If the new type is not listed there, every `PATCH /courses/:id` call that includes the widget will return `500`. This mistake was discovered during T607 (audio-narration) when the widget was fully working in the editor but silently rejected by the API on save.
+> **Do not skip steps 1 and 5.** All widget types are defined in the centralized `@elearn-studio/shared-types` package. The backend validates `widget.type` against the `WIDGET_TYPES` enum in `Widget.ts`. If the new type is not listed in either location, every `PATCH /courses/:id` call that includes the widget will return `500`. This mistake was discovered during T607 (audio-narration) when the widget was fully working in the editor but silently rejected by the API on save.
 
 ---
 
-## Step 1 — Register the GrapesJS Block and Component
+## Step 1 — Add the type to shared-types
+
+All widget types are centralized in `packages/shared-types/src/widgets.ts`. Add your widget type to the `Widget` discriminated union:
+
+```typescript
+// packages/shared-types/src/widgets.ts
+
+export interface FlipCardWidget extends BaseWidget {
+  type: 'flip-card'
+  extendedProperties: {
+    frontText: string
+    backText: string
+  }
+}
+
+export type Widget =
+  | TextWidget
+  | ImageWidget
+  | ... existing types ...
+  | FlipCardWidget  // ← add here
+```
+
+Then rebuild the shared-types package so all dependents can import the new type:
+
+```bash
+pnpm --filter shared-types build
+```
+
+---
+
+## Step 2 — Register the GrapesJS Block and Component
 
 Add to `packages/authoring-ui/src/editor/registerBlocks.ts`:
 
@@ -74,28 +104,7 @@ editor.Components.addType('flip-card', {
 
 ---
 
-## Step 2 — Add the TypeScript type
-
-In `packages/authoring-ui/src/types/course.ts`, add to the `WidgetType` union and create the extended properties interface:
-
-```typescript
-// Add to the WidgetType union
-export type WidgetType =
-  | 'text' | 'image' | 'button' | 'done-button' | 'nav-buttons' | 'rectangle'
-  | 'question-mc' | 'question-tf' | 'question-fill' | 'question-match'
-  | 'media-player' | 'audio-narration' | 'progress-bar' | 'volume-control'
-  | 'score-display'
-  | 'screenshot-sim' | 'phaser-sim'
-  | 'flip-card'   // ← add here
-
-// Add the extended properties interface
-export interface FlipCardExtendedProps {
-  frontText: string
-  backText: string
-}
-```
-
-## Step 2b — Add the type to the backend whitelist
+## Step 3 — Add the type to the backend whitelist
 
 In `backend/api/src/models/Widget.ts`, add the new type to the `WIDGET_TYPES` const array:
 
@@ -110,7 +119,7 @@ The Mongoose schema uses this array to validate `widget.type` on every PATCH. Om
 
 ---
 
-## Step 3 — Update the GrapesJS ↔ Widget converters
+## Step 4 — Update the GrapesJS ↔ Widget converters
 
 In `packages/authoring-ui/src/editor/converters.ts`, `widgetsFromGrapesjs` already handles all widget types generically via `c.get('extendedProperties')`. Verify the new component stores its custom data in `extendedProperties` within the Component Type's `model.defaults` object:
 
@@ -141,14 +150,14 @@ init() {
 
 ---
 
-## Step 4 — Add the runtime player renderer
+## Step 5 — Add the runtime player renderer
 
 In `packages/runtime-player/src/`, create a renderer file for the new type:
 
 ```typescript
 // packages/runtime-player/src/widgets/flipCardWidget.ts
 
-import type { BaseWidget } from '../types'
+import type { BaseWidget } from '@elearn-studio/shared-types'
 
 export function renderFlipCard(container: HTMLElement, widget: BaseWidget): void {
   const { frontText, backText } = widget.extendedProperties as {
@@ -191,7 +200,7 @@ case 'flip-card':
 
 ---
 
-## Step 5 — Add a Properties panel (optional)
+## Step 6 — Add a Properties panel (optional)
 
 If the widget has properties too complex for GrapesJS traits (e.g., nested arrays, color pickers, file pickers), add a React sidebar panel.
 
@@ -251,11 +260,12 @@ export function isFlipCardWidgetType(type: string): boolean {
 
 ## Checklist — all places to update
 
+- [ ] **`packages/shared-types/src/widgets.ts`** — Add to `Widget` union + interface (required for all packages to import)
+- [ ] `pnpm --filter shared-types build` — Rebuild to publish new type
 - [ ] `packages/authoring-ui/src/editor/registerBlocks.ts` — Block + Component registration
-- [ ] `packages/authoring-ui/src/types/course.ts` — `WidgetType` union + `ExtendedProps` interface
 - [ ] **`backend/api/src/models/Widget.ts`** — `WIDGET_TYPES` enum (causes 500 on save if omitted)
 - [ ] `packages/authoring-ui/src/editor/converters.ts` — verify `extendedProperties` roundtrip
-- [ ] `packages/runtime-player/src/widgets/<type>Widget.ts` — renderer
+- [ ] `packages/runtime-player/src/widgets/<type>Widget.ts` — renderer (import types from `@elearn-studio/shared-types`)
 - [ ] `packages/runtime-player/src/index.ts` — register renderer in widget switch
 - [ ] `packages/authoring-ui/src/components/sidebar/` — properties panel using `useExtendedProperties` hook (if needed)
 - [ ] Unit test for the renderer in `packages/runtime-player/src/__tests__/`

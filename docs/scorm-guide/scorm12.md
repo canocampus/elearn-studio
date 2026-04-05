@@ -60,9 +60,12 @@ The ZIP filename uses the course title with non-alphanumeric characters replaced
 ├── imscp_rootv1p1p2.xsd
 ├── index.html              # course entry point
 ├── player.js               # Runtime Player bundle
-└── assets/                 # course media (PNG, JPEG, etc.)
+├── phaser-bundle.js        # (only if course contains phaser-sim widgets)
+└── assets/                 # bundled course media (PNG, JPEG, MP3, etc.)
     └── <uuid>.<ext>
 ```
+
+All assets referenced in the course (images, audio, video, screenshots) are automatically collected from Garage S3, downloaded, and bundled into the ZIP. Asset paths in the course HTML are rewritten from absolute (`/assets/...`) to relative (`assets/...`) so the package works offline in the LMS.
 
 ---
 

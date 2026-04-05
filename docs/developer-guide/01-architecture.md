@@ -18,31 +18,38 @@ graph LR
   SE[simulation-engine]:::frontend
   PS[phaser-simulations]:::shared
   QE[question-engine]:::shared
+  ST[shared-types]:::shared
   SP[scorm-packager]:::shared
   RP[runtime-player]:::shared
   API[backend/api]:::backend
 
   AUI -->|imports| AE
   AUI -->|imports| QE
+  AUI -->|imports| ST
   AUI -->|REST| API
   SE -->|REST| API
   API -->|imports| SP
-  RP -->|lazy import| PS
+  API -->|imports| ST
+  SP -->|imports| ST
   RP -->|imports| QE
+  RP -->|imports| ST
+  RP -->|lazy import| PS
+  PS -->|imports| ST
 ```
 
 **Package responsibilities:**
 
 | Package | Build output | Key dependency |
 |---|---|---|
-| `authoring-ui` | Vite SPA bundle | GrapesJS, Zustand, TipTap |
-| `actions-editor` | React component library | Zustand |
+| `shared-types` | TypeScript type definitions (CJS + ESM) | — |
+| `authoring-ui` | Vite SPA bundle | GrapesJS, Zustand, TipTap, shared-types |
+| `actions-editor` | React component library | Zustand, shared-types |
 | `simulation-engine` | Express sub-router + Playwright runner | CDP, Playwright |
-| `question-engine` | TypeScript ESM library | — |
-| `scorm-packager` | TypeScript ESM library | archiver, scorm-again |
-| `runtime-player` | Vanilla JS IIFE bundle | scorm-again, pipwerks |
-| `phaser-simulations` | IIFE bundle (`phaser-bundle.js`) | Phaser.js 3 |
-| `backend/api` | Node.js app | Express 5, Mongoose, AWS SDK |
+| `question-engine` | TypeScript ESM library | shared-types |
+| `scorm-packager` | TypeScript ESM library | archiver, scorm-again, shared-types |
+| `runtime-player` | Vanilla JS IIFE bundle | scorm-again, pipwerks, shared-types |
+| `phaser-simulations` | IIFE bundle (`phaser-bundle.js`) | Phaser.js 3, shared-types |
+| `backend/api` | Node.js app | Express 5, Mongoose, AWS SDK, shared-types |
 
 ---
 
@@ -98,6 +105,8 @@ erDiagram
 
 **Widget type discriminated union** (key types):
 
+Defined in `packages/shared-types/src/widgets.ts`:
+
 ```typescript
 type Widget =
   | TextWidget
@@ -127,6 +136,8 @@ interface BaseWidget {
 
 **ActionSequence DSL:**
 
+Defined in `packages/shared-types/src/actions.ts`:
+
 ```typescript
 interface ActionSequence {
   id: string
@@ -140,6 +151,7 @@ type ActionStep =
   | { action: 'hide'; widgetId: string }
   | { action: 'set-variable'; name: string; value: unknown }
   | { action: 'branch-if'; condition: Condition; then: ActionStep[]; else?: ActionStep[] }
+  | { action: 'call-sequence'; sequenceName: string }
   | { action: 'submit-score'; score: number }
 ```
 
@@ -224,15 +236,19 @@ flowchart TD
   EVENTS --> SCORE[aggregate score\nLMSSetValue]
 ```
 
+**Widget Visibility and Actions:**
+
+Widgets with `visible: false` are rendered in the DOM with `style="display:none"` and `data-hidden="true"` attributes. This is critical for action execution: when a `show` action fires, the widget's DOM element already exists and can be shown by toggling its display property. If widgets were omitted from the DOM entirely, the `show` action would fail at runtime.
+
 **Key files in `packages/runtime-player/src/`:**
 
 | File | Responsibility |
 |---|---|
-| `index.ts` | Entry point — SCORM init, slide navigation, `updateProgressBars()`, `applyVolumeToSlide()` |
+| `index.ts` | Entry point — SCORM init, slide navigation, `updateProgressBars()`, `applyVolumeToSlide()`, `renderWidget()` (with visibility handling) |
 | `widgets/phaserSimWidget.ts` | Mounts/unmounts `phaser-bundle.js` lazily per slide |
 | `sim/` | Screenshot simulation player (Konva-based) |
 | `questions/` | Delegates evaluation to `question-engine` |
-| `actions/` | Executes Action Sequence DSL steps |
+| `actions/` | Executes Action Sequence DSL steps, including `show` and `hide` |
 | `suspend.ts` | Serialises/deserialises progress (schema v:2 — includes `visitedSlides`) to SCORM suspend_data |
 
 **GrapesJS Storage Manager flow (authoring side):**
@@ -241,11 +257,11 @@ flowchart TD
 flowchart LR
   GJS[GrapesJS canvas] -->|store event| SM[elearn-api\nStorageManager]
   SM -->|widgetsFromGrapesjs| CONV[JSON converter]
-  CONV -->|PUT /courses/:id| API[backend/api]
+  CONV -->|PATCH /courses/:id/slides/:id| API[backend/api]
   API -->|Mongoose| DB[(MongoDB)]
 ```
 
-The Storage Manager in `packages/authoring-ui/src/editor/storageManager.ts` intercepts every GrapesJS save and converts the component tree to the Widget schema before sending to the API. Raw HTML is never persisted.
+The Storage Manager in `packages/authoring-ui/src/editor/storageManager.ts` intercepts every GrapesJS save and converts the component tree to the Widget schema before sending to the API. Raw HTML is never persisted. All type definitions come from the centralized `@elearn-studio/shared-types` package.
 
 ---
 

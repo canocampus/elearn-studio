@@ -77,6 +77,12 @@ The Vanilla JS bundle (`player.js`) embedded in every SCORM/AICC package. It ren
 
 ## S
 
+**Shared Action Sequence**
+An action sequence defined at the course level (stored in `course.sharedSequences[]`) that can be called by multiple widgets via a `call-sequence` action. Unlike widget-specific sequences, shared sequences are reusable across slides and widgets. Stored in MongoDB as part of the Course document and made available to the Runtime Player for execution.
+
+**Shared Types**
+The centralized TypeScript type definition package (`@elearn-studio/shared-types`) that serves as the single source of truth for all domain types shared across the monorepo: Widget types, ActionSequence DSL, question schemas, course structure. All packages (authoring-ui, runtime-player, backend/api, scorm-packager, etc.) import from this package rather than defining types locally. See [Architecture](developer-guide/01-architecture.md).
+
 **SCORM (Sharable Content Object Reference Model)**
 The dominant e-learning packaging standard. A SCORM package is a ZIP containing `imsmanifest.xml`, an HTML entry point, and the course content. The LMS injects a JavaScript API object (`window.API` for SCORM 1.2, `window.API_1484_11` for SCORM 2004) that the Runtime Player uses to report scores and completion.
 
