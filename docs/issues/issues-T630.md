@@ -24,9 +24,11 @@ overridden at creation time by block content styles.
 **Fix:**
 1. Removed `left/top` from all 16 block content style definitions across 4 files.
 2. Added `block:drag:start` / `block:drag:stop` handlers in `initEditor.ts` that track
-   mouse position relative to `editor.Canvas.getElement()` during block drags via
-   `document.addEventListener('mousemove')`. On `block:drag:stop`, the canvas-relative
-   coordinates are applied to the newly created component via `comp.addStyle(...)`.
+   the last `MouseEvent` during block drags via `document.addEventListener('mousemove')`.
+   On `block:drag:stop`, `editor.Canvas.getMouseRelativePos(lastMouseEvent)` is called
+   to convert viewport coordinates to canvas-space (accounts for zoom, scroll, iframe
+   offsets, and the ~50% display scale of the 1024×768 canvas). The canvas-space
+   coordinates are then applied via `comp.addStyle({ left, top })`.
 
 **Files changed:**
 - `packages/authoring-ui/src/editor/initEditor.ts` (lines 215–246)

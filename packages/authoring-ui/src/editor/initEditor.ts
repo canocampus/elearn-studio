@@ -212,10 +212,45 @@ export function initEditor(opts: InitEditorOptions): Editor {
     }
   })
 
-  // T630 — GrapesJS dragMode:'absolute' handles drop coordinates natively.
-  // Previously, block content styles hardcoded left:'100px', top:'100px' which
-  // overrode GrapesJS's SorterAbsolute positioning. Removing those styles (done
-  // in registerBlocks.ts et al.) is sufficient — no manual coordinate override needed.
+  // T630 — Correct drop coordinates using canvas-space transformation.
+  //
+  // Root cause: The canvas is 1024×768 but displayed at ~50% scale in the editor.
+  // Applying raw screen-space mouse coordinates as CSS `left/top` values causes
+  // widgets to land at ~half the intended position (the "halfway bug").
+  //
+  // Fix: Track the last MouseEvent during a block drag and, on drop, call
+  // editor.Canvas.getMouseRelativePos(ev) which converts viewport coordinates to
+  // canvas-space coordinates (accounts for zoom, scroll, and iframe offsets).
+  // This gives us the correct pixel position within the 1024×768 canvas.
+  //
+  // Note: We must call addStyle AFTER the component is created (block:drag:stop)
+  // because at block:drag:start the component does not exist yet.
+  {
+    let lastMouseEvent: MouseEvent | null = null
+
+    const onBlockDragMove = (e: MouseEvent) => {
+      lastMouseEvent = e
+    }
+
+    editor.on('block:drag:start', () => {
+      document.addEventListener('mousemove', onBlockDragMove)
+    })
+
+    editor.on('block:drag:stop', (component: unknown) => {
+      document.removeEventListener('mousemove', onBlockDragMove)
+      if (!component || !lastMouseEvent) {
+        lastMouseEvent = null
+        return
+      }
+      const canvasModel = editor.Canvas as unknown as {
+        getMouseRelativePos: (e: MouseEvent) => { x: number; y: number }
+      }
+      const pos = canvasModel.getMouseRelativePos(lastMouseEvent)
+      const comp = component as { addStyle: (s: Record<string, string>) => void }
+      comp.addStyle({ left: `${Math.round(pos.x)}px`, top: `${Math.round(pos.y)}px` })
+      lastMouseEvent = null
+    })
+  }
 
   // T011.7 — Debounced autosave: triggers 2s after the last component:update event.
   // We use editor.store() rather than GrapesJS autosave (which fired on every undo step).
