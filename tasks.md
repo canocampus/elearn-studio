@@ -880,11 +880,11 @@
 - [x] T633.2 — Root cause: `component.setStyle()` replaces ALL styles including left/top/width/height.
   > Fixed by switching from `setStyle()` to `addStyle()` — GrapesJS merge API, preserves existing styles.
 - [x] T633.3 — Same fix applies to `done-button` and `nav-buttons` — all three share `openBackgroundImagePicker`.
-- [ ] T633.4 — E2E test: assign background image to button → verify `background-size: cover`
+- [x] T633.4 — E2E test: assign background image to button → verify `background-size: cover`
   is set in canvas; verify button position has not changed after assignment
-- [ ] T633.5 — Run full test suite + push + verify CI green
-- [ ] T633.6 — Refine the generated code
-- [ ] T633.7 — A reviewer will generate `docs/issues/issues-T633.md`; resolve before closing
+- [x] T633.5 — Run full test suite + push + verify CI green
+- [x] T633.6 — Refine the generated code (H-01 stale JSDoc fixed in ButtonPropertiesPanel.tsx)
+- [x] T633.7 — A reviewer will generate `docs/issues/issues-T633.md`; resolve before closing
 
 ### T634 — Fix nav-buttons "missing child buttons" error
 > Nav buttons renders child buttons via `onRender()` HTML injection. GrapesJS treats

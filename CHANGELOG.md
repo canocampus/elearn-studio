@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.38] — 2026-04-05 — T633: Fix button background image (cover/no-repeat + preserve position)
+
+### Fixed
+- **T633.1 — `ButtonPropertiesPanel.tsx`** — Switched `openBackgroundImagePicker` from `component.setStyle()` (replace) to `component.addStyle()` (merge) so that `left`, `top`, `width`, `height` are preserved when a background image is assigned.
+- **T633.2 — Missing background-size/repeat/position** — `addStyle()` call now sets `background-size: cover`, `background-repeat: no-repeat`, and `background-position: center` alongside `background-image`.
+- **T633.3 — Remove Image clears all background properties** — "Remove Image" button now destructures and removes `background-size`, `background-repeat`, and `background-position` in addition to `background-image`.
+
+### Tests
+- **`e2e/tests/button-widget.spec.ts`** — `@regression T633.4`: New E2E test verifies `addStyle()` preserves button position (`left/top/width`) and correctly sets `background-size:cover` + `background-repeat:no-repeat`.
+
+---
+
+## [0.5.37] — 2026-04-05 — T632: Fix asset picker type for Media Player and Audio Narration
+
+### Fixed
+- **T632 — Asset picker type detection** (`packages/authoring-ui/src/editor/assetManager.ts`) — `detectAssetType()` helper maps file extension to `'video'`, `'audio'`, or `'image'`. All uploaded assets now tagged with the correct GrapesJS type so `AssetManager.open({ types: [...] })` filtering works.
+- **`MediaPlayerPropertiesPanel.tsx`** — AM picker now passes `['audio','image']` or `['video','image']` based on the widget's current `mediaType` property.
+- **`AudioNarrationPropertiesPanel.tsx`** — AM picker changed from `types: ['image']` to `types: ['audio', 'image']`.
+
+---
+
 ## [0.5.36] — 2026-04-05 — T631: MC/TF/Fill correct-answer persistence regression test
 
 ### Fixed

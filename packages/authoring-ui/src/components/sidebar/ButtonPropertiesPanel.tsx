@@ -10,8 +10,9 @@
  * Caption is read/written via component.get/set('content') — GrapesJS's built-in
  * mechanism for a component's inner text/HTML; triggers canvas re-render.
  *
- * Background image is applied via component.setStyle({ 'background-image': 'url(...)' })
- * using the GrapesJS Asset Manager, same pattern as the image widget (registerBlocks.ts).
+ * Background image is applied via component.addStyle({ 'background-image': 'url(...)' })
+ * (merge, not replace) so that existing position/size styles are preserved.
+ * Uses the GrapesJS Asset Manager, same pattern as the image widget (registerBlocks.ts).
  */
 
 import { useState, useEffect } from 'react'

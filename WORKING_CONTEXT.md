@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-05 — T631: MC correct-answer persistence regression test (v0.5.36)
+> Last updated: 2026-04-05 — T633: Fix button background image cover/no-repeat + preserve position (v0.5.38)
 
 ---
 
@@ -11,14 +11,18 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.36 |
+| **Current version** | v0.5.38 |
 | **Active phase** | Phase 2.8 — Authoring UI Hardening (COMPLETO) |
-| **Active block** | — (todos completados) |
-| **E2E test count** | 132 tests (129 passing, 3 skipped incl. T611.10) |
+| **Active block** | T634 — Fix nav-buttons "missing child buttons" error |
+| **E2E test count** | 136 tests (133 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **T633 — Fix button background image / v0.5.38** — `openBackgroundImagePicker` in `ButtonPropertiesPanel.tsx` switched from `component.setStyle()` (replace) to `component.addStyle()` (merge) so `left/top/width/height` are preserved on background assignment. Added `background-size: cover`, `background-repeat: no-repeat`, `background-position: center`. "Remove Image" clears all 4 background properties. `@regression T633.4` E2E test in `button-widget.spec.ts`. Commits: `d4a6055`.
+
+- **T632 — Fix asset picker type for media/audio widgets / v0.5.37** — `detectAssetType(filename)` helper added to `assetManager.ts`: maps file extension to `'video'`, `'audio'`, or `'image'` — all uploads now tagged with correct GrapesJS type. `MediaPlayerPropertiesPanel` reads `mediaType` from component model and opens AM with `['audio','image']` or `['video','image']`. `AudioNarrationPropertiesPanel` changed from `['image']` to `['audio','image']`. Commit: `ece0142`.
 
 - **T631 — MC correct-answer regression test / v0.5.36** — Confirmed T621 fix (reads `comp.get('extendedProperties')` in `useExtendedProperties.update`) already covers MC/TF/Fill stale-closure issue. Added `@regression T631.6` E2E test in `e2e/tests/question-widget.spec.ts`: marks Option B correct, waits for autosave PATCH, reloads page, navigates back, asserts Option B is still the correct answer via `window.__elearn_editor`. Commit: `7d08f9c`.
 
