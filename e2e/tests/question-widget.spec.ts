@@ -698,3 +698,91 @@ test.describe('Question Widget: Stale closure — concurrent edit persistence (T
     await expect(restoredTextarea).toHaveValue('T621.5 stale closure regression sentinel', { timeout: 5_000 })
   })
 })
+
+// T631.6 — @regression: MC correct-answer radio persists across autosave + page reload.
+// Without the fix, the `extendedProperties` update might not reach the model, causing the
+// correct-answer selection to revert to the default (Option A) after a reload.
+test.describe('Question Widget: Correct answer persistence across reload (T631.6)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression T631.6 — MC correct-answer radio marked as Option B survives autosave + page reload', async ({ editorPage, page }) => {
+    test.setTimeout(90_000)
+
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    // Drag MC widget onto canvas.
+    await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
+    const mc = editorPage.canvasComponent('[data-gjs-type="question-mc"]')
+    await expect(mc).toBeVisible({ timeout: 15_000 })
+
+    // Select widget and open Props panel.
+    await mc.click()
+    await editorPage.propsTab.click()
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+
+    // Default: Option A (index 0) is correct.
+    // Mark Option B (index 1) as the correct answer.
+    const radios = panel.locator('input[type="radio"][title="Mark as correct"]')
+    await expect(radios).toHaveCount(3, { timeout: 5_000 })
+    await radios.nth(1).click()
+    await page.waitForTimeout(300)
+
+    // Confirm the model reflects the change before saving.
+    const correctTextBeforeSave = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getSelected: () => { get: (k: string) => unknown } | null
+      }
+      const sel = ed?.getSelected()
+      if (!sel) return null
+      const ep = sel.get('extendedProperties') as { options: Array<{ text: string; isCorrect: boolean }> }
+      return ep?.options?.find(o => o.isCorrect)?.text ?? null
+    })
+    expect(correctTextBeforeSave).toBe('Option B')
+
+    // Wait for autosave PATCH to reach the backend.
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 20_000 },
+    )
+    await patchPromise.catch(() => page.waitForTimeout(3000))
+
+    // Reload and navigate back to our slide.
+    await page.reload()
+    await editorPage.waitForReloadComplete()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select the widget and open Props.
+    const questionComp = editorPage.canvasComponent('[data-gjs-type="question-mc"]')
+    await expect(questionComp).toBeVisible({ timeout: 15_000 })
+    await questionComp.click()
+    await editorPage.propsTab.click()
+
+    const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
+    if (!(await restoredPanel.isVisible().catch(() => false))) {
+      await questionComp.click()
+      await editorPage.propsTab.click()
+    }
+    await expect(restoredPanel).toBeVisible({ timeout: 10_000 })
+
+    // Option B must still be the correct answer after reload.
+    const correctTextAfterReload = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getSelected: () => { get: (k: string) => unknown } | null
+      }
+      const sel = ed?.getSelected()
+      if (!sel) return null
+      const ep = sel.get('extendedProperties') as { options: Array<{ text: string; isCorrect: boolean }> }
+      return ep?.options?.find(o => o.isCorrect)?.text ?? null
+    })
+    expect(correctTextAfterReload).toBe('Option B')
+  })
+})
