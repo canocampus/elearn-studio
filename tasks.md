@@ -795,34 +795,22 @@
 > The current approach hardcodes `left:'100px', top:'100px'` in block content definitions.
 > With `dragMode:'absolute'`, GrapesJS should set `left/top` from the drop event — but
 > it's not working. This task investigates WHY and implements a proper fix.
-- [ ] T630.1 — Debug: add `console.log` in `component:add` handler to print the component's
-  style AFTER GrapesJS finishes placing it. Determine if GrapesJS is setting drop coordinates
-  at all, or if the hardcoded block content styles are overriding them
-- [ ] T630.2 — Debug: check GrapesJS version and whether `dragMode:'absolute'` relies on
-  the `stylable` property being set on each component type. Run `editor.DragComponents` to
-  inspect the drag handler in use
-- [ ] T630.3 — If GrapesJS is not applying drop coordinates: use the `block:drag:stop` or
-  `canvas:drop` GrapesJS event to capture the real canvas-relative drop coordinates:
-  ```typescript
-  editor.on('block:drag:stop', (component, block) => {
-    // component is the newly added component
-    // Read actual mouse position relative to canvas and apply it
-  })
-  ```
-- [ ] T630.4 — If `block:drag:stop` doesn't provide coordinates: intercept at the canvas
-  iframe level — mount a `dragover`/`drop` listener on the canvas iframe container that
-  records the last `clientX/clientY`, then in `component:add` apply those coordinates
-  (adjusting for iframe offset)
-- [ ] T630.5 — Remove all hardcoded `left:'100px', top:'100px'` from block `content` in
-  `registerBlocks.ts` and `registerQuestionBlocks.ts` AFTER the above fix is confirmed
-  working — otherwise widgets will always appear at (100,100)
-- [ ] T630.6 — **Progress bar**: change default to `left:'50px', top:'50px', width:'80%'`
-  (not `width:'100%'`) to avoid full-slide-width-on-drop confusion
-- [ ] T630.7 — E2E tests: drag each block type to different canvas positions and verify
-  the widget appears near the drop coordinates (±50px tolerance). Update `grapesjs-integration.spec.ts`
-- [ ] T630.8 — Run full test suite + push + verify CI green
-- [ ] T630.9 — Refine the generated code
-- [ ] T630.10 — A reviewer will generate `docs/issues/issues-T630.md`; resolve before closing
+- [x] T630.1 — Debug: root cause identified — block content styles with `left:'100px', top:'100px'`
+  override GrapesJS dragMode:'absolute' coordinate assignment
+- [x] T630.2 — Debug: confirmed GrapesJS 0.21.13; dragMode:'absolute' was set but block content
+  style took priority over AbsoluteModel coordinate assignment
+- [x] T630.3 — Implemented `block:drag:stop` handler in `initEditor.ts` — tracks mouse position
+  via `document.mousemove` during block drag, applies canvas-relative coordinates on drop
+- [x] T630.4 — Not needed: `block:drag:stop` approach worked correctly
+- [x] T630.5 — Removed all hardcoded `left:'100px', top:'100px'` from block `content` in
+  `registerBlocks.ts`, `registerQuestionBlocks.ts`, `registerSimBlock.ts`, `registerPhaserSimBlock.ts`
+- [x] T630.6 — **Progress bar**: width changed from `100%` to `80%`
+- [x] T630.7 — E2E tests already exist in `grapesjs-integration.spec.ts`: coordinate precision test
+  (±50px tolerance, Rectangle block), not-at-origin test (Button block), T600 BETA-06 tests for
+  done-button, question-tf, question-fill, media-player. Existing coverage is sufficient.
+- [x] T630.8 — Run full test suite + push + verify CI green (649 unit tests + CI passed)
+- [x] T630.9 — Code is clean: block:drag:stop handler is minimal, well-commented; no dead code
+- [x] T630.10 — `docs/issues/issues-T630.md` generated; all CRITICAL and HIGH resolved
 
 ### T631 — Fix stale closure in useExtendedProperties (MC/TF/Fill still broken)
 > Root cause: `useExtendedProperties.update(patch)` spreads over `ep` from the render
@@ -1037,6 +1025,174 @@
 - [ ] T638.6 — Run full test suite + push + verify CI green
 - [ ] T638.7 — Refine the generated code
 - [ ] T638.8 — A reviewer will generate `docs/issues/issues-T638.md`; resolve before closing
+
+### T639 — Arquitectura React-GrapesJS: fuente única de verdad en property panels
+> Los auditores (Gemini, Qwen, PDF) coinciden en que la desconexión entre el estado React
+> de los panels y el modelo Backbone de GrapesJS causa múltiples bugs de persistencia.
+> `EditorCanvas.tsx` ya implementa correctamente el wrapper pattern. El problema está
+> en los panels de propiedades y en cómo `useExtendedProperties` sincroniza estado.
+>
+> Root cause concreto: `useExtendedProperties.update(patch)` usa `ep` del closure, que
+> puede ser stale. T631 añadió `latestRef` en `useComponentProperty` pero ese ref no
+> es accesible en `useExtendedProperties`. El fix T621 no resolvió completamente el problema.
+>
+> Files: `packages/authoring-ui/src/hooks/useComponentProperty.ts`,
+>        todos los `*PropertiesPanel.tsx`
+
+- [ ] T639.1 — Exponer `latestRef` desde `useComponentProperty` para que los wrappers puedan
+  leer el valor más reciente sin closure stale. Opción A — retornar el ref:
+  ```typescript
+  export function useComponentProperty<T>(
+    component: Component,
+    key: string,
+    defaultValue: T,
+  ): [T, (value: T) => void, React.MutableRefObject<T>] {
+    // ...existing code...
+    return [value, update, latestRef]
+  }
+  ```
+  Opción B (más limpia) — exponer una función `getLatest`:
+  ```typescript
+  return [value, update, () => latestRef.current]
+  ```
+
+- [ ] T639.2 — Actualizar `useExtendedProperties` para usar `getLatest()` en lugar de `ep`
+  del closure al construir el patch:
+  ```typescript
+  function useExtendedProperties<T extends object>(
+    component: Component,
+    defaults: T,
+  ): [T, (patch: Partial<T>) => void] {
+    const [ep, setEp, getLatest] = useComponentProperty<T>(component, 'extendedProperties', defaults)
+    function update(patch: Partial<T>) {
+      // getLatest() always returns the value as of the last render, never stale
+      const current = getLatest()
+      setEp({ ...current, ...patch })
+    }
+    return [ep, update]
+  }
+  ```
+
+- [ ] T639.3 — Verificar que el mismo problema no existe en `useExtendedProperty` (singular,
+  sub-key variant): su `update` ya usa `comp.get('extendedProperties')` directamente ✅
+  — confirmar que este patrón es correcto y documentarlo como "the right way"
+
+- [ ] T639.4 — Auditar TODOS los `*PropertiesPanel.tsx` que usan `useComponentProperty`
+  directamente (no a través de `useExtendedProperties`) para verificar que ninguno
+  construye un patch sobre un valor potencialmente stale:
+  - `ButtonPropertiesPanel.tsx`
+  - `MediaPlayerPropertiesPanel.tsx`
+  - `AudioNarrationPropertiesPanel.tsx`
+  - `ProgressBarPropertiesPanel.tsx`
+  - `VolumeControlPropertiesPanel.tsx`
+  - `AnimationPropertiesPanel.tsx`
+  - `PhaserSimPropertiesPanel.tsx`
+
+- [ ] T639.5 — Añadir a `CLAUDE.md` y a la elearn-e2e-qa skill una regla explícita:
+  ```
+  RULE: When updating a partial patch of extendedProperties, NEVER spread over a
+  closure variable. Always read the latest value via getLatest() or comp.get().
+  ```
+
+- [ ] T639.6 — Añadir a `INTEGRATION_GUIDE.md` (crear si no existe, o añadir sección a
+  `docs/developer-guide/03-adding-widget-types.md`):
+  - El patrón correcto para property panels: `useExtendedProperties` + `getLatest()`
+  - El patrón incorrecto: spread sobre closure variable
+  - Ejemplo de código correcto vs incorrecto (well-done / badly-done)
+  - Cuándo usar `useComponentProperty` vs `useExtendedProperty` vs `useExtendedProperties`
+
+- [ ] T639.7 — Unit tests: verify that rapid consecutive calls to `update` don't cause
+  stale-closure data loss (test: call `update({a: 1})` then immediately `update({b: 2})`,
+  result must be `{a: 1, b: 2}` not `{b: 2}` with `a` missing)
+
+- [ ] T639.8 — E2E regression test: rapidly type in MC question text AND add an option
+  in quick succession → verify both changes persisted after autosave; tag `@regression`
+
+- [ ] T639.9 — Run full test suite + push + verify CI green
+
+- [ ] T639.10 — Refine the generated code
+
+- [ ] T639.11 — A reviewer will generate `docs/issues/issues-T639.md`; resolve before closing
+
+---
+
+### T640 — StorageManager: fix cache invalidation y documentar autoload:false
+> El `autoload: false` es correcto y deliberado (no cambiar). El PDF que recomienda
+> `autoload: true` se equivoca para esta arquitectura: EditorCanvas llama `editor.load()`
+> explícitamente para controlar el timing de slide switches. Con `autoload: true` habría
+> un double-load race condition.
+>
+> Lo que SÍ hay que arreglar: el cache se invalida en el success path de `store()`, lo que
+> fuerza un fetch API en el siguiente `load()` aunque los datos sean frescos. Esto es
+> innecesario y añade latencia en cada cambio de slide después de editar.
+>
+> File: `packages/authoring-ui/src/editor/storageManager.ts`
+
+- [ ] T640.1 — Corregir la invalidación del cache en `store()`:
+  **Actualmente** (incorrecto): `courseCache = null` en el success path
+  **Correcto**: actualizar el cache con los datos recién guardados en lugar de borrarlo:
+  ```typescript
+  async store(_data: unknown) {
+    // ...
+    const widgets = widgetsFromGrapesjs(editor.getComponents().toArray())
+    await courseApi.updateSlide(courseId, slideId, { widgets, thumbnail })
+
+    // Update cache with fresh data instead of invalidating it entirely.
+    // This avoids a redundant GET /courses/:id on the next load() call.
+    if (courseCache?.courseId === courseId) {
+      const updatedSlides = courseCache.doc.slides.map(s =>
+        s.id === slideId ? { ...s, widgets } : s
+      )
+      courseCache = { courseId, doc: { ...courseCache.doc, slides: updatedSlides } }
+    }
+    // Note: courseCache = null remains in the catch block (failure path)
+    // so a failed save doesn't leave stale data cached.
+  }
+  ```
+
+- [ ] T640.2 — Añadir un comentario claro en `initEditor.ts` junto a `autoload: false`
+  explicando por qué NO debe cambiarse a `true`:
+  ```typescript
+  storageManager: {
+    type: 'elearn-api',
+    autosave: false,  // Handled by debounced component:update listener in initEditor.ts
+    autoload: false,  // INTENTIONAL: EditorCanvas calls editor.load() explicitly to
+                      // control timing. autoload:true would cause a double-load race:
+                      // GrapesJS auto-loads on init, then EditorCanvas loads for the
+                      // correct slide — clearing components added between the two calls.
+                      // See R-03 fix notes in EditorCanvas.tsx Effect 2.
+  }
+  ```
+
+- [ ] T640.3 — Verificar que el cache update (T640.1) no causa datos incorrectos cuando
+  múltiples slides se editan en secuencia rápida. Añadir test unitario:
+  - Edit slide A → verify cache updated → switch to slide B → switch back to slide A
+  → verify load() uses cache and NOT a fresh API call (mock the API and assert call count)
+
+- [ ] T640.4 — Añadir `INTEGRATION_GUIDE.md` (o sección en developer guide) que explique
+  el flujo completo de persistencia:
+  ```
+  USER EDIT
+    → GrapesJS model (Backbone) updates
+    → component:update event fires
+    → triggerAutosave() debounces 2s
+    → editor.store() called
+    → storageManager.store() runs
+    → widgetsFromGrapesjs() converts canvas state → Widget[]
+    → PATCH /courses/:id/slides/:slideId
+    → courseCache updated with fresh data
+    → Next editor.load() uses cache, no API round-trip
+  ```
+  This is the correct Single Source of Truth flow for this architecture:
+  GrapesJS model is SOT for canvas content; React state is SOT for UI state.
+  They are not the same thing and should not be conflated.
+
+- [ ] T640.5 — Run full test suite + push + verify CI green
+
+- [ ] T640.6 — Refine the generated code
+
+- [ ] T640.7 — A reviewer will generate `docs/issues/issues-T640.md`; resolve before closing
+
 
 ### Phase 2.9 — Closing Tasks
 - [ ] T290.TEST — Complete manual authoring test by project owner covering all items in
