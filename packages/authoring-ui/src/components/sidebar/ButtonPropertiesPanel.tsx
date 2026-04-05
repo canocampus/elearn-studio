@@ -91,7 +91,14 @@ function openBackgroundImagePicker(editor: Editor, component: Component) {
     select(asset: { getSrc: () => string }, complete: boolean) {
       const src = asset.getSrc()
       if (!src) return
-      component.setStyle({ 'background-image': `url("${src}")` })
+      // T633: use addStyle() (merge) instead of setStyle() (replace) so that
+      // existing position/size styles (left, top, width, height) are preserved.
+      component.addStyle({
+        'background-image': `url("${src}")`,
+        'background-size': 'cover',
+        'background-repeat': 'no-repeat',
+        'background-position': 'center',
+      })
       if (complete) editor.AssetManager.close()
     },
   })
@@ -140,7 +147,13 @@ function BackgroundImageSection({ editor, component }: { editor: Editor; compone
           <button
             style={{ ...BUTTON_STYLE, marginTop: 6, color: '#f38ba8' }}
             onClick={() => {
-              const { 'background-image': _removed, ...remaining } = component.getStyle()
+              const {
+                'background-image': _img,
+                'background-size': _size,
+                'background-repeat': _repeat,
+                'background-position': _pos,
+                ...remaining
+              } = component.getStyle()
               component.setStyle(remaining)
             }}
           >
