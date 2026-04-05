@@ -212,43 +212,59 @@ export function initEditor(opts: InitEditorOptions): Editor {
     }
   })
 
-  // T630 — Correct drop coordinates using canvas-space transformation.
+  // T630 — Correct drop coordinates using iframe dragover events.
   //
-  // Root cause: The canvas is 1024×768 but displayed at ~50% scale in the editor.
-  // Applying raw screen-space mouse coordinates as CSS `left/top` values causes
-  // widgets to land at ~half the intended position (the "halfway bug").
+  // Root cause (confirmed via GrapesJS 0.21 source analysis):
+  // - The canvas lives in a GrapesJS iframe. During HTML5 drag-and-drop the browser
+  //   suppresses mousemove and fires dragover on the drop target (inside the iframe).
+  // - The previous fix registered mousemove on the main document, which receives no
+  //   events once the cursor enters the iframe. On Slide 1 the last captured main-window
+  //   event produced raw viewport coordinates applied as canvas coords (wrong position).
+  //   On Slide 2+ the user drags directly over the canvas so lastMouseEvent was always
+  //   null — the handler bailed early, leaving the component at CSS-default position
+  //   (top-left, partially outside the canvas).
   //
-  // Fix: Track the last MouseEvent during a block drag and, on drop, call
-  // editor.Canvas.getMouseRelativePos(ev) which converts viewport coordinates to
-  // canvas-space coordinates (accounts for zoom, scroll, and iframe offsets).
-  // This gives us the correct pixel position within the 1024×768 canvas.
-  //
-  // Note: We must call addStyle AFTER the component is created (block:drag:stop)
-  // because at block:drag:start the component does not exist yet.
+  // Fix: Listen to dragover inside the iframe document. DragEvent extends MouseEvent
+  // and carries clientX/clientY. getMouseRelativePos() is designed for iframe-internal
+  // events: it uses event.target.ownerDocument.defaultView.frameElement to find the
+  // iframe, reads its getBoundingClientRect() for the offset, and applies zoom. This
+  // path is only correct when the event originates inside the iframe — which is exactly
+  // what we now provide. Works identically on Slide 1 and all subsequent slides.
   {
-    let lastMouseEvent: MouseEvent | null = null
+    let lastDragEvent: MouseEvent | null = null
 
-    const onBlockDragMove = (e: MouseEvent) => {
-      lastMouseEvent = e
+    const onCanvasDragOver = (e: Event) => {
+      lastDragEvent = e as MouseEvent
+    }
+
+    const getIframeDoc = (): Document | null => {
+      const canvas = editor.Canvas as unknown as {
+        getFrameEl?: () => HTMLIFrameElement | null
+        getElement?: () => HTMLElement | null
+      }
+      const iframe =
+        canvas.getFrameEl?.() ??
+        (canvas.getElement?.()?.querySelector('iframe') as HTMLIFrameElement | null)
+      return iframe?.contentDocument ?? iframe?.contentWindow?.document ?? null
     }
 
     editor.on('block:drag:start', () => {
-      document.addEventListener('mousemove', onBlockDragMove)
+      getIframeDoc()?.addEventListener('dragover', onCanvasDragOver)
     })
 
     editor.on('block:drag:stop', (component: unknown) => {
-      document.removeEventListener('mousemove', onBlockDragMove)
-      if (!component || !lastMouseEvent) {
-        lastMouseEvent = null
+      getIframeDoc()?.removeEventListener('dragover', onCanvasDragOver)
+      if (!component || !lastDragEvent) {
+        lastDragEvent = null
         return
       }
       const canvasModel = editor.Canvas as unknown as {
         getMouseRelativePos: (e: MouseEvent) => { x: number; y: number }
       }
-      const pos = canvasModel.getMouseRelativePos(lastMouseEvent)
+      const pos = canvasModel.getMouseRelativePos(lastDragEvent)
       const comp = component as { addStyle: (s: Record<string, string>) => void }
       comp.addStyle({ left: `${Math.round(pos.x)}px`, top: `${Math.round(pos.y)}px` })
-      lastMouseEvent = null
+      lastDragEvent = null
     })
   }
 

@@ -95,3 +95,84 @@ the `block:drag:stop` handler for correct runtime coordinates.
   - T600/BETA-06 suite: done-button, question-tf, question-fill, media-player not at origin
 - Unit tests: 649 passing (all authoring-ui tests green)
 - CI: passed on commit `9982339`
+
+---
+
+## CRITICAL — T630 Phase 2: `document mousemove` fix still wrong **[RESOLVED]**
+
+### Root cause (confirmed via GrapesJS 0.21.13 source analysis)
+
+The Phase 1 fix used `document.addEventListener('mousemove', ...)` on the **main window**
+and passed the captured event to `editor.Canvas.getMouseRelativePos()`. Video evidence
+showed two distinct failure modes:
+
+- **Slide 1**: widgets land at wrong but non-zero, variable positions
+- **Slide 2+**: ALL widgets land at exactly (0,0) — top-left corner, partially outside canvas
+
+`getMouseRelativePos` implementation (from `grapes.min.js`):
+
+```javascript
+o.prototype.getMouseRelativePos = function(t, e) {
+  var o = t.target.ownerDocument,    // document of the event's target
+      r = o.defaultView,
+      i = r.frameElement,            // null if main window, <iframe> if inside iframe
+      c = 0, u = 0;
+  if (i) { var p = i.getBoundingClientRect(); c = p.top; u = p.left; }
+  return { y: (t.clientY + c) * zoomMult, x: (t.clientX + u) * zoomMult }
+}
+```
+
+When called with a main-window event: `frameElement = null`, so `c = u = 0`. Returns
+raw viewport coordinates × zoom — NOT canvas-relative coordinates.
+
+**Why Slide 1 vs Slide 2+ behave differently:**
+
+- **Slide 1**: The user moves the mouse across the main window (panels, toolbar) before
+  entering the canvas. The main-document `mousemove` listener captures these events.
+  `lastMouseEvent` is non-null. `getMouseRelativePos` returns raw viewport coords
+  (e.g. x=650, y=380) applied as canvas coordinates → wrong but visible position.
+
+- **Slide 2+**: Once users know the layout they drag directly over the canvas without
+  pausing in the main window. The browser suppresses `mousemove` during HTML5 DnD and
+  fires `dragover` on the drop target instead. The cursor goes straight into the iframe,
+  so the main-document `mousemove` listener never fires. `lastDragEvent` remains `null`.
+  The handler returns early without calling `addStyle`. The component is left with
+  `position: absolute` but no `left`/`top` → CSS default `auto` → renders at the
+  containing block's origin (top-left, partially outside canvas).
+
+### Fix: `dragover` listener inside the iframe document
+
+`DragEvent extends MouseEvent` — it carries `clientX`/`clientY`. During HTML5 DnD,
+`dragover` fires continuously on the element under the cursor, including inside the
+iframe. Events from inside the iframe have `frameElement` non-null, so
+`getMouseRelativePos` computes correct canvas-relative coordinates.
+
+**Implementation** (`packages/authoring-ui/src/editor/initEditor.ts`):
+
+```typescript
+const getIframeDoc = (): Document | null => {
+  const canvas = editor.Canvas as unknown as { getFrameEl?: () => HTMLIFrameElement | null }
+  const iframe = canvas.getFrameEl?.() ?? ...querySelector('iframe')
+  return iframe?.contentDocument ?? iframe?.contentWindow?.document ?? null
+}
+
+editor.on('block:drag:start', () => {
+  getIframeDoc()?.addEventListener('dragover', onCanvasDragOver)
+})
+editor.on('block:drag:stop', (component) => {
+  getIframeDoc()?.removeEventListener('dragover', onCanvasDragOver)
+  const pos = canvasModel.getMouseRelativePos(lastDragEvent)   // lastDragEvent is iframe event
+  comp.addStyle({ left: `${pos.x}px`, top: `${pos.y}px` })
+})
+```
+
+### Key lessons
+
+1. **GrapesJS canvas is an iframe** — coordinate work must use events that originate
+   inside the iframe (see CLAUDE.md Rule 8 / Regla 8).
+2. **HTML5 DnD suppresses `mousemove`** — `dragover` is the correct event to track
+   cursor position during a block drag.
+3. **`getMouseRelativePos` precondition** — the event's `ownerDocument.defaultView.frameElement`
+   must be non-null; otherwise the function returns uncorrected viewport coordinates.
+
+**Result:** All 649 unit tests and 15 grapesjs-integration E2E tests pass.
