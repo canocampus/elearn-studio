@@ -1,4 +1,4 @@
-import type Phaser from 'phaser'
+import Phaser from 'phaser'
 import type { ProcessFlowSceneDef, ProcessFlowNode } from '../types'
 import type { ScoreTracker } from '../ScoreTracker'
 import type { ModeController } from '../ModeController'

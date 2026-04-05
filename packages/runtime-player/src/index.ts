@@ -522,7 +522,7 @@ function goToSlide(state: PlayerState, index: number): void {
     if (leavingSlide) {
       state.dispatcher.fireSlideEvent(
         'exitSlide',
-        leavingSlide.widgets.map(w => ({ widgetId: w.id, sequences: w.actions })),
+        leavingSlide.widgets.map(w => ({ widgetId: w.id, sequences: w.actions ?? [] })),
       )
     }
     state.dispatcher.teardown()
@@ -634,7 +634,7 @@ function goToSlide(state: PlayerState, index: number): void {
     }
     state.dispatcher.fireSlideEvent(
       'enterSlide',
-      slide.widgets.map(w => ({ widgetId: w.id, sequences: w.actions })),
+      slide.widgets.map(w => ({ widgetId: w.id, sequences: w.actions ?? [] })),
     )
   }
 

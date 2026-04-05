@@ -136,9 +136,9 @@ describe('PhaserSimWidget', () => {
       const container = makeContainer()
       await widget.mount(container, makeConfig({ widgetId: 'w-quiz-99' }))
 
-      let receivedDetail: Record<string, unknown> | null = null
+      let receivedDetail: { widgetId: string } | null = null
       const listener = (e: Event) => {
-        receivedDetail = (e as CustomEvent).detail as Record<string, unknown>
+        receivedDetail = (e as CustomEvent<{ widgetId: string }>).detail
       }
       window.addEventListener('elearn:widgetScore', listener)
 
