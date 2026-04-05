@@ -94,6 +94,6 @@ export function registerSimBlock(editor: Editor): void {
     label: 'Screenshot Sim',
     category: 'Simulations',
     media: SIM_ICON,
-    content: { type: 'screenshot-sim', style: { position: 'absolute', left: '100px', top: '100px', width: '640px', height: '360px' } },
+    content: { type: 'screenshot-sim', style: { position: 'absolute', width: '640px', height: '360px' } },
   })
 }

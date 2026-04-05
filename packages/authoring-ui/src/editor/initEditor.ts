@@ -204,26 +204,45 @@ export function initEditor(opts: InitEditorOptions): Editor {
   // Select default device
   editor.setDevice('slide')
 
-  /**
-   * T010.11 / T012.6 — Fix Drag & Drop and Positioning
-   * 
-   * When a component is added (dragged from blocks), we must:
-   * 1. Ensure it's absolute.
-   * 2. If it's a fresh drop (no left/top style yet), GrapesJS's internal 
-   *    sorter logic won't have the coordinates. We can use the drag event
-   *    or rely on GrapesJS "absoluteMode" plugin if we had it. 
-   *    For now, we enforce absolute and draggable on every component.
-   */
+  // T010.11 / T012.6 — Ensure all components are draggable and resizable.
   editor.on('component:add', (component) => {
-    // Force all components to be absolute, draggable and resizable
-    component.set({
-      draggable: true,
-      resizable: true,
-    })
-    
+    component.set({ draggable: true, resizable: true })
     if (component.getStyle('position') !== 'absolute') {
       component.addStyle({ position: 'absolute' })
     }
+  })
+
+  // T630 — Apply actual drop coordinates when a block is dragged onto the canvas.
+  //
+  // Root cause of the (100,100) bug: block content styles used to hardcode
+  // left:'100px', top:'100px'. Those have been removed. Now we track the mouse
+  // position on the canvas element during block drags and apply it on drop via
+  // block:drag:stop, which fires AFTER the component is fully initialised.
+  //
+  // The canvas element (.gjs-cv-canvas) is the outer div around the iframe.
+  // block:drag:start / block:drag:stop fire only during BlockManager drags,
+  // so the mousemove listener is active only while a block is being dragged.
+  let lastDropX = 200
+  let lastDropY = 200
+
+  const onBlockDragMove = (e: MouseEvent) => {
+    const canvasEl = editor.Canvas.getElement()
+    if (!canvasEl) return
+    const rect = canvasEl.getBoundingClientRect()
+    lastDropX = Math.max(0, Math.round(e.clientX - rect.left))
+    lastDropY = Math.max(0, Math.round(e.clientY - rect.top))
+  }
+
+  editor.on('block:drag:start', () => {
+    document.addEventListener('mousemove', onBlockDragMove)
+  })
+
+  editor.on('block:drag:stop', (component: unknown) => {
+    document.removeEventListener('mousemove', onBlockDragMove)
+    // component is undefined when the drag was cancelled (dropped outside canvas)
+    if (!component) return
+    const comp = component as { addStyle: (s: Record<string, string>) => void }
+    comp.addStyle({ left: `${lastDropX}px`, top: `${lastDropY}px` })
   })
 
   // T011.7 — Debounced autosave: triggers 2s after the last component:update event.

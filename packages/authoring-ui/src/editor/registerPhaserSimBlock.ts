@@ -89,6 +89,6 @@ export function registerPhaserSimBlock(editor: Editor): void {
     label: 'Phaser Sim',
     category: 'Simulations',
     media: PHASER_SIM_ICON,
-    content: { type: 'phaser-sim', style: { position: 'absolute', left: '100px', top: '100px', width: '800px', height: '500px' } },
+    content: { type: 'phaser-sim', style: { position: 'absolute', width: '800px', height: '500px' } },
   })
 }

@@ -72,7 +72,7 @@ function registerTextWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('text', { label: 'Text', category: 'Basic', media: ICONS.text, content: { type: 'text', style: { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '50px' } } })
+  editor.BlockManager.add('text', { label: 'Text', category: 'Basic', media: ICONS.text, content: { type: 'text', style: { position: 'absolute', width: '200px', height: '50px' } } })
 }
 
 function registerImageWidget(editor: Editor): void {
@@ -167,7 +167,7 @@ function registerImageWidget(editor: Editor): void {
       },
     } as unknown) as object,
   })
-  editor.BlockManager.add('image', { label: 'Image', category: 'Basic', media: ICONS.image, content: { type: 'image', style: { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '150px' } } })
+  editor.BlockManager.add('image', { label: 'Image', category: 'Basic', media: ICONS.image, content: { type: 'image', style: { position: 'absolute', width: '200px', height: '150px' } } })
 }
 
 function registerButtonWidget(editor: Editor): void {
@@ -198,7 +198,7 @@ function registerButtonWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('button', { label: 'Button', category: 'Basic', media: ICONS.button, content: { type: 'button', style: { position: 'absolute', left: '100px', top: '100px', width: '120px', height: '40px' } } })
+  editor.BlockManager.add('button', { label: 'Button', category: 'Basic', media: ICONS.button, content: { type: 'button', style: { position: 'absolute', width: '120px', height: '40px' } } })
 }
 
 function registerRectangleWidget(editor: Editor): void {
@@ -224,7 +224,7 @@ function registerRectangleWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('rectangle', { label: 'Rectangle', category: 'Basic', media: ICONS.rectangle, content: { type: 'rectangle', style: { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '100px' } } })
+  editor.BlockManager.add('rectangle', { label: 'Rectangle', category: 'Basic', media: ICONS.rectangle, content: { type: 'rectangle', style: { position: 'absolute', width: '200px', height: '100px' } } })
 }
 
 function registerNavButtonsWidget(editor: Editor): void {
@@ -255,7 +255,7 @@ function registerNavButtonsWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('nav-buttons', { label: 'Nav Buttons', category: 'Navigation', media: ICONS.navButtons, content: { type: 'nav-buttons', style: { position: 'absolute', left: '100px', top: '100px', width: '240px', height: '50px' } } })
+  editor.BlockManager.add('nav-buttons', { label: 'Nav Buttons', category: 'Navigation', media: ICONS.navButtons, content: { type: 'nav-buttons', style: { position: 'absolute', width: '240px', height: '50px' } } })
 }
 
 function registerDoneButtonWidget(editor: Editor): void {
@@ -292,7 +292,7 @@ function registerDoneButtonWidget(editor: Editor): void {
     media: ICONS.doneButton,
     content: {
       type: 'done-button',
-      style: { position: 'absolute', left: '100px', top: '100px', width: '120px', height: '40px' },
+      style: { position: 'absolute', width: '120px', height: '40px' },
     },
   })
 }
@@ -329,7 +329,7 @@ function registerScoreQuizWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('score-quiz', { label: 'Quiz Score', category: 'Assessment', media: ICONS.scoreQuiz, content: { type: 'score-quiz', style: { position: 'absolute', left: '100px', top: '100px', width: '160px', height: '70px' } } })
+  editor.BlockManager.add('score-quiz', { label: 'Quiz Score', category: 'Assessment', media: ICONS.scoreQuiz, content: { type: 'score-quiz', style: { position: 'absolute', width: '160px', height: '70px' } } })
 }
 
 function registerScoreFieldWidget(editor: Editor): void {
@@ -365,7 +365,7 @@ function registerScoreFieldWidget(editor: Editor): void {
       },
     },
   })
-  editor.BlockManager.add('score-field', { label: 'Score Field', category: 'Assessment', media: ICONS.scoreField, content: { type: 'score-field', style: { position: 'absolute', left: '100px', top: '100px', width: '140px', height: '36px' } } })
+  editor.BlockManager.add('score-field', { label: 'Score Field', category: 'Assessment', media: ICONS.scoreField, content: { type: 'score-field', style: { position: 'absolute', width: '140px', height: '36px' } } })
 }
 
 function registerMediaPlayerWidget(editor: Editor): void {
@@ -404,7 +404,7 @@ function registerMediaPlayerWidget(editor: Editor): void {
     media: ICONS.mediaPlayer,
     content: {
       type: 'media-player',
-      style: { position: 'absolute', left: '100px', top: '100px', width: '320px', height: '200px' },
+      style: { position: 'absolute', width: '320px', height: '200px' },
     },
   })
   registerQuestionBlocks(editor)
@@ -445,7 +445,7 @@ function registerAudioNarrationWidget(editor: Editor): void {
     media: ICONS.audioNarration,
     content: {
       type: 'audio-narration',
-      style: { position: 'absolute', left: '100px', top: '100px', width: '280px', height: '60px' },
+      style: { position: 'absolute', width: '280px', height: '60px' },
     },
   })
 }
@@ -485,7 +485,7 @@ function registerProgressBarWidget(editor: Editor): void {
     media: ICONS.progressBar,
     content: {
       type: 'progress-bar',
-      style: { position: 'absolute', left: '0px', top: '0px', width: '100%', height: '40px' },
+      style: { position: 'absolute', width: '80%', height: '40px' },
     },
   })
 }
@@ -526,7 +526,7 @@ function registerVolumeControlWidget(editor: Editor): void {
     media: ICONS.volumeControl,
     content: {
       type: 'volume-control',
-      style: { position: 'absolute', left: '100px', top: '100px', width: '200px', height: '40px' },
+      style: { position: 'absolute', width: '200px', height: '40px' },
     },
   })
 }

@@ -236,7 +236,7 @@ function registerMCWidget(editor: Editor): void {
     label: 'Multiple Choice',
     category: 'Questions',
     media: ICONS.questionMC,
-    content: { type: 'question-mc', style: { position: 'absolute', left: '100px', top: '100px', width: '340px', height: '180px' } },
+    content: { type: 'question-mc', style: { position: 'absolute', width: '340px', height: '180px' } },
   })
 }
 
@@ -296,7 +296,7 @@ function registerTFWidget(editor: Editor): void {
     media: ICONS.questionTF,
     content: {
       type: 'question-tf',
-      style: { position: 'absolute', left: '100px', top: '100px', width: '280px', height: '130px' },
+      style: { position: 'absolute', width: '280px', height: '130px' },
     },
   })
 }
@@ -357,7 +357,7 @@ function registerFillWidget(editor: Editor): void {
     media: ICONS.questionFill,
     content: {
       type: 'question-fill',
-      style: { position: 'absolute', left: '100px', top: '100px', width: '320px', height: '110px' },
+      style: { position: 'absolute', width: '320px', height: '110px' },
     },
   })
 }
