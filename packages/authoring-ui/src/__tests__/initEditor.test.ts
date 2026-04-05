@@ -381,3 +381,154 @@ describe('T800 — triggerAutosave: stopCommand before store', () => {
     expect(fakeEditor.store).toHaveBeenCalledOnce()
   })
 })
+
+// ---------------------------------------------------------------------------
+// T630 Phase 2 — block:drag:stop applies iframe dragover coordinates
+//
+// Root cause of the Phase 1 bug: the old fix listened to 'mousemove' on
+// document (main window). During HTML5 DnD the browser suppresses mousemove
+// and fires 'dragover' on the drop target inside the iframe. On Slide 2+,
+// users drag directly over the canvas so the main-window mousemove never
+// fired → lastMouseEvent was null → handler bailed → component left at
+// CSS default position (top-left, 0,0 in canvas).
+//
+// Fix: listen to 'dragover' on the iframe document. DragEvent extends
+// MouseEvent so getMouseRelativePos() accepts it. Events from inside the
+// iframe have frameElement != null → correct canvas-relative coordinates.
+// ---------------------------------------------------------------------------
+
+describe('T630 — block:drag:stop iframe dragover coordinates', () => {
+  let eventCapture: ReturnType<typeof makeEventCapture>
+  let capturedHandlers: Map<string, (e: Event) => void>
+  let mockAddEventListener: ReturnType<typeof vi.fn>
+  let mockRemoveEventListener: ReturnType<typeof vi.fn>
+  let mockGetMouseRelativePos: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    eventCapture = makeEventCapture()
+    capturedHandlers = new Map()
+    mockAddEventListener = vi.fn((event: string, handler: (e: Event) => void) => {
+      capturedHandlers.set(event, handler)
+    })
+    mockRemoveEventListener = vi.fn()
+    mockGetMouseRelativePos = vi.fn().mockReturnValue({ x: 350, y: 250 })
+
+    const mockIframeDoc = {
+      addEventListener: mockAddEventListener,
+      removeEventListener: mockRemoveEventListener,
+    }
+
+    const fakeEditor = {
+      on: eventCapture.on,
+      setDevice: vi.fn(),
+      StorageManager: { add: vi.fn() },
+      Commands: { isActive: vi.fn().mockReturnValue(false) },
+      store: vi.fn().mockResolvedValue(undefined),
+      Canvas: {
+        getFrameEl: vi.fn().mockReturnValue({
+          contentDocument: mockIframeDoc,
+        }),
+        getMouseRelativePos: mockGetMouseRelativePos,
+      },
+    } as unknown as Editor
+
+    vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+  })
+
+  function setup() {
+    initEditor(defaultOpts())
+  }
+
+  function fire(name: string, arg?: unknown) {
+    const handlers = eventCapture.handlers.get(name) ?? []
+    handlers.forEach(h => h(arg))
+  }
+
+  it('T630.1: block:drag:start registers dragover listener on iframe document', () => {
+    setup()
+    fire('block:drag:start')
+    expect(mockAddEventListener).toHaveBeenCalledWith('dragover', expect.any(Function))
+  })
+
+  it('T630.2: block:drag:stop removes dragover listener from iframe document', () => {
+    setup()
+    fire('block:drag:start')
+    const comp = { addStyle: vi.fn() }
+    fire('block:drag:stop', comp)
+    expect(mockRemoveEventListener).toHaveBeenCalledWith('dragover', expect.any(Function))
+  })
+
+  it('T630.3: block:drag:stop calls addStyle with canvas-relative coordinates when dragover was captured', () => {
+    setup()
+    fire('block:drag:start')
+
+    // Simulate a dragover event originating inside the iframe
+    const dragoverFn = capturedHandlers.get('dragover')!
+    const fakeDragEvent = { clientX: 400, clientY: 300, target: {} }
+    dragoverFn(fakeDragEvent as unknown as Event)
+
+    const comp = { addStyle: vi.fn() }
+    fire('block:drag:stop', comp)
+
+    expect(mockGetMouseRelativePos).toHaveBeenCalledWith(fakeDragEvent)
+    expect(comp.addStyle).toHaveBeenCalledWith({ left: '350px', top: '250px' })
+  })
+
+  it('T630.4: block:drag:stop skips addStyle when no dragover was captured (Slide 2+ regression guard)', () => {
+    // This is the critical regression: on Slide 2+ lastDragEvent was null because
+    // the main-doc mousemove never fired. The handler must bail early (not crash/set 0,0).
+    setup()
+    fire('block:drag:start')
+    // No dragover event — lastDragEvent stays null
+
+    const comp = { addStyle: vi.fn() }
+    fire('block:drag:stop', comp)
+
+    expect(mockGetMouseRelativePos).not.toHaveBeenCalled()
+    expect(comp.addStyle).not.toHaveBeenCalled()
+  })
+
+  it('T630.5: block:drag:stop skips addStyle when component is undefined (cancelled drag)', () => {
+    setup()
+    fire('block:drag:start')
+
+    const dragoverFn = capturedHandlers.get('dragover')!
+    dragoverFn({ clientX: 400, clientY: 300 } as unknown as Event)
+
+    // component = undefined → drag cancelled, not dropped on canvas
+    fire('block:drag:stop', undefined)
+
+    expect(mockGetMouseRelativePos).not.toHaveBeenCalled()
+  })
+
+  it('T630.6: second drag correctly re-registers listener and applies fresh coordinates', () => {
+    setup()
+    mockGetMouseRelativePos.mockReturnValue({ x: 100, y: 100 })
+
+    // First drag cycle
+    fire('block:drag:start')
+    capturedHandlers.get('dragover')!({ clientX: 200, clientY: 150 } as unknown as Event)
+    const comp1 = { addStyle: vi.fn() }
+    fire('block:drag:stop', comp1)
+    expect(comp1.addStyle).toHaveBeenCalledWith({ left: '100px', top: '100px' })
+
+    // Second drag cycle — listener must be re-registered and new coordinates applied
+    mockGetMouseRelativePos.mockReturnValue({ x: 700, y: 500 })
+    fire('block:drag:start')
+    capturedHandlers.get('dragover')!({ clientX: 700, clientY: 500 } as unknown as Event)
+    const comp2 = { addStyle: vi.fn() }
+    fire('block:drag:stop', comp2)
+    expect(comp2.addStyle).toHaveBeenCalledWith({ left: '700px', top: '500px' })
+  })
+
+  it('T630.7: coordinates are rounded to integers (Math.round applied)', () => {
+    mockGetMouseRelativePos.mockReturnValue({ x: 350.7, y: 249.3 })
+    setup()
+    fire('block:drag:start')
+    capturedHandlers.get('dragover')!({ clientX: 400, clientY: 300 } as unknown as Event)
+    const comp = { addStyle: vi.fn() }
+    fire('block:drag:stop', comp)
+    expect(comp.addStyle).toHaveBeenCalledWith({ left: '351px', top: '249px' })
+  })
+})

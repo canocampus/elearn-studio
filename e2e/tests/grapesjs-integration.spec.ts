@@ -348,6 +348,93 @@ test.describe('T600 — Initial drag positioning (BETA-06 regression)', () => {
   }
 })
 
+// T630 Phase 2 — Multi-slide drop positioning regression guard
+//
+// Critical scenario that Phase 1 missed: on Slide 2+ users drag directly over
+// the canvas without passing through main-window areas. The old mousemove-on-document
+// fix never received events in this case (HTML5 DnD suppresses mousemove; dragover
+// fires inside the iframe instead). Result: component landed at (0,0).
+//
+// These tests verify:
+//   (a–c) Widgets dropped on Slide 1 land near the target (regression guard)
+//   (d)   Widgets dropped on Slide 2 land near the target, NOT at (0,0)
+//   (e)   Slide 1 components persist after switching to Slide 2 and back
+test.describe('T630 — Multi-slide drop positions & persistence', () => {
+
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('T630.S2 — widget dropped on Slide 2 lands near target, NOT at (0,0)', async ({ editorPage, page }) => {
+    const slides = page.locator('[data-testid="slide-item"]')
+    const slide1Index = (await slides.count()) - 1
+
+    // Drop a Button on Slide 1
+    const s1TargetX = 350
+    const s1TargetY = 250
+    await editorPage.dragBlockToCanvas('Button', s1TargetX, s1TargetY)
+    const s1btn = editorPage.canvasComponent('[data-gjs-type="button"]')
+    await expect(s1btn).toBeVisible({ timeout: 15_000 })
+
+    // Add Slide 2 and navigate to it
+    await editorPage.addSlide()
+    await slides.last().click()
+    await editorPage.waitForCanvas()
+    await page.waitForTimeout(500)
+
+    // Drop a Button on Slide 2
+    const s2TargetX = 400
+    const s2TargetY = 300
+    await editorPage.dragBlockToCanvas('Button', s2TargetX, s2TargetY)
+    const s2btn = editorPage.canvasComponent('[data-gjs-type="button"]')
+    await expect(s2btn).toBeVisible({ timeout: 15_000 })
+
+    const iframeBox = await editorPage.getCanvasIframeBox()
+    const s2Box = await s2btn.boundingBox()
+    expect(s2Box).not.toBeNull()
+    expect(iframeBox).not.toBeNull()
+    if (s2Box && iframeBox) {
+      const relX = s2Box.x - iframeBox.x
+      const relY = s2Box.y - iframeBox.y
+      // Critical: must NOT be at (0,0) — the T630 regression
+      expect(relX).toBeGreaterThan(50)
+      expect(relY).toBeGreaterThan(50)
+    }
+
+    // Drop a Text in the bottom third of Slide 2
+    await editorPage.dragBlockToCanvas('Text', 300, 550)
+    const s2txt = editorPage.canvasComponent('[data-gjs-type="text"]')
+    await expect(s2txt).toBeVisible({ timeout: 15_000 })
+    const txtBox = await s2txt.boundingBox()
+    if (txtBox && iframeBox) {
+      // Must be in the lower half of the canvas (> 200px from top)
+      expect(txtBox.y - iframeBox.y).toBeGreaterThan(200)
+    }
+
+    // Navigate back to Slide 1 — persistence check (item e)
+    // dragBlockToCanvas() leaves the Blocks tab active; switch back to Slides tab first.
+    await editorPage.slidesTab.click()
+    await slides.nth(slide1Index).click()
+    await editorPage.waitForCanvas()
+    await page.waitForTimeout(500)
+
+    // Slide 1's button must still be there near the original target
+    const s1btnBack = editorPage.canvasComponent('[data-gjs-type="button"]')
+    await expect(s1btnBack).toBeVisible({ timeout: 15_000 })
+    const s1BackBox = await s1btnBack.boundingBox()
+    if (s1BackBox && iframeBox) {
+      const relX = s1BackBox.x - iframeBox.x
+      const relY = s1BackBox.y - iframeBox.y
+      expect(Math.abs(relX - s1TargetX)).toBeLessThan(100)
+      expect(Math.abs(relY - s1TargetY)).toBeLessThan(100)
+    }
+  })
+})
+
 // GAP-08 (FM-02) — Widget can be dragged to a new position within the canvas
 // Verifies that widgets are not frozen after being placed; they must remain draggable.
 test.describe('GrapesJS Integration: Widget Repositioning (FM-02)', () => {
