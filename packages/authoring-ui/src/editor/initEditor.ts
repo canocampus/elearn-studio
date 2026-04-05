@@ -214,22 +214,21 @@ export function initEditor(opts: InitEditorOptions): Editor {
 
   // T630 — Correct drop coordinates using iframe dragover events.
   //
-  // Root cause (confirmed via GrapesJS 0.21 source analysis):
+  // Root cause (confirmed via GrapesJS 0.21.13 source analysis):
   // - The canvas lives in a GrapesJS iframe. During HTML5 drag-and-drop the browser
   //   suppresses mousemove and fires dragover on the drop target (inside the iframe).
-  // - The previous fix registered mousemove on the main document, which receives no
-  //   events once the cursor enters the iframe. On Slide 1 the last captured main-window
-  //   event produced raw viewport coordinates applied as canvas coords (wrong position).
-  //   On Slide 2+ the user drags directly over the canvas so lastMouseEvent was always
-  //   null — the handler bailed early, leaving the component at CSS-default position
-  //   (top-left, partially outside the canvas).
+  // - Phase 1 fix registered mousemove on the main document → no events once cursor
+  //   enters the iframe.
+  // - Phase 2 fix used getMouseRelativePos() with iframe-internal dragover events.
+  //   WRONG: getMouseRelativePos formula is (clientY + iframe.top) * zoom — it ADDS
+  //   the iframe's main-window offset to the already-iframe-relative clientY, producing
+  //   coordinates that are too large by ~iframe.top pixels.
   //
-  // Fix: Listen to dragover inside the iframe document. DragEvent extends MouseEvent
-  // and carries clientX/clientY. getMouseRelativePos() is designed for iframe-internal
-  // events: it uses event.target.ownerDocument.defaultView.frameElement to find the
-  // iframe, reads its getBoundingClientRect() for the offset, and applies zoom. This
-  // path is only correct when the event originates inside the iframe — which is exactly
-  // what we now provide. Works identically on Slide 1 and all subsequent slides.
+  // Correct function: getMouseRelativeCanvas(event, {noScroll:1})
+  //   Formula: clientY * zoomDecimal + (frameOffset.top - canvasOffset.top)
+  //   Since frameOffset === canvasOffset for a standard GrapesJS layout, this reduces
+  //   to ≈ clientY * zoomDecimal, which IS the canvas-relative coordinate.
+  //   This is the same function GrapesJS Sorter uses internally for drag positioning.
   {
     let lastDragEvent: MouseEvent | null = null
 
@@ -259,9 +258,13 @@ export function initEditor(opts: InitEditorOptions): Editor {
         return
       }
       const canvasModel = editor.Canvas as unknown as {
-        getMouseRelativePos: (e: MouseEvent) => { x: number; y: number }
+        getMouseRelativeCanvas: (
+          e: MouseEvent,
+          opts?: { noScroll?: number },
+        ) => { x: number; y: number }
       }
-      const pos = canvasModel.getMouseRelativePos(lastDragEvent)
+      // noScroll:1 — the canvas body does not scroll (fixed 1024×768 slide)
+      const pos = canvasModel.getMouseRelativeCanvas(lastDragEvent, { noScroll: 1 })
       const comp = component as { addStyle: (s: Record<string, string>) => void }
       comp.addStyle({ left: `${Math.round(pos.x)}px`, top: `${Math.round(pos.y)}px` })
       lastDragEvent = null
