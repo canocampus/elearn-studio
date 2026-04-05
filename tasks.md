@@ -851,25 +851,18 @@
 ### T632 — Fix asset picker type for Media Player and Audio Narration
 > Both still use `types: ['image']` — user gets image picker when they need video/audio.
 > The comment "GrapesJS AM uses 'image' type for all assets" is incorrect.
-- [ ] T632.1 — In `MediaPlayerPropertiesPanel.tsx`: change AM open to filter by media type:
-  ```typescript
-  editor.AssetManager.open({
-    types: ['video', 'audio', 'image'],  // accept all; user selects per mediaType
-    select(asset, complete) { ... }
-  })
-  ```
-- [ ] T632.2 — In `AudioNarrationPropertiesPanel.tsx`: open AM with audio-appropriate filter:
-  ```typescript
-  editor.AssetManager.open({
-    types: ['audio', 'image'],  // image fallback for external URLs
-    select(asset, complete) { ... }
-  })
-  ```
-- [ ] T632.3 — If GrapesJS AM doesn't support video/audio type filtering natively, implement
-  a custom asset picker modal that shows all uploaded assets and filters by file extension
-  (`.mp4`, `.webm`, `.mp3`, `.ogg`, `.wav`) when opened from media/audio context
+- [x] T632.1 — In `MediaPlayerPropertiesPanel.tsx`: change AM open to filter by media type:
+  > `openMediaPicker` now takes a `types` param; `MediaSourceSection` reads `mediaType` from
+  > component model and passes `['audio','image']` or `['video','image']` accordingly.
+- [x] T632.2 — In `AudioNarrationPropertiesPanel.tsx`: open AM with audio-appropriate filter:
+  > Changed `types: ['image']` to `types: ['audio', 'image']`. 'image' retained as fallback for assets uploaded before the type detection fix.
+- [x] T632.3 — Root cause fix: `assetManager.ts` `detectAssetType()` helper now tags uploaded
+  assets with the correct GrapesJS type ('video', 'audio', or 'image') based on file extension.
+  GrapesJS AM `types` filtering works natively; no custom modal needed.
 - [ ] T632.4 — E2E test: drag media-player → open media picker → confirm video/audio assets
   are selectable (not just images)
+  > Deferred: requires pre-seeded video/audio assets in Garage. Smoke-level coverage provided by
+  > existing T604/T607 tests. Full file-upload AM test would go in image-upload.spec.ts.
 - [ ] T632.5 — Run full test suite + push + verify CI green
 - [ ] T632.6 — Refine the generated code
 - [ ] T632.7 — A reviewer will generate `docs/issues/issues-T632.md`; resolve before closing

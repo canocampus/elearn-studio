@@ -89,9 +89,8 @@ const CHECKBOX_ROW_STYLE: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 
 /**
- * Known audio file extensions. GrapesJS AM stores all assets with type:'image'
- * regardless of file type, so we validate by extension on selection instead of
- * relying on the AM's built-in type filter (which only knows 'image' and 'video').
+ * Known audio file extensions. Extension check is a defense-in-depth guard
+ * in case a non-audio asset passes through the AM type filter.
  */
 const AUDIO_EXTENSIONS = new Set(['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.opus', '.webm'])
 
@@ -109,7 +108,8 @@ function isAudioUrl(url: string): boolean {
 
 function openAudioPicker(editor: Editor, onPick: (src: string) => void) {
   editor.AssetManager.open({
-    types: ['image'],  // GrapesJS AM uses 'image' type for all assets
+    // 'image' included as fallback for assets uploaded before type detection was added.
+    types: ['audio', 'image'],
     select(asset: { getSrc: () => string }, complete: boolean) {
       const src = asset.getSrc()
       if (!src) return

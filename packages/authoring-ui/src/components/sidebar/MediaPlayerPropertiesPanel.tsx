@@ -91,9 +91,13 @@ const CHECKBOX_ROW_STYLE: React.CSSProperties = {
 // MediaSourceSection — URL input + Asset Manager picker
 // ---------------------------------------------------------------------------
 
-function openMediaPicker(editor: Editor, component: Component, onPick: (src: string) => void) {
+function openMediaPicker(
+  editor: Editor,
+  types: string[],
+  onPick: (src: string) => void,
+) {
   editor.AssetManager.open({
-    types: ['image'],  // GrapesJS AM; we accept any uploaded asset
+    types,
     select(asset: { getSrc: () => string }, complete: boolean) {
       const src = asset.getSrc()
       if (!src) return
@@ -105,9 +109,13 @@ function openMediaPicker(editor: Editor, component: Component, onPick: (src: str
 
 function MediaSourceSection({ editor, component }: { editor: Editor; component: Component }) {
   const [src, setSrc] = useComponentProperty<string>(component, 'src', '')
+  const [mediaType] = useComponentProperty<string>(component, 'mediaType', 'video')
 
   function handleChooseMedia() {
-    openMediaPicker(editor, component, (picked) => {
+    // Filter by the current media type so the picker only shows relevant assets.
+    // 'image' included as fallback for assets uploaded before type detection was added.
+    const types = mediaType === 'audio' ? ['audio', 'image'] : ['video', 'image']
+    openMediaPicker(editor, types, (picked) => {
       setSrc(picked)
     })
   }

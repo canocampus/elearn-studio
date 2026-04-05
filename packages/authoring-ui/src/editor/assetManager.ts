@@ -11,6 +11,16 @@
 import type { AssetManagerConfig } from 'grapesjs'
 import { useAuthStore } from '../store/authStore'
 
+const VIDEO_EXTENSIONS = new Set(['.mp4', '.webm', '.mov', '.avi', '.mkv', '.ogv'])
+const AUDIO_EXTENSIONS = new Set(['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.opus'])
+
+function detectAssetType(filename: string): 'image' | 'video' | 'audio' {
+  const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase()
+  if (VIDEO_EXTENSIONS.has(ext)) return 'video'
+  if (AUDIO_EXTENSIONS.has(ext)) return 'audio'
+  return 'image'
+}
+
 // VITE_API_URL must be set to an absolute URL (e.g. http://localhost:3001) at build time.
 // If empty, presigned URL fetches use a relative path which fails on cross-origin deployments.
 const API_BASE: string = (import.meta as unknown as Record<string, { VITE_API_URL?: string }>).env?.VITE_API_URL ?? ''
@@ -100,8 +110,10 @@ export function buildAssetManagerConfig(): AssetManagerConfig {
       }
 
       // Return JSON string: GrapesJS will JSON.parse it, then call target.add(json.data).
+      // Detect the correct GrapesJS asset type from the file extension so the AM
+      // `types` filter in MediaPlayer and AudioNarration panels works correctly.
       return JSON.stringify({
-        data: [{ src, name: originalName, type: 'image' }],
+        data: [{ src, name: originalName, type: detectAssetType(originalName) }],
       })
     },
 
