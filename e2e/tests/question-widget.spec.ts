@@ -18,7 +18,7 @@ import { test, expect } from '../fixtures'
 test.describe('Question Widget: Block Panel', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -46,7 +46,7 @@ test.describe('Question Widget: Block Panel', () => {
 test.describe('Question Widget: Multiple Choice (T601.1)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -90,7 +90,7 @@ test.describe('Question Widget: Multiple Choice (T601.1)', () => {
 test.describe('Question Widget: True / False (T601.5)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -133,7 +133,7 @@ test.describe('Question Widget: True / False (T601.5)', () => {
 test.describe('Question Widget: Fill in the Blank (T601.6)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -182,7 +182,7 @@ test.describe('Question Widget: Fill in the Blank (T601.6)', () => {
 test.describe('Question Widget: Props Panel Editing (T601.2 / T601.3 / T601.4)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -285,7 +285,7 @@ test.describe('Question Widget: Props Panel Editing (T601.2 / T601.3 / T601.4)',
 test.describe('Question Widget: Persistence (T601.7)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -400,7 +400,7 @@ test.describe('Question Widget: Persistence (T601.7)', () => {
 test.describe('Question Widget: Multiple widgets on same canvas', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -426,7 +426,7 @@ test.describe('Question Widget: Multiple widgets on same canvas', () => {
 test.describe('Question Widget: Fast slide switch race condition (T611-07)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -503,7 +503,7 @@ test.describe('Question Widget: Fast slide switch race condition (T611-07)', () 
 test.describe('T611 — mandatory question navigation gate', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -595,7 +595,7 @@ test.describe('T611 — mandatory question navigation gate', () => {
 test.describe('Question Widget: Optimistic update — no bounce-back (T620.5)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -632,7 +632,7 @@ test.describe('Question Widget: Optimistic update — no bounce-back (T620.5)', 
 test.describe('Question Widget: Stale closure — concurrent edit persistence (T621.5)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()
@@ -699,13 +699,193 @@ test.describe('Question Widget: Stale closure — concurrent edit persistence (T
   })
 })
 
+// T631.3 — @regression: TF correct-answer radio persists across autosave + page reload.
+// Default correctAnswer is true (True). We change it to false (False) and verify after reload.
+test.describe('Question Widget: TF correct answer persistence across reload (T631.3)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression T631.3 — TF correct-answer set to False survives autosave + page reload', async ({ editorPage, page }) => {
+    test.setTimeout(120_000)
+
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    // Drag TF widget onto canvas.
+    await editorPage.dragBlockToCanvas('True / False', 300, 200)
+    const tf = editorPage.canvasComponent('[data-gjs-type="question-tf"]')
+    await expect(tf).toBeVisible({ timeout: 15_000 })
+
+    // Select widget and open Props panel.
+    await tf.click()
+    await editorPage.propsTab.click()
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+
+    // Default: True is correct (correctAnswer === true).
+    // Change to False (the second radio in the Correct Answer section).
+    // Use flat locator — avoids fragility of section-based text matching.
+    const radios = panel.locator('input[type="radio"]')
+    await expect(radios).toHaveCount(2, { timeout: 5_000 })
+
+    // Set up PATCH listener BEFORE the click that triggers the autosave.
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 20_000 },
+    )
+
+    // radios.nth(0) = True, radios.nth(1) = False
+    await radios.nth(1).click()
+    await page.waitForTimeout(300)
+
+    // Confirm model reflects the change before saving.
+    const correctBeforeSave = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getSelected: () => { get: (k: string) => unknown } | null
+      }
+      const sel = ed?.getSelected()
+      if (!sel) return null
+      const ep = sel.get('extendedProperties') as { correctAnswer: boolean }
+      return ep?.correctAnswer ?? null
+    })
+    expect(correctBeforeSave).toBe(false)
+
+    // Wait for autosave PATCH (already set up before the click).
+    await patchPromise.catch(() => page.waitForTimeout(3000))
+
+    // Reload and navigate back.
+    await page.reload()
+    await editorPage.waitForReloadComplete()
+    await slides.nth(ourSlideIndex).click()
+    await page.waitForTimeout(500)
+    await editorPage.waitForCanvas()
+
+    // Re-select widget and open Props.
+    const tfComp = editorPage.canvasComponent('[data-gjs-type="question-tf"]')
+    await expect(tfComp).toBeVisible({ timeout: 15_000 })
+    await tfComp.click()
+    await editorPage.propsTab.click()
+
+    const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
+    if (!(await restoredPanel.isVisible().catch(() => false))) {
+      await tfComp.click()
+      await editorPage.propsTab.click()
+    }
+    await expect(restoredPanel).toBeVisible({ timeout: 10_000 })
+
+    // correctAnswer must still be false after reload.
+    const correctAfterReload = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getSelected: () => { get: (k: string) => unknown } | null
+      }
+      const sel = ed?.getSelected()
+      if (!sel) return null
+      const ep = sel.get('extendedProperties') as { correctAnswer: boolean }
+      return ep?.correctAnswer ?? null
+    })
+    expect(correctAfterReload).toBe(false)
+  })
+})
+
+// T631.4 — @regression: Fill accepted answer persists across autosave + page reload.
+// Default answer is 'Paris'. We replace it with a unique sentinel value.
+test.describe('Question Widget: Fill accepted answer persistence across reload (T631.4)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression T631.4 — Fill accepted answer survives autosave + page reload', async ({ editorPage, page }) => {
+    test.setTimeout(90_000)
+
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    // Drag Fill widget onto canvas.
+    await editorPage.dragBlockToCanvas('Fill in the Blank', 300, 200)
+    const fill = editorPage.canvasComponent('[data-gjs-type="question-fill"]')
+    await expect(fill).toBeVisible({ timeout: 15_000 })
+
+    // Select widget and open Props panel.
+    await fill.click()
+    await editorPage.propsTab.click()
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+
+    // Clear the first accepted answer field and type the sentinel value.
+    const answerInput = panel.locator('input[placeholder="Accepted answer"]').first()
+    await expect(answerInput).toBeVisible({ timeout: 5_000 })
+    await answerInput.fill('T631.4 sentinel')
+    await answerInput.press('Tab')
+    await page.waitForTimeout(300)
+
+    // Confirm model reflects the change before saving.
+    const answersBeforeSave = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getSelected: () => { get: (k: string) => unknown } | null
+      }
+      const sel = ed?.getSelected()
+      if (!sel) return null
+      const ep = sel.get('extendedProperties') as { answers: string[] }
+      return ep?.answers ?? null
+    })
+    expect(answersBeforeSave?.[0]).toBe('T631.4 sentinel')
+
+    // Wait for autosave PATCH.
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 20_000 },
+    )
+    await patchPromise.catch(() => page.waitForTimeout(3000))
+
+    // Reload and navigate back.
+    await page.reload()
+    await editorPage.waitForReloadComplete()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select widget and open Props.
+    const fillComp = editorPage.canvasComponent('[data-gjs-type="question-fill"]')
+    await expect(fillComp).toBeVisible({ timeout: 15_000 })
+    await fillComp.click()
+    await editorPage.propsTab.click()
+
+    const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
+    if (!(await restoredPanel.isVisible().catch(() => false))) {
+      await fillComp.click()
+      await editorPage.propsTab.click()
+    }
+    await expect(restoredPanel).toBeVisible({ timeout: 10_000 })
+
+    // First accepted answer must still be the sentinel after reload.
+    const answersAfterReload = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getSelected: () => { get: (k: string) => unknown } | null
+      }
+      const sel = ed?.getSelected()
+      if (!sel) return null
+      const ep = sel.get('extendedProperties') as { answers: string[] }
+      return ep?.answers ?? null
+    })
+    expect(answersAfterReload?.[0]).toBe('T631.4 sentinel')
+  })
+})
+
 // T631.6 — @regression: MC correct-answer radio persists across autosave + page reload.
 // Without the fix, the `extendedProperties` update might not reach the model, causing the
 // correct-answer selection to revert to the default (Option A) after a reload.
 test.describe('Question Widget: Correct answer persistence across reload (T631.6)', () => {
   test.beforeEach(async ({ editorPage, page }) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') console.log(`[BROWSER ERROR] ${msg.text()}`)
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
     })
     await editorPage.addSlide()
     await editorPage.waitForCanvas()

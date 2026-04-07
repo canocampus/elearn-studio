@@ -41,10 +41,6 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
   const isInitializedRef = useRef(false)
   // Track previous context to detect genuine slide switches (vs. initial mount).
   const prevContextRef = useRef<{ courseId: string; slideId: string } | null>(null)
-  // Monotonically increasing counter: each Effect 2 run captures its generation so that
-  // stale editor.load() .then()/.catch() callbacks from a previous run cannot call
-  // setIsReady(true) after a newer run has already called setIsReady(false).
-  const loadGenRef = useRef(0)
   const setEditor = useEditorStore(s => s.setEditor)
   const setSelectedComponentType = useEditorStore(s => s.setSelectedComponentType)
   const setRightTab = useEditorStore(s => s.setRightTab)
@@ -149,19 +145,21 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
     //  2. State updates (setIsReady) on an already-unmounted component
     const controller = new AbortController()
 
+    // Closure-scoped cancellation flag. Set to true only in THIS Effect 2 run's cleanup.
+    // Replaces the shared loadGenRef counter: a counter can be out-of-sync in edge cases
+    // (e.g. React 18 StrictMode double-invoke), whereas a per-closure boolean is always
+    // authoritative for exactly this run.
+    let isCancelled = false
+
+
     // Fallback timer declared at effect scope so the cleanup function can clear it.
     // Guarantees setIsReady(true) within 8s even if the Promise chain below hangs silently.
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined
 
     const saveAndLoad = async () => {
-      // Capture this run's generation. Any callback that sees a different loadGenRef.current
-      // is stale (a newer Effect 2 run has started) and must not call setIsReady(true).
-      const gen = ++loadGenRef.current
-
       fallbackTimer = setTimeout(() => {
-        console.warn('[EditorCanvas] Fallback timer fired — forcing isReady=true after 8s')
         setEditorLoading(false)  // safety reset in case load hung before .then()/.catch()
-        if (loadGenRef.current === gen && editorRef.current === editor) setIsReady(true)
+        if (!isCancelled) setIsReady(true)
       }, 8000)
 
       try {
@@ -213,41 +211,39 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
             .then(() => {
               clearTimeout(fallbackTimer)
               setEditorLoading(false)
-              // Guard with generation AND editor identity: a stale .then() (from a load that
-              // was superseded by a newer slide switch) must not call setIsReady(true) while
-              // the new load is still in-flight. The editor identity check prevents this
-              // callback from firing after editor.destroy() replaced editorRef.current with a
-              // new instance — which would cause waitForCanvas() to see "true" on a broken canvas
-              // (TypeError: Cannot read properties of undefined (reading 'forEach') at loadData).
-              if (loadGenRef.current === gen && editorRef.current === editor) {
-                setTimeout(() => setIsReady(true), 150)
+              // isCancelled is set in this Effect 2 run's cleanup, so a stale .then() from a
+              // superseded slide switch (or from a destroyed editor's load) cannot call
+              // setIsReady(true) while the newer run is still in-flight.
+              if (!isCancelled) {
+                setIsReady(true)
               }
             })
             .catch((err) => {
               clearTimeout(fallbackTimer)
               setEditorLoading(false)
               console.error('[EditorCanvas] load() failed:', err)
-              // Guard with generation AND editor identity: only unblock the UI if this is still
-              // the active editor. If editor.destroy() was called (editorRef.current !== editor),
-              // a new editor is being initialized — its own Effect 2 run will set isReady when
-              // its load completes successfully. Calling setIsReady(true) here on a destroyed
-              // editor would expose a broken canvas to waitForCanvas().
-              if (loadGenRef.current === gen && editorRef.current === editor) {
-                setIsReady(true)
-              }
+              // Always recover on load failure, even if this run was cancelled.
+              // - Component unmounted: setIsReady is a no-op in React 18.
+              // - New run started: new run called setIsReady(false) synchronously
+              //   before its own editor.load(), so this transient true is harmless
+              //   (it will be overridden when the new run completes).
+              // The isCancelled guard here was blocking ALL recovery when GrapesJS's
+              // loadData() threw (e.g. forEach TypeError), leaving data-editor-ready
+              // permanently stuck at "false" and causing waitForCanvas() to time out.
+              setIsReady(true)
             })
         } else {
           setEditorLoading(false)
           clearTimeout(fallbackTimer)
           // Fallback for older GrapesJS versions where load() is synchronous or lacks promise.
-          if (loadGenRef.current === gen && editorRef.current === editor) {
-            setTimeout(() => setIsReady(true), 500)
+          if (!isCancelled) {
+            setIsReady(true)
           }
         }
       } catch (err) {
         clearTimeout(fallbackTimer)
         console.error('[EditorCanvas] Unexpected error during slide switch:', err)
-        if (loadGenRef.current === gen && editorRef.current === editor) {
+        if (!isCancelled) {
           setIsReady(true)
         }
       }
@@ -256,6 +252,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
     void saveAndLoad()
 
     return () => {
+      isCancelled = true
       clearTimeout(fallbackTimer)
       controller.abort()
     }

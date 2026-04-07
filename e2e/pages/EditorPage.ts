@@ -148,15 +148,13 @@ export class EditorPage {
     await iframe.waitFor({ state: 'visible', timeout: 30_000 })
 
     // Phase 1 (short): After a slide switch, React commits setIsReady(false) within ~16ms,
-    // setting data-editor-ready="false". Polling here catches that transition and prevents
+    // setting data-editor-ready="false". A brief sleep here catches that transition and prevents
     // returning on a stale data-editor-ready="true" from a previous slide load.
-    // If data-editor-ready is already "false" (loading), this resolves immediately.
-    // If no slide switch is in progress (stable state), the 500ms timeout fires and is
-    // silently ignored — Phase 2 then confirms the existing "true" is valid.
-    await this.page.waitForFunction(
-      () => document.querySelector('[data-editor-ready]')?.getAttribute('data-editor-ready') !== 'true',
-      { timeout: 500, polling: 50 },
-    ).catch(() => {})
+    // NOTE: page.waitForFunction() with a 500ms timeout was used here previously but caused
+    // a ~59s hang when the browser JS thread was busy processing GrapesJS post-load events.
+    // Playwright's waitForFunction queues CDP evaluations and blocks when the browser is
+    // unresponsive; waitForTimeout is a pure Node.js timer that bypasses this issue.
+    await this.page.waitForTimeout(300)
 
     // Phase 2: Wait for the editor to finish loading the current slide.
     await this.page.locator('[data-editor-ready="true"]').waitFor({ state: 'attached', timeout: 30_000 })

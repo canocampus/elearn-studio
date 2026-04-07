@@ -202,6 +202,25 @@ Historial de bugs T630 (no repetir):
   Fase 4: restar iframeRect.left a clientX del iframe → X offset = -93.1875px
   Fase 5 ✅: clientX/zoom, sin operaciones de offset — CORRECTO
 ---
+### Regla 9 — Una tarea cada vez, esperar confirmación
+
+Después de completar cualquier tarea (TXX), PARAR completamente y esperar
+instrucción explícita antes de empezar la siguiente.
+
+NO encadenar tareas automáticamente aunque estén en el mismo bloque de Phase.
+NO interpretar "implementa Phase 2.9" como permiso para ejecutar todas las
+subtareas sin pausa.
+
+El flujo correcto es:
+  1. Completar TXX
+  2. Reportar resultado + push + CI verde
+  3. ESPERAR confirmación del owner
+  4. Solo entonces empezar TXX+1
+
+La única excepción: subtareas dentro de una misma tarea (T631.1, T631.2...)
+pueden ejecutarse en secuencia sin pausa entre ellas.
+
+---
 ## Project Overview
 
 **eLearn Studio** is an open-source, web-based e-learning authoring platform inspired by
