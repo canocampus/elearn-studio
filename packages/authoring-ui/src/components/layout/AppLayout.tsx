@@ -15,10 +15,10 @@
 
 import { useState } from 'react'
 import { useEditorStore } from '../../store/editorStore'
-import { exportSCORM12 } from '../../api/courseApi'
+import { exportSCORM12, exportSCORM2004, exportAICC } from '../../api/courseApi'
 import { ToastProvider, useToast } from '../ui/Toast'
 import { TopToolbar } from './TopToolbar'
-import { PublishDialog, type PublishStatus } from './PublishDialog'
+import { PublishDialog, type PublishStatus, type ExportFormat } from './PublishDialog'
 import { SlideList } from '../sidebar/SlideList'
 import { BlockManagerPanel } from '../sidebar/BlockManagerPanel'
 import { LayerManagerPanel } from '../sidebar/LayerManagerPanel'
@@ -76,13 +76,19 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
     setShowPublishDialog(true)
   }
 
-  async function handleConfirmPublish() {
+  async function handleConfirmPublish(format: ExportFormat) {
     if (!course) return
     setPublishing(true)
     setPublishStatus('packaging')
     setPublishError('')
     try {
-      await exportSCORM12(course._id, course.title)
+      if (format === 'scorm2004') {
+        await exportSCORM2004(course._id, course.title)
+      } else if (format === 'aicc') {
+        await exportAICC(course._id, course.title)
+      } else {
+        await exportSCORM12(course._id, course.title)
+      }
       setPublishStatus('done')
       toast.success('SCORM package ready')
     } catch (err) {

@@ -8,7 +8,7 @@ import rateLimit from 'express-rate-limit'
 import { Course } from '../models/Course'
 import { AuditLog } from '../models/AuditLog'
 import { logAudit } from '../lib/auditLogger'
-import { packSCORM12 } from '@elearn-studio/scorm-packager'
+import { packSCORM12, packSCORM2004, packAICC } from '@elearn-studio/scorm-packager'
 import { getObject } from '../storage/s3'
 import { pipeline } from 'stream/promises'
 import * as fss from 'fs'
@@ -889,6 +889,78 @@ coursesRouter.post('/:id/export/scorm12', exportLimiter, async (req, res) => {
     const fileName = `${safeTitle}_scorm12.zip`
     res.download(zipPath, fileName, () => {
       // Cleanup after download completes (or errors)
+      setTimeout(() => fs.rmSync(tmpDir, { recursive: true, force: true }), 500)
+    })
+  } catch (err) {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+    const message = err instanceof Error ? err.message : 'Package generation failed'
+    res.status(500).json({ success: false, error: message })
+  }
+})
+
+// POST /courses/:id/export/scorm2004 — generate SCORM 2004 ZIP and stream to client
+coursesRouter.post('/:id/export/scorm2004', exportLimiter, async (req, res) => {
+  const courseId = req.params['id'] as string
+  if (!validateId(courseId)) {
+    res.status(400).json({ success: false, error: 'Invalid course id' })
+    return
+  }
+  const course = await Course.findOne({ _id: courseId, deletedAt: null })
+  if (!course) {
+    res.status(404).json({ success: false, error: 'Course not found' })
+    return
+  }
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'elearn-scorm2004-'))
+  try {
+    const playerPath = process.env.PLAYER_JS_PATH
+    const courseObj = course.toObject()
+    const assetMap = collectAssetSrcs(courseObj.slides)
+    const assetPaths = await downloadAssets(assetMap, tmpDir)
+    const rewrittenCourse = rewriteAssetSrcs(courseObj)
+    const zipPath = await packSCORM2004(rewrittenCourse, tmpDir, {
+      ...(playerPath ? { playerPath } : {}),
+      assetPaths,
+    })
+    const safeTitle = course.title.replace(/[^a-z0-9_-]/gi, '_').slice(0, 64) || 'course'
+    const fileName = `${safeTitle}_scorm2004.zip`
+    res.download(zipPath, fileName, () => {
+      setTimeout(() => fs.rmSync(tmpDir, { recursive: true, force: true }), 500)
+    })
+  } catch (err) {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+    const message = err instanceof Error ? err.message : 'Package generation failed'
+    res.status(500).json({ success: false, error: message })
+  }
+})
+
+// POST /courses/:id/export/aicc — generate AICC ZIP and stream to client
+coursesRouter.post('/:id/export/aicc', exportLimiter, async (req, res) => {
+  const courseId = req.params['id'] as string
+  if (!validateId(courseId)) {
+    res.status(400).json({ success: false, error: 'Invalid course id' })
+    return
+  }
+  const course = await Course.findOne({ _id: courseId, deletedAt: null })
+  if (!course) {
+    res.status(404).json({ success: false, error: 'Course not found' })
+    return
+  }
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'elearn-aicc-'))
+  try {
+    const playerPath = process.env.PLAYER_JS_PATH
+    const courseObj = course.toObject()
+    const assetMap = collectAssetSrcs(courseObj.slides)
+    const assetPaths = await downloadAssets(assetMap, tmpDir)
+    const rewrittenCourse = rewriteAssetSrcs(courseObj)
+    const zipPath = await packAICC(rewrittenCourse, tmpDir, {
+      ...(playerPath ? { playerPath } : {}),
+      assetPaths,
+    })
+    const safeTitle = course.title.replace(/[^a-z0-9_-]/gi, '_').slice(0, 64) || 'course'
+    const fileName = `${safeTitle}_aicc.zip`
+    res.download(zipPath, fileName, () => {
       setTimeout(() => fs.rmSync(tmpDir, { recursive: true, force: true }), 500)
     })
   } catch (err) {

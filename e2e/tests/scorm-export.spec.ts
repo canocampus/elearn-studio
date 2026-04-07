@@ -120,4 +120,54 @@ test.describe('SCORM Export', () => {
 
     await expect(editorPage.publishDialog).not.toBeVisible()
   })
+
+  // T635 — Format selector
+  test('@regression T635 — all 3 format options visible in publish dialog', async ({ editorPage, page }) => {
+    await editorPage.openPublishDialog()
+
+    await expect(page.getByTestId('format-option-scorm12')).toBeVisible()
+    await expect(page.getByTestId('format-option-scorm2004')).toBeVisible()
+    await expect(page.getByTestId('format-option-aicc')).toBeVisible()
+  })
+
+  test('@regression T635 — SCORM 1.2 is selected by default', async ({ editorPage, page }) => {
+    await editorPage.openPublishDialog()
+
+    const scorm12Radio = page.getByTestId('format-option-scorm12').getByRole('radio')
+    await expect(scorm12Radio).toBeChecked()
+
+    const confirmBtn = page.getByTestId('publish-confirm-btn')
+    await expect(confirmBtn).toContainText('Publish SCORM 1.2')
+  })
+
+  test('@regression T635 — selecting SCORM 2004 updates confirm button label', async ({ editorPage, page }) => {
+    await editorPage.openPublishDialog()
+
+    await page.getByTestId('format-option-scorm2004').getByRole('radio').click()
+
+    const confirmBtn = page.getByTestId('publish-confirm-btn')
+    await expect(confirmBtn).toContainText('Publish SCORM 2004')
+  })
+
+  test('@regression T635 — selecting AICC updates confirm button label', async ({ editorPage, page }) => {
+    await editorPage.openPublishDialog()
+
+    await page.getByTestId('format-option-aicc').getByRole('radio').click()
+
+    const confirmBtn = page.getByTestId('publish-confirm-btn')
+    await expect(confirmBtn).toContainText('Publish AICC')
+  })
+
+  test('@regression T635 — select SCORM 2004 and confirm downloads a ZIP', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    await editorPage.openPublishDialog()
+    await page.getByTestId('format-option-scorm2004').getByRole('radio').click()
+
+    const downloadPromise = page.waitForEvent('download', { timeout: 30_000 })
+    await page.getByTestId('publish-confirm-btn').click()
+
+    const download = await downloadPromise
+    expect(download.suggestedFilename()).toMatch(/scorm2004.*\.zip$|\.zip$/)
+  })
 })

@@ -10,7 +10,7 @@
  *   error    → red error message inline, Publish button re-enabled
  */
 
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import LZString from 'lz-string'
 import type { CourseDoc } from '../../types/course'
 
@@ -55,10 +55,35 @@ function getMeterColor(percentage: number): string {
 }
 
 export type PublishStatus = 'idle' | 'packaging' | 'done' | 'error'
+export type ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'
+
+const FORMAT_OPTIONS: Array<{ value: ExportFormat; label: string; description: string }> = [
+  {
+    value: 'scorm12',
+    label: 'SCORM 1.2',
+    description: 'Widest LMS support — recommended for most deployments',
+  },
+  {
+    value: 'scorm2004',
+    label: 'SCORM 2004',
+    description: 'Modern sequencing & branching; requires a SCORM 2004-compliant LMS',
+  },
+  {
+    value: 'aicc',
+    label: 'AICC',
+    description: 'Legacy HACP format for older LMS systems',
+  },
+]
+
+const FORMAT_BUTTON_LABEL: Record<ExportFormat, string> = {
+  scorm12: 'Publish SCORM 1.2',
+  scorm2004: 'Publish SCORM 2004',
+  aicc: 'Publish AICC',
+}
 
 interface PublishDialogProps {
   course: CourseDoc
-  onConfirm: () => void
+  onConfirm: (format: ExportFormat) => void
   onCancel: () => void
   publishing: boolean
   publishStatus: PublishStatus
@@ -66,6 +91,8 @@ interface PublishDialogProps {
 }
 
 export function PublishDialog({ course, onConfirm, onCancel, publishing, publishStatus, publishError }: PublishDialogProps) {
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('scorm12')
+
   const { compressed, percentage } = useMemo(() => {
     const ids = getQuestionWidgetIds(course)
     return estimateSuspendSize(ids)
@@ -134,6 +161,37 @@ export function PublishDialog({ course, onConfirm, onCancel, publishing, publish
           )}
         </section>
 
+        {/* T635 — Export format selector */}
+        <section style={styles.section} aria-label="Export format">
+          <div style={styles.sectionLabel}>Export Format</div>
+          <div role="radiogroup" aria-label="SCORM export format">
+            {FORMAT_OPTIONS.map(opt => (
+              <label
+                key={opt.value}
+                data-testid={`format-option-${opt.value}`}
+                style={{
+                  ...styles.formatOption,
+                  ...(selectedFormat === opt.value ? styles.formatOptionSelected : {}),
+                }}
+              >
+                <input
+                  type="radio"
+                  name="export-format"
+                  value={opt.value}
+                  checked={selectedFormat === opt.value}
+                  onChange={() => setSelectedFormat(opt.value)}
+                  disabled={publishing}
+                  style={styles.radioInput}
+                />
+                <span>
+                  <span style={styles.formatLabel}>{opt.label}</span>
+                  <span style={styles.formatDesc}>{opt.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+
         {/* T606 — Status feedback section */}
         {publishStatus !== 'idle' && (
           <>
@@ -187,12 +245,12 @@ export function PublishDialog({ course, onConfirm, onCancel, publishing, publish
           {publishStatus !== 'done' && (
             <button
               style={{ ...styles.btn, ...styles.btnPrimary }}
-              onClick={onConfirm}
+              onClick={() => onConfirm(selectedFormat)}
               disabled={publishing}
               aria-busy={publishing}
               data-testid="publish-confirm-btn"
             >
-              {publishing ? 'Packaging…' : 'Publish SCORM 1.2'}
+              {publishing ? 'Packaging…' : FORMAT_BUTTON_LABEL[selectedFormat]}
             </button>
           )}
         </div>
@@ -336,5 +394,38 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #89b4fa',
     color: '#1e1e2e',
     fontWeight: 600,
+  },
+  formatOption: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: '8px 10px',
+    borderRadius: 5,
+    cursor: 'pointer',
+    border: '1px solid transparent',
+    marginBottom: 6,
+    transition: 'background 0.15s',
+  },
+  formatOptionSelected: {
+    background: 'rgba(137,180,250,0.08)',
+    border: '1px solid rgba(137,180,250,0.3)',
+  },
+  radioInput: {
+    marginTop: 2,
+    accentColor: '#89b4fa',
+    flexShrink: 0,
+  },
+  formatLabel: {
+    display: 'block',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#cdd6f4',
+    marginBottom: 2,
+  },
+  formatDesc: {
+    display: 'block',
+    fontSize: 11,
+    color: '#6c7086',
+    lineHeight: 1.4,
   },
 }

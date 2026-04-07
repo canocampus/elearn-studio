@@ -145,25 +145,45 @@ export async function getCourseHistory(
 // Export
 // ---------------------------------------------------------------------------
 
-/**
- * Request a SCORM 1.2 ZIP from the backend and trigger a browser download.
- */
-export async function exportSCORM12(courseId: string, courseTitle: string): Promise<void> {
-  const res = await apiBlobRequest(`/courses/${courseId}/export/scorm12`, {
-    method: 'POST',
-  })
-
+async function triggerZipDownload(
+  endpoint: string,
+  fallbackFileName: string,
+): Promise<void> {
+  const res = await apiBlobRequest(endpoint, { method: 'POST' })
   const blob = await res.blob()
   const disposition = res.headers.get('Content-Disposition') ?? ''
   const match = disposition.match(/filename="([^"]+)"/)
-  const fileName = match?.[1] ?? `${courseTitle}_scorm12.zip`
-
+  const fileName = match?.[1] ?? fallbackFileName
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = fileName
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/** Request a SCORM 1.2 ZIP from the backend and trigger a browser download. */
+export function exportSCORM12(courseId: string, courseTitle: string): Promise<void> {
+  return triggerZipDownload(
+    `/courses/${courseId}/export/scorm12`,
+    `${courseTitle}_scorm12.zip`,
+  )
+}
+
+/** Request a SCORM 2004 ZIP from the backend and trigger a browser download. */
+export function exportSCORM2004(courseId: string, courseTitle: string): Promise<void> {
+  return triggerZipDownload(
+    `/courses/${courseId}/export/scorm2004`,
+    `${courseTitle}_scorm2004.zip`,
+  )
+}
+
+/** Request an AICC ZIP from the backend and trigger a browser download. */
+export function exportAICC(courseId: string, courseTitle: string): Promise<void> {
+  return triggerZipDownload(
+    `/courses/${courseId}/export/aicc`,
+    `${courseTitle}_aicc.zip`,
+  )
 }
 
 // ---------------------------------------------------------------------------
