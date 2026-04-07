@@ -178,17 +178,18 @@ if (!slideIsComplete(state, state.currentSlide)) return
 | Severity | Count | Status |
 |----------|-------|--------|
 | CRITICAL | 0     | pass   |
-| HIGH     | 2     | warn   |
-| MEDIUM   | 3     | info   |
-| LOW      | 2     | note   |
+| HIGH     | 2     | RESOLVED |
+| MEDIUM   | 3     | RESOLVED |
+| LOW      | 2     | RESOLVED |
 
-**Verdict:** WARNING — 2 HIGH issues must be resolved before merge:
+**Verdict:** APPROVED — all issues resolved.
 
-1. **H-01** — Add optional chaining to guard `widget.extendedProperties?.scoring` (prevents crash)
-2. **H-02** — Add console warning when no nav buttons found (prevents silent T611 bypass)
+### Resolution Log
 
-MEDIUM issues (M-01–M-03) are code quality improvements for follow-up review. LOW issues are documentation/style enhancements.
-
-### Recommendation
-
-**Do not merge** until H-01 and H-02 are fixed. H-01 can crash; H-02 can silently disable mandatory question gating.
+- **H-01** — RESOLVED: optional chaining added (`widget.extendedProperties?.scoring`) in T612 (index.ts:660)
+- **H-02** — RESOLVED: `_noNavNextWarned` flag + `console.warn` added to `updateNavButtons()` in T612 (index.ts:673–676)
+- **M-01** — RESOLVED: garbled JSDoc `//` removed; inline comment `// Missing entry means unanswered` added at code site (index.ts:663)
+- **M-02** — RESOLVED: consistent optional chaining `ep?.scoring as QuestionScoringInfo | undefined` in `handleSubmit()` (index.ts:810)
+- **M-03** — RESOLVED: `mandatory: false` already present in all three defaults in shared-types
+- **L-01** — RESOLVED: defensive comment already present in `goNext()` (index.ts:685)
+- **L-02** — RESOLVED: JSDoc for `slideIsComplete()` documents mandatory persistence (index.ts:645–654)

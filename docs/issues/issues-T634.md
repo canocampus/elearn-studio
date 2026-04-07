@@ -28,30 +28,9 @@
 ### M-01 — GrapesJsComponentDef.components typed too broadly
 
 **File:** `packages/authoring-ui/src/editor/converters.ts:33`  
-**Status:** Accepted — not blocking, deferred to future refactor
+**Status:** RESOLVED — `NavButtonChildDef` interface added to `converters.ts` and `GrapesJsComponentDef.components` typed as `NavButtonChildDef[]`
 
-The `components` field on `GrapesJsComponentDef` is typed as `Record<string, unknown>[]`, which is too broad. The actual runtime shape has typed fields: `tagName`, `content`, `droppable`, `draggable`, `actions`, `elearnActions`, `properties`, `extendedProperties`, `style`.
-
-A more precise type would be either `GrapesJsComponentDef[]` (self-referential) or a named child component type. The current loose typing is a maintainability issue — future developers may pass malformed child components without TypeScript catching it.
-
-**Recommended fix (future refactor):**
-```typescript
-// converters.ts
-interface NavButtonChildDef {
-  tagName: string
-  content?: string
-  droppable: boolean
-  draggable: boolean
-  actions: []
-  elearnActions: []
-  properties: Record<string, unknown>
-  extendedProperties: Record<string, unknown>
-  style: Record<string, string>
-}
-
-// Then in GrapesJsComponentDef:
-components?: NavButtonChildDef[]
-```
+The `components` field on `GrapesJsComponentDef` was typed as `Record<string, unknown>[]`. A dedicated `NavButtonChildDef` interface was exported from `converters.ts` with precise field types (`tagName`, `content`, `droppable`, `draggable`, `actions`, `elearnActions`, `properties`, `extendedProperties`, `style`), and the field type updated to `components?: NavButtonChildDef[]`.
 
 ---
 
@@ -59,16 +38,11 @@ components?: NavButtonChildDef[]
 
 ### L-01 — Comment duplication
 
-`registerBlocks.ts` lines 249–251 and `converters.ts` lines 272–276 contain nearly identical explanations of the T634 fix mechanism. Consider cross-referencing rather than duplicating.
+**Status:** RESOLVED — duplicate T634 comments trimmed in both `registerBlocks.ts` and `converters.ts` to single-line cross-references.
 
 ### L-02 — Magic strings for nav button default labels
 
-Default labels (`'← Previous'`, `'Next →'`) appear in three places:
-- `registerBlocks.ts:254, 260`
-- `converters.ts:278, 279`
-- `ButtonPropertiesPanel.tsx:201–202`
-
-`ButtonPropertiesPanel.tsx` already defines `NAV_BUTTON_DEFAULTS` as the UI source-of-truth. Exporting those constants from `ButtonPropertiesPanel.tsx` and importing in `registerBlocks.ts` and `converters.ts` would be a single source of truth — not required for merge.
+**Status:** RESOLVED — `NAV_BUTTON_DEFAULTS` (`prevLabel`/`nextLabel`) exported from `converters.ts` as single source of truth; imported in `registerBlocks.ts` and `ButtonPropertiesPanel.tsx`. All three files now use the same constant instead of duplicated string literals.
 
 ---
 

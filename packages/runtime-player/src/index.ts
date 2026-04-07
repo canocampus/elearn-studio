@@ -647,8 +647,8 @@ function goToSlide(state: PlayerState, index: number): void {
  * In 'linear-strict' mode, all questions with scoring.mandatory === true must be answered.
  * In 'free' mode (or when no navigationMode is set), always returns true.
  *
- * Note: a widget absent from questionStates means it has never been submitted.
- * // Missing entry means unanswered; answered must be explicitly true.
+ * Note: a widget absent from questionStates means it has never been submitted —
+ * missing Map entry means unanswered; answered must be explicitly true.
  * Note: mandatory is persisted in MongoDB as part of extendedProperties.scoring —
  * absent field (undefined) is treated as false (non-mandatory), matching the authoring default.
  */
@@ -660,6 +660,7 @@ function slideIsComplete(state: PlayerState, slideIndex: number): boolean {
     const scoring = (widget.extendedProperties?.scoring as QuestionScoringInfo | undefined)
     if (scoring?.mandatory) {
       const qs = state.questionStates.get(widget.id)
+      // Missing entry means unanswered; answered must be explicitly true
       if (!qs?.answered) return false
     }
   }
@@ -807,7 +808,7 @@ function handleSubmit(state: PlayerState, widgetId: string): void {
 
   const feedbackEl = widgetEl.querySelector<HTMLElement>('.el-feedback')
   const ep = widget.extendedProperties
-  const scoring = (ep.scoring as QuestionScoringInfo) ?? {}
+  const scoring: QuestionScoringInfo = (ep?.scoring as QuestionScoringInfo | undefined) ?? {}
   const weight = scoring.weight ?? 100
 
   let correct = false

@@ -226,14 +226,18 @@ Test 2 (lines 363-391):
 | Severity | Count | Status |
 |----------|-------|--------|
 | CRITICAL | 0     | pass   |
-| HIGH     | 2     | warn   |
-| MEDIUM   | 2     | info   |
-| LOW      | 2     | note   |
+| HIGH     | 2     | RESOLVED |
+| MEDIUM   | 2     | RESOLVED |
+| LOW      | 2     | RESOLVED |
 
-**Verdict: WARNING** — 2 HIGH issues should be resolved before merge.
+**Verdict: APPROVED** — all issues resolved.
 
-- **HIGH-01:** Test gap — missing assertion that navigation to unvisited slide actually occurred
-- **HIGH-02:** Legacy fallback — assumes ordered slide visitation for free-nav courses, causes data inconsistency on resume
+### Resolution Log
 
-Both are fixable in this task block. Recommend addressing both before final commit.
+- **HIGH-01** — RESOLVED: `expect(store['cmi.location']).toBe('1')` assertion added to T612 regression test (scorm2004.test.ts:360)
+- **HIGH-02** — RESOLVED: legacy `lesson_location` fallback now gates `visitedSlides` seeding by `navigationMode` — linear-strict seeds [0..idx], free-nav seeds only [idx] (index.ts:1066–1072)
+- **MEDIUM-01** — RESOLVED: try-catch around `goToSlide()` added to `finishCourse()` (index.ts:705–710)
+- **MEDIUM-02** — RESOLVED: `restoreSuspendData()` now warns when out-of-bounds visited indices are dropped (suspend.ts:172–176)
+- **LOW-01** — RESOLVED: `finishCourse()` loop comment clarified to "Find the first unvisited slide (lowest index)" (index.ts:704)
+- **LOW-02** — RESOLVED: `_noNavNextWarned` module-level flag rate-limits the nav-buttons warning to once per session (index.ts:159, 673–676)
 
