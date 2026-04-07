@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-07 — T635 complete (SCORM format selector)
+> Last updated: 2026-04-07 — T611/T612/T634 issues fully closed (v0.5.41)
 
 ---
 
@@ -11,7 +11,7 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.40 |
+| **Current version** | v0.5.41 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
 | **Active block** | T635 — COMPLETE ✅ |
 | **E2E test count** | 150 tests (147 passing, 3 skipped incl. T611.10) |
@@ -19,6 +19,8 @@
 ---
 
 ## What Was Last Done
+
+- **T611/T612/T634 issues closure / v0.5.41** — Final two code fixes applied to `runtime-player/src/index.ts`: T611 M-01 garbled JSDoc in `slideIsComplete()` cleaned up + inline comment at Map-absence check site (`// Missing entry means unanswered`); T611 M-02 inconsistent type cast in `handleSubmit()` replaced with `ep?.scoring as QuestionScoringInfo | undefined`. All items in `issues-T611.md` (7 items), `issues-T612.md` (6 items), and `issues-T634.md` (M-01, L-01, L-02) marked RESOLVED. 256 runtime-player tests pass. Commit: `7313cc7`.
 
 - **T635 — SCORM format selector / v0.5.40 / 6b6a9da** — `ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'` exported from `PublishDialog.tsx`. Radio group with per-format descriptions added to publish dialog (SCORM 1.2 selected by default; confirm button label updates dynamically). `onConfirm` signature updated to `(format: ExportFormat) => void`. `triggerZipDownload` helper refactors shared blob download logic; `exportSCORM2004` + `exportAICC` added to `courseApi.ts`. Backend: `POST /courses/:id/export/scorm2004` + `/aicc` routes added (same rate-limit/asset-rewriting pattern as scorm12). 5 `@regression T635` E2E tests. All 1266 unit tests + 15 SCORM E2E tests pass. Code review: APPROVE (0 issues). CI run: ✅ green.
 

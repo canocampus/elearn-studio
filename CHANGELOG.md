@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.41] — 2026-04-07 — Issues housekeeping: T611/T612/T634 fully closed
+
+### Fixed
+- **T611 M-01 — `slideIsComplete()` JSDoc** (`packages/runtime-player/src/index.ts`) — Removed garbled `//` prefix inside the JSDoc block; note about Map-absence semantics consolidated into a clean sentence. Added inline comment `// Missing entry means unanswered; answered must be explicitly true` at the `!qs?.answered` check site.
+- **T611 M-02 — Consistent optional chaining in `handleSubmit()`** (`packages/runtime-player/src/index.ts:810`) — `ep?.scoring as QuestionScoringInfo | undefined` replaces the previous inconsistent cast, matching the pattern used throughout the file.
+
+### Docs
+- **`docs/issues/issues-T611.md`** — All 7 items (H-01, H-02, M-01–M-03, L-01–02) marked RESOLVED. Verdict updated to APPROVED. Resolution log added.
+- **`docs/issues/issues-T612.md`** — All 6 items (HIGH-01/02, MEDIUM-01/02, LOW-01/02) marked RESOLVED. Verdict updated to APPROVED. Resolution log added.
+- **`docs/issues/issues-T634.md`** — M-01 (`NavButtonChildDef` interface), L-01 (comment deduplication), L-02 (`NAV_BUTTON_DEFAULTS` constant) marked RESOLVED with resolution notes.
+
+---
+
 ## [0.5.40] — 2026-04-07 — T635: Add SCORM format selector to PublishDialog
 
 ### Added
