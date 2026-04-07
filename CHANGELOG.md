@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.40] — 2026-04-07 — T635: Add SCORM format selector to PublishDialog
+
+### Added
+- **T635 — Export format selector** (`packages/authoring-ui/src/components/layout/PublishDialog.tsx`) — Radio group lets authors choose between SCORM 1.2, SCORM 2004, and AICC before packaging. `ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'` exported from `PublishDialog`. SCORM 1.2 selected by default; confirm button label updates dynamically (`Publish SCORM 1.2` / `Publish SCORM 2004` / `Publish AICC`). Per-format descriptions: "Widest LMS support — recommended for most deployments" / "Modern sequencing & branching; requires a SCORM 2004-compliant LMS" / "Legacy HACP format for older LMS systems".
+- **T635 — `exportSCORM2004` + `exportAICC` API functions** (`packages/authoring-ui/src/api/courseApi.ts`) — Shared `triggerZipDownload` helper eliminates per-format duplication in blob download logic. `onConfirm` signature updated to `(format: ExportFormat) => void` throughout `AppLayout.tsx`.
+- **T635 — Backend export routes** (`backend/api/src/routes/courses.ts`) — `POST /courses/:id/export/scorm2004` and `POST /courses/:id/export/aicc` added with same pattern as existing scorm12 route (rate-limited, asset rewriting, cleanup).
+
+### Tests
+- **`e2e/tests/scorm-export.spec.ts`** — 5 new `@regression T635` tests: all 3 format options visible, SCORM 1.2 selected by default, SCORM 2004 label update, AICC label update, SCORM 2004 end-to-end ZIP download.
+
+---
+
 ## [0.5.39] — 2026-04-05 — T634: Fix nav-buttons "missing child buttons" error
 
 ### Fixed

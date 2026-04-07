@@ -922,24 +922,24 @@
 ### T635 — Add SCORM format selector to PublishDialog (SCORM 2004 / AICC)
 > PublishDialog only shows "Publish SCORM 1.2". Backend already has routes for SCORM 2004
 > and AICC export. The dialog needs a format selector.
-- [ ] T635.1 — Add format selector to `PublishDialog.tsx`:
+- [x] T635.1 — Add format selector to `PublishDialog.tsx`:
   ```typescript
   type ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'
   // Radio or select: SCORM 1.2 (recommended) | SCORM 2004 | AICC
   ```
-- [ ] T635.2 — Pass selected format to `onConfirm(format)` callback
-- [ ] T635.3 — Update `TopToolbar.tsx` publish handler to call the appropriate export
-  endpoint based on format:
+- [x] T635.2 — Pass selected format to `onConfirm(format)` callback
+- [x] T635.3 — Update publish handler to call the appropriate export
+  endpoint based on format (AppLayout.tsx + courseApi.ts + backend routes):
   - `scorm12` → `POST /courses/:id/export/scorm12`
   - `scorm2004` → `POST /courses/:id/export/scorm2004`
   - `aicc` → `POST /courses/:id/export/aicc`
-- [ ] T635.4 — Add tooltip/description per format: SCORM 1.2 (widest LMS support), SCORM 2004
+- [x] T635.4 — Add tooltip/description per format: SCORM 1.2 (widest LMS support), SCORM 2004
   (modern sequencing), AICC (legacy LMS)
-- [ ] T635.5 — E2E test: open publish dialog → verify all 3 format options visible; select
+- [x] T635.5 — E2E test: open publish dialog → verify all 3 format options visible; select
   SCORM 2004 → confirm export → verify ZIP downloaded; tag `@regression`
-- [ ] T635.6 — Run full test suite + push + verify CI green
-- [ ] T635.7 — Refine the generated code
-- [ ] T635.8 — A reviewer will generate `docs/issues/issues-T635.md`; resolve before closing
+- [x] T635.6 — Run full test suite + push + verify CI green
+- [x] T635.7 — Refine the generated code
+- [x] T635.8 — Reviewer generated `docs/issues/issues-T635.md`; 0 issues found
 
 ### T636 — Fix copy/paste between slides preserving position
 > GrapesJS Ctrl+C/V works within a slide. Cross-slide paste loses coordinates because

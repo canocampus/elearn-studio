@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-05 — T634: Fix nav-buttons "missing child buttons" error (v0.5.39)
+> Last updated: 2026-04-07 — T635 complete (SCORM format selector)
 
 ---
 
@@ -11,14 +11,18 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.39 |
+| **Current version** | v0.5.40 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T635 — Add SCORM format selector to PublishDialog |
-| **E2E test count** | 139 tests (136 passing, 3 skipped incl. T611.10) |
+| **Active block** | T635 — COMPLETE ✅ |
+| **E2E test count** | 150 tests (147 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **T635 — SCORM format selector / v0.5.40 / 6b6a9da** — `ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'` exported from `PublishDialog.tsx`. Radio group with per-format descriptions added to publish dialog (SCORM 1.2 selected by default; confirm button label updates dynamically). `onConfirm` signature updated to `(format: ExportFormat) => void`. `triggerZipDownload` helper refactors shared blob download logic; `exportSCORM2004` + `exportAICC` added to `courseApi.ts`. Backend: `POST /courses/:id/export/scorm2004` + `/aicc` routes added (same rate-limit/asset-rewriting pattern as scorm12). 5 `@regression T635` E2E tests. All 1266 unit tests + 15 SCORM E2E tests pass. Code review: APPROVE (0 issues). CI run: ✅ green.
+
+- **T631.3 waitForCanvas hang fix / 0db0248** — `waitForCanvas()` Phase 1 used `page.waitForFunction()` with a 500ms timeout to detect the `data-editor-ready="false"` transition. When the browser JS thread was busy post-load (GrapesJS component reconstruction), Playwright's CDP queue backed up — the 500ms timeout never fired, causing ~59s hangs in all 14 `beforeEach` hooks of `question-widget.spec.ts`. Fix: replaced `waitForFunction()` with `waitForTimeout(300)` — a pure Node.js timer. Phase 2 still gates on `data-editor-ready="true"`. All diagnostic TEMP DIAG T631.3 code removed from EditorPage.ts, question-widget.spec.ts, EditorCanvas.tsx. 142/145 E2E pass (3 pre-existing skips). T635 now unblocked.
 
 - **T634 — Fix nav-buttons "missing child buttons" error / v0.5.39** — Root cause: `onRender()` HTML injection meant `component.components().at(0/1)` returned `undefined` in `NavButtonsPropertiesForm`, showing the "corrupted" error. Fix: replaced `onRender()` with `defaults.components` — two proper GrapesJS child button objects with `actions: []` (prevents loadData forEach crash). `widgetsFromGrapesjs` saves child labels as `prevLabel`/`nextLabel`; `grapesjsFromWidgets` restores them as child `content` on load with fallback defaults for backward compat. 6 unit tests + 3 E2E tests. Code review: APPROVE (0 CRITICAL/HIGH, 1 MEDIUM: loose type on `GrapesJsComponentDef.components`). Commit: `c7d123f`.
 
@@ -203,7 +207,7 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T632** — Fix asset picker type for media/audio widgets~~ ✅ Done (ece0142 v0.5.37) — T632.4 E2E added, T632.5 CI green
 - ~~**T633** — Fix button background image scale and no-repeat~~ ✅ Done (d4a6055 v0.5.38)
 - ~~**T634** — Fix nav-buttons "missing child buttons" error~~ ✅ Done (c7d123f v0.5.39)
-- **T635** — Add SCORM format selector to PublishDialog ← **NEXT**
+- ~~**T635** — Add SCORM format selector to PublishDialog~~ ✅ Done (6b6a9da v0.5.40)
 
 ---
 
