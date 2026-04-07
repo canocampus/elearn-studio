@@ -30,7 +30,7 @@ export interface GrapesJsComponentDef {
    * that own proper GrapesJS child components rather than raw innerHTML.
    * Each child must include `actions: []` to prevent the GrapesJS loadData forEach crash.
    */
-  components?: Record<string, unknown>[]
+  components?: NavButtonChildDef[]
   properties?: BaseWidget['properties']
   /** GrapesJS-native actions field — always empty array to prevent loadData forEach crash. */
   actions: []
@@ -38,6 +38,31 @@ export interface GrapesJsComponentDef {
   elearnActions: BaseWidget['actions']
   extendedProperties: BaseWidget['extendedProperties']
 }
+
+/**
+ * Typed shape for nav-buttons child component definitions.
+ * Used as the element type of `GrapesJsComponentDef.components`.
+ */
+export interface NavButtonChildDef {
+  tagName: string
+  content: string
+  droppable: boolean
+  draggable: boolean
+  actions: []
+  elearnActions: []
+  properties: Record<string, unknown>
+  extendedProperties: Record<string, unknown>
+  style: Record<string, string>
+}
+
+/**
+ * Default labels for the nav-buttons Previous / Next children.
+ * Single source of truth — imported by registerBlocks.ts and ButtonPropertiesPanel.tsx.
+ */
+export const NAV_BUTTON_DEFAULTS = {
+  prevLabel: '← Previous',
+  nextLabel: 'Next →',
+} as const
 
 /** Parses a CSS pixel value string, returning `fallback` if NaN or missing. */
 function parsePx(value: string | undefined, fallback: number): number {
@@ -166,8 +191,8 @@ export function widgetsFromGrapesjs(components: Component[]): BaseWidget[] {
     if (componentType === 'nav-buttons') {
       const prevChild = c.components().at(0)
       const nextChild = c.components().at(1)
-      mergedProps.prevLabel = (prevChild?.get('content') as string | undefined) ?? '← Previous'
-      mergedProps.nextLabel = (nextChild?.get('content') as string | undefined) ?? 'Next →'
+      mergedProps.prevLabel = (prevChild?.get('content') as string | undefined) ?? NAV_BUTTON_DEFAULTS.prevLabel
+      mergedProps.nextLabel = (nextChild?.get('content') as string | undefined) ?? NAV_BUTTON_DEFAULTS.nextLabel
     }
 
     return {
@@ -270,13 +295,11 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
     // def.components (typed child defs) rather than def.content (raw HTML).
 
     // T634: Restore nav-buttons child components from saved prevLabel / nextLabel.
-    // Always inject both children regardless of whether labels were saved — new widgets
-    // stored before T634 will not have prevLabel/nextLabel in properties, so we fall
-    // back to the defaults. Each child must carry `actions: []` to prevent the GrapesJS
-    // loadData forEach crash during child component initialization.
+    // Always inject both children — widgets saved before T634 fall back to NAV_BUTTON_DEFAULTS.
+    // Each child must carry `actions: []` to prevent the GrapesJS loadData forEach crash.
     if (w.type === 'nav-buttons') {
-      const prevLabel = typeof props.prevLabel === 'string' ? props.prevLabel : '← Previous'
-      const nextLabel = typeof props.nextLabel === 'string' ? props.nextLabel : 'Next →'
+      const prevLabel = typeof props.prevLabel === 'string' ? props.prevLabel : NAV_BUTTON_DEFAULTS.prevLabel
+      const nextLabel = typeof props.nextLabel === 'string' ? props.nextLabel : NAV_BUTTON_DEFAULTS.nextLabel
       def.components = [
         {
           tagName: 'button',

@@ -5,6 +5,7 @@
 
 import type { Editor } from 'grapesjs'
 import { resolveAssetUrl } from '../api/courseApi'
+import { NAV_BUTTON_DEFAULTS } from './converters'
 import { registerQuestionBlocks } from './registerQuestionBlocks'
 import { registerSimBlock } from './registerSimBlock'
 import { registerPhaserSimBlock } from './registerPhaserSimBlock'
@@ -246,18 +247,18 @@ function registerNavButtonsWidget(editor: Editor): void {
           'z-index': '1',
         },
         traits: [NAME_TRAIT],
-        // T634: Proper GrapesJS child components so component.components().at(0/1)
-        // returns them for NavButtonsPropertiesForm label editing.
+        // T634: defaults.components so component.components().at(0/1) returns them.
         // Each child must carry actions:[] to prevent the GrapesJS loadData forEach crash.
+        // Label strings come from NAV_BUTTON_DEFAULTS (converters.ts).
         components: [
           {
-            tagName: 'button', content: '← Previous',
+            tagName: 'button', content: NAV_BUTTON_DEFAULTS.prevLabel,
             droppable: false, draggable: false,
             actions: [], elearnActions: [], properties: {}, extendedProperties: {},
             style: { padding: '8px 16px', 'margin-right': '8px', background: '#64748b', color: '#fff', border: 'none', 'border-radius': '4px', cursor: 'pointer', 'font-size': '13px' },
           },
           {
-            tagName: 'button', content: 'Next →',
+            tagName: 'button', content: NAV_BUTTON_DEFAULTS.nextLabel,
             droppable: false, draggable: false,
             actions: [], elearnActions: [], properties: {}, extendedProperties: {},
             style: { padding: '8px 16px', background: '#4f46e5', color: '#fff', border: 'none', 'border-radius': '4px', cursor: 'pointer', 'font-size': '13px' },

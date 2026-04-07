@@ -19,6 +19,7 @@ import { useState, useEffect } from 'react'
 import type { Component, Editor } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
 import { useComponentProperty } from '../../hooks/useComponentProperty'
+import { NAV_BUTTON_DEFAULTS } from '../../editor/converters'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -197,10 +198,6 @@ function ButtonPropertiesForm({ editor, component }: { editor: Editor; component
 // Each child gets its own useComponentProperty hook instance.
 // ---------------------------------------------------------------------------
 
-const NAV_BUTTON_DEFAULTS = {
-  prevLabel: '← Previous',
-  nextLabel: 'Next →',
-} as const
 
 function NavButtonChildLabel({
   child,
