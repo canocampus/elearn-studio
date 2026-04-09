@@ -562,7 +562,18 @@ pnpm lint
 ```
 
 ---
+## Contexto arquitectónico
 
+El knowledge graph de authoring-ui está en `graphify-out/wiki/index.md`.
+
+**Lee `graphify-out/wiki/index.md` antes de tocar:**
+- Cualquier `*PropertiesPanel.tsx`
+- `initEditor.ts`, `storageManager.ts`, `registerBlocks.ts`, `assetManager.ts`
+- Cualquier tarea de Phase T639 o T640
+
+Para consultas puntuales: `/graphify query "<pregunta>"` o `/graphify path "ModuloA" "ModuloB"`
+
+---
 ## Critical Rules — DO NOT violate
 
 1. **GrapesJS Storage Manager** — NEVER let GrapesJS save raw HTML. Always use the custom

@@ -2282,3 +2282,22 @@ T706 (component:add during load)       ← initEditor.ts load-time side effect
 
 ── Issues files location ────────────────────────────────────────────
 All reviewer issue files go in: docs/issues/issues-TXX.md
+
+
+---
+
+## TECH DEBT BACKLOG
+
+### TD-001 — Backend export routes: extract shared `runExport()` helper
+> **Source:** T635 review (commit `6b6a9da`)
+> **Priority:** Low — address when xAPI format support is implemented
+
+The three POST routes `/courses/:id/export/scorm12`, `/export/scorm2004`, and `/export/aicc`
+in `backend/api/src/routes/courses.ts` each duplicate ~70 LOC of identical logic:
+`validateId` → `Course.findOne` → `mkdtempSync` → `collectAssetSrcs` → `downloadAssets`
+→ `rewriteAssetSrcs` → `pack*()` → `res.download` → cleanup.
+
+**Fix:** extract a shared `runExport(packFn, tmpPrefix, safeTitle, res)` helper.
+Adding a 4th format (xAPI) without this refactor would add another ~70 LOC of duplication.
+Do this refactor as part of the xAPI format implementation task.
+
