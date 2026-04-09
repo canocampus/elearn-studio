@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-09 — T636 cross-slide copy/paste complete (v0.5.42)
+> Last updated: 2026-04-09 — T637 in progress (T637.1+T637.2+T637.3 complete)
 
 ---
 
@@ -13,12 +13,14 @@
 | **Latest release** | v0.0.1-beta (2026-03-31) |
 | **Current version** | v0.5.42 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T636 — COMPLETE ✅ |
-| **E2E test count** | 153 tests (150 passing, 3 skipped incl. T611.10) |
+| **Active block** | T637 — in progress (T637.1+T637.2+T637.3+T637.4+T637.5 ✅, T637.6–T637.8 pending) |
+| **E2E test count** | 157 tests (154 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **T637 — Text Widget Editing: RTE Cursor Loss / in progress** — T637.1 (investigation): 5 cursor-loss causes identified and documented in `docs/issues/issues-T637.md`. Root causes: (1) `Commands.isActive('text-edit')` always returns false (GrapesJS v0.21.13 has no `text-edit` command); (2) `elearn:paste` fires during text-edit via keymap contenteditable gap → cursor lost; (3) `elearn:copy` fires during text-edit → native clipboard overwritten; (4) `component:update` on every keystroke (covered by T637.2 `isRteActive` guard); (5) `fromMove:true` suppresses `rte:disable` (documented, not fixed — low impact). T637.2 (autosave guard): `isRteActive` flag driven by `rte:enable`/`rte:disable` events; autosave deferred while user types. T637.3 (RTE toolbar): explicit `richTextEditor: { actions: [] }` block added to `grapesjs.init()`. T637.4 (RTE actions): `bold`, `italic`, `underline`, `strikethrough`, `link` configured in initEditor. T637.5 (E2E): 4 regression tests added to `e2e/tests/text-widget-rte.spec.ts` — T637.5a (typing keeps cursor), T637.5b (Ctrl+V doesn't paste widget), T637.5c (toolbar actions visible), T637.5d (autosave doesn't close RTE) — all 4 pass (20.7s). Key lessons: `Commands.isActive('text-edit')` always false → detect RTE via `.gjs-rte-toolbar` visibility; GrapesJS uses `title='Strike-through'` (with hyphen); test isolation requires fresh slide per test to avoid widget accumulation. T637.6–T637.8 pending.
 
 - **T636 — Cross-slide copy/paste / v0.5.42** — Module-level clipboard in `clipboard.ts` (`let _clipboard`) survives GrapesJS `editor.load()` calls during slide navigation (editor is NOT recreated). `elearn:copy` command captures selected component's `style + definition`; `elearn:paste` command adds the definition to the new slide's canvas and restores `left/top/width/height` via `addStyle()`. Keymaps: `ctrl+c` / `ctrl+v`. 3 `@regression` E2E tests in `copy-paste-widget.spec.ts` use `runCommand` directly (bypasses DOM focus issues after `slidesTab.click()`). Unit tests: 672 pass. Full E2E suite: 153 pass (150+3 skipped). Code review: APPROVE (0 issues). Commits: `209805c` (implementation) + `cba6d28` (wrap-up).
 
@@ -212,6 +214,16 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T633** — Fix button background image scale and no-repeat~~ ✅ Done (d4a6055 v0.5.38)
 - ~~**T634** — Fix nav-buttons "missing child buttons" error~~ ✅ Done (c7d123f v0.5.39)
 - ~~**T635** — Add SCORM format selector to PublishDialog~~ ✅ Done (6b6a9da v0.5.40)
+- ~~**T636** — Cross-slide copy/paste~~ ✅ Done (v0.5.42)
+- **T637** — Text widget editing: RTE cursor loss investigation + fixes — IN PROGRESS
+  - ~~T637.1 — Investigate ALL cursor-loss causes~~ ✅ 5 findings documented
+  - ~~T637.2 — Autosave `isRteActive` guard~~ ✅ Done
+  - ~~T637.3 — RTE toolbar on text selection~~ ✅ `richTextEditor: { actions: [] }` added to init
+  - T637.4 — Populate RTE toolbar actions (bold/italic/underline/strikethrough/link)
+  - T637.5 — E2E test: cursor doesn't jump; bold button appears on selection
+  - T637.6 — Full test suite + push + CI green
+  - T637.7 — Remove T637.1 diagnostic `console.debug` listeners
+  - T637.8 — Code review → update issues-T637.md
 
 ---
 

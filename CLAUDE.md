@@ -219,6 +219,20 @@ El flujo correcto es:
 
 La única excepción: subtareas dentro de una misma tarea (T631.1, T631.2...)
 pueden ejecutarse en secuencia sin pausa entre ellas.
+---
+### Regla 10 — Documentación tras cada subtask
+
+Después de completar CUALQUIER subtask (TXX.Y), antes de reportar al owner:
+
+1. **`docs/tasks.md`** — marcar `[x]` en la subtask completada
+2. **`WORKING_CONTEXT.md`** — actualizar sección "Current State" si el subtask
+   cambia el estado observable del sistema
+3. **Si el subtask introduce un fix** — anotar en `docs/issues/issues-TXX.md`
+   la causa encontrada y la solución aplicada
+
+Esto es independiente de la Regla 4 (que aplica al cierre del bloque completo).
+NO esperar al final del bloque para marcar subtasks — el owner debe poder ver
+el progreso real en `tasks.md` en cualquier momento.
 
 ---
 ## Project Overview
@@ -617,6 +631,21 @@ Para consultas puntuales: `/graphify query "<pregunta>"` o `/graphify path "Modu
 When about to make a similar decision, grep /decisions/ for prior choices. Follow them unless new information invalidates the reasoning.
 
 ---
+## Investigación antes de fix
+
+Cuando un subtask es de tipo "investigar" o "diagnosticar":
+- Ejecuta la aplicación y reproduce el comportamiento problemático
+- Recoge evidencia real (logs, consola, capturas) antes de concluir
+- NO asumas que una causa probable identificada en el código es la única causa
+- Si durante la investigación detectas una causa probable, documéntala pero
+  CONTINÚA la investigación para confirmar si hay causas adicionales
+- Solo marca el subtask como completo cuando tengas evidencia observada,
+  no solo inferida del código
+- Espera confirmación del owner con los resultados antes de pasar al fix
+- Aunque identifiques la causa durante la lectura del código, NO pases al fix
+  hasta completar la investigación. Aplica Regla 9: reporta hallazgos y
+  espera confirmación del owner antes de implementar nada.
+---
 
 ## Licensing Notes
 
@@ -640,3 +669,12 @@ PostgreSQL or Redis alongside their application.
 
 ### GrapesJS (MIT) and Phaser (MIT)
 No restrictions. Use freely.
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current

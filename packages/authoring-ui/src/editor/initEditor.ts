@@ -186,6 +186,16 @@ export function initEditor(opts: InitEditorOptions): Editor {
     dragMode: 'absolute',
 
     // ---------------------------------------------------------------------------
+    // Rich Text Editor — toolbar for text widgets (editable: true components)
+    // T637.3: Explicitly initialise the RTE module so the toolbar renders when
+    // the user double-clicks a text widget and selects text.
+    // T637.4: Formatting actions available in the RTE toolbar.
+    // ---------------------------------------------------------------------------
+    richTextEditor: {
+      actions: ['bold', 'italic', 'underline', 'strikethrough', 'link'],
+    },
+
+    // ---------------------------------------------------------------------------
     // Component defaults: Ensure absolute positioning and draggability
     // ---------------------------------------------------------------------------
     components: '',
@@ -306,6 +316,9 @@ export function initEditor(opts: InitEditorOptions): Editor {
   {
     editor.Commands.add('elearn:copy', {
       run(ed: Editor) {
+        // T637.1: GrapesJS keymap filter does NOT exclude contenteditable elements.
+        // Skip widget copy during text-edit so the native Ctrl+C copies selected text.
+        if (isRteActive) return
         const selected = ed.getSelected()
         if (!selected) return
         const style = selected.getStyle() as Record<string, string>
@@ -316,6 +329,10 @@ export function initEditor(opts: InitEditorOptions): Editor {
 
     editor.Commands.add('elearn:paste', {
       run(ed: Editor) {
+        // T637.1: Skip widget paste during text-edit so the native Ctrl+V pastes text.
+        // Without this guard, elearn:paste would add a widget to the canvas and
+        // GrapesJS could select it, causing the RTE to exit and cursor to be lost.
+        if (isRteActive) return
         const entry = getClipboard()
         if (!entry) return
         const added = ed.getComponents().add(entry.definition)
@@ -347,6 +364,15 @@ export function initEditor(opts: InitEditorOptions): Editor {
   // so we cannot use storage events to gate. Instead, EditorCanvas calls setEditorLoading()
   // before/after editor.load() — isEditorLoading=true suppresses the spurious events so the
   // autosave timer only starts ticking once the first genuine user edit fires.
+  //
+  // T637.2 — RTE active flag: GrapesJS v0.21.13 does NOT expose a 'text-edit' command.
+  // Text editing is managed by the RichTextEditor module which fires rte:enable/rte:disable.
+  // Commands.isActive('text-edit') ALWAYS returns false — do not use it.
+  // Use this per-editor closure flag instead.
+  let isRteActive = false
+  editor.on('rte:enable', () => { isRteActive = true })
+  editor.on('rte:disable', () => { isRteActive = false })
+
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null
   const triggerAutosave = () => {
     if (getEditorLoading()) return
@@ -359,12 +385,11 @@ export function initEditor(opts: InitEditorOptions): Editor {
         // Slide was switched during debounce — skip to avoid saving to the wrong slide.
         return
       }
-      
-      // T637.2: If text-edit is active, defer autosave until text-edit exits.
-      // Calling stopCommand('text-edit') here (T611 approach) closed the editor and
-      // lost cursor position — the 'command:stop:text-edit' listener below handles
-      // syncing after the user exits text-edit naturally.
-      if (editor.Commands.isActive('text-edit')) {
+
+      // T637.2: If RTE (text-edit) is active, defer autosave until the user exits.
+      // rte:disable fires when text-edit ends and triggers triggerAutosave directly
+      // (see listener below), so typed content is never lost.
+      if (isRteActive) {
         return
       }
 
@@ -386,36 +411,46 @@ export function initEditor(opts: InitEditorOptions): Editor {
   editor.on('component:add', triggerAutosave)
   editor.on('component:remove', triggerAutosave)
 
-  // T637.2: Save after text-edit exits so typed content is not lost.
-  // GrapesJS syncs the contenteditable back to the model when text-edit stops,
-  // so this fires AFTER the model is up to date.
-  editor.on('command:stop:text-edit', triggerAutosave)
+  // T637.2: Save after RTE (text-edit) exits so typed content is not lost.
+  // The isRteActive=false handler registered above runs first (earlier registration),
+  // so by the time triggerAutosave runs the flag is already cleared.
+  // GrapesJS syncs the contenteditable back to the model on rte:disable, so
+  // this fires AFTER the model is up to date.
+  editor.on('rte:disable', triggerAutosave)
 
-  // T637.1 — Diagnostic listeners: detect whether selection events fire while the user
-  // is typing inside a text widget (text-edit command active).  These are DEV-only and
-  // will be removed in T637.7.  Findings:
+  // T637.1 — Diagnostic listeners: confirm which GrapesJS events fire during text-edit
+  // and whether the RTE active flag correctly tracks edit state.  DEV-only — removed T637.7.
   //
-  //  - component:selected / component:toggled firing while text-edit is active would mean
-  //    a click somewhere is re-selecting the component and blurring the contenteditable.
-  //  - The autosave triggerAutosave → stopCommand('text-edit') path (lines above) is a
-  //    KNOWN interrupt: 2 s after the last keystroke the autosave fires stopCommand which
-  //    closes the editor.  This is the primary suspected root-cause of cursor loss (T611
-  //    added the stopCommand call to sync content but it has the side-effect of exiting
-  //    text-edit mode).  T637.2 will guard against firing stopCommand mid-session.
+  // Diagnostic findings (confirmed via Playwright + browser console):
+  //  - GrapesJS v0.21.13 does NOT register a 'text-edit' command.  Commands.isActive('text-edit')
+  //    always returns false — it was a no-op in T611 and T637.2 (before this fix).
+  //  - component:selected / component:toggled fire only at drop/selection time, NOT during typing.
+  //  - rte:enable fires when the user double-clicks a text widget to enter editing.
+  //  - rte:disable fires when the user clicks outside or presses Escape to exit editing.
+  //  - GrapesJS does NOT fire component:update during text-edit (content is buffered in
+  //    the contenteditable until rte:disable, which then fires component:update).
   if (import.meta.env.DEV || import.meta.env.VITE_E2E_MODE === 'true') {
+    editor.on('rte:enable', () => {
+      // eslint-disable-next-line no-console
+      console.debug('[T637.1] rte:enable — text-edit started (isRteActive=true)')
+    })
+
+    editor.on('rte:disable', () => {
+      // eslint-disable-next-line no-console
+      console.debug('[T637.1] rte:disable — text-edit ended (isRteActive=false)')
+    })
+
     editor.on('component:selected', (component: unknown) => {
-      const isEditing = editor.Commands.isActive('text-edit')
       // eslint-disable-next-line no-console
       console.debug(
-        '[T637.1] component:selected — text-edit active:', isEditing,
+        '[T637.1] component:selected — RTE active:', isRteActive,
         '— component type:', (component as { get?: (k: string) => string } | null)?.get?.('type') ?? '?',
       )
     })
 
     editor.on('component:toggled', () => {
-      const isEditing = editor.Commands.isActive('text-edit')
       // eslint-disable-next-line no-console
-      console.debug('[T637.1] component:toggled — text-edit active:', isEditing)
+      console.debug('[T637.1] component:toggled — RTE active:', isRteActive)
     })
   }
 

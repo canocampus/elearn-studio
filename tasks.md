@@ -968,21 +968,21 @@
 > Text widget loses cursor position while typing and doesn't allow text selection for
 > bold/italic/underline. Root cause: GrapesJS `editable:true` uses native contenteditable
 > inside the iframe, but the editor's global click handlers intercept focus.
-- [ ] T637.1 — Investigate: add `console.log` on `editor.on('component:toggled')` and
+- [x] T637.1 — Investigate: add `console.log` on `editor.on('component:toggled')` and
   `editor.on('component:selected')` to see if a component selection event fires mid-typing
   and interrupts the contenteditable focus
-- [ ] T637.2 — If selection events are interrupting: add a guard that prevents
+- [x] T637.2 — If selection events are interrupting: add a guard that prevents
   `component:selected` from triggering while `editor.Commands.isActive('text-edit')`
-- [ ] T637.3 — For text formatting (bold/italic/underline): GrapesJS's RTE (Rich Text Editor)
+- [x] T637.3 — For text formatting (bold/italic/underline): GrapesJS's RTE (Rich Text Editor)
   provides these via `editor.RichTextEditor`. Ensure the RTE toolbar appears on text
   selection by configuring `editor.getConfig().richTextEditor` options
-- [ ] T637.4 — Add RTE configuration in `initEditor.ts`:
+- [x] T637.4 — Add RTE configuration in `initEditor.ts`:
   ```typescript
   rte: {
     actions: ['bold', 'italic', 'underline', 'strikethrough', 'link']
   }
   ```
-- [ ] T637.5 — E2E test: double-click text widget → type "Hello" → verify cursor doesn't
+- [x] T637.5 — E2E test: double-click text widget → type "Hello" → verify cursor doesn't
   jump to start; select "Hello" → verify bold button appears in RTE toolbar
 - [ ] T637.6 — Run full test suite + push + verify CI green
 - [ ] T637.7 — Refine the generated code

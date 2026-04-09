@@ -256,39 +256,43 @@ describe('T706 — initEditor component:add position guard', () => {
 })
 
 // ---------------------------------------------------------------------------
-// T800 — triggerAutosave: text-edit defer + command:stop:text-edit trigger
+// T800 — triggerAutosave: RTE-active defer + rte:disable trigger
+//
+// T637.2 fix: GrapesJS v0.21.13 does NOT register a 'text-edit' command.
+// Commands.isActive('text-edit') always returns false — the T611 fix and the
+// first T637.2 guard were both no-ops. Text editing is tracked via rte:enable /
+// rte:disable events from the RichTextEditor module.
 // ---------------------------------------------------------------------------
 
 import { getStorageContext } from '../editor/storageManager'
 
 /**
- * Mock editor with configurable Commands.isActive for T637.2 / T800 tests.
+ * Mock editor for T637.2 / T800 tests.
+ * stopCommand is present only to assert it is NEVER called (regression guard).
  */
 function makeMockEditorWithStopCommand(
   eventCapture: ReturnType<typeof makeEventCapture>,
-  textEditActive = false,
 ): Editor {
   return {
     on: eventCapture.on,
     setDevice: vi.fn(),
     StorageManager: { add: vi.fn() },
-    Commands: { isActive: vi.fn().mockReturnValue(textEditActive), add: vi.fn() },
+    Commands: { isActive: vi.fn().mockReturnValue(false), add: vi.fn() },
     Keymaps: { add: vi.fn() },
     stopCommand: vi.fn(),
     store: vi.fn().mockResolvedValue(undefined),
   } as unknown as Editor
 }
 
-describe('T800 — triggerAutosave: text-edit defer + command:stop:text-edit trigger', () => {
+describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () => {
   let eventCapture: ReturnType<typeof makeEventCapture>
   let fakeEditor: Editor
 
   beforeEach(() => {
     vi.useFakeTimers()
     vi.clearAllMocks()
-    // Default: text-edit NOT active, context stable
     eventCapture = makeEventCapture()
-    fakeEditor = makeMockEditorWithStopCommand(eventCapture, false)
+    fakeEditor = makeMockEditorWithStopCommand(eventCapture)
     vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
     vi.mocked(getStorageContext).mockReturnValue({ courseId: 'c1', slideId: 's1' })
   })
@@ -297,51 +301,58 @@ describe('T800 — triggerAutosave: text-edit defer + command:stop:text-edit tri
     vi.useRealTimers()
   })
 
-  /** Fire one autosave-triggering event and advance past the 2 s debounce. */
-  async function runAutosaveCycle() {
-    initEditor(defaultOpts())
+  /** Fire component:update and advance past the 2 s debounce. */
+  async function triggerAndWait() {
     const updateHandlers = eventCapture.handlers.get('component:update') ?? []
     if (updateHandlers.length === 0) throw new Error('component:update handler not registered')
     updateHandlers.forEach(h => h({}))
     await vi.advanceTimersByTimeAsync(2001)
   }
 
-  // ---- T800.1 — autosave is deferred when text-edit is active (T637.2) ----
+  // ---- T800.1 — autosave is deferred when RTE is active (T637.2) ----
 
-  it('T800.1: store() is NOT called when text-edit is active — autosave is deferred', async () => {
-    // T637.2: stopCommand('text-edit') is no longer called from inside the timer.
-    // When text-edit is active the timer exits early; save happens via
-    // 'command:stop:text-edit' listener when the user exits text-edit.
-    fakeEditor = makeMockEditorWithStopCommand(eventCapture, true)
-    vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+  it('T800.1: store() is NOT called when rte:enable has fired — autosave is deferred', async () => {
+    initEditor(defaultOpts())
 
-    await runAutosaveCycle()
+    // Simulate user double-clicking a Text widget (enters text-edit mode)
+    const rteEnableHandlers = eventCapture.handlers.get('rte:enable') ?? []
+    expect(rteEnableHandlers.length).toBeGreaterThan(0)
+    rteEnableHandlers.forEach(h => h({}))
 
+    // Autosave trigger arrives while user is still typing
+    await triggerAndWait()
+
+    // RTE is active → autosave must be deferred, stopCommand must NOT be called
     expect(fakeEditor.stopCommand).not.toHaveBeenCalled()
     expect(fakeEditor.store).not.toHaveBeenCalled()
   })
 
-  // ---- T800.1b — command:stop:text-edit triggers autosave ----
+  // ---- T800.1b — rte:disable triggers autosave ----
 
-  it('T800.1b: store() IS called when command:stop:text-edit fires', async () => {
+  it('T800.1b: store() IS called when rte:disable fires (user exits text-edit)', async () => {
     initEditor(defaultOpts())
-    const stopTextEditHandlers = eventCapture.handlers.get('command:stop:text-edit') ?? []
-    expect(stopTextEditHandlers.length).toBeGreaterThan(0)
 
-    // Fire the event (simulates user exiting text-edit)
-    stopTextEditHandlers.forEach(h => h())
+    // Enter text-edit, then exit
+    const rteEnableHandlers = eventCapture.handlers.get('rte:enable') ?? []
+    rteEnableHandlers.forEach(h => h({}))
 
-    // Advance past the 2 s debounce
+    const rteDisableHandlers = eventCapture.handlers.get('rte:disable') ?? []
+    expect(rteDisableHandlers.length).toBeGreaterThan(0)
+    // rte:disable handlers: [isRteActive=false, triggerAutosave, ...diagnostic]
+    rteDisableHandlers.forEach(h => h({}))
+
+    // Advance past the 2 s debounce started by triggerAutosave above
     await vi.advanceTimersByTimeAsync(2001)
 
     expect(fakeEditor.store).toHaveBeenCalledOnce()
   })
 
-  // ---- T800.2 — stopCommand NOT called when text-edit is inactive ----
+  // ---- T800.2 — autosave runs normally when RTE is not active ----
 
-  it('T800.2: does NOT call stopCommand when text-edit is not active', async () => {
-    // fakeEditor was created with textEditActive = false (default in beforeEach)
-    await runAutosaveCycle()
+  it('T800.2: store() IS called and stopCommand is NOT called when RTE is inactive', async () => {
+    initEditor(defaultOpts())
+    // RTE never activated — isRteActive stays false
+    await triggerAndWait()
 
     expect(fakeEditor.stopCommand).not.toHaveBeenCalled()
     expect(fakeEditor.store).toHaveBeenCalledOnce()
