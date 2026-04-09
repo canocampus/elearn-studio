@@ -77,7 +77,8 @@ function makeMockFakeEditor(eventCapture: ReturnType<typeof makeEventCapture>): 
     on: eventCapture.on,
     setDevice: vi.fn(),
     StorageManager: { add: vi.fn() },
-    Commands: { isActive: vi.fn().mockReturnValue(false) },
+    Commands: { isActive: vi.fn().mockReturnValue(false), add: vi.fn() },
+    Keymaps: { add: vi.fn() },
     store: vi.fn().mockResolvedValue(undefined),
   } as unknown as Editor
 }
@@ -272,7 +273,8 @@ function makeMockEditorWithStopCommand(
     on: eventCapture.on,
     setDevice: vi.fn(),
     StorageManager: { add: vi.fn() },
-    Commands: { isActive: vi.fn().mockReturnValue(textEditActive) },
+    Commands: { isActive: vi.fn().mockReturnValue(textEditActive), add: vi.fn() },
+    Keymaps: { add: vi.fn() },
     stopCommand: vi.fn(),
     store: vi.fn().mockResolvedValue(undefined),
   } as unknown as Editor
@@ -424,7 +426,8 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
       on: eventCapture.on,
       setDevice: vi.fn(),
       StorageManager: { add: vi.fn() },
-      Commands: { isActive: vi.fn().mockReturnValue(false) },
+      Commands: { isActive: vi.fn().mockReturnValue(false), add: vi.fn() },
+      Keymaps: { add: vi.fn() },
       store: vi.fn().mockResolvedValue(undefined),
       Canvas: {
         getFrameEl: vi.fn().mockReturnValue({ contentDocument: mockIframeDoc }),
@@ -533,5 +536,174 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
     const comp = { addStyle: vi.fn() }
     fire('block:drag:stop', comp)
     expect(comp.addStyle).toHaveBeenCalledWith({ left: '600px', top: '400px' })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T636 — elearn:copy and elearn:paste commands with cross-slide position preservation
+// ---------------------------------------------------------------------------
+
+import { getClipboard, clearClipboard } from '../editor/clipboard'
+
+describe('T636 — elearn:copy and elearn:paste commands', () => {
+  let eventCapture: ReturnType<typeof makeEventCapture>
+  let fakeEditor: Editor
+  let registeredCommands: Map<string, { run: (ed: Editor) => void }>
+  let keymapRegistrations: Array<[string, string, string]>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    clearClipboard()
+    eventCapture = makeEventCapture()
+    registeredCommands = new Map()
+    keymapRegistrations = []
+
+    fakeEditor = {
+      on: eventCapture.on,
+      setDevice: vi.fn(),
+      StorageManager: { add: vi.fn() },
+      Commands: {
+        isActive: vi.fn().mockReturnValue(false),
+        add: vi.fn((name: string, def: { run: (ed: Editor) => void }) => {
+          registeredCommands.set(name, def)
+        }),
+      },
+      Keymaps: {
+        add: vi.fn((id: string, keys: string, command: string) => {
+          keymapRegistrations.push([id, keys, command])
+        }),
+      },
+      store: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Editor
+
+    vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+  })
+
+  function setup() {
+    initEditor(defaultOpts())
+  }
+
+  function runCommand(name: string) {
+    const def = registeredCommands.get(name)
+    if (!def) throw new Error(`Command ${name} not registered`)
+    def.run(fakeEditor)
+  }
+
+  // ---- T636.1 — elearn:copy command is registered ----
+
+  it('T636.1: registers elearn:copy command', () => {
+    setup()
+    expect(registeredCommands.has('elearn:copy')).toBe(true)
+  })
+
+  it('T636.2: registers elearn:paste command', () => {
+    setup()
+    expect(registeredCommands.has('elearn:paste')).toBe(true)
+  })
+
+  // ---- T636.3 — keymaps are registered at editor context ----
+
+  it('T636.3a: registers ctrl+c keymap bound to elearn:copy', () => {
+    setup()
+    const entry = keymapRegistrations.find(([, keys]) => keys === 'ctrl+c')
+    expect(entry).toBeDefined()
+    expect(entry![2]).toBe('elearn:copy')
+  })
+
+  it('T636.3b: registers ctrl+v keymap bound to elearn:paste', () => {
+    setup()
+    const entry = keymapRegistrations.find(([, keys]) => keys === 'ctrl+v')
+    expect(entry).toBeDefined()
+    expect(entry![2]).toBe('elearn:paste')
+  })
+
+  // ---- T636.4 — copy captures style and definition ----
+
+  it('T636.4: elearn:copy stores style and component definition in module clipboard', () => {
+    const mockComponent = {
+      getStyle: vi.fn().mockReturnValue({ left: '300px', top: '200px', width: '150px', height: '60px' }),
+      toJSON: vi.fn().mockReturnValue({ type: 'text', content: 'Hello' }),
+    }
+    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi.fn().mockReturnValue(mockComponent)
+
+    setup()
+    runCommand('elearn:copy')
+
+    const entry = getClipboard()
+    expect(entry).not.toBeNull()
+    expect(entry!.style).toEqual({ left: '300px', top: '200px', width: '150px', height: '60px' })
+    expect(entry!.definition).toEqual({ type: 'text', content: 'Hello' })
+  })
+
+  it('T636.4b: elearn:copy does nothing when no component is selected', () => {
+    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi.fn().mockReturnValue(null)
+
+    setup()
+    runCommand('elearn:copy')
+
+    expect(getClipboard()).toBeNull()
+  })
+
+  // ---- T636.5 — paste recreates component with position ----
+
+  it('T636.5: elearn:paste adds component and applies left/top/width/height from clipboard', () => {
+    const mockAdded = { addStyle: vi.fn() }
+    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi.fn().mockReturnValue({
+      add: vi.fn().mockReturnValue(mockAdded),
+    })
+
+    // Prime clipboard first
+    const mockComponent = {
+      getStyle: vi.fn().mockReturnValue({ left: '300px', top: '200px', width: '150px', height: '60px' }),
+      toJSON: vi.fn().mockReturnValue({ type: 'text', content: 'Hello' }),
+    }
+    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi.fn().mockReturnValue(mockComponent)
+
+    setup()
+    runCommand('elearn:copy')
+    runCommand('elearn:paste')
+
+    expect(mockAdded.addStyle).toHaveBeenCalledWith({
+      left: '300px',
+      top: '200px',
+      width: '150px',
+      height: '60px',
+    })
+  })
+
+  it('T636.5b: elearn:paste does nothing when clipboard is empty', () => {
+    const mockComponents = { add: vi.fn() }
+    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi.fn().mockReturnValue(mockComponents)
+
+    setup()
+    // clipboard is empty (clearClipboard() called in beforeEach)
+    runCommand('elearn:paste')
+
+    expect(mockComponents.add).not.toHaveBeenCalled()
+  })
+
+  it('T636.5c: elearn:paste uses defaults when style fields are missing', () => {
+    const mockAdded = { addStyle: vi.fn() }
+    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi.fn().mockReturnValue({
+      add: vi.fn().mockReturnValue(mockAdded),
+    })
+
+    // Clipboard has no width/height
+    const mockComponent = {
+      getStyle: vi.fn().mockReturnValue({ left: '100px', top: '50px' }),
+      toJSON: vi.fn().mockReturnValue({ type: 'image' }),
+    }
+    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi.fn().mockReturnValue(mockComponent)
+
+    setup()
+    runCommand('elearn:copy')
+    runCommand('elearn:paste')
+
+    expect(mockAdded.addStyle).toHaveBeenCalledWith({
+      left: '100px',
+      top: '50px',
+      width: '100px',   // default
+      height: '50px',   // default
+    })
   })
 })

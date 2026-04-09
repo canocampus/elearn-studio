@@ -11,6 +11,7 @@ import { buildAssetManagerConfig } from './assetManager'
 import { registerStorageManager, updateStorageContext, getStorageContext } from './storageManager'
 import { registerBlocks } from './registerBlocks'
 import { useEditorStore } from '../store/editorStore'
+import { setClipboard, getClipboard } from './clipboard'
 
 const AUTOSAVE_DEBOUNCE_MS = 2000
 
@@ -290,6 +291,47 @@ export function initEditor(opts: InitEditorOptions): Editor {
       de.dataTransfer.setDragImage(ghost, 0, 0)
       requestAnimationFrame(() => { document.body.removeChild(ghost) })
     })
+  }
+
+  // T636 — Custom copy/paste commands with cross-slide position preservation.
+  //
+  // GrapesJS built-in Ctrl+C/V works only within a single slide because its clipboard
+  // is held in the GrapesJS editor instance; switching slides reinitialises the editor
+  // and clears it. Solution: custom elearn:copy / elearn:paste commands backed by a
+  // module-level variable (clipboard.ts) that survives slide navigation.
+  //
+  // T636.3: editor.Keymaps.add registers at editor context. GrapesJS bridges iframe
+  // keyboard events to the editor internally — NO manual iframeDoc listener needed.
+  // T636.1: component.getStyle() reads left/top/width/height — no mouse coordinates.
+  {
+    editor.Commands.add('elearn:copy', {
+      run(ed: Editor) {
+        const selected = ed.getSelected()
+        if (!selected) return
+        const style = selected.getStyle() as Record<string, string>
+        const definition = selected.toJSON() as Record<string, unknown>
+        setClipboard({ style, definition })
+      },
+    })
+
+    editor.Commands.add('elearn:paste', {
+      run(ed: Editor) {
+        const entry = getClipboard()
+        if (!entry) return
+        const added = ed.getComponents().add(entry.definition)
+        const comp = Array.isArray(added) ? added[0] : added
+        if (!comp) return
+        comp.addStyle({
+          left: entry.style['left'] ?? '0px',
+          top: entry.style['top'] ?? '0px',
+          width: entry.style['width'] ?? '100px',
+          height: entry.style['height'] ?? '50px',
+        })
+      },
+    })
+
+    editor.Keymaps.add('elearn:copy', 'ctrl+c', 'elearn:copy')
+    editor.Keymaps.add('elearn:paste', 'ctrl+v', 'elearn:paste')
   }
 
   // T011.7 — Debounced autosave: triggers 2s after the last component:update event.
