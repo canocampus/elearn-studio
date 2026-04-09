@@ -384,6 +384,34 @@ export function initEditor(opts: InitEditorOptions): Editor {
   editor.on('component:add', triggerAutosave)
   editor.on('component:remove', triggerAutosave)
 
+  // T637.1 — Diagnostic listeners: detect whether selection events fire while the user
+  // is typing inside a text widget (text-edit command active).  These are DEV-only and
+  // will be removed in T637.7.  Findings:
+  //
+  //  - component:selected / component:toggled firing while text-edit is active would mean
+  //    a click somewhere is re-selecting the component and blurring the contenteditable.
+  //  - The autosave triggerAutosave → stopCommand('text-edit') path (lines above) is a
+  //    KNOWN interrupt: 2 s after the last keystroke the autosave fires stopCommand which
+  //    closes the editor.  This is the primary suspected root-cause of cursor loss (T611
+  //    added the stopCommand call to sync content but it has the side-effect of exiting
+  //    text-edit mode).  T637.2 will guard against firing stopCommand mid-session.
+  if (import.meta.env.DEV || import.meta.env.VITE_E2E_MODE === 'true') {
+    editor.on('component:selected', (component: unknown) => {
+      const isEditing = editor.Commands.isActive('text-edit')
+      // eslint-disable-next-line no-console
+      console.debug(
+        '[T637.1] component:selected — text-edit active:', isEditing,
+        '— component type:', (component as { get?: (k: string) => string } | null)?.get?.('type') ?? '?',
+      )
+    })
+
+    editor.on('component:toggled', () => {
+      const isEditing = editor.Commands.isActive('text-edit')
+      // eslint-disable-next-line no-console
+      console.debug('[T637.1] component:toggled — text-edit active:', isEditing)
+    })
+  }
+
   opts.onReady?.(editor)
 
   return editor
