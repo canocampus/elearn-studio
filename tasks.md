@@ -986,7 +986,7 @@
   jump to start; select "Hello" → verify bold button appears in RTE toolbar
 - [x] T637.6 — Run full test suite + push + verify CI green
 - [x] T637.7 — Refine the generated code
-- [ ] T637.8 — A reviewer will generate `docs/issues/issues-T637.md`; resolve before closing
+- [x] T637.8 — A reviewer will generate `docs/issues/issues-T637.md`; resolve before closing
 
 ### T638 — Fix typography changes not affecting Quiz Score and Score Field
 > Changes in Style Manager typography don't apply to the generated text inside these widgets

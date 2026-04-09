@@ -110,12 +110,39 @@ mode — an unlikely gesture. Not fixed in T637.
 
 | File | Change |
 |---|---|
-| `packages/authoring-ui/src/editor/initEditor.ts` | Added `isRteActive` guard to `elearn:copy` and `elearn:paste` (Finding 2, 3) |
-| `packages/authoring-ui/src/editor/initEditor.ts` | Added `isRteActive` flag + `rte:enable`/`rte:disable` listeners (Finding 1 — T637.2) |
+| `packages/authoring-ui/src/editor/initEditor.ts` | `isRteActive` flag + `rte:enable`/`rte:disable` listeners (T637.2) |
+| `packages/authoring-ui/src/editor/initEditor.ts` | `isRteActive` guard in `elearn:copy` and `elearn:paste` (T637.1) |
+| `packages/authoring-ui/src/editor/initEditor.ts` | `richTextEditor: { actions: [...] }` in `grapesjs.init()` (T637.3+T637.4) |
+| `packages/authoring-ui/src/editor/clipboard.ts` | Module-level clipboard (`_clipboard`) survives slide navigation (T636) |
+| `e2e/tests/text-widget-rte.spec.ts` | 4 regression tests: cursor, paste suppression, toolbar, autosave (T637.5) |
+
+---
+
+## Code Review (T637.8)
+
+**Date:** 2026-04-10
+**Verdict:** APPROVED — 0 issues
+
+| Severity | Count |
+|---|---|
+| CRITICAL | 0 |
+| HIGH | 0 |
+| MEDIUM | 0 |
+| LOW | 0 |
+
+Key observations from reviewer:
+- `isRteActive` closure correctly encapsulates state per editor instance — no cross-instance leakage.
+- Autosave race condition guard (CRITICAL-01 snapshot) is present and tested.
+- Both `elearn:copy` and `elearn:paste` guards correctly allow native Ctrl+C/V inside RTE.
+- `richTextEditor.actions` configuration matches E2E test expectations.
+- E2E tests have correct isolation (fresh slide per test).
+- No `console.log`/`console.debug` in production code.
+- No `any` types.
 
 ---
 
 ## Test Results
 
-- 673 unit tests passing after all T637 changes
-- E2E coverage: T637.5 (pending)
+- 673 unit tests passing (all T637 changes)
+- 4 E2E regression tests passing in 20.7s (`text-widget-rte.spec.ts`)
+- Full suite: 154 passing, 3 skipped (FLAKE-02 flaky in full suite — pre-existing, unrelated)

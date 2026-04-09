@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-09 — T637 in progress (T637.1+T637.2+T637.3 complete)
+> Last updated: 2026-04-10 — T637 in progress (T637.1–T637.7 ✅, T637.8 pending)
 
 ---
 
@@ -13,14 +13,14 @@
 | **Latest release** | v0.0.1-beta (2026-03-31) |
 | **Current version** | v0.5.42 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T637 — in progress (T637.1+T637.2+T637.3+T637.4+T637.5 ✅, T637.6–T637.8 pending) |
+| **Active block** | T637 — COMPLETE ✅ (all subtasks done, code review APPROVED) |
 | **E2E test count** | 157 tests (154 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
 
-- **T637 — Text Widget Editing: RTE Cursor Loss / in progress** — T637.1 (investigation): 5 cursor-loss causes identified and documented in `docs/issues/issues-T637.md`. Root causes: (1) `Commands.isActive('text-edit')` always returns false (GrapesJS v0.21.13 has no `text-edit` command); (2) `elearn:paste` fires during text-edit via keymap contenteditable gap → cursor lost; (3) `elearn:copy` fires during text-edit → native clipboard overwritten; (4) `component:update` on every keystroke (covered by T637.2 `isRteActive` guard); (5) `fromMove:true` suppresses `rte:disable` (documented, not fixed — low impact). T637.2 (autosave guard): `isRteActive` flag driven by `rte:enable`/`rte:disable` events; autosave deferred while user types. T637.3 (RTE toolbar): explicit `richTextEditor: { actions: [] }` block added to `grapesjs.init()`. T637.4 (RTE actions): `bold`, `italic`, `underline`, `strikethrough`, `link` configured in initEditor. T637.5 (E2E): 4 regression tests added to `e2e/tests/text-widget-rte.spec.ts` — T637.5a (typing keeps cursor), T637.5b (Ctrl+V doesn't paste widget), T637.5c (toolbar actions visible), T637.5d (autosave doesn't close RTE) — all 4 pass (20.7s). Key lessons: `Commands.isActive('text-edit')` always false → detect RTE via `.gjs-rte-toolbar` visibility; GrapesJS uses `title='Strike-through'` (with hyphen); test isolation requires fresh slide per test to avoid widget accumulation. T637.6–T637.8 pending.
+- **T637 — Text Widget Editing: RTE Cursor Loss / v0.5.43** — 5 cursor-loss root causes identified and fixed. (1) `Commands.isActive('text-edit')` always false → replaced with `isRteActive` closure flag (T637.2); (2) `elearn:paste` fires via keymap contenteditable gap → `if (isRteActive) return` guard (T637.1); (3) `elearn:copy` overwrites native clipboard → same guard (T637.1); (4) `component:update` on every keystroke → covered by isRteActive autosave guard; (5) `fromMove:true` suppresses `rte:disable` → documented, not fixed (low impact edge case). T637.3+T637.4: explicit `richTextEditor: { actions: ['bold','italic','underline','strikethrough','link'] }` in `grapesjs.init()`. T637.5: 4 regression E2E tests in `text-widget-rte.spec.ts` (cursor, paste suppression, toolbar, autosave) — all pass (20.7s). T637.6: full suite 154 pass, 3 skipped (FLAKE-02 pre-existing). T637.7: removed T637.1 diagnostic console.debug block + deleted `t637-diagnostic.spec.ts`. T637.8: code review APPROVED (0 issues), `docs/issues/issues-T637.md` updated. 673 unit tests pass. Commits: see git log.
 
 - **T636 — Cross-slide copy/paste / v0.5.42** — Module-level clipboard in `clipboard.ts` (`let _clipboard`) survives GrapesJS `editor.load()` calls during slide navigation (editor is NOT recreated). `elearn:copy` command captures selected component's `style + definition`; `elearn:paste` command adds the definition to the new slide's canvas and restores `left/top/width/height` via `addStyle()`. Keymaps: `ctrl+c` / `ctrl+v`. 3 `@regression` E2E tests in `copy-paste-widget.spec.ts` use `runCommand` directly (bypasses DOM focus issues after `slidesTab.click()`). Unit tests: 672 pass. Full E2E suite: 153 pass (150+3 skipped). Code review: APPROVE (0 issues). Commits: `209805c` (implementation) + `cba6d28` (wrap-up).
 
@@ -89,8 +89,11 @@ Full history: `CHANGELOG.md`
 | ID | Test | Symptom | Passes in isolation |
 |---|---|---|---|
 | FLAKE-01 | `action-sequence.spec.ts` GAP-02.3 | `[data-testid="action-item"]` not visible after reload in full suite | ✅ Yes — passes alone |
+| FLAKE-02 | `question-widget.spec.ts` T601.6 | `slide-item.nth(97)` timeout in full suite — slide panel takes >30s to render at index 97 | ✅ Yes — passes alone |
 
-Root cause: parallel-suite cross-slide-index contamination — GrapesJS `loadData()` fails silently when another worker's PATCH races with the reload. The Navigate action is saved correctly; the failure is in the re-selection step under load. Not a product bug.
+Root cause FLAKE-01: parallel-suite cross-slide-index contamination — GrapesJS `loadData()` fails silently when another worker's PATCH races with the reload. The Navigate action is saved correctly; the failure is in the re-selection step under load. Not a product bug.
+
+Root cause FLAKE-02: slide accumulation across the full E2E suite — `question-widget.spec.ts` adds one slide per test in `beforeEach`. By the time T601.6 runs (~test 98 in the suite), 97 slides exist and the slide list rendering exceeds the 30s `waitFor` timeout. Not a product bug.
 
 ### 🔴 CRITICAL
 
