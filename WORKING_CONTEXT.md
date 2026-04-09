@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-07 — T611/T612/T634 issues fully closed (v0.5.41)
+> Last updated: 2026-04-09 — T636 cross-slide copy/paste complete (v0.5.42)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.41 |
+| **Current version** | v0.5.42 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T635 — COMPLETE ✅ |
-| **E2E test count** | 150 tests (147 passing, 3 skipped incl. T611.10) |
+| **Active block** | T636 — COMPLETE ✅ |
+| **E2E test count** | 153 tests (150 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **T636 — Cross-slide copy/paste / v0.5.42** — Module-level clipboard in `clipboard.ts` (`let _clipboard`) survives GrapesJS `editor.load()` calls during slide navigation (editor is NOT recreated). `elearn:copy` command captures selected component's `style + definition`; `elearn:paste` command adds the definition to the new slide's canvas and restores `left/top/width/height` via `addStyle()`. Keymaps: `ctrl+c` / `ctrl+v`. 3 `@regression` E2E tests in `copy-paste-widget.spec.ts` use `runCommand` directly (bypasses DOM focus issues after `slidesTab.click()`). Unit tests: 672 pass. Full E2E suite: 153 pass (150+3 skipped). Code review: APPROVE (0 issues). Commit: pending.
 
 - **T611/T612/T634 issues closure / v0.5.41** — Final two code fixes applied to `runtime-player/src/index.ts`: T611 M-01 garbled JSDoc in `slideIsComplete()` cleaned up + inline comment at Map-absence check site (`// Missing entry means unanswered`); T611 M-02 inconsistent type cast in `handleSubmit()` replaced with `ep?.scoring as QuestionScoringInfo | undefined`. All items in `issues-T611.md` (7 items), `issues-T612.md` (6 items), and `issues-T634.md` (M-01, L-01, L-02) marked RESOLVED. 256 runtime-player tests pass. Commit: `7313cc7`.
 

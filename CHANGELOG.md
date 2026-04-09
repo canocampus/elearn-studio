@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.42] — 2026-04-09 — T636: Cross-slide copy/paste with module-level clipboard
+
+### Added
+- **T636 — Module-level clipboard** (`packages/authoring-ui/src/editor/clipboard.ts`) — `setClipboard`/`getClipboard`/`clearClipboard` backed by `let _clipboard` module-level variable that survives GrapesJS `editor.load()` calls during slide navigation (editor is NOT recreated on slide switch).
+- **T636 — `elearn:copy` command** — Reads `ed.getSelected()`, stores `{ style, definition }` in the module clipboard.
+- **T636 — `elearn:paste` command** — Reads clipboard, calls `ed.getComponents().add(entry.definition)`, restores `left/top/width/height` via `comp.addStyle()`.
+- **T636 — Keymaps** — `ctrl+c` → `elearn:copy`, `ctrl+v` → `elearn:paste` registered via `editor.Keymaps.add`.
+
+### Tests
+- **`e2e/tests/copy-paste-widget.spec.ts`** — 3 `@regression` tests: widget position preserved after cross-slide paste, slide 2 gains component after paste, slide 1 count unchanged after paste. Tests use `runCommand` directly (bypasses keyboard focus issues) to isolate clipboard logic.
+
+---
+
 ## [0.5.41] — 2026-04-07 — Issues housekeeping: T611/T612/T634 fully closed
 
 ### Fixed

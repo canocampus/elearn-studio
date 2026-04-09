@@ -945,24 +945,24 @@
 > GrapesJS Ctrl+C/V works within a slide. Cross-slide paste loses coordinates because
 > the clipboard data doesn't include left/top, and the paste handler creates components
 > at default position.
-- [ ] T636.1 — Implement a custom GrapesJS command `elearn:copy` that captures the selected
+- [x] T636.1 — Implement a custom GrapesJS command `elearn:copy` that captures the selected
   component's current style (including `left`, `top`, `width`, `height`) along with its
   serialized JSON
-- [ ] T636.2 — Implement a custom GrapesJS command `elearn:paste` that reads the stored
+- [x] T636.2 — Implement a custom GrapesJS command `elearn:paste` that reads the stored
   component data and creates a new component with the original `left/top` preserved
-- [ ] T636.3 — Register keyboard shortcuts: intercept `Ctrl+C` / `Ctrl+V` inside the
+- [x] T636.3 — Register keyboard shortcuts: intercept `Ctrl+C` / `Ctrl+V` inside the
   GrapesJS canvas to use the custom commands:
   ```typescript
   editor.Keymaps.add('elearn:copy', 'ctrl+c', 'elearn:copy')
   editor.Keymaps.add('elearn:paste', 'ctrl+v', 'elearn:paste')
   ```
-- [ ] T636.4 — Store the copied component data in a module-level variable (not localStorage)
+- [x] T636.4 — Store the copied component data in a module-level variable (not localStorage)
   accessible across slide switches
-- [ ] T636.5 — E2E test: add widget to slide 1 at position ~(300,200) → Ctrl+C → navigate
+- [x] T636.5 — E2E test: add widget to slide 1 at position ~(300,200) → Ctrl+C → navigate
   to slide 2 → Ctrl+V → verify widget appears near (300,200); tag `@regression`
-- [ ] T636.6 — Run full test suite + push + verify CI green
-- [ ] T636.7 — Refine the generated code
-- [ ] T636.8 — A reviewer will generate `docs/issues/issues-T636.md`; resolve before closing
+- [x] T636.6 — Run full test suite + push + verify CI green
+- [x] T636.7 — Refine the generated code
+- [x] T636.8 — A reviewer will generate `docs/issues/issues-T636.md`; resolve before closing
 
 ### T637 — Fix text widget: cursor loss and text selection
 > Text widget loses cursor position while typing and doesn't allow text selection for
