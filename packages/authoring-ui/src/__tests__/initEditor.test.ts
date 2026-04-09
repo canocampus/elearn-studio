@@ -256,14 +256,13 @@ describe('T706 — initEditor component:add position guard', () => {
 })
 
 // ---------------------------------------------------------------------------
-// T800 — triggerAutosave: stopCommand before store
+// T800 — triggerAutosave: text-edit defer + command:stop:text-edit trigger
 // ---------------------------------------------------------------------------
 
 import { getStorageContext } from '../editor/storageManager'
 
 /**
- * Extends the base mock editor with `stopCommand` and a configurable
- * `Commands.isActive` for testing the T800.2 text-edit flush behaviour.
+ * Mock editor with configurable Commands.isActive for T637.2 / T800 tests.
  */
 function makeMockEditorWithStopCommand(
   eventCapture: ReturnType<typeof makeEventCapture>,
@@ -280,7 +279,7 @@ function makeMockEditorWithStopCommand(
   } as unknown as Editor
 }
 
-describe('T800 — triggerAutosave: stopCommand before store', () => {
+describe('T800 — triggerAutosave: text-edit defer + command:stop:text-edit trigger', () => {
   let eventCapture: ReturnType<typeof makeEventCapture>
   let fakeEditor: Editor
 
@@ -307,21 +306,35 @@ describe('T800 — triggerAutosave: stopCommand before store', () => {
     await vi.advanceTimersByTimeAsync(2001)
   }
 
-  // ---- T800.1 — stopCommand called when text-edit is active ----
+  // ---- T800.1 — autosave is deferred when text-edit is active (T637.2) ----
 
-  it('T800.1: calls stopCommand("text-edit") before store() when text-edit is active', async () => {
+  it('T800.1: store() is NOT called when text-edit is active — autosave is deferred', async () => {
+    // T637.2: stopCommand('text-edit') is no longer called from inside the timer.
+    // When text-edit is active the timer exits early; save happens via
+    // 'command:stop:text-edit' listener when the user exits text-edit.
     fakeEditor = makeMockEditorWithStopCommand(eventCapture, true)
     vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
 
     await runAutosaveCycle()
 
-    expect(fakeEditor.stopCommand).toHaveBeenCalledWith('text-edit')
-    expect(fakeEditor.store).toHaveBeenCalledOnce()
+    expect(fakeEditor.stopCommand).not.toHaveBeenCalled()
+    expect(fakeEditor.store).not.toHaveBeenCalled()
+  })
 
-    // stopCommand must precede store() — verify call order
-    const stopOrder = vi.mocked(fakeEditor.stopCommand).mock.invocationCallOrder[0]
-    const storeOrder = vi.mocked(fakeEditor.store).mock.invocationCallOrder[0]
-    expect(stopOrder).toBeLessThan(storeOrder)
+  // ---- T800.1b — command:stop:text-edit triggers autosave ----
+
+  it('T800.1b: store() IS called when command:stop:text-edit fires', async () => {
+    initEditor(defaultOpts())
+    const stopTextEditHandlers = eventCapture.handlers.get('command:stop:text-edit') ?? []
+    expect(stopTextEditHandlers.length).toBeGreaterThan(0)
+
+    // Fire the event (simulates user exiting text-edit)
+    stopTextEditHandlers.forEach(h => h())
+
+    // Advance past the 2 s debounce
+    await vi.advanceTimersByTimeAsync(2001)
+
+    expect(fakeEditor.store).toHaveBeenCalledOnce()
   })
 
   // ---- T800.2 — stopCommand NOT called when text-edit is inactive ----

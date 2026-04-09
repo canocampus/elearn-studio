@@ -360,10 +360,12 @@ export function initEditor(opts: InitEditorOptions): Editor {
         return
       }
       
-      // T611: Force any active text editor to sync its content back to the model 
-      // before we trigger the store() cycle.
+      // T637.2: If text-edit is active, defer autosave until text-edit exits.
+      // Calling stopCommand('text-edit') here (T611 approach) closed the editor and
+      // lost cursor position — the 'command:stop:text-edit' listener below handles
+      // syncing after the user exits text-edit naturally.
       if (editor.Commands.isActive('text-edit')) {
-        editor.stopCommand('text-edit')
+        return
       }
 
       const { setIsSaving, setSaveError } = useEditorStore.getState()
@@ -383,6 +385,11 @@ export function initEditor(opts: InitEditorOptions): Editor {
   editor.on('component:update:content', triggerAutosave)
   editor.on('component:add', triggerAutosave)
   editor.on('component:remove', triggerAutosave)
+
+  // T637.2: Save after text-edit exits so typed content is not lost.
+  // GrapesJS syncs the contenteditable back to the model when text-edit stops,
+  // so this fires AFTER the model is up to date.
+  editor.on('command:stop:text-edit', triggerAutosave)
 
   // T637.1 — Diagnostic listeners: detect whether selection events fire while the user
   // is typing inside a text widget (text-edit command active).  These are DEV-only and
