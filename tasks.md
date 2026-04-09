@@ -984,8 +984,8 @@
   ```
 - [x] T637.5 — E2E test: double-click text widget → type "Hello" → verify cursor doesn't
   jump to start; select "Hello" → verify bold button appears in RTE toolbar
-- [ ] T637.6 — Run full test suite + push + verify CI green
-- [ ] T637.7 — Refine the generated code
+- [x] T637.6 — Run full test suite + push + verify CI green
+- [x] T637.7 — Refine the generated code
 - [ ] T637.8 — A reviewer will generate `docs/issues/issues-T637.md`; resolve before closing
 
 ### T638 — Fix typography changes not affecting Quiz Score and Score Field

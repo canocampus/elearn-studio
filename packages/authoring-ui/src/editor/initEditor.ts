@@ -418,42 +418,6 @@ export function initEditor(opts: InitEditorOptions): Editor {
   // this fires AFTER the model is up to date.
   editor.on('rte:disable', triggerAutosave)
 
-  // T637.1 — Diagnostic listeners: confirm which GrapesJS events fire during text-edit
-  // and whether the RTE active flag correctly tracks edit state.  DEV-only — removed T637.7.
-  //
-  // Diagnostic findings (confirmed via Playwright + browser console):
-  //  - GrapesJS v0.21.13 does NOT register a 'text-edit' command.  Commands.isActive('text-edit')
-  //    always returns false — it was a no-op in T611 and T637.2 (before this fix).
-  //  - component:selected / component:toggled fire only at drop/selection time, NOT during typing.
-  //  - rte:enable fires when the user double-clicks a text widget to enter editing.
-  //  - rte:disable fires when the user clicks outside or presses Escape to exit editing.
-  //  - GrapesJS does NOT fire component:update during text-edit (content is buffered in
-  //    the contenteditable until rte:disable, which then fires component:update).
-  if (import.meta.env.DEV || import.meta.env.VITE_E2E_MODE === 'true') {
-    editor.on('rte:enable', () => {
-      // eslint-disable-next-line no-console
-      console.debug('[T637.1] rte:enable — text-edit started (isRteActive=true)')
-    })
-
-    editor.on('rte:disable', () => {
-      // eslint-disable-next-line no-console
-      console.debug('[T637.1] rte:disable — text-edit ended (isRteActive=false)')
-    })
-
-    editor.on('component:selected', (component: unknown) => {
-      // eslint-disable-next-line no-console
-      console.debug(
-        '[T637.1] component:selected — RTE active:', isRteActive,
-        '— component type:', (component as { get?: (k: string) => string } | null)?.get?.('type') ?? '?',
-      )
-    })
-
-    editor.on('component:toggled', () => {
-      // eslint-disable-next-line no-console
-      console.debug('[T637.1] component:toggled — RTE active:', isRteActive)
-    })
-  }
-
   opts.onReady?.(editor)
 
   return editor
