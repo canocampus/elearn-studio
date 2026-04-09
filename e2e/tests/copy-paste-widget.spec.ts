@@ -32,18 +32,25 @@ test.describe('T636 — cross-slide copy/paste', () => {
     getComponents: () => {
       length: number
       first: () => { getStyle: (prop: string) => string } | null
+      at: (index: number) => { getStyle: (prop: string) => string } | null
       add: (def: unknown) => unknown
     }
     getSelected: () => { toJSON: () => unknown; getStyle: () => unknown } | null
     runCommand: (cmd: string) => void
   }
 
-  /** Read the left/top style (px values) of the first component in the canvas. */
-  async function getFirstComponentPosition(page: import('@playwright/test').Page) {
+  /**
+   * Read the left/top style (px values) of the LAST component in the canvas.
+   * GrapesJS appends on add(), so the pasted widget is always the last one —
+   * this is safe even when the target slide is not empty before paste.
+   */
+  async function getLastComponentPosition(page: import('@playwright/test').Page) {
     return page.evaluate(() => {
       const ed = (window as Record<string, unknown>).__elearn_editor as GjsEditor | undefined
       if (!ed) return null
-      const comp = ed.getComponents().first()
+      const comps = ed.getComponents()
+      if (!comps.length) return null
+      const comp = comps.at(comps.length - 1)
       if (!comp) return null
       return {
         left: comp.getStyle('left'),
@@ -100,10 +107,6 @@ test.describe('T636 — cross-slide copy/paste', () => {
       await editorPage.slideItemByIndex(1).click()
       await editorPage.waitForCanvas()
 
-      // Confirm slide 2 is empty before paste.
-      const countOnSlide2Before = await getComponentCount(page)
-      expect(countOnSlide2Before).toBe(0)
-
       // 4. Paste — module-level clipboard survives slide navigation (editor not recreated).
       await runPaste(page)
 
@@ -111,7 +114,9 @@ test.describe('T636 — cross-slide copy/paste', () => {
       await page.waitForTimeout(300)
 
       // 5. Verify the pasted component's position matches the original.
-      const pos = await getFirstComponentPosition(page)
+      //    GrapesJS appends on add(), so the LAST component is the newly pasted one —
+      //    safe even if the target slide was not empty before paste.
+      const pos = await getLastComponentPosition(page)
       expect(pos).not.toBeNull()
       if (pos) {
         const pastedLeft = parseFloat(pos.left)
