@@ -202,6 +202,28 @@ export function initEditor(opts: InitEditorOptions): Editor {
     style: '',
   })
 
+  // T639.8 — Guard against destroy/load race condition.
+  //
+  // Root cause: editor.destroy() calls Backbone this.clear({ silent:true }), which wipes
+  // ALL model attributes including `storables`. If editor.load() is in-flight (awaiting the
+  // Storage.load() API call) when destroy() runs, the subsequent loadData(result) call
+  // crashes with "Cannot read properties of undefined (reading 'forEach')" at:
+  //   grapesjs.js:55206  this.storables.forEach(...)
+  //
+  // GrapesJS does not guard loadData() against the destroyed state itself.
+  // Fix: monkey-patch em.loadData to silently return early when em.destroyed === true.
+  {
+    type GrapesEditorInternal = { em?: { destroyed?: boolean; loadData?: (data: unknown) => unknown } }
+    const em = (editor as unknown as GrapesEditorInternal).em
+    if (em && typeof em.loadData === 'function') {
+      const originalLoadData = em.loadData.bind(em)
+      em.loadData = function (data: unknown) {
+        if (em.destroyed) return data
+        return originalLoadData(data)
+      }
+    }
+  }
+
   // Register custom storage type (elearn-api — see storageManager.ts)
   registerStorageManager(editor)
 

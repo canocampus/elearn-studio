@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.44] — 2026-04-10 — T639: Fix stale-closure in extendedProperties property panels (T639.1–T639.8)
+
+### Changed
+- **`useComponentProperty` returns `getLatest()` getter** (`packages/authoring-ui/src/hooks/useComponentProperty.ts`) — Third element of the return tuple is now `() => T`: a stable getter that reads `latestRef.current` and always returns the most-recently committed value, regardless of React closure age. The `latestRef` was already present (added in T631 for optimistic update); T639.1 just exposed it via the return tuple. No behaviour change to existing callers — the getter is opt-in.
+
+### Fixed
+- **`useExtendedProperties` stale-closure eliminated** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — `update(patch)` previously spread over `ep` from the React closure, which could be stale if two updates fired in the same render cycle (e.g. change question text AND add option simultaneously). Now calls `getLatest()` (from `useComponentProperty`) instead of `comp.get('extendedProperties')` — cleaner, no direct Backbone coupling, always reads the latest committed value. Supersedes the T621 workaround.
+- **`AnimationPropertiesPanel` `save()` stale-closure fixed** (`packages/authoring-ui/src/components/sidebar/AnimationPropertiesPanel.tsx`) — `save(updated)` previously spread over `ep` from the outer closure: `setEp({ ...ep, animations: updated })`. Fixed to `setEp({ ...getLatestEp(), animations: updated })` using the same `getLatest()` pattern.
+
+### Docs
+- **`CLAUDE.md`** — New section "GrapesJS + React Hook Rules" documents the `extendedProperties` patch-merge rule: never spread over a closure variable (`ep`), always use `getLatest()`. Includes wrong/correct code examples.
+- **`.claude/skills/elearn-e2e-qa/SKILL.md`** — New section "GrapesJS Property Panel — Stale Closure Rule (T639)" documents the regression pattern and the required rapid-consecutive-update test guard.
+- **`docs/developer-guide/03-adding-widget-types.md`** — Step 6 prose updated; new "Stale-closure rule (critical — T639)" subsection added with wrong/correct code examples.
+
+### Tests
+- **`src/__tests__/hooks/useComponentProperty.test.ts`** — New `useComponentProperty — getLatest() (T639)` describe block with 6 unit tests: getter is a function, returns value on mount, reflects update after re-render, reflects external model change, patch-merge regression (two sequential updates on different EP fields both survive — primary T639 stale-closure regression), AnimationPanel save() pattern (animations written without clobbering other EP keys), three consecutive patch-merge updates all survive. All 23 hook tests + 680 unit tests green.
+
+- **[T639.8] GrapesJS destroy/load race condition fixed** (`packages/authoring-ui/src/editor/initEditor.ts`) — `editor.destroy()` calls Backbone's `this.clear({ silent: true })`, wiping ALL model attributes including `storables`. If `editor.load()` was in-flight (awaiting the Storage API call) when `destroy()` ran, the subsequent `loadData(result)` call at grapesjs.js:55206 crashed: `this.storables.forEach(...)` — `storables` was `undefined`. GrapesJS 0.21 does not guard `loadData()` against the destroyed state. Fix: monkey-patch `em.loadData` after `grapesjs.init()` to check `em.destroyed`; if true, silently returns the raw data (discarded by the `isCancelled` guard in EditorCanvas anyway). Triggered by React 18 StrictMode double-invoke and by courseId navigation (Effect 1 cleanup fires destroy while Effect 2's load is still awaiting the Storage API).
+
+### Tests
+- **`e2e/tests/question-widget.spec.ts`** — New `T639.8` describe block: drag MC widget onto canvas, fill question text (Step 1), immediately click "+ Add Option" (Step 2), verify pre-save model has question text + 4 options, reload page, navigate back to slide, assert question text sentinel + 4 Remove buttons are present. Verifies that rapid consecutive property-panel updates don't clobber each other. Passes in 11.1s.
+
+### Notes
+- T639.9 (CI), T639.10 (refine), T639.11 (code review) still pending — this entry will be updated when the block closes.
+- Other panels audited and confirmed unaffected: `ButtonPropertiesPanel`, `MediaPlayerPropertiesPanel`, `AudioNarrationPropertiesPanel`, `ProgressBarPropertiesPanel`, `VolumeControlPropertiesPanel`.
+
+---
+
 ## [0.5.43] — 2026-04-10 — T638: Fix typography changes not applying to score widgets
 
 ### Fixed

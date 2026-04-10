@@ -966,3 +966,96 @@ test.describe('Question Widget: Correct answer persistence across reload (T631.6
     expect(correctTextAfterReload).toBe('Option B')
   })
 })
+
+// T639.8 — @regression: getLatest() prevents stale-closure clobber when question text is
+// edited THEN an option is added in rapid succession (reverse order of T621.5).
+//
+// Without the T639 fix, `update({ options: [...] })` would spread over the stale closure
+// value of `ep` (captured before the question-text change committed) and silently clobber
+// the question text. With `getLatest()`, the second update reads `latestRef.current` —
+// the committed post-first-update value — so both changes survive.
+test.describe('Question Widget: getLatest() stale-closure regression — text then option (T639.8)', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression T639 — change question text then add option: both changes survive reload', async ({ editorPage, page }) => {
+    test.setTimeout(90_000)
+
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
+    await expect(editorPage.canvasComponent('[data-gjs-type="question-mc"]')).toBeVisible({ timeout: 15_000 })
+
+    await editorPage.canvasComponent('[data-gjs-type="question-mc"]').click()
+    await editorPage.propsTab.click()
+
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+
+    // Step 1: Edit question text first. This fires setEp({ ...getLatest(), questionText: '...' }).
+    const textarea = panel.locator('textarea').first()
+    await textarea.fill('T639 regression sentinel question text')
+    await textarea.press('Tab')
+
+    // Step 2: Immediately add a 4th option — fires setEp({ ...getLatest(), options: [...] }).
+    // With the stale-closure bug, this second update would spread over pre-step-1 ep,
+    // overwriting questionText back to the empty default.
+    await panel.getByRole('button', { name: '+ Add' }).click()
+    await page.waitForTimeout(300)
+
+    // Verify both are present in the model before autosave.
+    const beforeSave = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getSelected: () => { get: (k: string) => unknown } | null
+      }
+      const sel = ed?.getSelected()
+      if (!sel) return null
+      const ep = sel.get('extendedProperties') as {
+        questionText: string
+        options: unknown[]
+      }
+      return { questionText: ep?.questionText ?? null, optionCount: ep?.options?.length ?? 0 }
+    })
+    expect(beforeSave?.questionText).toBe('T639 regression sentinel question text')
+    expect(beforeSave?.optionCount).toBe(4)
+
+    // Wait for autosave PATCH to reach the backend.
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 20_000 },
+    )
+    await patchPromise.catch(() => page.waitForTimeout(3000))
+
+    // Reload and navigate back to our slide.
+    await page.reload()
+    await editorPage.waitForReloadComplete()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select and open Props.
+    const questionComp = editorPage.canvasComponent('[data-gjs-type="question-mc"]')
+    await expect(questionComp).toBeVisible({ timeout: 15_000 })
+    await questionComp.click()
+    await editorPage.propsTab.click()
+
+    const restoredPanel = page.locator('[data-testid="question-properties-panel"]')
+    if (!(await restoredPanel.isVisible().catch(() => false))) {
+      await questionComp.click()
+      await editorPage.propsTab.click()
+    }
+    await expect(restoredPanel).toBeVisible({ timeout: 10_000 })
+
+    // Both changes must have survived: 4 options AND the question text.
+    const removeButtons = restoredPanel.locator('button[title="Remove"]')
+    await expect(removeButtons).toHaveCount(4, { timeout: 5_000 })
+
+    const restoredTextarea = restoredPanel.locator('textarea').first()
+    await expect(restoredTextarea).toHaveValue('T639 regression sentinel question text', { timeout: 5_000 })
+  })
+})

@@ -14,7 +14,7 @@ When approaching 70% of the context window, use:
 ```
 /compact
 ```
-Then re-read `WORKING_CONTEXT.md` to restore context.
+After compact: re-read `AGENTS.md`, `CLAUDE.md`  and `WORKING_CONTEXT.md` in that order  before continuing any subtask
 
 ---
 
@@ -42,6 +42,32 @@ When the UI redesign phase begins, read:
 .claude/skills/elearn-design-system/SKILL.md
 ```
 This phase is deferred. Do NOT apply design tokens until explicitly instructed.
+
+---
+
+## GrapesJS + React Hook Rules
+
+### extendedProperties patch-merge rule (T639)
+
+**RULE:** When updating a partial patch of `extendedProperties` in a property panel,
+**NEVER** spread over a closure variable (`ep`). Always read the latest committed value
+via `getLatest()` (returned by `useComponentProperty`) or `comp.get('extendedProperties')`.
+
+```typescript
+// WRONG — ep may be stale if two updates fire in the same render cycle
+function update(patch: Partial<T>) {
+  setEp({ ...ep, ...patch })  // ❌ ep from closure is the value at last render
+}
+
+// CORRECT — getLatest() reads latestRef.current, always the most-recent committed value
+function update(patch: Partial<T>) {
+  const current = getLatest()  // ✅ always fresh
+  setEp({ ...current, ...patch })
+}
+```
+
+Use `useExtendedProperties` (in `QuestionPropertiesPanel.tsx`) as the canonical pattern
+for new property panels — it wraps `useComponentProperty` and handles this correctly.
 
 ---
 

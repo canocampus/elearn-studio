@@ -18,13 +18,15 @@ type GjsComponent = Component & {
  * @param component - GrapesJS component instance
  * @param key - Model key to subscribe to (e.g. `'content'`, `'src'`, `'extendedProperties'`)
  * @param defaultValue - Value used when the model property is null/undefined
- * @returns [value, update] — current value and setter that writes to model only
+ * @returns [value, update, getLatest] — current value, setter that writes to model only,
+ *   and a stable `getLatest()` function that always returns the most-recent committed value
+ *   without relying on a potentially stale closure variable.
  */
 export function useComponentProperty<T>(
   component: Component,
   key: string,
   defaultValue: T,
-): [T, (value: T) => void] {
+): [T, (value: T) => void, () => T] {
   const comp = component as GjsComponent
 
   const [value, setValue] = useState<T>(() => {
@@ -62,7 +64,7 @@ export function useComponentProperty<T>(
     comp.set(key, newValue)
   }
 
-  return [value, update]
+  return [value, update, () => latestRef.current]
 }
 
 /**

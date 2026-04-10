@@ -239,7 +239,26 @@ export function FlipCardPropertiesPanel() {
 }
 ```
 
-The `useExtendedProperties` hook (defined inline in `packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) subscribes to the GrapesJS model via `change:extendedProperties` events, writes changes back with `component.set('extendedProperties', next)`, and includes an `isLocalRef` guard to prevent the update-subscription loop. If you need this hook in multiple properties panels, consider extracting it to `packages/authoring-ui/src/hooks/useExtendedProperties.ts`.
+The `useExtendedProperties` hook (defined inline in `packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) subscribes to the GrapesJS model via `change:extendedProperties` events and writes changes back with `component.set('extendedProperties', next)`. It uses `getLatest()` (from `useComponentProperty`) instead of spreading over the `ep` closure variable — this prevents stale-closure data loss when two properties are updated in rapid succession (T639 fix). If you need this hook in multiple properties panels, consider extracting it to `packages/authoring-ui/src/hooks/useExtendedProperties.ts`.
+
+### Stale-closure rule (critical — T639)
+
+**NEVER** build a patch-merge by spreading over the `ep` state variable from a closure:
+
+```typescript
+// WRONG — ep captured at last render; rapid updates lose the first change
+function update(patch: Partial<T>) {
+  setEp({ ...ep, ...patch })  // ❌
+}
+
+// CORRECT — getLatest() reads latestRef.current, always the most-recent committed value
+function update(patch: Partial<T>) {
+  const current = getLatest()  // ✅
+  setEp({ ...current, ...patch })
+}
+```
+
+This applies to **any** panel that does patch-merges of object properties. The `useExtendedProperties` wrapper already handles this correctly for the common case.
 
 Wire the panel in `packages/authoring-ui/src/components/sidebar/PropertiesPanel.tsx`:
 

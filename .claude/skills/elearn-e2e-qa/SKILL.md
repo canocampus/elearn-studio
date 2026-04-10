@@ -579,3 +579,29 @@ Correct process:
 - [ ] Is the test added to the correct spec file per the table above?
 - [ ] Does the test FAIL when the behaviour being guarded against is reintroduced?
 - [ ] Do all GAP-01 through GAP-08 tests exist before Phase 2.5 is considered complete?
+
+---
+
+## GrapesJS Property Panel — Stale Closure Rule (T639)
+
+When writing or reviewing tests for any property panel (question, animation, media, button...):
+
+**Regression to guard:** rapid consecutive property updates can silently drop data if the
+panel spreads over a stale closure variable. The symptom is that the second update clobbers
+the first rather than merging with it.
+
+**Rule (enforcement via E2E):** Any test that exercises a property panel MUST include at
+least one sequence where two distinct properties are updated in quick succession, and the
+assertion must verify BOTH properties are present after autosave:
+
+```typescript
+// Example guard for QuestionPropertiesPanel
+await questionPanel.setQuestionText('What is 2+2?')
+await questionPanel.addOption('Four')   // rapid second update
+const saved = await api.getSlide(...)
+expect(saved.extendedProperties.questionText).toBe('What is 2+2?')
+expect(saved.extendedProperties.options).toHaveLength(1)  // both survived
+```
+
+**Implementation:** Use `getLatest()` (returned as the 3rd element of `useComponentProperty`)
+in any `update()` function that patch-merges an object. Never spread `ep` from the closure.

@@ -34,24 +34,22 @@ import type {
 //
 // Provides patch-merge semantics (Partial<T> update) over the shared hook,
 // keeping the public API stable for all three form components below.
-// The isLocalRef guard is no longer needed — React 18 automatic batching
-// handles all setState calls (including those triggered by Backbone events)
-// in the same microtask, so there is no double-setState loop to prevent.
+// T639: uses getLatest() (latestRef.current from useComponentProperty) to
+// read the last-committed value instead of the stale closure variable or a
+// direct comp.get() call — prevents rapid consecutive updates from clobbering
+// intermediate state.
 // ---------------------------------------------------------------------------
 
 function useExtendedProperties<T extends object>(
   component: Component,
   defaults: T,
 ): [T, (patch: Partial<T>) => void] {
-  const [ep, setEp] = useComponentProperty<T>(component, 'extendedProperties', defaults)
+  const [ep, setEp, getLatest] = useComponentProperty<T>(component, 'extendedProperties', defaults)
   function update(patch: Partial<T>) {
-    // T621: read from GrapesJS model (always current — comp.set is synchronous)
-    // instead of the stale 'ep' closure captured at last render. This prevents
-    // rapid cascading updates (e.g. add option then change question text) from
-    // clobbering intermediate state.
-    const comp = component as { get(k: string): unknown }
-    const latest = (comp.get('extendedProperties') as T | undefined) ?? defaults
-    setEp({ ...latest, ...patch })
+    // T639: getLatest() always returns the value committed on the last render,
+    // never a stale closure. Replaces the direct comp.get() call from T621.
+    const current = getLatest()
+    setEp({ ...current, ...patch })
   }
   return [ep, update]
 }

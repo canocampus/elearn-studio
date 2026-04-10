@@ -140,7 +140,7 @@ describe('storageManager — registerStorageManager', () => {
       const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
       const result = await impl.load()
 
-      expect(result).toEqual({ pages: [{ component: { components: [] } }], styles: [] })
+      expect(result).toEqual({ pages: [{ component: { actions: [], components: [] } }], styles: [] })
       expect(courseApi.getCourse).not.toHaveBeenCalled()
     })
 
@@ -160,7 +160,7 @@ describe('storageManager — registerStorageManager', () => {
       expect(courseApi.getCourse).toHaveBeenCalledWith('c1')
       expect(grapesjsFromWidgets).toHaveBeenCalledWith(mockCourse.slides[0].widgets)
       expect(result).toEqual({
-        pages: [{ id: 's1', component: { components: [{ type: 'text' }] } }],
+        pages: [{ id: 's1', component: { actions: [], components: [{ type: 'text' }] } }],
         styles: [],
       })
     })

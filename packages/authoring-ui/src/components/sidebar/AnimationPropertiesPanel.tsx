@@ -65,7 +65,7 @@ function newAnimation(): AnimationPath {
 const EMPTY_EP: Record<string, unknown> = {}
 
 function AnimationPanelContent({ component }: { component: Component }) {
-  const [ep, setEp] = useComponentProperty<Record<string, unknown>>(
+  const [ep, setEp, getLatestEp] = useComponentProperty<Record<string, unknown>>(
     component,
     'extendedProperties',
     EMPTY_EP,
@@ -87,7 +87,7 @@ function AnimationPanelContent({ component }: { component: Component }) {
   // setEp writes to component.set('extendedProperties', ...) which triggers
   // the debounced autosave in initEditor.ts. Never call editor.store() directly.
   function save(updated: AnimationPath[]) {
-    setEp({ ...ep, animations: updated })
+    setEp({ ...getLatestEp(), animations: updated })
   }
 
   // ── CRUD ────────────────────────────────────────────────────────────────

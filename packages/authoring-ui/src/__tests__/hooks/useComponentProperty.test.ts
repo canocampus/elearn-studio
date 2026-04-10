@@ -143,6 +143,150 @@ describe('useComponentProperty', () => {
   })
 })
 
+// ── getLatest() — T639 stale-closure regression tests ────────────────────────
+
+describe('useComponentProperty — getLatest() (T639)', () => {
+  it('returns getLatest as the third element of the tuple', () => {
+    const comp = makeComponent({ content: 'hello' })
+    const { result } = renderHook(() =>
+      useComponentProperty(comp as never, 'content', ''),
+    )
+    expect(typeof result.current[2]).toBe('function')
+  })
+
+  it('getLatest() returns the current value on mount', () => {
+    const comp = makeComponent({ content: 'initial' })
+    const { result } = renderHook(() =>
+      useComponentProperty(comp as never, 'content', ''),
+    )
+    expect(result.current[2]()).toBe('initial')
+  })
+
+  it('getLatest() reflects updated value after update() + re-render', () => {
+    const comp = makeComponent({ content: 'before' })
+    const { result } = renderHook(() =>
+      useComponentProperty(comp as never, 'content', ''),
+    )
+
+    act(() => { result.current[1]('after') })
+
+    expect(result.current[2]()).toBe('after')
+  })
+
+  it('getLatest() reflects external model change after re-render', () => {
+    const comp = makeComponent({ src: 'old.mp4' })
+    const { result } = renderHook(() =>
+      useComponentProperty(comp as never, 'src', ''),
+    )
+
+    act(() => { comp.set('src', 'new.mp4') })
+
+    expect(result.current[2]()).toBe('new.mp4')
+  })
+
+  /**
+   * T639 regression test — patch-merge wrapper pattern (simulates useExtendedProperties).
+   *
+   * Two consecutive updates each modify a DIFFERENT field of extendedProperties.
+   * With the stale-closure bug (`{ ...ep, ...patch }` where `ep` is the closure
+   * variable), the second update would overwrite the first because it spread over
+   * the pre-first-update `ep`.
+   *
+   * With `getLatest()`, each call reads `latestRef.current` (the value from the
+   * most-recent render), so the second update sees the field written by the first.
+   */
+  it('patch-merge via getLatest(): second update preserves first update\'s field (T639 regression)', () => {
+    type EP = { questionText: string; options: string[]; correctIndex: number }
+    const defaults: EP = { questionText: '', options: [], correctIndex: 0 }
+    const comp = makeComponent({ extendedProperties: { ...defaults } })
+
+    const { result } = renderHook(() => {
+      const [ep, setEp, getLatest] = useComponentProperty<EP>(
+        comp as never,
+        'extendedProperties',
+        defaults,
+      )
+      function update(patch: Partial<EP>) {
+        setEp({ ...getLatest(), ...patch })
+      }
+      return { ep, update, getLatest }
+    })
+
+    // First update: set question text
+    act(() => { result.current.update({ questionText: 'What is 2+2?' }) })
+    // Second update: set options — must NOT clobber questionText
+    act(() => { result.current.update({ options: ['3', '4', '5'] }) })
+
+    const final = comp.get('extendedProperties') as EP
+    expect(final.questionText).toBe('What is 2+2?') // not clobbered by second update
+    expect(final.options).toEqual(['3', '4', '5'])
+    expect(final.correctIndex).toBe(0) // unchanged default preserved
+  })
+
+  /**
+   * T639 regression test — AnimationPropertiesPanel.save() pattern.
+   *
+   * `save(updatedAnimations)` uses `{ ...getLatestEp(), animations: updated }`.
+   * Verifies that other extendedProperties keys (e.g. a hypothetical `label`) are
+   * not lost when the animations array is written.
+   */
+  it('save-pattern via getLatest(): writing animations preserves other EP fields (T639 AnimationPanel regression)', () => {
+    type EP = Record<string, unknown>
+    const comp = makeComponent({
+      extendedProperties: { label: 'intro', animations: [] },
+    })
+
+    const { result } = renderHook(() => {
+      const [ep, setEp, getLatestEp] = useComponentProperty<EP>(
+        comp as never,
+        'extendedProperties',
+        {},
+      )
+      function save(animations: unknown[]) {
+        setEp({ ...getLatestEp(), animations })
+      }
+      return { ep, save }
+    })
+
+    // Write animations without touching `label`
+    act(() => { result.current.save([{ id: 'anim-1', name: 'Fade In' }]) })
+
+    const final = comp.get('extendedProperties') as EP
+    expect(final.label).toBe('intro')              // preserved
+    expect((final.animations as unknown[]).length).toBe(1)
+    expect((final.animations as Array<{ id: string }>)[0].id).toBe('anim-1')
+  })
+
+  /**
+   * T639 regression test — three consecutive patch-merge updates all survive.
+   *
+   * Each update targets a different field. All three must be present in the
+   * final model state.
+   */
+  it('three consecutive patch-merge updates via getLatest() all survive', () => {
+    type EP = { a: number; b: number; c: number }
+    const defaults: EP = { a: 0, b: 0, c: 0 }
+    const comp = makeComponent({ extendedProperties: { ...defaults } })
+
+    const { result } = renderHook(() => {
+      const [ep, setEp, getLatest] = useComponentProperty<EP>(
+        comp as never,
+        'extendedProperties',
+        defaults,
+      )
+      const update = (patch: Partial<EP>) => setEp({ ...getLatest(), ...patch })
+      return { ep, update }
+    })
+
+    act(() => { result.current.update({ a: 1 }) })
+    act(() => { result.current.update({ b: 2 }) })
+    act(() => { result.current.update({ c: 3 }) })
+
+    const final = comp.get('extendedProperties') as EP
+    expect(final).toEqual({ a: 1, b: 2, c: 3 })
+  })
+})
+
 // ── useExtendedProperty ───────────────────────────────────────────────────────
 
 describe('useExtendedProperty', () => {

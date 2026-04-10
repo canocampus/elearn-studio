@@ -85,7 +85,11 @@ export function registerStorageManager(editor: Editor): void {
       const { courseId, slideId } = storageContext
       if (!courseId || !slideId) {
         console.warn('[StorageManager] load() skipped — missing context', { courseId, slideId })
-        return { pages: [{ component: { components: [] } }], styles: [] }
+        // actions: [] required on the wrapper component — GrapesJS loadData() calls
+        // .forEach() on componentDef.actions for every component it processes (including
+        // the page wrapper). Omitting it causes "Cannot read properties of undefined
+        // (reading 'forEach')" TypeError in loadData.
+        return { pages: [{ component: { actions: [], components: [] } }], styles: [] }
       }
 
       try {
@@ -119,7 +123,9 @@ export function registerStorageManager(editor: Editor): void {
           pages: [
             {
               id: slideId,
-              component: { components },
+              // actions: [] required on the wrapper component — GrapesJS loadData() calls
+              // .forEach() on componentDef.actions for every component it processes.
+              component: { actions: [], components },
             },
           ],
           styles: [],

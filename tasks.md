@@ -1028,7 +1028,7 @@
 > Files: `packages/authoring-ui/src/hooks/useComponentProperty.ts`,
 >        todos los `*PropertiesPanel.tsx`
 
-- [ ] T639.1 — Exponer `latestRef` desde `useComponentProperty` para que los wrappers puedan
+- [x] T639.1 — Exponer `latestRef` desde `useComponentProperty` para que los wrappers puedan
   leer el valor más reciente sin closure stale. Opción A — retornar el ref:
   ```typescript
   export function useComponentProperty<T>(
@@ -1045,7 +1045,7 @@
   return [value, update, () => latestRef.current]
   ```
 
-- [ ] T639.2 — Actualizar `useExtendedProperties` para usar `getLatest()` en lugar de `ep`
+- [x] T639.2 — Actualizar `useExtendedProperties` para usar `getLatest()` en lugar de `ep`
   del closure al construir el patch:
   ```typescript
   function useExtendedProperties<T extends object>(
@@ -1062,11 +1062,11 @@
   }
   ```
 
-- [ ] T639.3 — Verificar que el mismo problema no existe en `useExtendedProperty` (singular,
+- [x] T639.3 — Verificar que el mismo problema no existe en `useExtendedProperty` (singular,
   sub-key variant): su `update` ya usa `comp.get('extendedProperties')` directamente ✅
   — confirmar que este patrón es correcto y documentarlo como "the right way"
 
-- [ ] T639.4 — Auditar TODOS los `*PropertiesPanel.tsx` que usan `useComponentProperty`
+- [x] T639.4 — Auditar TODOS los `*PropertiesPanel.tsx` que usan `useComponentProperty`
   directamente (no a través de `useExtendedProperties`) para verificar que ninguno
   construye un patch sobre un valor potencialmente stale:
   - `ButtonPropertiesPanel.tsx`
@@ -1077,24 +1077,24 @@
   - `AnimationPropertiesPanel.tsx`
   - `PhaserSimPropertiesPanel.tsx`
 
-- [ ] T639.5 — Añadir a `CLAUDE.md` y a la elearn-e2e-qa skill una regla explícita:
+- [x] T639.5 — Añadir a `CLAUDE.md` y a la elearn-e2e-qa skill una regla explícita:
   ```
   RULE: When updating a partial patch of extendedProperties, NEVER spread over a
   closure variable. Always read the latest value via getLatest() or comp.get().
   ```
 
-- [ ] T639.6 — Añadir a `INTEGRATION_GUIDE.md` (crear si no existe, o añadir sección a
+- [x] T639.6 — Añadir a `INTEGRATION_GUIDE.md` (crear si no existe, o añadir sección a
   `docs/developer-guide/03-adding-widget-types.md`):
   - El patrón correcto para property panels: `useExtendedProperties` + `getLatest()`
   - El patrón incorrecto: spread sobre closure variable
   - Ejemplo de código correcto vs incorrecto (well-done / badly-done)
   - Cuándo usar `useComponentProperty` vs `useExtendedProperty` vs `useExtendedProperties`
 
-- [ ] T639.7 — Unit tests: verify that rapid consecutive calls to `update` don't cause
+- [x] T639.7 — Unit tests: verify that rapid consecutive calls to `update` don't cause
   stale-closure data loss (test: call `update({a: 1})` then immediately `update({b: 2})`,
   result must be `{a: 1, b: 2}` not `{b: 2}` with `a` missing)
 
-- [ ] T639.8 — E2E regression test: rapidly type in MC question text AND add an option
+- [x] T639.8 — E2E regression test: rapidly type in MC question text AND add an option
   in quick succession → verify both changes persisted after autosave; tag `@regression`
 
 - [ ] T639.9 — Run full test suite + push + verify CI green

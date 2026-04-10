@@ -17,7 +17,7 @@ steps in order:
 **Step 1 — Sync operational context**
 ```
 1. Read WORKING_CONTEXT.md — current state, known broken things, what NOT to retry
-2. Read docs/tasks.md — find the active block and its current status
+2. Read tasks.md — find the active block and its current status
 3. Do NOT start coding until both files are read
 ```
 
@@ -37,7 +37,8 @@ python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; 
 When approaching 70% of the context window:
 1. Update `WORKING_CONTEXT.md` with current state
 2. Run the agent's compact/summarize command (see agent-specific file)
-3. After compact: re-read `WORKING_CONTEXT.md` to restore context
+3. After compact: re-read **both** `WORKING_CONTEXT.md` AND `AGENTS.md` before
+   continuing — the compact summary may not preserve rule precision
 
 ---
 
@@ -47,7 +48,7 @@ The agent does NOT have permission for multi-threaded or parallel decision-makin
 
 **After completing ANY subtask (TXX.Y), STOP completely:**
 
-1. Mark `[x]` on the completed subtask in `docs/tasks.md`
+1. Mark `[x]` on the completed subtask in `tasks.md`
 2. Update `WORKING_CONTEXT.md` "Current State" if the observable system state changed
 3. If the subtask introduces a fix — note the cause and solution in `docs/issues/issues-TXX.md`
 4. Report result to owner
@@ -60,7 +61,7 @@ Do NOT automatically chain tasks even if they are in the same Phase block.
 Do NOT interpret "implement Phase 1" as permission to execute all subtasks without pause.
 
 Do NOT wait until the end of the block to mark subtasks — the owner must be able
-to see actual progress in `docs/tasks.md` at any time.
+to see actual progress in `tasks.md` at any time.
 
 **Mutually exclusive subtasks** (marked with "Or:" in the task definition):
 - Only ONE alternative is implemented
