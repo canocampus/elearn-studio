@@ -164,6 +164,7 @@ assignment is not calling `component.setStyle()` correctly.
 | Approach | Why it failed | Alternative |
 |---|---|---|
 | `component:update` for immediate save | Infinite save loop in GrapesJS | 2s debounced autosave in `initEditor.ts` |
+| `listenTo(model, 'change:style', onRender)` in score widgets (T638) | Fires in dev but not reliably in production minified build (Backbone event registration order / tree-shaking in Vite rollup) | Remove inline styles from `onRender()` and rely on CSS inheritance from `el` — GrapesJS applies `setStyle()` to `el` via CSS rule, children inherit automatically |
 | TipTap inside GrapesJS canvas iframe | No React context inside iframe | Native GrapesJS `contenteditable` |
 | `minio/minio` Docker image | Discontinued | `dxflrs/garage:v1.0.0` |
 | `@opentelemetry/auto-instrumentations-node` full bundle | Unused instrumentations, slow startup | Selective packages only |
