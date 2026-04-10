@@ -62,6 +62,12 @@ Do NOT interpret "implement Phase 1" as permission to execute all subtasks witho
 Do NOT wait until the end of the block to mark subtasks — the owner must be able
 to see actual progress in `docs/tasks.md` at any time.
 
+**Mutually exclusive subtasks** (marked with "Or:" in the task definition):
+- Only ONE alternative is implemented
+- The chosen one → `[x]`
+- The skipped ones → `[-]` (not applicable — alternative not taken)
+- Document the choice and reasoning in `docs/issues/issues-TXX.md`
+
 ---
 
 ## 3. Investigation Before Fixing

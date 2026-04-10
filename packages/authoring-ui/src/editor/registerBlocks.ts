@@ -331,13 +331,29 @@ function registerScoreQuizWidget(editor: Editor): void {
           'text-align': 'center',
           'z-index': '1',
           display: 'block',
+          'font-size': '28px',
+          color: '#4f46e5',
         },
-        traits: [NAME_TRAIT],
+        traits: [NAME_TRAIT, { type: 'text', name: 'quizTitle', label: 'Title' }],
       },
     },
     view: {
-      onRender(this: { el: HTMLElement }) {
-        this.el.innerHTML = `<div style="font-size:13px;color:#64748b;margin-bottom:4px;">Quiz Score</div><div style="font-size:28px;font-weight:bold;color:#4f46e5;">0 / 0</div>`
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      initialize(this: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(this as any).listenTo((this as any).model, 'change:style', () => (this as any).onRender())
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(this as any).listenTo((this as any).model, 'change:attributes', () => (this as any).onRender())
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onRender(this: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const self = this as any
+        const style = self.model.getStyle() as Record<string, string>
+        const fontSize = style['font-size'] || '28px'
+        const color = style['color'] || '#4f46e5'
+        const title = (self.model.getAttributes().quizTitle as string | undefined) || 'Quiz Score'
+        self.el.innerHTML = `<div style="font-size:13px;color:#64748b;margin-bottom:4px;">${title}</div><div style="font-size:${fontSize};font-weight:bold;color:${color};">0 / 0</div>`
       },
     },
   })
@@ -367,13 +383,29 @@ function registerScoreFieldWidget(editor: Editor): void {
           'z-index': '1',
           display: 'flex',
           'align-items': 'center',
+          'font-size': '13px',
+          color: '#0f172a',
         },
-        traits: [NAME_TRAIT],
+        traits: [NAME_TRAIT, { type: 'text', name: 'scorePrefix', label: 'Prefix' }],
       },
     },
     view: {
-      onRender(this: { el: HTMLElement }) {
-        this.el.innerHTML = `<span style="font-size:13px;color:#64748b;">Score: </span><span style="font-size:13px;font-weight:bold;color:#0f172a;">—</span>`
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      initialize(this: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(this as any).listenTo((this as any).model, 'change:style', () => (this as any).onRender())
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(this as any).listenTo((this as any).model, 'change:attributes', () => (this as any).onRender())
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onRender(this: unknown) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const self = this as any
+        const style = self.model.getStyle() as Record<string, string>
+        const fontSize = style['font-size'] || '13px'
+        const color = style['color'] || '#0f172a'
+        const prefix = (self.model.getAttributes().scorePrefix as string | undefined) || 'Score: '
+        self.el.innerHTML = `<span style="font-size:${fontSize};color:#64748b;">${prefix}</span><span style="font-size:${fontSize};font-weight:bold;color:${color};">—</span>`
       },
     },
   })

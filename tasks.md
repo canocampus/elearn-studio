@@ -991,9 +991,9 @@
 ### T638 — Fix typography changes not affecting Quiz Score and Score Field
 > Changes in Style Manager typography don't apply to the generated text inside these widgets
 > because `onRender()` injects hardcoded HTML with inline styles that override GrapesJS styles.
-- [ ] T638.1 — Rewrite `quiz-score` and `score-field` component views to NOT inject hardcoded
+- [~] T638.1 — Rewrite `quiz-score` and `score-field` component views to NOT inject hardcoded
   inline styles — use CSS classes instead, so GrapesJS Style Manager overrides work
-- [ ] T638.2 — Or: update the `view` to re-render on `change:style` event using the current
+- [x] T638.2 — Or: update the `view` to re-render on `change:style` event using the current
   component styles:
   ```typescript
   initialize() {
@@ -1006,10 +1006,10 @@
     this.el.innerHTML = `<div style="font-size:${fontSize};color:${color}">...</div>`
   }
   ```
-- [ ] T638.3 — Make the widget titles ("Quiz Score", "Score:") editable via a trait or
+- [x] T638.3 — Make the widget titles ("Quiz Score", "Score:") editable via a trait or
   the GrapesJS text editing mode
-- [ ] T638.4 — Same fix for `score-field`
-- [ ] T638.5 — E2E test: change font-size in Style Manager for quiz-score → verify the
+- [x] T638.4 — Same fix for `score-field`
+- [x] T638.5 — E2E test: change font-size in Style Manager for quiz-score → verify the
   rendered text in canvas reflects the new size
 - [ ] T638.6 — Run full test suite + push + verify CI green
 - [ ] T638.7 — Refine the generated code
