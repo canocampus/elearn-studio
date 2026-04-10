@@ -341,19 +341,17 @@ function registerScoreQuizWidget(editor: Editor): void {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       initialize(this: unknown) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(this as any).listenTo((this as any).model, 'change:style', () => (this as any).onRender())
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(this as any).listenTo((this as any).model, 'change:attributes', () => (this as any).onRender())
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onRender(this: unknown) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const self = this as any
-        const style = self.model.getStyle() as Record<string, string>
-        const fontSize = style['font-size'] || '28px'
-        const color = style['color'] || '#4f46e5'
         const title = (self.model.getAttributes().quizTitle as string | undefined) || 'Quiz Score'
-        self.el.innerHTML = `<div style="font-size:13px;color:#64748b;margin-bottom:4px;">${title}</div><div style="font-size:${fontSize};font-weight:bold;color:${color};">0 / 0</div>`
+        // font-size and color are NOT inlined here — they are applied by GrapesJS to `el`
+        // via its CSS rule, so inner elements inherit them automatically when the user
+        // changes them in the Style Manager. Only the title label uses a fixed small size.
+        self.el.innerHTML = `<div style="font-size:13px;color:#64748b;margin-bottom:4px;">${title}</div><div style="font-weight:bold;">0 / 0</div>`
       },
     },
   })
@@ -393,19 +391,15 @@ function registerScoreFieldWidget(editor: Editor): void {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       initialize(this: unknown) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(this as any).listenTo((this as any).model, 'change:style', () => (this as any).onRender())
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(this as any).listenTo((this as any).model, 'change:attributes', () => (this as any).onRender())
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onRender(this: unknown) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const self = this as any
-        const style = self.model.getStyle() as Record<string, string>
-        const fontSize = style['font-size'] || '13px'
-        const color = style['color'] || '#0f172a'
         const prefix = (self.model.getAttributes().scorePrefix as string | undefined) || 'Score: '
-        self.el.innerHTML = `<span style="font-size:${fontSize};color:#64748b;">${prefix}</span><span style="font-size:${fontSize};font-weight:bold;color:${color};">—</span>`
+        // font-size and color are NOT inlined — inherited from el's GrapesJS CSS rule automatically
+        self.el.innerHTML = `<span style="color:#64748b;">${prefix}</span><span style="font-weight:bold;">—</span>`
       },
     },
   })
