@@ -28,7 +28,8 @@ test.describe('T638 — Score widgets: style and trait changes', () => {
   //
   // Regression guard: before T638, setStyle({ 'font-size': '40px' }) had no effect
   // because onRender() always injected `style="font-size:28px"` unconditionally.
-  // After the fix, onRender() reads from model.getStyle() and re-renders on change:style.
+  // After the fix, GrapesJS applies setStyle() to el via a CSS rule and inner elements
+  // inherit font-size/color automatically — no change:style listener or re-render needed.
 
   test('@regression T638.5a — score-quiz: font-size change reflects in canvas', async ({ editorPage, page }) => {
     await editorPage.addComponentViaEditor('score-quiz')
@@ -41,7 +42,7 @@ test.describe('T638 — Score widgets: style and trait changes', () => {
     const scoreDiv = widget.locator('div').nth(1)
     await expect(scoreDiv).toHaveCSS('font-size', '28px', { timeout: 5_000 })
 
-    // Simulate Style Manager changing font-size (fires change:style → onRender)
+    // Simulate Style Manager changing font-size (GrapesJS updates el CSS rule; children inherit)
     await page.evaluate(() => {
       const ed = (window as Record<string, unknown>).__elearn_editor as {
         getSelected: () => { getStyle: () => Record<string, string>; setStyle: (s: Record<string, string>) => void } | null

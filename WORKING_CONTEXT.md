@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-10 — T637 in progress (T637.1–T637.7 ✅, T637.8 pending)
+> Last updated: 2026-04-10 — T638 COMPLETE ✅
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.42 |
+| **Current version** | v0.5.43 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T637 — COMPLETE ✅ (all subtasks done, code review APPROVED) |
-| **E2E test count** | 157 tests (154 passing, 3 skipped incl. T611.10) |
+| **Active block** | T638 — COMPLETE ✅ (all subtasks done, code review APPROVED) |
+| **E2E test count** | 162 tests (159 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **T638 — Fix typography changes not affecting Score Widgets / v0.5.43** — Style Manager `font-size`/`color` changes had no visual effect on `quiz-score` and `score-field` canvas previews because `onRender()` injected hardcoded inline styles with higher CSS specificity than the GrapesJS CSS rule. Initial fix (d22fb16): `change:style` Backbone listener + `model.getStyle()` re-render — worked in dev but failed in CI production build (minified Backbone event not firing). Final fix (7bae6ec): removed inline `font-size`/`color` from `onRender()` entirely; GrapesJS applies `setStyle()` to `el` via CSS rule, inner elements inherit automatically. Also added `quizTitle`/`scorePrefix` editable traits. 5 `@regression` E2E tests in `score-widgets.spec.ts` (T638.5a–5e) — all pass in CI. 673 unit tests pass. Code review: APPROVED. `docs/issues/issues-T638.md` generated.
 
 - **T637 — Text Widget Editing: RTE Cursor Loss / v0.5.43** — 5 cursor-loss root causes identified and fixed. (1) `Commands.isActive('text-edit')` always false → replaced with `isRteActive` closure flag (T637.2); (2) `elearn:paste` fires via keymap contenteditable gap → `if (isRteActive) return` guard (T637.1); (3) `elearn:copy` overwrites native clipboard → same guard (T637.1); (4) `component:update` on every keystroke → covered by isRteActive autosave guard; (5) `fromMove:true` suppresses `rte:disable` → documented, not fixed (low impact edge case). T637.3+T637.4: explicit `richTextEditor: { actions: ['bold','italic','underline','strikethrough','link'] }` in `grapesjs.init()`. T637.5: 4 regression E2E tests in `text-widget-rte.spec.ts` (cursor, paste suppression, toolbar, autosave) — all pass (20.7s). T637.6: full suite 154 pass, 3 skipped (FLAKE-02 pre-existing). T637.7: removed T637.1 diagnostic console.debug block + deleted `t637-diagnostic.spec.ts`. T637.8: code review APPROVED (0 issues), `docs/issues/issues-T637.md` updated. 673 unit tests pass. Commits: see git log.
 
@@ -218,15 +220,8 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T634** — Fix nav-buttons "missing child buttons" error~~ ✅ Done (c7d123f v0.5.39)
 - ~~**T635** — Add SCORM format selector to PublishDialog~~ ✅ Done (6b6a9da v0.5.40)
 - ~~**T636** — Cross-slide copy/paste~~ ✅ Done (v0.5.42)
-- **T637** — Text widget editing: RTE cursor loss investigation + fixes — IN PROGRESS
-  - ~~T637.1 — Investigate ALL cursor-loss causes~~ ✅ 5 findings documented
-  - ~~T637.2 — Autosave `isRteActive` guard~~ ✅ Done
-  - ~~T637.3 — RTE toolbar on text selection~~ ✅ `richTextEditor: { actions: [] }` added to init
-  - T637.4 — Populate RTE toolbar actions (bold/italic/underline/strikethrough/link)
-  - T637.5 — E2E test: cursor doesn't jump; bold button appears on selection
-  - T637.6 — Full test suite + push + CI green
-  - T637.7 — Remove T637.1 diagnostic `console.debug` listeners
-  - T637.8 — Code review → update issues-T637.md
+- ~~**T637** — Text widget editing: RTE cursor loss investigation + fixes~~ ✅ Done (v0.5.43)
+- ~~**T638** — Fix typography changes not affecting Quiz Score and Score Field~~ ✅ Done (v0.5.43)
 
 ---
 
@@ -251,6 +246,8 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 | useExtendedProperties | ✅ Working | Reads `comp.get('extendedProperties')` directly; stale closure eliminated (T621) |
 | Image widget initialize | ✅ Working | `extendFnView: ['initialize']` — prototype chain hack removed (T623) |
 | Block drag-and-drop positioning | ✅ Working | Widget lands at cursor tip (canvas coords); 24×24px ghost indicator (T630 Phase 5 + UX) |
+| Quiz Score widget | ✅ Working | Style Manager font-size/color apply immediately (CSS inheritance, T638); quizTitle trait editable |
+| Score Field widget | ✅ Working | Style Manager font-size/color apply immediately (CSS inheritance, T638); scorePrefix trait editable |
 
 ---
 

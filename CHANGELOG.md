@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.43] — 2026-04-10 — T638: Fix typography changes not applying to score widgets
+
+### Fixed
+- **[T638] Quiz Score / Score Field: Style Manager typography changes now apply immediately** (`packages/authoring-ui/src/editor/registerBlocks.ts`) — `font-size` and `color` set via Style Manager had no visual effect because `onRender()` injected hardcoded inline styles that overrode GrapesJS CSS rules. Root cause: inline `style="font-size:Xpx;color:#..."` on inner elements had higher CSS specificity than the component's CSS rule. Fix: removed all inline `font-size`/`color` from `onRender()` output; GrapesJS applies `setStyle()` to `el` via a CSS rule and inner elements inherit automatically. The `change:style` Backbone listener (initial fix attempt, d22fb16) was unreliable in the production minified build — removed. Only the `change:attributes` listener (for `quizTitle`/`scorePrefix` traits) was kept.
+- **[T638] Widget titles editable via trait** — `quizTitle` trait added to `score-quiz`; `scorePrefix` trait added to `score-field`. Both render their trait values in `onRender()`.
+
+### Tests
+- **`e2e/tests/score-widgets.spec.ts`** — 5 `@regression` tests: T638.5a (score-quiz font-size immediate update), T638.5b (score-quiz reload persistence), T638.5c (score-quiz quizTitle trait), T638.5d (score-field font-size immediate update), T638.5e (score-field scorePrefix trait). All pass in CI production build.
+
+---
+
 ## [0.5.42] — 2026-04-09 — T636: Cross-slide copy/paste with module-level clipboard
 
 ### Added

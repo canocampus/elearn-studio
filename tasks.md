@@ -1011,9 +1011,9 @@
 - [x] T638.4 — Same fix for `score-field`
 - [x] T638.5 — E2E test: change font-size in Style Manager for quiz-score → verify the
   rendered text in canvas reflects the new size
-- [ ] T638.6 — Run full test suite + push + verify CI green
-- [ ] T638.7 — Refine the generated code
-- [ ] T638.8 — A reviewer will generate `docs/issues/issues-T638.md`; resolve before closing
+- [x] T638.6 — Run full test suite + push + verify CI green
+- [x] T638.7 — Refine the generated code
+- [x] T638.8 — A reviewer will generate `docs/issues/issues-T638.md`; resolve before closing
 
 ### T639 — Arquitectura React-GrapesJS: fuente única de verdad en property panels
 > Los auditores (Gemini, Qwen, PDF) coinciden en que la desconexión entre el estado React
