@@ -21,7 +21,7 @@
       position: relative;
       overflow: hidden;
     }
-    #error-msg {
+    .preview-error {
       color: #f38ba8;
       font-size: 14px;
       padding: 20px;
@@ -33,42 +33,37 @@
   <div id="player"></div>
   <script src="/player.js"></script>
   <script>
+    // T641.1: receive course data from the authoring-ui opener via postMessage.
+    // No localStorage — all state transport is in-memory across the same origin.
     (function () {
-      var key = location.hash.slice(1)
-      if (!key) {
+      var origin = window.location.origin
+
+      function showError(msg) {
         document.getElementById('player').innerHTML =
-          '<p id="error-msg">No preview data found. Open Preview from the editor.</p>'
-        return
+          '<p class="preview-error">' + msg + '</p>'
       }
-      var raw = null
-      try {
-        raw = localStorage.getItem(key)
-      } catch (e) {
-        document.getElementById('player').innerHTML =
-          '<p id="error-msg">Could not read preview data from localStorage.</p>'
-        return
+
+      function onData(e) {
+        if (e.origin !== origin) return
+        if (!e.data || e.data.type !== 'elearn-preview-data') return
+        window.removeEventListener('message', onData)
+
+        if (typeof ELearnPlayer === 'undefined' || typeof ELearnPlayer.init !== 'function') {
+          showError('Runtime player not loaded. Run: pnpm --filter runtime-player build')
+          return
+        }
+        ELearnPlayer.init('player', e.data.course, { startSlide: e.data.slideIndex || 0 })
       }
-      if (!raw) {
-        document.getElementById('player').innerHTML =
-          '<p id="error-msg">Preview data expired or not found.</p>'
-        return
+
+      window.addEventListener('message', onData)
+
+      // Signal the opener that we are ready to receive the course data.
+      // opener is null when the page is navigated to directly (no popup context).
+      if (window.opener) {
+        window.opener.postMessage('elearn-preview-ready', origin)
+      } else {
+        showError('Open Preview from the eLearn Studio editor.')
       }
-      // Clean up immediately so we don't leave large JSON in localStorage
-      try { localStorage.removeItem(key) } catch (_) {}
-      var data
-      try {
-        data = JSON.parse(raw)
-      } catch (e) {
-        document.getElementById('player').innerHTML =
-          '<p id="error-msg">Preview data is corrupt.</p>'
-        return
-      }
-      if (typeof ELearnPlayer === 'undefined' || typeof ELearnPlayer.init !== 'function') {
-        document.getElementById('player').innerHTML =
-          '<p id="error-msg">Runtime player not loaded. Run: pnpm --filter runtime-player build</p>'
-        return
-      }
-      ELearnPlayer.init('player', data.course, { startSlide: data.slideIndex || 0 })
     })()
   </script>
 </body>

@@ -69,12 +69,27 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
       toast.info('No course loaded')
       return
     }
-    // T641.1: serialize course JSON to localStorage and open the runtime player in a new tab.
-    // localStorage is used instead of URL params to avoid the ~2KB URL length limit on course JSON.
-    // The key includes a timestamp so concurrent preview windows don't collide.
-    const key = `elearn-preview-${Date.now()}`
-    localStorage.setItem(key, JSON.stringify({ course, slideIndex: currentSlideIndex }))
-    window.open(`/preview.html#${key}`, '_blank')
+    // T641.1: open runtime player in a new tab via postMessage ready-handshake.
+    // Listener is attached BEFORE window.open() so the "ready" signal from the
+    // popup is never missed (JS single-threaded: popup cannot run until this
+    // call stack unwinds, by which point the listener is already registered).
+    const origin = window.location.origin
+
+    function onReady(e: MessageEvent) {
+      if (e.source !== popup || e.data !== 'elearn-preview-ready') return
+      window.removeEventListener('message', onReady)
+      popup.postMessage(
+        { type: 'elearn-preview-data', course, slideIndex: currentSlideIndex },
+        origin,
+      )
+    }
+
+    window.addEventListener('message', onReady)
+    const popup = window.open('/preview.html', '_blank')
+    if (!popup) {
+      window.removeEventListener('message', onReady)
+      toast.info('Preview blocked — allow popups for this site')
+    }
   }
 
   function handlePublish() {
