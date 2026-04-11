@@ -16,6 +16,7 @@
 import { useState } from 'react'
 import { useEditorStore } from '../../store/editorStore'
 import { exportSCORM12, exportSCORM2004, exportAICC } from '../../api/courseApi'
+import { widgetsFromGrapesjs } from '../../editor/converters'
 import { ToastProvider, useToast } from '../ui/Toast'
 import { TopToolbar } from './TopToolbar'
 import { PublishDialog, type PublishStatus, type ExportFormat } from './PublishDialog'
@@ -49,6 +50,7 @@ interface AppLayoutProps {
 function AppLayoutInner({ courseId }: AppLayoutProps) {
   const toast = useToast()
   const course = useEditorStore(s => s.course)
+  const editor = useEditorStore(s => s.editor)
   const currentSlideIndex = useEditorStore(s => s.currentSlideIndex)
   const leftTab = useEditorStore(s => s.leftTab)
   const setLeftTab = useEditorStore(s => s.setLeftTab)
@@ -75,11 +77,24 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
     // call stack unwinds, by which point the listener is already registered).
     const origin = window.location.origin
 
+    // The Zustand store's course.slides[i].widgets is the initial fetch state —
+    // GrapesJS edits go through storageManager → backend but do NOT update the
+    // store. Inject the live GrapesJS component tree for the current slide so
+    // the preview reflects the actual canvas state, not the stale store.
+    let previewCourse = course
+    if (editor) {
+      const currentWidgets = widgetsFromGrapesjs(editor.getComponents().toArray())
+      const updatedSlides = course.slides.map((slide, i) =>
+        i === currentSlideIndex ? { ...slide, widgets: currentWidgets } : slide
+      )
+      previewCourse = { ...course, slides: updatedSlides }
+    }
+
     function onReady(e: MessageEvent) {
       if (e.source !== popup || e.data !== 'elearn-preview-ready') return
       window.removeEventListener('message', onReady)
       popup.postMessage(
-        { type: 'elearn-preview-data', course, slideIndex: currentSlideIndex },
+        { type: 'elearn-preview-data', course: previewCourse, slideIndex: currentSlideIndex },
         origin,
       )
     }

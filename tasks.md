@@ -1200,8 +1200,11 @@
 > Origen: T611.10 (E2E test `question-widget.spec.ts` T611.10 marked `test.skip` —
 > Preview button shows "coming soon" toast because the runtime player popup is not yet implemented).
 
-- [ ] T641.1 — Implement Preview button popup: open runtime player in an iframe modal
-  from the authoring UI, wired to the current slide/course state.
+- [x] T641.1 — Implement Preview button popup: open runtime player in an iframe modal
+  from the authoring UI, wired to the current slide/course state. Fixed root bug:
+  `EditorPage.closeCourseSettings()` clicked Cancel (regex `/close|cancel/i` matched
+  "Cancel"), so navigationMode was never persisted. Added `saveCourseSettings()` to
+  EditorPage.ts. T611.10 now passes; 30/30 question-widget tests green. SKIP-01 resolved.
 
 
 ### T642 — E2E: per-test course isolation (eliminate shared seed course)

@@ -317,6 +317,13 @@ export class EditorPage {
     await dialog.waitFor({ state: 'hidden', timeout: 5_000 })
   }
 
+  /** Save and close the Course Settings dialog (clicks the Save button). */
+  async saveCourseSettings() {
+    const dialog = this.page.getByRole('dialog').filter({ hasText: 'Course Settings' })
+    await this.page.getByTestId('course-settings-save').click()
+    await dialog.waitFor({ state: 'hidden', timeout: 5_000 })
+  }
+
   // ── Preview helpers ────────────────────────────────────────────────────────
 
   /**

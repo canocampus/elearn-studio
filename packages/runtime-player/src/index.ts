@@ -161,16 +161,25 @@ let _noNavNextWarned = false
 // ─── Question evaluation (inlined from question-engine) ───────────────────────
 
 function evalMC(props: Record<string, unknown>, chosen: number): { correct: boolean; feedback: string } {
-  const options = props.options as string[]
-  const correctIndex = props.correctIndex as number
+  // Support both legacy string[] (correctIndex) and MCOption[] ({text, isCorrect}) formats
+  type MCOpt = string | { text?: string; isCorrect?: boolean }
+  const options = (props.options as MCOpt[]) ?? []
   if (chosen < 0 || chosen >= options.length) {
     return { correct: false, feedback: 'No answer selected.' }
   }
-  const correct = chosen === correctIndex
-  return {
-    correct,
-    feedback: correct ? 'Correct!' : `Incorrect. The correct answer was: ${options[correctIndex]}`,
+  const chosenOpt = options[chosen]
+  if (typeof chosenOpt === 'object' && chosenOpt !== null) {
+    // MCOption format — isCorrect flag is authoritative
+    const correct = chosenOpt.isCorrect === true
+    const correctOpt = options.find(o => typeof o === 'object' && o !== null && (o as { isCorrect?: boolean }).isCorrect)
+    const correctLabel = correctOpt ? ((correctOpt as { text?: string }).text ?? '') : '(unknown)'
+    return { correct, feedback: correct ? 'Correct!' : `Incorrect. The correct answer was: ${correctLabel}` }
   }
+  // Legacy string[] format — correctIndex is authoritative
+  const correctIndex = props.correctIndex as number
+  const correct = chosen === correctIndex
+  const correctLabel = typeof options[correctIndex] === 'string' ? (options[correctIndex] as string) : String(correctIndex + 1)
+  return { correct, feedback: correct ? 'Correct!' : `Incorrect. The correct answer was: ${correctLabel}` }
 }
 
 function evalTF(props: Record<string, unknown>, answer: boolean | null): { correct: boolean; feedback: string } {
@@ -334,14 +343,17 @@ function renderVolumeControl(w: BaseWidget): string {
 function renderMCQuestion(w: BaseWidget): string {
   const ep = w.extendedProperties
   const qText = (ep.questionText as string) ?? 'Question'
-  const options = (ep.options as string[]) ?? []
+  // Support both legacy string[] and MCOption[] ({text, isCorrect}) formats
+  type MCOpt = string | { text?: string }
+  const rawOptions = (ep.options as MCOpt[]) ?? []
   const style = `${positionStyle(w.bounds)}box-sizing:border-box;padding:12px;border:1px solid #ddd;border-radius:4px;`
-  const opts = options.map((opt, i) =>
-    `<label style="display:block;margin:4px 0;cursor:pointer;">
+  const opts = rawOptions.map((opt, i) => {
+    const label = typeof opt === 'string' ? opt : ((opt as { text?: string }).text ?? String(i + 1))
+    return `<label style="display:block;margin:4px 0;cursor:pointer;">
       <input type="radio" name="q-${w.id}" value="${i}" style="margin-right:6px;" />
-      ${escHtml(opt)}
+      ${escHtml(label)}
     </label>`
-  ).join('')
+  }).join('')
   return `<div class="el-widget el-question el-question-mc" id="w-${w.id}" data-qtype="mc" data-widget-id="${w.id}" style="${style}">
     <p style="font-weight:bold;margin:0 0 8px;">${escHtml(qText)}</p>
     <div class="el-options">${opts}</div>

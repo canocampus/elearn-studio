@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.46] — 2026-04-11 — T641: Preview popup wired + T611.10 linear-strict Next-button gating
+
+### Fixed
+- **[T641.1] `EditorPage.closeCourseSettings()` clicked Cancel instead of Save** (`e2e/pages/EditorPage.ts`) — `closeCourseSettings()` used regex `/close|cancel/i` which matched the "Cancel" button, so `navigationMode` changes were never persisted. Added `saveCourseSettings()` that explicitly clicks `data-testid="course-settings-save"` and waits for the dialog to hide. Updated T611.10 in `question-widget.spec.ts` to call `saveCourseSettings()` + await the PATCH response via `waitForResponse()`. Removed all DIAGNOSTIC evaluate blocks from Step 4.
+- **[T641.1] `renderMCQuestion` / `evalMC` handle `MCOption[]` objects** (`packages/runtime-player/src/index.ts`) — authoring-ui stores MC options as `MCOption[]` (`{ id, text, isCorrect }`) but the runtime player treated `options` as `string[]`, crashing with `s.replace is not a function`. Both functions now extract `.text` and check `.isCorrect`.
+
+### Tests
+- **T611.10 passes** — `question-widget.spec.ts` T611.10 "Preview: Next button disabled until mandatory MC answered (linear-strict)" now passes in 30.4s. 30/30 question-widget E2E tests green. SKIP-01 (T611.10 previously skipped) resolved. 162 E2E tests: 160 passing, 2 skipped.
+
+---
+
 ## [0.5.45] — 2026-04-11 — T640: StorageManager cache update fix + autoload:false docs + persistence flow guide
 
 ### Fixed

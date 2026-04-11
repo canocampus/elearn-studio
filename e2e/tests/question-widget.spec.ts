@@ -515,12 +515,24 @@ test.describe('T611 — mandatory question navigation gate', () => {
     // ── Step 1: Set navigation mode to linear-strict ──
     await editorPage.openCourseSettings()
     await editorPage.setNavigationMode('linear-strict')
-    await editorPage.closeCourseSettings()
+    const settingsPatchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    )
+    await editorPage.saveCourseSettings()
+    await settingsPatchPromise.catch(() => null)  // wait for settings to be persisted
 
     // ── Step 2: Add a Multiple Choice question widget ──
     await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
     const mc = editorPage.canvasComponent('[data-gjs-type="question-mc"]')
     await expect(mc).toBeVisible({ timeout: 15_000 })
+
+    // ── Step 2b: Add a Nav Buttons widget — required for [data-nav-next] to appear
+    //            in the runtime player (renderNavButtons is only called when a
+    //            nav-buttons widget exists on the slide).
+    await editorPage.dragBlockToCanvas('Nav Buttons', 400, 600)
+    const navWidget = editorPage.canvasComponent('[data-gjs-type="nav-buttons"]')
+    await expect(navWidget).toBeVisible({ timeout: 10_000 })
 
     // ── Step 3: Select the question and mark it as mandatory ──
     await mc.click()
@@ -550,7 +562,11 @@ test.describe('T611 — mandatory question navigation gate', () => {
       context.waitForEvent('page'),
       editorPage.previewButton.click(),
     ])
+
     await preview.waitForLoadState('networkidle')
+
+    // Give postMessage exchange time to complete (ready → data → init)
+    await preview.waitForSelector('.el-slide', { timeout: 15_000 })
 
     // ── Step 5: Verify the Next button is disabled ──
     const nextBtn = preview.locator('[data-nav-next]')
