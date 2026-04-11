@@ -43,7 +43,7 @@ import type {
 function useExtendedProperties<T extends object>(
   component: Component,
   defaults: T,
-): [T, (patch: Partial<T>) => void] {
+): [T, (patch: Partial<T>) => void, () => T] {
   const [ep, setEp, getLatest] = useComponentProperty<T>(component, 'extendedProperties', defaults)
   function update(patch: Partial<T>) {
     // T639: getLatest() always returns the value committed on the last render,
@@ -51,7 +51,7 @@ function useExtendedProperties<T extends object>(
     const current = getLatest()
     setEp({ ...current, ...patch })
   }
-  return [ep, update]
+  return [ep, update, getLatest]
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +187,7 @@ function ScoringFeedbackForm({
 // ---------------------------------------------------------------------------
 
 function MCPropertiesForm({ component }: { component: Component }) {
-  const [ep, update] = useExtendedProperties<MCExtendedProps>(component, MC_DEFAULT_EXTENDED)
+  const [ep, update, getLatest] = useExtendedProperties<MCExtendedProps>(component, MC_DEFAULT_EXTENDED)
 
   function updateOption(id: string, patch: Partial<MCOption>) {
     update({
@@ -285,9 +285,9 @@ function MCPropertiesForm({ component }: { component: Component }) {
         mandatory={ep.scoring.mandatory}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
-        onWeightChange={w => update({ scoring: { ...ep.scoring, weight: w } })}
-        onAttemptsChange={a => update({ scoring: { ...ep.scoring, attempts: a } })}
-        onMandatoryChange={v => update({ scoring: { ...ep.scoring, mandatory: v } })}
+        onWeightChange={w => update({ scoring: { ...getLatest().scoring, weight: w } })}
+        onAttemptsChange={a => update({ scoring: { ...getLatest().scoring, attempts: a } })}
+        onMandatoryChange={v => update({ scoring: { ...getLatest().scoring, mandatory: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />
@@ -300,7 +300,7 @@ function MCPropertiesForm({ component }: { component: Component }) {
 // ---------------------------------------------------------------------------
 
 function TFPropertiesForm({ component }: { component: Component }) {
-  const [ep, update] = useExtendedProperties<TFExtendedProps>(component, TF_DEFAULT_EXTENDED)
+  const [ep, update, getLatest] = useExtendedProperties<TFExtendedProps>(component, TF_DEFAULT_EXTENDED)
 
   return (
     <>
@@ -345,9 +345,9 @@ function TFPropertiesForm({ component }: { component: Component }) {
         mandatory={ep.scoring.mandatory}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
-        onWeightChange={w => update({ scoring: { ...ep.scoring, weight: w } })}
-        onAttemptsChange={a => update({ scoring: { ...ep.scoring, attempts: a } })}
-        onMandatoryChange={v => update({ scoring: { ...ep.scoring, mandatory: v } })}
+        onWeightChange={w => update({ scoring: { ...getLatest().scoring, weight: w } })}
+        onAttemptsChange={a => update({ scoring: { ...getLatest().scoring, attempts: a } })}
+        onMandatoryChange={v => update({ scoring: { ...getLatest().scoring, mandatory: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />
@@ -360,7 +360,7 @@ function TFPropertiesForm({ component }: { component: Component }) {
 // ---------------------------------------------------------------------------
 
 function FillPropertiesForm({ component }: { component: Component }) {
-  const [ep, update] = useExtendedProperties<FillExtendedProps>(component, FILL_DEFAULT_EXTENDED)
+  const [ep, update, getLatest] = useExtendedProperties<FillExtendedProps>(component, FILL_DEFAULT_EXTENDED)
 
   function addAnswer() {
     update({ answers: [...ep.answers, ''] })
@@ -453,9 +453,9 @@ function FillPropertiesForm({ component }: { component: Component }) {
         mandatory={ep.scoring.mandatory}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
-        onWeightChange={w => update({ scoring: { ...ep.scoring, weight: w } })}
-        onAttemptsChange={a => update({ scoring: { ...ep.scoring, attempts: a } })}
-        onMandatoryChange={v => update({ scoring: { ...ep.scoring, mandatory: v } })}
+        onWeightChange={w => update({ scoring: { ...getLatest().scoring, weight: w } })}
+        onAttemptsChange={a => update({ scoring: { ...getLatest().scoring, attempts: a } })}
+        onMandatoryChange={v => update({ scoring: { ...getLatest().scoring, mandatory: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />
