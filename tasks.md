@@ -1117,7 +1117,7 @@
 >
 > File: `packages/authoring-ui/src/editor/storageManager.ts`
 
-- [ ] T640.1 — Corregir la invalidación del cache en `store()`:
+- [x] T640.1 — Corregir la invalidación del cache en `store()`:
   **Actualmente** (incorrecto): `courseCache = null` en el success path
   **Correcto**: actualizar el cache con los datos recién guardados en lugar de borrarlo:
   ```typescript
@@ -1139,7 +1139,7 @@
   }
   ```
 
-- [ ] T640.2 — Añadir un comentario claro en `initEditor.ts` junto a `autoload: false`
+- [x] T640.2 — Añadir un comentario claro en `initEditor.ts` junto a `autoload: false`
   explicando por qué NO debe cambiarse a `true`:
   ```typescript
   storageManager: {
@@ -1153,12 +1153,12 @@
   }
   ```
 
-- [ ] T640.3 — Verificar que el cache update (T640.1) no causa datos incorrectos cuando
+- [x] T640.3 — Verificar que el cache update (T640.1) no causa datos incorrectos cuando
   múltiples slides se editan en secuencia rápida. Añadir test unitario:
   - Edit slide A → verify cache updated → switch to slide B → switch back to slide A
   → verify load() uses cache and NOT a fresh API call (mock the API and assert call count)
 
-- [ ] T640.4 — Añadir `INTEGRATION_GUIDE.md` (o sección en developer guide) que explique
+- [x] T640.4 — Añadir `INTEGRATION_GUIDE.md` (o sección en developer guide) que explique
   el flujo completo de persistencia:
   ```
   USER EDIT

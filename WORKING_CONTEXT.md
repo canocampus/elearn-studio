@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-11 — T639 ✅ CLOSED (APPROVED — all 13 reviewer issues resolved, 684 unit tests + 162 E2E tests green)
+> Last updated: 2026-04-11 — T640.4 ✅ done (persistence flow doc; T640.5–T640.7 pending)
 
 ---
 
@@ -13,13 +13,17 @@
 | **Latest release** | v0.0.1-beta (2026-03-31) |
 | **Current version** | v0.5.43 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T639 — CLOSED ✅ (all subtasks complete; next: T640 deferred) |
+| **Active block** | T640 — IN PROGRESS 🔄 (T640.1–T640.4 done; T640.5–T640.7 pending) |
 | **Current version** | v0.5.44 |
 | **E2E test count** | 162 tests (159 passing, 3 skipped incl. T611.10) |
 
 ---
 
 ## What Was Last Done
+
+- **T640.4 — Persistence flow documentation ✅** — Created `docs/developer-guide/08-persistence-flow.md` covering the full edit→save→cache→load pipeline. Includes: source-of-truth boundary table, detailed step-by-step walk-through of all 7 steps (component:update → triggerAutosave debounce → editor.store() → widgetsFromGrapesjs → PATCH API → cache update → cache hit on next load), `autoload:false`/`autosave:false` rationale, cache lifecycle table, ASCII sequence diagram, failure modes table, and a key files reference. Linked from `docs/developer-guide/index.md`.
+
+- **T640.1–T640.3 — StorageManager: cache update on successful store() ✅** — `store()` success path no longer invalidates `courseCache = null`. Instead it updates the cached slide's widget list in-place via immutable spread. `courseCache = null` kept only in the `catch` block (failure path). Result: `load()` after a successful save hits the in-memory cache; no redundant `GET /courses/:id` round-trip. Two new unit tests: (1) `getCourse` called only once across load → store → load sequence; (2) `grapesjsFromWidgets` is called with the fresh saved widgets (not stale pre-store data) — regression guard against BUG-T640. 20/20 storageManager unit tests green.
 
 - **T639 — Stale-closure fix: `useComponentProperty` / `getLatest()` (T639.1–T639.11) ✅ CLOSED** — Root cause: `useExtendedProperties.update(patch)` spread over `ep` from the React closure (value at last render). Rapid consecutive updates caused silent data loss. Fix: `useComponentProperty` exposes third return element `getLatest()` (reads `latestRef.current`, always fresh). T639.2: `QuestionPropertiesPanel` update() uses `getLatest()`. T639.4: `AnimationPropertiesPanel` save() uses `getLatestEp()`. T639.5: rule in CLAUDE.md + SKILL.md. T639.6: developer guide updated. T639.7: 6 unit tests added (680 green). T639.8: GrapesJS destroy/load race fixed in `initEditor.ts` (`em.loadData` monkey-patch checks `em.destroyed`); E2E regression test passes 11.1s. T639.9: CI green. T639.10: scoring sub-patch callbacks in all three question forms use `getLatest().scoring`. T639.11 (code review): 13 issues resolved — `UsePropertyReturn<T>` shared labeled tuple type (HIGH-01); `useExtendedProperty` now also returns `getLatest()` (HIGH-02); `AnimationExtendedProps` typed interface replaces `Record<string, unknown>` (MEDIUM-01); block scoping around `em.loadData` removed (MEDIUM-02); 4 new `useExtendedProperty — getLatest()` unit tests (MEDIUM-03); `ep.scoring` defaults comment (MEDIUM-04); plus LOW-01–LOW-06 (comments, `try/catch` on `removeChild`, ESLint annotations). **684 unit tests + 162 E2E tests green. APPROVED.**
 

@@ -326,13 +326,15 @@ describe('storageManager — registerStorageManager', () => {
       await expect(impl.store({})).rejects.toThrow('network timeout')
     })
 
-    it('T042.5: invalidates course cache after successful store()', async () => {
+    it('T640.1: updates course cache after successful store() (no redundant GET)', async () => {
       invalidateCourseCache()
+      const savedWidgets = [{ type: 'text', id: 'w1', bounds: { x: 0, y: 0, width: 100, height: 50 } }]
       const mockCourse = {
         slides: [{ id: 's1', title: 'Slide', widgets: [] }],
       }
       vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
       vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
+      vi.mocked(widgetsFromGrapesjs).mockReturnValue(savedWidgets as never)
 
       updateStorageContext({ courseId: 'c1', slideId: 's1' })
       registerStorageManager(editor)
@@ -345,12 +347,88 @@ describe('storageManager — registerStorageManager', () => {
       await impl.load()
       expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
 
-      // store() should invalidate the cache
+      // store() should update the cache, NOT clear it
       await impl.store({})
 
-      // Second load after store() must re-fetch
+      // Second load after store() must use cache — getCourse still called only once
       await impl.load()
-      expect(courseApi.getCourse).toHaveBeenCalledTimes(2)
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
+    })
+
+    it('T640.1: cache reflects saved widgets after store() (BUG-T640 regression)', async () => {
+      invalidateCourseCache()
+      const savedWidgets = [{ type: 'text', id: 'w1', bounds: { x: 0, y: 0, width: 100, height: 50 } }]
+      const mockCourse = {
+        slides: [{ id: 's1', title: 'Slide', widgets: [] }],
+      }
+      vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
+      vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
+      vi.mocked(widgetsFromGrapesjs).mockReturnValue(savedWidgets as never)
+      vi.mocked(grapesjsFromWidgets).mockReturnValue([{ type: 'text' }] as never)
+
+      updateStorageContext({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor)
+      const impl = addMock.mock.calls[0][1] as {
+        load: () => Promise<unknown>
+        store: (data: unknown) => Promise<void>
+      }
+
+      await impl.load()   // populates cache with original widgets: []
+      await impl.store({}) // should update cache with savedWidgets
+      const result = await impl.load() as { pages: Array<{ component: { components: unknown[] } }> }
+
+      // grapesjsFromWidgets was called with the saved widgets (not the stale empty array)
+      expect(grapesjsFromWidgets).toHaveBeenLastCalledWith(savedWidgets)
+      expect(result.pages[0].component.components).toEqual([{ type: 'text' }])
+    })
+
+    it('T640.3: multi-slide edit sequence — getCourse called once, slide A returns saved widgets after round-trip via slide B', async () => {
+      // Scenario: edit slide A, switch to slide B, switch back to slide A.
+      // getCourse must be called exactly once throughout (all loads use cache).
+      // Slide A must serve the widgets saved during the edit, not the original stale data.
+      invalidateCourseCache()
+
+      const originalWidgetsA = [{ type: 'text', id: 'orig-a' }]
+      const savedWidgetsA   = [{ type: 'image', id: 'saved-a' }]
+      const originalWidgetsB = [{ type: 'button', id: 'orig-b' }]
+
+      const mockCourse = {
+        slides: [
+          { id: 'sA', title: 'Slide A', widgets: originalWidgetsA },
+          { id: 'sB', title: 'Slide B', widgets: originalWidgetsB },
+        ],
+      }
+      vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
+      vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
+
+      registerStorageManager(editor)
+      const impl = addMock.mock.calls[0][1] as {
+        load: () => Promise<unknown>
+        store: (data: unknown) => Promise<void>
+      }
+
+      // 1. Load slide A — populates cache (1 API call)
+      updateStorageContext({ courseId: 'c1', slideId: 'sA' })
+      await impl.load()
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
+
+      // 2. Edit slide A and store — cache is updated, NOT cleared
+      vi.mocked(widgetsFromGrapesjs).mockReturnValue(savedWidgetsA as never)
+      await impl.store({})
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(1) // still 1 — no re-fetch
+
+      // 3. Switch to slide B and load — cache hit for same courseId (still 1 API call)
+      updateStorageContext({ courseId: 'c1', slideId: 'sB' })
+      await impl.load()
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
+
+      // 4. Switch back to slide A and load — cache hit again (still 1 API call)
+      updateStorageContext({ courseId: 'c1', slideId: 'sA' })
+      await impl.load()
+      expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
+
+      // 5. Slide A must serve the saved widgets, not the original stale ones
+      expect(grapesjsFromWidgets).toHaveBeenLastCalledWith(savedWidgetsA)
     })
   })
 })

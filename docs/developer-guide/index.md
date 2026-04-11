@@ -15,6 +15,7 @@ Technical reference for contributors and developers extending eLearn Studio.
 | [05 — Observability](./05-observability.md) | Logs, traces, metrics — Loki, Tempo, Prometheus, Grafana |
 | [06 — Contributing](./06-contributing.md) | Branch naming, commit format, PR checklist, OpenAPI regeneration |
 | [07 — Authentication](./07-authentication.md) | JWT access tokens, refresh tokens, Bearer injection, 401 handling, E2E auth setup |
+| [08 — Persistence Flow](./08-persistence-flow.md) | GrapesJS edit → debounce → store() → PATCH API → cache update → slide-switch cache hit |
 
 ---
 

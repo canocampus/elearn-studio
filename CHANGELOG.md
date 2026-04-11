@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.45] — 2026-04-11 — T640: StorageManager cache update fix + autoload:false docs (IN PROGRESS)
+
+### Fixed
+- **[T640.1] `store()` updates cache instead of invalidating it** (`packages/authoring-ui/src/editor/storageManager.ts`) — On a successful save, `courseCache` is now updated in-place with fresh widget data for the saved slide (immutable spread). `courseCache = null` is kept only in the `catch` block. Previously every successful `store()` cleared the cache, forcing a redundant `GET /courses/:id` on the next slide load. Now `load()` after a save always hits cache.
+
+### Changed
+- **[T640.2] Explicit `autoload:false` / `autosave:false` comments** (`packages/authoring-ui/src/editor/initEditor.ts`) — Replaced the sparse `R-03` reference with inline "INTENTIONAL — do NOT change to true" comments on each flag, documenting the double-load race (`autoload:true`) and undo-flood (`autosave:true`) root causes. (T640.2)
+
+### Docs
+- **[T640.4] Persistence flow guide** (`docs/developer-guide/08-persistence-flow.md`) — New developer guide chapter covering the full edit→save→cache→load pipeline: source-of-truth boundary table, 7-step walk-through (component:update → triggerAutosave 2s debounce → editor.store() → widgetsFromGrapesjs → PATCH /courses/:id/slides/:slideId → courseCache update → cache hit on next load), `autoload:false`/`autosave:false` rationale, cache lifecycle table, ASCII sequence diagram, failure modes table, and key-files reference. Linked from `docs/developer-guide/index.md`.
+
+### Tests
+- **`src/__tests__/storageManager.test.ts`** — Replaced `T042.5: invalidates cache after successful store()` with two T640.1 regression tests: (1) `getCourse` called only once across a full load → store → load sequence (no redundant fetch); (2) `grapesjsFromWidgets` receives the freshly-saved widgets (not pre-store stale values) — BUG-T640 regression guard. Added T640.3 multi-slide regression: `getCourse` called exactly once across load → store → switch B → switch A; slide A returns saved widgets after the round-trip. **21 unit tests green.**
+
+---
+
 ## [0.5.44] — 2026-04-10/11 — T639: Fix stale-closure in extendedProperties property panels (T639.1–T639.11)
 
 ### Changed

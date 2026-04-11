@@ -24,8 +24,9 @@ export interface StorageOptions {
 const storageContext: StorageOptions = { courseId: '', slideId: '' }
 
 // T042.5: In-memory course cache to eliminate redundant API round-trips on slide
-// switches. Keyed by courseId; cleared whenever a successful store() updates the
-// slide data so the next load() reflects the latest saved state.
+// switches. Keyed by courseId. On a successful store(), the cache is updated with
+// fresh widget data so the next load() can serve from cache instead of re-fetching.
+// On a failed store(), the cache is cleared so stale data is never served.
 let courseCache: { courseId: string; doc: CourseDoc } | null = null
 
 /**
@@ -164,10 +165,18 @@ export function registerStorageManager(editor: Editor): void {
 
         await courseApi.updateSlide(courseId, slideId, { widgets, thumbnail })
 
-        // Invalidate cache on success so the next load() fetches the freshly saved state.
-        courseCache = null
+        // T640.1: Update cache with fresh widget data instead of invalidating it.
+        // This avoids a redundant GET /courses/:id on the next load() call.
+        // Only update if the cache already holds this course — if cache is cold
+        // (e.g. first store before any load), leave it as-is.
+        if (courseCache?.courseId === courseId) {
+          const updatedSlides = courseCache.doc.slides.map(s =>
+            s.id === slideId ? { ...s, widgets } : s
+          )
+          courseCache = { courseId, doc: { ...courseCache.doc, slides: updatedSlides } }
+        }
       } catch (err) {
-        // T042.5: also invalidate on failure so stale cache is not served after a failed save.
+        // T042.5: Invalidate on failure so stale data is never served after a failed save.
         courseCache = null
         console.error('[StorageManager] store() failed:', err)
         throw err
