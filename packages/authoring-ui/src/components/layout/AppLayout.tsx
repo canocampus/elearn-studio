@@ -91,7 +91,12 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
     }
 
     function onReady(e: MessageEvent) {
-      if (!popup || e.source !== popup || e.data !== 'elearn-preview-ready') return
+      // Use origin + data check instead of e.source === popup.
+      // e.source !== popup can fail in Playwright headless (different WindowProxy
+      // objects for the same browsing context); origin check is sufficient because
+      // both pages share the same origin.
+      if (e.origin !== origin || e.data !== 'elearn-preview-ready') return
+      if (!popup) return
       window.removeEventListener('message', onReady)
       popup.postMessage(
         { type: 'elearn-preview-data', course: previewCourse, slideIndex: currentSlideIndex },

@@ -58,12 +58,19 @@
       window.addEventListener('message', onData)
 
       // Signal the opener that we are ready to receive the course data.
-      // opener is null when the page is navigated to directly (no popup context).
-      if (window.opener) {
-        window.opener.postMessage('elearn-preview-ready', origin)
-      } else {
-        showError('Open Preview from the eLearn Studio editor.')
+      // In Playwright headless, window.opener may be set asynchronously — retry
+      // for up to ~1 s before giving up and showing the error message.
+      var signalAttempts = 10
+      function trySignalReady() {
+        if (window.opener) {
+          window.opener.postMessage('elearn-preview-ready', origin)
+        } else if (signalAttempts-- > 0) {
+          setTimeout(trySignalReady, 100)
+        } else {
+          showError('Open Preview from the eLearn Studio editor.')
+        }
       }
+      trySignalReady()
     })()
   </script>
 </body>
