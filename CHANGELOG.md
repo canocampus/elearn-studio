@@ -7,31 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.5.44] — 2026-04-10 — T639: Fix stale-closure in extendedProperties property panels (T639.1–T639.8)
+## [0.5.44] — 2026-04-10/11 — T639: Fix stale-closure in extendedProperties property panels (T639.1–T639.11)
 
 ### Changed
-- **`useComponentProperty` returns `getLatest()` getter** (`packages/authoring-ui/src/hooks/useComponentProperty.ts`) — Third element of the return tuple is now `() => T`: a stable getter that reads `latestRef.current` and always returns the most-recently committed value, regardless of React closure age. The `latestRef` was already present (added in T631 for optimistic update); T639.1 just exposed it via the return tuple. No behaviour change to existing callers — the getter is opt-in.
+- **`UsePropertyReturn<T>` named labeled tuple** (`packages/authoring-ui/src/hooks/useComponentProperty.ts`) — Shared return type `[value: T, update: (value: T) => void, getLatest: () => T]` for both `useComponentProperty` and `useExtendedProperty`. Removes the implicit inline tuple contract and makes the 3-element signature self-documenting. (T639.11 HIGH-01)
+- **`useComponentProperty` returns `getLatest()` getter** — Third element of the return tuple is `() => T`: a stable getter that reads `latestRef.current` and always returns the most-recently committed value, regardless of React closure age. No behaviour change to existing callers — the getter is opt-in. (T639.1)
+- **`useExtendedProperty` also exposes `getLatest()`** — The singular-key hook now returns a 3-tuple with the same getter semantics as `useComponentProperty`. Callers that need stale-closure protection for sub-key reads no longer require Backbone coupling. (T639.11 HIGH-02)
+- **`AnimationExtendedProps` typed interface** (`packages/authoring-ui/src/components/sidebar/AnimationPropertiesPanel.tsx`) — Replaces `Record<string, unknown>` generic; `animations?: AnimationPath[]` is now fully typed. Removes the `as AnimationPath[]` unsafe cast; `ep.animations ?? []` is typed correctly. `DEFAULT_ANIMATION_EP` replaces the opaque `EMPTY_EP` constant. (T639.11 MEDIUM-01, LOW-02)
+- **`em.loadData` block scoping removed** (`packages/authoring-ui/src/editor/initEditor.ts`) — Unnecessary IIFE-style block around the monkey-patch inlined at function scope; no isolation benefit since `const` is block-scoped anyway. (T639.11 MEDIUM-02)
 
 ### Fixed
-- **`useExtendedProperties` stale-closure eliminated** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — `update(patch)` previously spread over `ep` from the React closure, which could be stale if two updates fired in the same render cycle (e.g. change question text AND add option simultaneously). Now calls `getLatest()` (from `useComponentProperty`) instead of `comp.get('extendedProperties')` — cleaner, no direct Backbone coupling, always reads the latest committed value. Supersedes the T621 workaround.
-- **`AnimationPropertiesPanel` `save()` stale-closure fixed** (`packages/authoring-ui/src/components/sidebar/AnimationPropertiesPanel.tsx`) — `save(updated)` previously spread over `ep` from the outer closure: `setEp({ ...ep, animations: updated })`. Fixed to `setEp({ ...getLatestEp(), animations: updated })` using the same `getLatest()` pattern.
+- **`useExtendedProperties` stale-closure eliminated** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — `update(patch)` now calls `getLatest()` instead of spreading over the closure `ep`. Supersedes the T621 workaround. (T639.2)
+- **`AnimationPropertiesPanel` `save()` stale-closure fixed** (`packages/authoring-ui/src/components/sidebar/AnimationPropertiesPanel.tsx`) — `save(updated)` now calls `{ ...getLatestEp(), animations: updated }`. (T639.4)
+- **[T639.8] GrapesJS destroy/load race condition** (`packages/authoring-ui/src/editor/initEditor.ts`) — `editor.destroy()` calls Backbone's `this.clear({ silent: true })`, wiping ALL model attributes including `storables`. If `editor.load()` was in-flight when `destroy()` ran, `loadData(result)` crashed: `this.storables.forEach(...)` — `storables` was `undefined`. Fix: monkey-patch `em.loadData` to check `em.destroyed`; silently no-ops on destroyed editors. Triggered by React 18 StrictMode double-invoke and courseId navigation.
+- **Ghost element `removeChild` guarded** (`packages/authoring-ui/src/editor/initEditor.ts`) — `requestAnimationFrame(() => document.body.removeChild(ghost))` wrapped in `try/catch` to handle the element being removed before the frame fires. (T639.11 LOW-04)
+- **Scoring sub-patch callbacks use `getLatest().scoring`** — All three question form scoring callbacks read fresh EP via `getLatest()` before patching the `scoring` sub-key, eliminating the same stale-closure risk in score fields. (T639.10)
+- **Caller-contract comment added** (`QuestionPropertiesPanel.tsx`) — Documents that `useExtendedProperties` callers must pass defaults matching the widget type; enforced at render by `isQuestionWidgetType` guard. (T639.11 HIGH-03)
+- **`ep.scoring` defaults guarantee documented** (`QuestionPropertiesPanel.tsx`) — Inline comment before `ScoringFeedbackForm` confirms `ep.scoring` is never undefined (guaranteed by `MC_DEFAULT_EXTENDED`). (T639.11 MEDIUM-04)
+- **Hook comments reference T639.1** (`useComponentProperty.ts`) — Stale T620/T621 task references updated throughout. ESLint disable lines annotated with explanatory comments. (T639.11 LOW-01, LOW-05)
 
 ### Docs
-- **`CLAUDE.md`** — New section "GrapesJS + React Hook Rules" documents the `extendedProperties` patch-merge rule: never spread over a closure variable (`ep`), always use `getLatest()`. Includes wrong/correct code examples.
-- **`.claude/skills/elearn-e2e-qa/SKILL.md`** — New section "GrapesJS Property Panel — Stale Closure Rule (T639)" documents the regression pattern and the required rapid-consecutive-update test guard.
-- **`docs/developer-guide/03-adding-widget-types.md`** — Step 6 prose updated; new "Stale-closure rule (critical — T639)" subsection added with wrong/correct code examples.
+- **`CLAUDE.md`** — New section "GrapesJS + React Hook Rules" documents the patch-merge rule: never spread over a closure variable, always use `getLatest()`. Includes wrong/correct code examples.
+- **`.claude/skills/elearn-e2e-qa/SKILL.md`** — New "GrapesJS Property Panel — Stale Closure Rule (T639)" section.
+- **`docs/developer-guide/03-adding-widget-types.md`** — Step 6 updated with "Stale-closure rule (critical — T639)" subsection.
+- **`docs/issues/issues-T639.md`** — Full T639.11 code-review table (0 CRITICAL, 3 HIGH, 4 MEDIUM, 6 LOW); all 13 issues resolved; APPROVED verdict recorded.
 
 ### Tests
-- **`src/__tests__/hooks/useComponentProperty.test.ts`** — New `useComponentProperty — getLatest() (T639)` describe block with 6 unit tests: getter is a function, returns value on mount, reflects update after re-render, reflects external model change, patch-merge regression (two sequential updates on different EP fields both survive — primary T639 stale-closure regression), AnimationPanel save() pattern (animations written without clobbering other EP keys), three consecutive patch-merge updates all survive. All 23 hook tests + 680 unit tests green.
-
-- **[T639.8] GrapesJS destroy/load race condition fixed** (`packages/authoring-ui/src/editor/initEditor.ts`) — `editor.destroy()` calls Backbone's `this.clear({ silent: true })`, wiping ALL model attributes including `storables`. If `editor.load()` was in-flight (awaiting the Storage API call) when `destroy()` ran, the subsequent `loadData(result)` call at grapesjs.js:55206 crashed: `this.storables.forEach(...)` — `storables` was `undefined`. GrapesJS 0.21 does not guard `loadData()` against the destroyed state. Fix: monkey-patch `em.loadData` after `grapesjs.init()` to check `em.destroyed`; if true, silently returns the raw data (discarded by the `isCancelled` guard in EditorCanvas anyway). Triggered by React 18 StrictMode double-invoke and by courseId navigation (Effect 1 cleanup fires destroy while Effect 2's load is still awaiting the Storage API).
-
-### Tests
-- **`e2e/tests/question-widget.spec.ts`** — New `T639.8` describe block: drag MC widget onto canvas, fill question text (Step 1), immediately click "+ Add Option" (Step 2), verify pre-save model has question text + 4 options, reload page, navigate back to slide, assert question text sentinel + 4 Remove buttons are present. Verifies that rapid consecutive property-panel updates don't clobber each other. Passes in 11.1s.
+- **`src/__tests__/hooks/useComponentProperty.test.ts`** — `useComponentProperty — getLatest() (T639)` describe block: 6 tests including primary patch-merge regression (two sequential updates on different EP fields both survive). `useExtendedProperty — getLatest() (T639)` describe block: 4 tests covering getter function, mount value, update reflection, external model change. **684 unit tests green** (up from 680). (T639.7, T639.11 MEDIUM-03)
+- **`e2e/tests/question-widget.spec.ts`** — `T639.8` describe block: rapid consecutive property-panel updates (question text + add option) survive page reload. All 162 Playwright E2E tests pass. (T639.8)
 
 ### Notes
-- T639.9 (CI), T639.10 (refine), T639.11 (code review) still pending — this entry will be updated when the block closes.
 - Other panels audited and confirmed unaffected: `ButtonPropertiesPanel`, `MediaPlayerPropertiesPanel`, `AudioNarrationPropertiesPanel`, `ProgressBarPropertiesPanel`, `VolumeControlPropertiesPanel`.
+- Code review (T639.11): **APPROVED** — 0 CRITICAL, 3 HIGH, 4 MEDIUM, 6 LOW, all resolved.
 
 ---
 

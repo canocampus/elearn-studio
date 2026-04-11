@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-10 — T639 IN PROGRESS 🔄 (T639.1–T639.8 done, T639.9–T639.11 pending)
+> Last updated: 2026-04-11 — T639 ✅ CLOSED (APPROVED — all 13 reviewer issues resolved, 684 unit tests + 162 E2E tests green)
 
 ---
 
@@ -13,7 +13,7 @@
 | **Latest release** | v0.0.1-beta (2026-03-31) |
 | **Current version** | v0.5.43 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T639 — IN PROGRESS 🔄 (T639.1–T639.8 done, T639.9–T639.11 pending) |
+| **Active block** | T639 — CLOSED ✅ (all subtasks complete; next: T640 deferred) |
 | **Current version** | v0.5.44 |
 | **E2E test count** | 162 tests (159 passing, 3 skipped incl. T611.10) |
 
@@ -21,7 +21,7 @@
 
 ## What Was Last Done
 
-- **T639 — Stale-closure fix: `useComponentProperty` / `getLatest()` (T639.1–T639.8 done)** — Root cause: `useExtendedProperties.update(patch)` spread over `ep` from the React closure (value at last render). Rapid consecutive updates caused silent data loss. Fix: `useComponentProperty` exposes third return element `getLatest()` (reads `latestRef.current`, always fresh). T639.2: `QuestionPropertiesPanel` update() uses `getLatest()`. T639.4: `AnimationPropertiesPanel` save() uses `getLatestEp()`. T639.5: rule in CLAUDE.md + SKILL.md. T639.6: developer guide updated. T639.7: 6 unit tests in `useComponentProperty.test.ts` — all 680 unit tests green. T639.8: E2E regression test in `question-widget.spec.ts` (rapid consecutive updates survive reload) passes 11.1s. Also: GrapesJS destroy/load race condition fixed in `initEditor.ts` — `em.loadData` monkey-patched to check `em.destroyed` before running; eliminates `[EditorCanvas] load() failed: TypeError: Cannot read properties of undefined (reading 'forEach')` browser error triggered by React 18 StrictMode double-invoke and courseId navigation. T639.8 + T631.3/T631.4/T631.6 all pass in 32s with no browser errors. Pending: T639.9 CI, T639.10 refine, T639.11 code review.
+- **T639 — Stale-closure fix: `useComponentProperty` / `getLatest()` (T639.1–T639.11) ✅ CLOSED** — Root cause: `useExtendedProperties.update(patch)` spread over `ep` from the React closure (value at last render). Rapid consecutive updates caused silent data loss. Fix: `useComponentProperty` exposes third return element `getLatest()` (reads `latestRef.current`, always fresh). T639.2: `QuestionPropertiesPanel` update() uses `getLatest()`. T639.4: `AnimationPropertiesPanel` save() uses `getLatestEp()`. T639.5: rule in CLAUDE.md + SKILL.md. T639.6: developer guide updated. T639.7: 6 unit tests added (680 green). T639.8: GrapesJS destroy/load race fixed in `initEditor.ts` (`em.loadData` monkey-patch checks `em.destroyed`); E2E regression test passes 11.1s. T639.9: CI green. T639.10: scoring sub-patch callbacks in all three question forms use `getLatest().scoring`. T639.11 (code review): 13 issues resolved — `UsePropertyReturn<T>` shared labeled tuple type (HIGH-01); `useExtendedProperty` now also returns `getLatest()` (HIGH-02); `AnimationExtendedProps` typed interface replaces `Record<string, unknown>` (MEDIUM-01); block scoping around `em.loadData` removed (MEDIUM-02); 4 new `useExtendedProperty — getLatest()` unit tests (MEDIUM-03); `ep.scoring` defaults comment (MEDIUM-04); plus LOW-01–LOW-06 (comments, `try/catch` on `removeChild`, ESLint annotations). **684 unit tests + 162 E2E tests green. APPROVED.**
 
 - **T638 — Fix typography changes not affecting Score Widgets / v0.5.43** — Style Manager `font-size`/`color` changes had no visual effect on `quiz-score` and `score-field` canvas previews because `onRender()` injected hardcoded inline styles with higher CSS specificity than the GrapesJS CSS rule. Initial fix (d22fb16): `change:style` Backbone listener + `model.getStyle()` re-render — worked in dev but failed in CI production build (minified Backbone event not firing). Final fix (7bae6ec): removed inline `font-size`/`color` from `onRender()` entirely; GrapesJS applies `setStyle()` to `el` via CSS rule, inner elements inherit automatically. Also added `quizTitle`/`scorePrefix` editable traits. 5 `@regression` E2E tests in `score-widgets.spec.ts` (T638.5a–5e) — all pass in CI. 673 unit tests pass. Code review: APPROVED. `docs/issues/issues-T638.md` generated.
 
