@@ -87,17 +87,26 @@ export function App() {
     async function bootstrapCourse() {
       setAppState('loading')
       try {
-        const courses = await listCourses()
-        let id: string
+        // T642: if ?courseId=xxx is present (E2E per-test isolation), load that specific
+        // course directly instead of listing — prevents parallel workers from colliding
+        // on the "most recently updated" course when multiple create courses simultaneously.
+        const params = new URLSearchParams(window.location.search)
+        const directId = params.get('courseId')
 
-        if (courses.length > 0) {
-          const sorted = [...courses].sort(
-            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-          )
-          id = sorted[0]._id
+        let id: string
+        if (directId) {
+          id = directId
         } else {
-          const created = await createCourse('My First Course')
-          id = created._id
+          const courses = await listCourses()
+          if (courses.length > 0) {
+            const sorted = [...courses].sort(
+              (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+            )
+            id = sorted[0]._id
+          } else {
+            const created = await createCourse('My First Course')
+            id = created._id
+          }
         }
 
         const full = await getCourse(id)

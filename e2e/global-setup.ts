@@ -7,9 +7,12 @@ import * as path from 'path'
  *
  * 1. Creates a test user via POST /auth/register (only works when NODE_ENV=test)
  * 2. Logs in to obtain a refresh cookie
- * 3. Creates a seed course so the editor opens in 'ready' state
- * 4. Injects the refresh cookie into a browser context (avoids UI login flow)
- * 5. Saves the browser auth state (cookies) to .auth/state.json for reuse
+ * 3. Injects the refresh cookie into a browser context (avoids UI login flow)
+ * 4. Saves the browser auth state (cookies) to .auth/state.json for reuse
+ *
+ * T642.2: Seed course creation removed — each test creates its own isolated
+ * course via the `editorPage` fixture (fixtures/auth.ts) and deletes it in
+ * teardown. This eliminates the shared-state root cause of FLAKE-03.
  *
  * E2E_API_URL  — backend API URL  (default: http://localhost:3001)
  * E2E_BASE_URL — authoring-ui URL (default: http://localhost:3000)
@@ -46,26 +49,12 @@ export default async function globalSetup() {
     const body = await loginRes.text()
     throw new Error(`Failed to login test user: ${loginRes.status()} ${body}`)
   }
-  const loginBody = await loginRes.json() as { data: { accessToken: string } }
-  const accessToken = loginBody.data.accessToken
+  // Access token obtained from login is not used in global-setup after T642.2
+  // (seed course creation removed). The refresh cookie is what matters here — it's
+  // injected into the browser context so tests start authenticated.
+  await loginRes.json()
 
-  // ── 3. Create seed course if none exist ────────────────────────────────────
-  const coursesRes = await apiCtx.get('/courses', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  const coursesBody = await coursesRes.json() as { data: Array<{ _id: string }> }
-  if (coursesBody.data.length === 0) {
-    const createRes = await apiCtx.post('/courses', {
-      data: { title: 'E2E Test Course' },
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-    if (!createRes.ok()) {
-      const body = await createRes.text()
-      throw new Error(`Failed to create seed course: ${body}`)
-    }
-  }
-
-  // ── 4. Inject refresh cookie into browser context ──────────────────────────
+  // ── 3. Inject refresh cookie into browser context ──────────────────────────
   //
   // Problem: in CI the app is served via `vite preview` (no dev-server proxy),
   // so React fetches `http://localhost:3001/auth/refresh` cross-origin. If that
