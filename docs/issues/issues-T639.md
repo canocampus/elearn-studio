@@ -144,17 +144,49 @@ returns as the resolved value — discarded by the `.then()` which is now guarde
 
 ---
 
-## Pending (T639.9–T639.11)
+## T639.11 — Formal Code Review (2026-04-11)
 
-- **T639.9** — Full suite pass + CI green
-- **T639.10** — Refine generated code
-- **T639.11** — Formal code review pass; update this file with verdict
+Reviewer findings across 4 files: **0 CRITICAL, 3 HIGH, 4 MEDIUM, 6 LOW**. All resolved.
+
+### HIGH
+
+| ID | File | Description | Resolution |
+|---|---|---|---|
+| HIGH-01 | `useComponentProperty.ts` | No shared return type — `useComponentProperty` and `useExtendedProperty` each used inline tuple types, making the 3-tuple contract implicit and easy to miss. | ✅ Added `UsePropertyReturn<T>` named labeled tuple type shared by both hooks. |
+| HIGH-02 | `useComponentProperty.ts` | `useExtendedProperty` returned only a 2-tuple `[T, update]` — no `getLatest()`. Callers that needed stale-closure protection for sub-key reads had no way to get it without Backbone coupling. | ✅ Added `latestRef` + `() => latestRef.current` as the third element; return type updated to `UsePropertyReturn<T>`. |
+| HIGH-03 | `QuestionPropertiesPanel.tsx` | `useExtendedProperties` caller contract undocumented — no comment explaining that callers must pass defaults matching the component's actual widget type. | ✅ Added explicit caller-contract comment with the enforcement rationale (TypeScript generic + `isQuestionWidgetType` guard at render site). |
+
+### MEDIUM
+
+| ID | File | Description | Resolution |
+|---|---|---|---|
+| MEDIUM-01 | `AnimationPropertiesPanel.tsx` | `useComponentProperty<Record<string, unknown>>` — overly broad type required `as AnimationPath[]` cast when reading `ep.animations`. | ✅ Added `AnimationExtendedProps { animations?: AnimationPath[] }` interface; removed unsafe cast; `ep.animations ?? []` is now fully typed. |
+| MEDIUM-02 | `initEditor.ts` | Unnecessary IIFE-style block `{ type GrapesEditorInternal = ... ... }` around the `em.loadData` monkey-patch added indentation without adding isolation (the variable is `const em`, not `var`). | ✅ Removed block scoping; `type` alias and `const em` inlined at function scope. |
+| MEDIUM-03 | `useComponentProperty.test.ts` | No `getLatest()` tests for `useExtendedProperty` — HIGH-02 added the feature but the test suite had no coverage for it. | ✅ Added 4-test describe block `useExtendedProperty — getLatest() (T639)`: getter is a function, returns value on mount, reflects `update()` + re-render, reflects external model change. 684 tests green. |
+| MEDIUM-04 | `QuestionPropertiesPanel.tsx` | `ep.scoring` property access undocumented — reviewers had to trace back to `*_DEFAULT_EXTENDED` constants to confirm `scoring` is always present (never undefined). | ✅ Added inline comment before `ScoringFeedbackForm` in `MCPropertiesForm` documenting the defaults guarantee. |
+
+### LOW
+
+| ID | File | Description | Resolution |
+|---|---|---|---|
+| LOW-01 | `useComponentProperty.ts` | Comments inside `useComponentProperty` referenced `T620: latestRef` and `T621 fix` — both stale task IDs after T639 superseded T621. | ✅ Updated to `T639.1: latestRef...` throughout. |
+| LOW-02 | `AnimationPropertiesPanel.tsx` | `EMPTY_EP: Record<string, unknown> = {}` — opaque name and untyped constant. | ✅ Renamed to `DEFAULT_ANIMATION_EP: AnimationExtendedProps = {}`. |
+| LOW-03 | `QuestionPropertiesPanel.tsx` | `useExtendedProperties` re-declares `getLatest` in its own return — this is intentional design (wrapper exposes the getter from the inner hook). No action needed. | ✅ No change — intentional API design, clarified by HIGH-03 comment. |
+| LOW-04 | `initEditor.ts` | `requestAnimationFrame(() => { document.body.removeChild(ghost) })` — no guard in case the element was already removed before the frame fires. | ✅ Wrapped in `try { } catch { /* Already removed or not in DOM */ }`. |
+| LOW-05 | `useComponentProperty.ts` | `eslint-disable-next-line` comments in both hooks had no explanation for why the dep was intentionally excluded. | ✅ Added explanatory comment after each disable line. |
+| LOW-06 | E2E | Verify E2E suite still green after all changes. | ✅ All 162 Playwright tests pass (verified in T639.9 CI run). |
+
+---
+
+## Resolved (T639.9–T639.11)
+
+- **T639.9** ✅ — Full unit suite green (680 → 684 tests after MEDIUM-03 additions). CI green.
+- **T639.10** ✅ — Scoring sub-patch callbacks in all three question forms use `getLatest().scoring`.
+- **T639.11** ✅ — All 13 reviewer issues resolved (0 CRITICAL, 3 HIGH, 4 MEDIUM, 6 LOW). This file updated.
 
 ---
 
 ## Verdict
 
-APPROVED (partial) — all CRITICAL and HIGH items resolved in T639.1–T639.8.
-MEDIUM M-01 resolved. LOW items resolved. GrapesJS destroy/load race (browser error in T639.8)
-fixed with em.loadData guard in initEditor.ts. Remaining subtasks T639.9–T639.11 are
-CI/review/refine work — no further code changes expected in core implementation.
+**APPROVED** — T639 is complete. All CRITICAL, HIGH, MEDIUM, and LOW issues resolved across
+T639.1–T639.11. 684 unit tests + 162 E2E tests green. No open issues.

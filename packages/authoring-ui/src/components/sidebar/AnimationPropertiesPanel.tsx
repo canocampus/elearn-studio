@@ -62,21 +62,23 @@ function newAnimation(): AnimationPath {
 
 // ─── Inner panel — only rendered when component is guaranteed non-null ────────
 
-const EMPTY_EP: Record<string, unknown> = {}
+interface AnimationExtendedProps {
+  animations?: AnimationPath[]
+}
+
+const DEFAULT_ANIMATION_EP: AnimationExtendedProps = {}
 
 function AnimationPanelContent({ component }: { component: Component }) {
-  const [ep, setEp, getLatestEp] = useComponentProperty<Record<string, unknown>>(
+  const [ep, setEp, getLatestEp] = useComponentProperty<AnimationExtendedProps>(
     component,
     'extendedProperties',
-    EMPTY_EP,
+    DEFAULT_ANIMATION_EP,
   )
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pathEditorOpen, setPathEditorOpen] = useState(false)
 
-  const animations: AnimationPath[] = Array.isArray(ep.animations)
-    ? (ep.animations as AnimationPath[])
-    : []
+  const animations: AnimationPath[] = ep.animations ?? []
 
   const resolvedSelectedId = animations.some(a => a.id === selectedId)
     ? selectedId

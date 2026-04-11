@@ -212,15 +212,13 @@ export function initEditor(opts: InitEditorOptions): Editor {
   //
   // GrapesJS does not guard loadData() against the destroyed state itself.
   // Fix: monkey-patch em.loadData to silently return early when em.destroyed === true.
-  {
-    type GrapesEditorInternal = { em?: { destroyed?: boolean; loadData?: (data: unknown) => unknown } }
-    const em = (editor as unknown as GrapesEditorInternal).em
-    if (em && typeof em.loadData === 'function') {
-      const originalLoadData = em.loadData.bind(em)
-      em.loadData = function (data: unknown) {
-        if (em.destroyed) return data
-        return originalLoadData(data)
-      }
+  type GrapesEditorInternal = { em?: { destroyed?: boolean; loadData?: (data: unknown) => unknown } }
+  const em = (editor as unknown as GrapesEditorInternal).em
+  if (em && typeof em.loadData === 'function') {
+    const originalLoadData = em.loadData.bind(em)
+    em.loadData = function (data: unknown) {
+      if (em.destroyed) return data
+      return originalLoadData(data)
     }
   }
 
@@ -321,7 +319,9 @@ export function initEditor(opts: InitEditorOptions): Editor {
         'background:#6366f1;border-radius:3px;opacity:0.85;pointer-events:none;'
       document.body.appendChild(ghost)
       de.dataTransfer.setDragImage(ghost, 0, 0)
-      requestAnimationFrame(() => { document.body.removeChild(ghost) })
+      requestAnimationFrame(() => {
+        try { document.body.removeChild(ghost) } catch { /* Already removed or not in DOM */ }
+      })
     })
   }
 

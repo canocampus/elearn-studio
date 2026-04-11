@@ -390,3 +390,45 @@ describe('useExtendedProperty', () => {
     expect(rB.current[0]).toBe(2)
   })
 })
+
+// ── useExtendedProperty — getLatest() (T639 parity) ──────────────────────────
+
+describe('useExtendedProperty — getLatest() (T639)', () => {
+  it('returns getLatest as the third element of the tuple', () => {
+    const comp = makeComponent({ extendedProperties: { color: '#ff0000' } })
+    const { result } = renderHook(() =>
+      useExtendedProperty(comp as never, 'color', '#000000'),
+    )
+    expect(typeof result.current[2]).toBe('function')
+  })
+
+  it('getLatest() returns the current sub-key value on mount', () => {
+    const comp = makeComponent({ extendedProperties: { volume: 80 } })
+    const { result } = renderHook(() =>
+      useExtendedProperty(comp as never, 'volume', 100),
+    )
+    expect(result.current[2]()).toBe(80)
+  })
+
+  it('getLatest() reflects updated value after update() + re-render', () => {
+    const comp = makeComponent({ extendedProperties: { volume: 50 } })
+    const { result } = renderHook(() =>
+      useExtendedProperty(comp as never, 'volume', 100),
+    )
+
+    act(() => { result.current[1](75) })
+
+    expect(result.current[2]()).toBe(75)
+  })
+
+  it('getLatest() reflects external change to extendedProperties after re-render', () => {
+    const comp = makeComponent({ extendedProperties: { showMute: false } })
+    const { result } = renderHook(() =>
+      useExtendedProperty(comp as never, 'showMute', false),
+    )
+
+    act(() => { comp.set('extendedProperties', { showMute: true }) })
+
+    expect(result.current[2]()).toBe(true)
+  })
+})

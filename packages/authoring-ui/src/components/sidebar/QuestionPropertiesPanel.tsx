@@ -38,6 +38,13 @@ import type {
 // read the last-committed value instead of the stale closure variable or a
 // direct comp.get() call — prevents rapid consecutive updates from clobbering
 // intermediate state.
+//
+// HIGH-03 — Caller contract: the `defaults` value must match the widget type
+// bound to `component`. This is enforced at each call site by the TypeScript
+// generic (MCExtendedProps, TFExtendedProps, FillExtendedProps). The parent
+// QuestionPropertiesPanel renders the correct form only after confirming the
+// component type via `isQuestionWidgetType`, so type mismatches cannot occur
+// at runtime through normal usage.
 // ---------------------------------------------------------------------------
 
 function useExtendedProperties<T extends object>(
@@ -279,6 +286,9 @@ function MCPropertiesForm({ component }: { component: Component }) {
         ))}
       </div>
 
+      {/* MEDIUM-04: ep.scoring is always defined here — MC_DEFAULT_EXTENDED guarantees
+          { scoring: { weight: 100, attempts: -1, mandatory: false } } as the defaults
+          passed to useExtendedProperties, so ep.scoring is never undefined. */}
       <ScoringFeedbackForm
         weight={ep.scoring.weight}
         attempts={ep.scoring.attempts}

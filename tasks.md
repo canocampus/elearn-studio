@@ -1101,7 +1101,7 @@
 
 - [x] T639.10 — Refine the generated code
 
-- [ ] T639.11 — A reviewer will generate `docs/issues/issues-T639.md`; resolve before closing
+- [x] T639.11 — A reviewer will generate `docs/issues/issues-T639.md`; resolve before closing
 
 ---
 

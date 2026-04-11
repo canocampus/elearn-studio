@@ -9,6 +9,20 @@ type GjsComponent = Component & {
 }
 
 /**
+ * Labeled tuple returned by useComponentProperty and useExtendedProperty.
+ *
+ *  value      — current React state derived from the GrapesJS model
+ *  update     — writes a new value to the model (state updates via Backbone event)
+ *  getLatest  — stable ref-backed getter; always returns the most-recent committed
+ *               value without relying on a potentially stale closure (T639.1)
+ */
+type UsePropertyReturn<T> = [
+  value: T,
+  update: (value: T) => void,
+  getLatest: () => T,
+]
+
+/**
  * Subscribes to a GrapesJS component property and returns derived React state.
  *
  * React state is derived FROM the GrapesJS model (source of truth) via change event
@@ -26,7 +40,7 @@ export function useComponentProperty<T>(
   component: Component,
   key: string,
   defaultValue: T,
-): [T, (value: T) => void, () => T] {
+): UsePropertyReturn<T> {
   const comp = component as GjsComponent
 
   const [value, setValue] = useState<T>(() => {
@@ -34,9 +48,10 @@ export function useComponentProperty<T>(
     return (raw !== undefined && raw !== null ? raw : defaultValue) as T
   })
 
-  // T620: latestRef tracks the most-recent committed value so that closures
-  // (e.g. useExtendedProperty.update) can always read the latest without
-  // depending on stale React state from the last render cycle. (T621 fix)
+  // T639.1: latestRef tracks the most-recent committed value so that closures
+  // (e.g. useExtendedProperties.update in QuestionPropertiesPanel) can always
+  // read the latest without depending on stale React state from the last render
+  // cycle. Prevents patch-merge bugs where rapid updates clobber each other.
   const latestRef = useRef(value)
   latestRef.current = value
 
@@ -55,10 +70,13 @@ export function useComponentProperty<T>(
       comp.off(`change:${key}`, onChange)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only re-subscribe when the component instance or watched key changes.
+    // defaultValue is intentionally excluded: it never changes for a given panel,
+    // and including it would cause redundant re-subscriptions on every render.
   }, [component, key])
 
   function update(newValue: T) {
-    // T620: apply optimistic React state update immediately so controlled inputs
+    // T639.1: apply optimistic React state update immediately so controlled inputs
     // (value={state} + onChange) never freeze waiting for the Backbone event.
     setValue(newValue)
     comp.set(key, newValue)
@@ -77,13 +95,16 @@ export function useComponentProperty<T>(
  * @param component - GrapesJS component instance
  * @param subKey - Key within `extendedProperties` to read/write
  * @param defaultValue - Value used when the sub-key is absent
- * @returns [value, update] — current sub-key value and setter
+ * @returns [value, update, getLatest] — current sub-key value, setter, and a stable
+ *   ref-backed getter that always returns the most-recent committed value (T639.1 parity
+ *   with useComponentProperty — prevents stale-closure bugs in callers that read the
+ *   latest sub-key value inside event callbacks or rapid consecutive updates).
  */
 export function useExtendedProperty<T>(
   component: Component,
   subKey: string,
   defaultValue: T,
-): [T, (value: T) => void] {
+): UsePropertyReturn<T> {
   const comp = component as GjsComponent
 
   function readValue(): T {
@@ -95,6 +116,11 @@ export function useExtendedProperty<T>(
   }
 
   const [value, setValue] = useState<T>(readValue)
+
+  // T639.1 parity: latestRef tracks the most-recent committed sub-key value so that
+  // any caller callback can read the latest without stale-closure risk.
+  const latestRef = useRef(value)
+  latestRef.current = value
 
   useEffect(() => {
     setValue(readValue())
@@ -108,6 +134,8 @@ export function useExtendedProperty<T>(
       comp.off('change:extendedProperties', onChange)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only re-subscribe when the component instance or sub-key changes.
+    // readValue and defaultValue are stable for the lifetime of a given panel.
   }, [component, subKey])
 
   function update(newValue: T) {
@@ -115,5 +143,5 @@ export function useExtendedProperty<T>(
     comp.set('extendedProperties', { ...current, [subKey]: newValue })
   }
 
-  return [value, update]
+  return [value, update, () => latestRef.current]
 }
