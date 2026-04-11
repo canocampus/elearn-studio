@@ -9,6 +9,16 @@
 
 ---
 
+## ⚠️ STOP — READ THIS BEFORE EVERY ACTION
+
+Before doing ANYTHING after completing a subtask:
+1. Have you reported the result to the owner? → If no, STOP and report
+2. Have you received explicit written confirmation? → If no, STOP and wait
+3. Is the confirmation in this chat, not inferred? → If no, STOP and wait
+
+Proceeding without explicit confirmation is a protocol violation.
+
+---
 ## 1. Session Start Protocol
 
 Before making any change or proposing any solution, the agent MUST execute these
@@ -51,7 +61,7 @@ The agent does NOT have permission for multi-threaded or parallel decision-makin
 
 **After completing ANY subtask (TXX.Y), STOP completely:**
 
-1. Mark `[x]` on the completed subtask in `tasks.md`
+1. Mark `[x]` on THIS subtask immediately in `tasks.md` — do not wait until block closure
 2. Update `WORKING_CONTEXT.md` "Current State" if the observable system state changed
 3. If the subtask introduces a fix — note the cause and solution in `docs/issues/issues-TXX.md`
 4. Report result to owner
@@ -71,6 +81,23 @@ to see actual progress in `tasks.md` at any time.
 - The chosen one → `[x]`
 - The skipped ones → `[-]` (not applicable — alternative not taken)
 - Document the choice and reasoning in `docs/issues/issues-TXX.md`
+
+---
+
+## 2.1. Refinement and Review subtasks (TXX.N — "Refine" or "Reviewer")
+
+These subtasks require owner approval before executing any tool or making any change:
+
+**For "Refine the generated code" subtasks:**
+1. Read the files changed in this block manually
+2. List what you consider candidates for refinement and why
+3. STOP — wait for owner confirmation on what to apply
+4. Only then make the approved changes
+
+**For "A reviewer will generate issues-TXX.md" subtasks:**
+1. State which files and commits you intend to review
+2. STOP — wait for owner confirmation to proceed
+3. Run the code-reviewer tool only after explicit approval
 
 ---
 
@@ -333,6 +360,30 @@ it TWICE → offset = +iframeRect.left (93px in this project).
 
 8. **Phaser MIT license** — Phaser 3 is MIT. Do not use Phaser Nano or any paid variants.
 
+### 11.1 GrapesJS + React Hook Rules
+
+#### extendedProperties patch-merge rule (T639)
+
+**RULE:** When updating a partial patch of `extendedProperties` in a property panel,
+**NEVER** spread over a closure variable (`ep`). Always read the latest committed value
+via `getLatest()` (returned by `useComponentProperty`) or `comp.get('extendedProperties')`.
+
+```typescript
+// WRONG — ep may be stale if two updates fire in the same render cycle
+function update(patch: Partial<T>) {
+  setEp({ ...ep, ...patch })  // ❌ ep from closure is the value at last render
+}
+
+// CORRECT — getLatest() reads latestRef.current, always the most-recent committed value
+function update(patch: Partial<T>) {
+  const current = getLatest()  // ✅ always fresh
+  setEp({ ...current, ...patch })
+}
+```
+
+Use `useExtendedProperties` (in `QuestionPropertiesPanel.tsx`) as the canonical pattern
+for new property panels — it wraps `useComponentProperty` and handles this correctly.
+
 ---
 
 ## 12. Project Overview
@@ -434,7 +485,6 @@ interface PhaserSimWidget extends BaseWidget {
   }
 }
 ```
-
 ---
 
 ## 16. Key Commands
@@ -452,6 +502,10 @@ docker compose -f docker/docker-compose.dev.yml up -d
 # Run all tests
 pnpm test
 
+# Run E2E tests (Playwright)
+pnpm --filter e2e playwright test <spec-file>
+pnpm --filter e2e playwright test <spec-file> --grep "T611.10"
+
 # Build Phaser sim bundle
 pnpm --filter phaser-simulations run build
 
@@ -461,35 +515,6 @@ pnpm --filter scorm-packager run build -- --courseId <id> --format scorm12
 # Lint all packages
 pnpm lint
 ```
-
----
-
-## GrapesJS + React Hook Rules
-
-### extendedProperties patch-merge rule (T639)
-
-**RULE:** When updating a partial patch of `extendedProperties` in a property panel,
-**NEVER** spread over a closure variable (`ep`). Always read the latest committed value
-via `getLatest()` (returned by `useComponentProperty`) or `comp.get('extendedProperties')`.
-
-```typescript
-// WRONG — ep may be stale if two updates fire in the same render cycle
-function update(patch: Partial<T>) {
-  setEp({ ...ep, ...patch })  // ❌ ep from closure is the value at last render
-}
-
-// CORRECT — getLatest() reads latestRef.current, always the most-recent committed value
-function update(patch: Partial<T>) {
-  const current = getLatest()  // ✅ always fresh
-  setEp({ ...current, ...patch })
-}
-```
-
-Use `useExtendedProperties` (in `QuestionPropertiesPanel.tsx`) as the canonical pattern
-for new property panels — it wraps `useComponentProperty` and handles this correctly.
-
----
-
 
 ---
 ## 17. Licensing Notes

@@ -11,7 +11,7 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.45 |
+| **Current version** | v0.5.46 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
 | **Active block** | T642 — NEXT (per-test course isolation / FLAKE-03 fix) |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |

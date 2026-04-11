@@ -71,6 +71,45 @@ for new property panels — it wraps `useComponentProperty` and handles this cor
 
 ---
 
+## Preview Feature — postMessage Handshake (T641)
+
+The Preview button opens `preview.html` in a new popup window and delivers the full
+course JSON via `postMessage`. **Never use `localStorage` for this** (Critical Rule 5 —
+runtime player must be self-contained; localStorage leaks state across tabs).
+
+### Handshake sequence
+
+```
+opener (AppLayout.tsx)                popup (preview.html)
+─────────────────────────────────────────────────────────
+window.addEventListener('message', onReady)   ← registered BEFORE window.open()
+window.open('/preview.html', '_blank')        → popup loads
+                                              window.opener.postMessage('elearn-preview-ready', origin)
+onReady fires: e.source===popup ✓
+popup.postMessage({ type:'elearn-preview-data', course, slideIndex }, origin)
+                                              onMessage: data.type==='elearn-preview-data'
+                                              window.removeEventListener('message', onMessage)
+                                              ELearnPlayer.init(data.course, data.slideIndex)
+```
+
+### Key implementation notes
+
+- The listener is registered BEFORE `window.open()` — JS is single-threaded, the popup
+  cannot fire its `'elearn-preview-ready'` message until this call stack unwinds, by which
+  time the listener is already active (no race).
+- The opener injects the **live GrapesJS component tree** for the current slide (via
+  `widgetsFromGrapesjs(editor.getComponents().toArray())`) because the Zustand store's
+  `course.slides[i].widgets` is stale — GrapesJS edits go through `storageManager →
+  backend` but do NOT update the store.
+- The popup origin-checks both messages; the opener checks `e.source !== popup`.
+
+### Files
+- `packages/authoring-ui/src/components/layout/AppLayout.tsx` — `handlePreview()`
+- `packages/authoring-ui/public/preview.html` — postMessage receiver + `ELearnPlayer.init()`
+- `packages/runtime-player/src/index.ts` — `ELearnPlayer.init(course, slideIndex)`
+
+---
+
 ## GrapesJS Integration — Code Reference
 
 ### Custom Storage Manager

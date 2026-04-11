@@ -71,6 +71,23 @@ to see actual progress in `tasks.md` at any time.
 
 ---
 
+## 2.1. Refinement and Review subtasks (TXX.N — "Refine" or "Reviewer")
+
+These subtasks require owner approval before executing any tool or making any change:
+
+**For "Refine the generated code" subtasks:**
+1. Read the files changed in this block manually
+2. List what you consider candidates for refinement and why
+3. STOP — wait for owner confirmation on what to apply
+4. Only then make the approved changes
+
+**For "A reviewer will generate issues-TXX.md" subtasks:**
+1. State which files and commits you intend to review
+2. STOP — wait for owner confirmation to proceed
+3. Run the code-reviewer tool only after explicit approval
+
+---
+
 ## 3. Investigation Before Fixing
 
 **"Fixing by guessing" is prohibited.**
