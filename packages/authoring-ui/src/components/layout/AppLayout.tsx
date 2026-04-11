@@ -91,7 +91,7 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
     }
 
     function onReady(e: MessageEvent) {
-      if (e.source !== popup || e.data !== 'elearn-preview-ready') return
+      if (!popup || e.source !== popup || e.data !== 'elearn-preview-ready') return
       window.removeEventListener('message', onReady)
       popup.postMessage(
         { type: 'elearn-preview-data', course: previewCourse, slideIndex: currentSlideIndex },
