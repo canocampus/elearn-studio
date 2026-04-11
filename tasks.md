@@ -1097,9 +1097,9 @@
 - [x] T639.8 — E2E regression test: rapidly type in MC question text AND add an option
   in quick succession → verify both changes persisted after autosave; tag `@regression`
 
-- [ ] T639.9 — Run full test suite + push + verify CI green
+- [x] T639.9 — Run full test suite + push + verify CI green
 
-- [ ] T639.10 — Refine the generated code
+- [x] T639.10 — Refine the generated code
 
 - [ ] T639.11 — A reviewer will generate `docs/issues/issues-T639.md`; resolve before closing
 
