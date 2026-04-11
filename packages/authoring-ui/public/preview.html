@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preview — eLearn Studio</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #111;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Inter, system-ui, sans-serif;
+    }
+    #player {
+      width: 1024px;
+      height: 768px;
+      background: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    #error-msg {
+      color: #f38ba8;
+      font-size: 14px;
+      padding: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="player"></div>
+  <script src="/player.js"></script>
+  <script>
+    (function () {
+      var key = location.hash.slice(1)
+      if (!key) {
+        document.getElementById('player').innerHTML =
+          '<p id="error-msg">No preview data found. Open Preview from the editor.</p>'
+        return
+      }
+      var raw = null
+      try {
+        raw = localStorage.getItem(key)
+      } catch (e) {
+        document.getElementById('player').innerHTML =
+          '<p id="error-msg">Could not read preview data from localStorage.</p>'
+        return
+      }
+      if (!raw) {
+        document.getElementById('player').innerHTML =
+          '<p id="error-msg">Preview data expired or not found.</p>'
+        return
+      }
+      // Clean up immediately so we don't leave large JSON in localStorage
+      try { localStorage.removeItem(key) } catch (_) {}
+      var data
+      try {
+        data = JSON.parse(raw)
+      } catch (e) {
+        document.getElementById('player').innerHTML =
+          '<p id="error-msg">Preview data is corrupt.</p>'
+        return
+      }
+      if (typeof ELearnPlayer === 'undefined' || typeof ELearnPlayer.init !== 'function') {
+        document.getElementById('player').innerHTML =
+          '<p id="error-msg">Runtime player not loaded. Run: pnpm --filter runtime-player build</p>'
+        return
+      }
+      ELearnPlayer.init('player', data.course, { startSlide: data.slideIndex || 0 })
+    })()
+  </script>
+</body>
+</html>

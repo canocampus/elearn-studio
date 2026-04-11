@@ -65,8 +65,16 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
   const currentSlide = course?.slides[currentSlideIndex]
 
   function handlePreview() {
-    // T017: full preview mode — future enhancement
-    toast.info('Preview mode — coming soon')
+    if (!course) {
+      toast.info('No course loaded')
+      return
+    }
+    // T641.1: serialize course JSON to localStorage and open the runtime player in a new tab.
+    // localStorage is used instead of URL params to avoid the ~2KB URL length limit on course JSON.
+    // The key includes a timestamp so concurrent preview windows don't collide.
+    const key = `elearn-preview-${Date.now()}`
+    localStorage.setItem(key, JSON.stringify({ course, slideIndex: currentSlideIndex }))
+    window.open(`/preview.html#${key}`, '_blank')
   }
 
   function handlePublish() {

@@ -509,7 +509,7 @@ test.describe('T611 — mandatory question navigation gate', () => {
     await editorPage.waitForCanvas()
   })
 
-  test.skip('@regression T611.10 — Next button disabled until mandatory MC question is answered in linear-strict mode (skipped: Preview button opens "coming soon" toast, runtime player popup not yet implemented)', async ({ editorPage, page, context }) => {
+  test('@regression T611.10 — Next button disabled until mandatory MC question is answered in linear-strict mode', async ({ editorPage, page, context }) => {
     test.setTimeout(90_000)
 
     // ── Step 1: Set navigation mode to linear-strict ──

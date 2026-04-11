@@ -1,8 +1,28 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import fs from 'node:fs'
+import path from 'node:path'
+
+// T641.1: serve the runtime-player IIFE at /player.js so preview.html can load it.
+// In production builds the player.js must be copied to dist/ separately.
+const servePlayerJs = {
+  name: 'serve-player-js',
+  configureServer(server: import('vite').ViteDevServer) {
+    server.middlewares.use('/player.js', (_req, res, next) => {
+      const playerPath = path.resolve(__dirname, '../runtime-player/dist/player.js')
+      if (fs.existsSync(playerPath)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+        fs.createReadStream(playerPath).pipe(res)
+      } else {
+        // Fall through — browser will get 404; preview.html shows a helpful message
+        next()
+      }
+    })
+  },
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), servePlayerJs],
   server: {
     port: 3000,
     strictPort: true,
