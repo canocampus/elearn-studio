@@ -1183,6 +1183,31 @@
 - [ ] T640.7 — A reviewer will generate `docs/issues/issues-T640.md`; resolve before closing
 
 
+### T641 — Preview feature: runtime player popup integration in authoring UI
+> Origen: T611.10 (E2E test `question-widget.spec.ts` T611.10 marked `test.skip` —
+> Preview button shows "coming soon" toast because the runtime player popup is not yet implemented).
+
+- [ ] T641.1 — Implement Preview button popup: open runtime player in an iframe modal
+  from the authoring UI, wired to the current slide/course state.
+
+
+### T642 — E2E: per-test course isolation (eliminate shared seed course)
+> Origen: T608.6 flaky — `authoring-ui-layer.spec.ts` T608.6 fails in full suite
+> (3 workers) but passes in isolation. Root cause: `global-setup.ts` creates a single
+> shared seed course; `fixtures/auth.ts` navigates all workers to that same course.
+> Slide count reads in `beforeEach` are non-deterministic when parallel workers mutate
+> the shared course concurrently.
+
+- [ ] T642.1 — Refactor `fixtures/auth.ts` `editorPage` fixture to create a fresh course
+  per test (via API call in fixture setup) and delete it in fixture teardown.
+- [ ] T642.2 — Simplify `global-setup.ts`: remove seed-course creation; keep only
+  auth-state setup (user creation + login + save `.auth/state.json`).
+- [ ] T642.3 — Update any tests that rely on slide-count assumptions from the shared
+  course to use the per-test course instead.
+- [ ] T642.4 — Verify full suite passes with 3 workers; confirm T608.6 no longer flakes.
+- [ ] T642.5 — Run full test suite + push + verify CI green.
+
+
 ### Phase 2.9 — Closing Tasks
 - [ ] T290.TEST — Complete manual authoring test by project owner covering all items in
   `docs/issues/errores-beta-R2.txt`: every widget drags to approximately the cursor drop

@@ -100,6 +100,16 @@ Root cause FLAKE-01: parallel-suite cross-slide-index contamination — GrapesJS
 
 Root cause FLAKE-02: slide accumulation across the full E2E suite — `question-widget.spec.ts` adds one slide per test in `beforeEach`. By the time T601.6 runs (~test 98 in the suite), 97 slides exist and the slide list rendering exceeds the 30s `waitFor` timeout. Not a product bug.
 
+| FLAKE-03 | `authoring-ui-layer.spec.ts` T608.6 | Slide delete count assertion non-deterministic in full suite (3 workers) | ✅ Yes — passes alone |
+
+Root cause FLAKE-03: `global-setup.ts` creates a single shared seed course; all parallel workers navigate to the same course in `fixtures/auth.ts`. The T608.6 `beforeEach` reads slide count then asserts it decreased by 1, but concurrent workers mutate the shared course between read and assertion. Fix tracked in **T642** (per-test course isolation).
+
+### 🟡 SKIPPED TESTS (feature not yet implemented)
+
+| ID | Test | Reason | Task |
+|---|---|---|---|
+| SKIP-01 | `question-widget.spec.ts` T611.10 | Preview button opens "coming soon" toast — runtime player popup not implemented | **T641** |
+
 ### 🔴 CRITICAL
 
 | ID | Description | Task |
