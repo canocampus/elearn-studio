@@ -4,33 +4,31 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 // T641.1: serve the runtime-player IIFE at /player.js so preview.html can load it.
-// In production builds the player.js must be copied to dist/ separately.
-//
-// configureServer  → Vite dev server (local development)
-// configurePreviewServer → `vite preview` (CI uses this mode)
-// Both hooks use the same middleware logic.
-function servePlayerJsMiddleware(
-  server: { middlewares: import('connect').Server },
-): void {
-  server.middlewares.use('/player.js', (_req, res, next) => {
-    const playerPath = path.resolve(__dirname, '../runtime-player/dist/player.js')
-    if (fs.existsSync(playerPath)) {
-      res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
-      fs.createReadStream(playerPath).pipe(res)
-    } else {
-      // Fall through — browser will get 404; preview.html shows a helpful message
-      next()
-    }
-  })
-}
-
+// configureServer        → Vite dev server (local development)
+// configurePreviewServer → `vite preview` (CI uses this mode, configureServer does NOT run)
 const servePlayerJs = {
   name: 'serve-player-js',
   configureServer(server: import('vite').ViteDevServer) {
-    servePlayerJsMiddleware(server)
+    server.middlewares.use('/player.js', (_req, res, next) => {
+      const playerPath = path.resolve(__dirname, '../runtime-player/dist/player.js')
+      if (fs.existsSync(playerPath)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+        fs.createReadStream(playerPath).pipe(res)
+      } else {
+        next()
+      }
+    })
   },
   configurePreviewServer(server: import('vite').PreviewServer) {
-    servePlayerJsMiddleware(server)
+    server.middlewares.use('/player.js', (_req, res, next) => {
+      const playerPath = path.resolve(__dirname, '../runtime-player/dist/player.js')
+      if (fs.existsSync(playerPath)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+        fs.createReadStream(playerPath).pipe(res)
+      } else {
+        next()
+      }
+    })
   },
 }
 
