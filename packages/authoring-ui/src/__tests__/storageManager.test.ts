@@ -113,6 +113,7 @@ describe('storageManager — registerStorageManager', () => {
       getCss: vi.fn().mockReturnValue(''),
     } as unknown as Editor
     vi.clearAllMocks()
+    invalidateCourseCache() // M-03: reset shared module-level cache before each test
   })
 
   afterEach(() => {

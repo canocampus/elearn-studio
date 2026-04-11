@@ -1176,11 +1176,24 @@
   GrapesJS model is SOT for canvas content; React state is SOT for UI state.
   They are not the same thing and should not be conflated.
 
-- [ ] T640.5 — Run full test suite + push + verify CI green
+- [x] T640.5 — Run full test suite + push + verify CI green
+  - 686 unit tests green; CI run 24286266051 ✅ (10m31s, all steps green)
 
-- [ ] T640.6 — Refine the generated code
+- [x] T640.6 — Refine the generated code
+  - Manual read of `storageManager.ts`, `initEditor.ts`, `08-persistence-flow.md`
+  - 5 inaccuracies corrected in `docs/developer-guide/08-persistence-flow.md`:
+    1. Step 4: `gjsData.components` → `editor.getComponents().toArray()` (closure capture)
+    2. New Step 5: thumbnail generation (`generateThumbnail`) + isolated try-catch
+    3. PATCH payload corrected to `{ widgets, thumbnail }`
+    4. `load()` pseudo-code: added required `{ pages: [...], styles: [] }` wrapper
+    5. Key Files table: `widgetConverters.ts` → `converters.ts`
+    6. Source-of-truth rule nuanced: SaveErrorBanner retry is an intentional exception
+  - Steps renumbered: old 5→6, 6→7, 7→8 (thumbnail step inserted)
+  - Sequence diagram updated: `generateThumbnail()` added between widget conversion and PATCH
+  - `storageManager.ts` and `initEditor.ts`: no changes needed (code is correct)
 
-- [ ] T640.7 — A reviewer will generate `docs/issues/issues-T640.md`; resolve before closing
+- [x] T640.7 — Code reviewer generated `docs/issues/issues-T640.md` — APPROVED WITH RESERVATIONS; 7 issues found
+- [x] T640.11 — Resolved all 7 reviewer issues (H-01 single-threaded comment, H-02 Array.isArray guard, M-01 autoload race expansion, M-02 doc null-safety, M-03 beforeEach isolation, L-01 done prev session, L-02 autosave comment). Verdict: APPROVED. T640 closed. 686 tests green.
 
 
 ### T641 — Preview feature: runtime player popup integration in authoring UI

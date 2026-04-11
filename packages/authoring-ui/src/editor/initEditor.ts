@@ -59,16 +59,25 @@ export function initEditor(opts: InitEditorOptions): Editor {
     storageManager: {
       type: 'elearn-api',
       // INTENTIONAL — do NOT change to true.
-      // EditorCanvas calls editor.load() explicitly after updateStorageContext() so it
-      // controls the exact slide being loaded. With autoload:true GrapesJS fires an
-      // extra load() on init (before EditorCanvas sets courseId/slideId), racing against
-      // EditorCanvas's own load() — clearing components added between the two calls.
-      // See R-03 fix notes in EditorCanvas.tsx Effect 2. (T640.2)
+      // Race condition when autoload:true (step-by-step):
+      //   1. grapesjs.init() fires storageManager.load() before updateStorageContext()
+      //      has set courseId/slideId.
+      //   2. storageManager.load() sees empty context → returns blank { pages: [...] }.
+      //   3. GrapesJS renders a blank canvas via loadData(blank).
+      //   4. EditorCanvas Effect 2 calls updateStorageContext() + editor.load() with the
+      //      correct slide.
+      //   5. storageManager.load() returns correct widget data → loadData(widgets).
+      //   6. If the async blank-load from step 3 settles after step 5, it overwrites
+      //      the canvas with blank content.
+      // Result: first slide opened is blank. Fix: EditorCanvas owns all load() calls.
+      // See R-03 fix notes in EditorCanvas.tsx Effect 2. (T640.2, M-01)
       autoload: false,
       // INTENTIONAL — do NOT change to true.
       // A debounced component:update listener in initEditor.ts (triggerAutosave) handles
       // saves instead (T011.7). Enabling autosave with stepsBeforeSave:1 would fire a
-      // PATCH /courses/:id/slides/:slideId on every single undo/redo step.
+      // PATCH /courses/:id/slides/:slideId on every command executed by GrapesJS —
+      // including every keystroke in text widgets and every component add/remove.
+      // This creates unbounded API traffic. (T640.2, L-02)
       autosave: false,
     },
 

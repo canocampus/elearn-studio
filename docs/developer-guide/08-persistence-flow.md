@@ -43,7 +43,7 @@ These are **not** the same thing and must not be conflated. In particular:
 
 - Never read `courseCache` from React components. It is internal to `storageManager.ts`.
 - Never persist React UI state (panel open/closed, selected component) via `editor.store()`. Only widget schema lives in slides.
-- Never call `editor.store()` directly from React components. Let `triggerAutosave()` handle it.
+- Never call `editor.store()` directly from React components for automatic saves. Let `triggerAutosave()` handle it. Exception: explicit user-triggered retry (e.g., `SaveErrorBanner`) may call `editor.store()` intentionally.
 
 ---
 
@@ -81,7 +81,10 @@ The Storage Manager type is registered as `'elearn-api'` in `initEditor.ts`.
 
 ```typescript
 // packages/authoring-ui/src/editor/storageManager.ts
-const widgets = widgetsFromGrapesjs(gjsData.components)
+// store() is a closure capturing the editor instance — it reads components directly,
+// not from gjsData.components.
+const components = editor.getComponents().toArray()
+const widgets = widgetsFromGrapesjs(components)
 ```
 
 This converter walks the GrapesJS component tree and produces a `Widget[]` array
@@ -90,16 +93,26 @@ matching the Mongoose schema in `backend/models/Course.ts`.
 > **Adding a new widget type?** See [03 — Adding Widget Types](./03-adding-widget-types.md).
 > You must update both `widgetsFromGrapesjs()` and its inverse `grapesjsFromWidgets()`.
 
-### 5. PATCH to the API
+### 5. Thumbnail generation
+
+After widget conversion, a canvas screenshot is captured for the slide thumbnail.
+This runs in an isolated `try-catch` — a thumbnail failure does not abort the save:
 
 ```typescript
-await courseApi.updateSlide(courseId, slideId, { widgets })
+// packages/authoring-ui/src/editor/storageManager.ts
+const thumbnail = await generateThumbnail(editor)  // isolated try-catch
+```
+
+### 6. PATCH to the API
+
+```typescript
+await courseApi.updateSlide(courseId, slideId, { widgets, thumbnail })
 // → PATCH /courses/:courseId/slides/:slideId
 ```
 
-The API replaces the slide's `widgets` array in MongoDB atomically.
+The API replaces the slide's `widgets` array and thumbnail in MongoDB atomically.
 
-### 6. Cache update (T640.1)
+### 7. Cache update (T640.1)
 
 After a successful PATCH, `storageManager.ts` updates the in-memory cache **in place**
 rather than invalidating it:
@@ -123,7 +136,7 @@ after a failed write).
 **Cold cache edge case:** If `courseCache` is `null` when `store()` runs (rare: first
 store before any load), the condition is false and the update is safely skipped.
 
-### 7. Slide switch — `load()` reads from cache
+### 8. Slide switch — `load()` reads from cache
 
 When the user switches slides, `EditorCanvas.tsx` calls:
 
@@ -137,12 +150,20 @@ editor.load()  // → storageManager.load()
 ```typescript
 if (courseCache?.courseId === courseId) {
   const slide = courseCache.doc.slides.find(s => s.id === slideId)
-  if (slide) return grapesjsFromWidgets(slide.widgets)
+  if (slide) {
+    const components = grapesjsFromWidgets(slide.widgets)
+    // GrapesJS requires the pages wrapper — returning a bare component array
+    // will cause a blank canvas. (T640.2)
+    return {
+      pages: [{ id: slideId, component: { actions: [], components } }],
+      styles: [],
+    }
+  }
 }
-// cache miss → GET /courses/:id → populate cache → return slide
+// cache miss → GET /courses/:id → populate cache → return same pages wrapper
 ```
 
-Because the cache was updated in step 6, the freshly saved slide A is served from
+Because the cache was updated in step 7, the freshly saved slide A is served from
 cache when the user switches to slide B and back to slide A — **without any extra API call**.
 
 ---
@@ -207,6 +228,7 @@ User      EditorCanvas    initEditor.ts     storageManager.ts   API
  │              │               │   (2 s debounce)  │              │
  │              │               │──editor.store()──►│              │
  │              │               │                  │──widgetsFromGrapesjs()
+ │              │               │                  │──generateThumbnail()
  │              │               │                  │──PATCH slide──►│
  │              │               │                  │◄──200 OK───── │
  │              │               │                  │──updateCache() │
@@ -237,7 +259,7 @@ User      EditorCanvas    initEditor.ts     storageManager.ts   API
 | `packages/authoring-ui/src/editor/initEditor.ts` | GrapesJS init — registers `'elearn-api'` Storage Manager type, `autoload:false`, `autosave:false`, `triggerAutosave` listener |
 | `packages/authoring-ui/src/components/EditorCanvas.tsx` | React wrapper — calls `updateStorageContext()` + `editor.load()` on slide switch (Effect 2) |
 | `packages/authoring-ui/src/api/courseApi.ts` | API client — `getCourse()`, `updateSlide()` |
-| `packages/authoring-ui/src/editor/widgetConverters.ts` | `widgetsFromGrapesjs()` / `grapesjsFromWidgets()` — bidirectional converters |
+| `packages/authoring-ui/src/editor/converters.ts` | `widgetsFromGrapesjs()` / `grapesjsFromWidgets()` — bidirectional converters |
 | `packages/authoring-ui/src/__tests__/storageManager.test.ts` | Unit tests — T640.1 regression (no redundant GET), T640.3 multi-slide sequence |
 
 ---

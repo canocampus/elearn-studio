@@ -26,7 +26,8 @@ const storageContext: StorageOptions = { courseId: '', slideId: '' }
 // T042.5: In-memory course cache to eliminate redundant API round-trips on slide
 // switches. Keyed by courseId. On a successful store(), the cache is updated with
 // fresh widget data so the next load() can serve from cache instead of re-fetching.
-// On a failed store(), the cache is cleared so stale data is never served.
+// If the PATCH /courses/:id/slides/:slideId request fails (network error or 4xx/5xx),
+// the cache is cleared so stale data is never served on the next load. (L-01)
 let courseCache: { courseId: string; doc: CourseDoc } | null = null
 
 /**
@@ -170,6 +171,18 @@ export function registerStorageManager(editor: Editor): void {
         // Only update if the cache already holds this course — if cache is cold
         // (e.g. first store before any load), leave it as-is.
         if (courseCache?.courseId === courseId) {
+          // JS is single-threaded: no interleaving between load() and this assignment
+          // in the normal event-loop model. If ported to Worker Threads, add a mutex. (H-01)
+          if (!Array.isArray(courseCache.doc.slides)) {
+            // Defensive guard: courseCache.doc.slides should always be an array after a
+            // successful load(), but if the cache was seeded with corrupt data we must
+            // not call .map() on undefined. (H-02)
+            console.error('[StorageManager] Corrupt cache: slides is not an array, skipping cache update')
+            courseCache = null
+            return
+          }
+          // courseCache.doc is non-null: guaranteed by the outer if-guard (courseCache?.courseId)
+          // and by the TypeScript type { courseId: string; doc: CourseDoc } | null. (M-02)
           const updatedSlides = courseCache.doc.slides.map(s =>
             s.id === slideId ? { ...s, widgets } : s
           )
