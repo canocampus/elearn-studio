@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.47] — 2026-04-12 — T643: Fix forEach crashes (GrapesJS loadData + validateSequence)
+
+### Fixed
+- **[T643.1] `phaser-sim` and `screenshot-sim` missing from `GENERATED_CONTENT_TYPES`** (`packages/authoring-ui/src/editor/converters.ts`) — Both widget types were absent from the positive allowlist that gates `GENERATED_CONTENT_TYPES`. On reload, `grapesjsFromWidgets()` set `def.content = props.content` (the saved `PLACEHOLDER_HTML` multi-element string) on these components. GrapesJS parsed the HTML into auto-generated child component defs that lacked `actions: []`, causing `componentDef.actions.forEach(...)` → `TypeError`. Fix: added `'phaser-sim'` and `'screenshot-sim'` to `GENERATED_CONTENT_TYPES`.
+- **[T643.1] HTML content guard in `grapesjsFromWidgets()`** (`packages/authoring-ui/src/editor/converters.ts`) — `text` and `button` widgets that had RTE markup applied (e.g. `<b>...</b>`, `<a href="...">`) saved their `getInnerHTML()` result as `properties.content`. On reload `def.content` received raw HTML, GrapesJS parsed it into child defs without `actions: []`, same TypeError. Fix: `grapesjsFromWidgets()` now skips setting `def.content` when the stored value is an HTML string (detected via leading `<`).
+- **[T643.2] Unguarded `forEach` in `validateSequence.ts`** (`packages/authoring-ui/src/utils/validateSequence.ts`) — Three call sites called `.forEach()` directly on fields that old MongoDB documents (saved before the current type schema) may not have. Fixed with optional chaining: `action.params.then?.forEach(...)` (line 90), `action.params.body?.forEach(...)` (line 102), `sequence.actions?.forEach(...)` (line 129). Crash was triggered at runtime by `ActionsPanel` rendering → `validateAllSequences` call whenever the user selected a widget.
+
+### Tests
+- **`src/__tests__/converters.test.ts`** — 7 regression tests for T643.1: (1–2) `phaser-sim` and `screenshot-sim` map to no `content` field in the GrapesJS def; (3) `text` widget with plain text string preserves content; (4) `text` widget with HTML string (`<b>hello</b>`) strips `def.content`; (5–6) same guards verified for `button` type; (7) roundtrip: widget saved with HTML content loads without TypeError.
+- **`src/__tests__/validateSequence.test.ts`** — 3 regression tests for T643.2: (1) `sequence.actions` undefined (missing field in old doc) → no throw, 0 warnings; (2) `condition.then` undefined → no throw; (3) `loop.body` undefined → no throw.
+
+---
+
 ## [0.5.46] — 2026-04-11 — T641: Preview popup wired + T611.10 linear-strict Next-button gating
 
 ### Fixed

@@ -12,7 +12,7 @@
 
 ```
 1. Read WORKING_CONTEXT.md — current state, known broken things, what NOT to retry
-2. Read docs/tasks.md — find the active block and its current status
+2. Read tasks.md — find the active block and its current status
 3. Do NOT start coding until both files are read
 ```
 
@@ -103,7 +103,7 @@ All tests must be green. No exceptions. No "pre-existing failures" left unresolv
 
 **Step 2 — Run /task-complete**
 Follow every step in `.claude/commands/task-complete.md`:
-1. Update `docs/tasks.md` — mark completed subtasks `[x]`
+1. Update `tasks.md` — mark completed subtasks `[x]`
 2. Update `docs/issues/issues-TXX.md` — CRITICAL and HIGH resolved
 3. Update `CHANGELOG.md` — version bump + entry
 4. Update `WORKING_CONTEXT.md` — all 5 sections
@@ -231,7 +231,7 @@ and owner confirmation before proceeding to the next one.
 
 After completing ANY subtask (TXX.Y), before reporting to the owner:
 
-1. **`docs/tasks.md`** — mark `[x]` on the completed subtask
+1. **`tasks.md`** — mark `[x]` on the completed subtask
 2. **`WORKING_CONTEXT.md`** — update the "Current State" section if the subtask changes the observable state of the system
 
 3. **If the subtask introduces a fix** — note the cause found and the solution applied in `docs/issues/issues-TXX.md`

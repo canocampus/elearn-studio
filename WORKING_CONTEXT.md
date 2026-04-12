@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-11 — T641.1 ✅ done (Preview popup + T611.10 pass; T641 CLOSED)
+> Last updated: 2026-04-12 — T643 ✅ done (forEach crash fixes: GENERATED_CONTENT_TYPES + validateSequence optional-chaining guards)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.46 |
+| **Current version** | v0.5.47 |
 | **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T642 — NEXT (per-test course isolation / FLAKE-03 fix) |
+| **Active block** | T290 — NEXT (manual authoring test + visual verification) |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
 
 ---
 
 ## What Was Last Done
+
+- **T643 — Fix forEach crashes: GrapesJS loadData + validateSequence ✅ (T643 CLOSED)** — Two independent bugs sharing the same `TypeError: Cannot read properties of undefined (reading 'forEach')` symptom. T643.1: `phaser-sim` and `screenshot-sim` were absent from `GENERATED_CONTENT_TYPES` in `converters.ts`; on reload `grapesjsFromWidgets()` set `def.content` to the saved `PLACEHOLDER_HTML` string, GrapesJS parsed it into auto-generated child defs without `actions: []` → crash. Also added guard: `text`/`button` widgets skip setting `def.content` when the stored value is HTML markup (detected via leading `<`). T643.2: three `.forEach()` calls in `validateSequence.ts` (lines 90, 102, 129) had no optional-chaining guard; old MongoDB documents saved before field types were required could have `condition.then`, `loop.body`, or `sequence.actions` absent at runtime → crash when user selected a widget (ActionsPanel render → validateAllSequences). Fixed with `?.forEach()`. 7 converter regression tests + 3 validateSequence regression tests added. 696 unit tests green. CI ✅ (run 24311195340).
 
 - **T641.1 — Preview popup + T611.10 pass ✅ (T641 CLOSED)** — Root bug: `EditorPage.closeCourseSettings()` matched the Cancel button via regex `/close|cancel/i`, so the `navigationMode` selected in the Course Settings dialog was never saved to the backend. `course.settings.navigationMode` in the Zustand store remained `'free'`, causing `slideIsComplete()` in the runtime player to return `true` immediately (no gating), and the Next button stayed enabled. Fix: added `saveCourseSettings()` to `EditorPage.ts` that explicitly clicks `data-testid="course-settings-save"` and waits for the dialog to close. Updated T611.10 in `question-widget.spec.ts`: (1) calls `saveCourseSettings()` instead of `closeCourseSettings()` after setting linear-strict mode, (2) waits for the PATCH response via `waitForResponse()`, (3) removed all DIAGNOSTIC console.log / evaluate blocks from Step 4. Prior-session fix also contributed: `renderMCQuestion` / `evalMC` in `runtime-player/src/index.ts` now handle `MCOption[]` objects (`{ id, text, isCorrect }`) in addition to plain strings. **T611.10 passes (30.4s). 30/30 question-widget E2E tests green (was 29/30 + 1 skipped). SKIP-01 resolved.**
 

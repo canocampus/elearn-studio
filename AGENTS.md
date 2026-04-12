@@ -82,6 +82,12 @@ to see actual progress in `tasks.md` at any time.
 - The skipped ones → `[-]` (not applicable — alternative not taken)
 - Document the choice and reasoning in `docs/issues/issues-TXX.md`
 
+**If a subtask has an implicit technical dependency on the next one:**
+- Do NOT execute both automatically
+- STOP after the authorized subtask
+- Explain the dependency to the owner: "T642.1 requires T642.2 to be effective because..."
+- Wait for explicit confirmation before proceeding
+
 ---
 
 ## 2.1. Refinement and Review subtasks (TXX.N — "Refine" or "Reviewer")
