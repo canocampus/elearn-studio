@@ -87,7 +87,8 @@ function validateAction(
         warn('"condition" requires an expression')
       }
       // Recurse into then/else branches
-      action.params.then.forEach((a, i) =>
+      // T643.2: then may be undefined in old MongoDB documents — guard with ?.
+      action.params.then?.forEach((a, i) =>
         validateAction(a, i, event, ctx, warnings),
       )
       action.params.else?.forEach((a, i) =>
@@ -99,7 +100,8 @@ function validateAction(
       if (action.params.mode === 'while' && !action.params.condition?.trim()) {
         warn('"loop" in while mode requires a condition expression')
       }
-      action.params.body.forEach((a, i) =>
+      // T643.2: body may be undefined in old MongoDB documents — guard with ?.
+      action.params.body?.forEach((a, i) =>
         validateAction(a, i, event, ctx, warnings),
       )
       break
@@ -126,7 +128,8 @@ export function validateSequence(
   ctx: ValidationContext,
 ): ValidationWarning[] {
   const warnings: ValidationWarning[] = []
-  sequence.actions.forEach((action, index) =>
+  // T643.2: actions may be undefined in old MongoDB documents — guard with ?.
+  sequence.actions?.forEach((action, index) =>
     validateAction(action, index, sequence.event, ctx, warnings),
   )
   return warnings

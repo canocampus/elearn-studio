@@ -929,3 +929,107 @@ describe('T701 — nested HTML and button label round-trip', () => {
     expect((restored.properties as Record<string, unknown>).content).toBe(customLabel)
   })
 })
+
+// ---------------------------------------------------------------------------
+// T643.1 — Bug A regression: phaser-sim / screenshot-sim PLACEHOLDER_HTML
+// must never flow into def.content (causes GrapesJS loadData forEach crash)
+// ---------------------------------------------------------------------------
+
+describe('T643.1 — Bug A regression: sim widget content never stored or restored as def.content', () => {
+  const PLACEHOLDER_HTML = `
+    <div style="width:100%;height:100%;display:flex;">
+      <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12"/></svg>
+      <div>Phaser Simulation</div>
+    </div>
+  `.trim()
+
+  it('phaser-sim: widgetsFromGrapesjs does NOT capture PLACEHOLDER_HTML into properties.content', () => {
+    // Simulates a GrapesJS component for a phaser-sim widget whose model has
+    // content: PLACEHOLDER_HTML (the default set by registerPhaserSimBlock).
+    const comp = {
+      getStyle: () => ({
+        position: 'absolute', left: '0px', top: '0px', width: '800px', height: '500px',
+        'z-index': '1', display: 'block',
+      }),
+      getAttributes: () => ({ id: 'psim-001' }),
+      getId: () => 'psim-001',
+      get: (key: string) => {
+        const model: Record<string, unknown> = {
+          type: 'phaser-sim',
+          content: PLACEHOLDER_HTML,
+          properties: {},
+          actions: [],
+          elearnActions: [],
+          extendedProperties: {},
+        }
+        return model[key]
+      },
+      getInnerHTML: () => PLACEHOLDER_HTML,
+      components: () => ({ at: () => undefined }),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    // content must NOT be saved — it is the generated placeholder, not user data
+    expect((widget.properties as Record<string, unknown>).content).toBeUndefined()
+  })
+
+  it('screenshot-sim: widgetsFromGrapesjs does NOT capture PLACEHOLDER_HTML into properties.content', () => {
+    const comp = {
+      getStyle: () => ({
+        position: 'absolute', left: '0px', top: '0px', width: '640px', height: '360px',
+        'z-index': '1', display: 'block',
+      }),
+      getAttributes: () => ({ id: 'ssim-001' }),
+      getId: () => 'ssim-001',
+      get: (key: string) => {
+        const model: Record<string, unknown> = {
+          type: 'screenshot-sim',
+          content: PLACEHOLDER_HTML,
+          properties: {},
+          actions: [],
+          elearnActions: [],
+          extendedProperties: {},
+        }
+        return model[key]
+      },
+      getInnerHTML: () => PLACEHOLDER_HTML,
+      components: () => ({ at: () => undefined }),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect((widget.properties as Record<string, unknown>).content).toBeUndefined()
+  })
+
+  it('phaser-sim: grapesjsFromWidgets does NOT set def.content even if properties.content exists (old data)', () => {
+    // Simulates a widget loaded from a MongoDB document that was saved before T643.1,
+    // when PLACEHOLDER_HTML was incorrectly stored in properties.content.
+    const widget = makeWidget({ type: 'phaser-sim', properties: { content: PLACEHOLDER_HTML } })
+    const [def] = grapesjsFromWidgets([widget])
+    expect(def.content).toBeUndefined()
+  })
+
+  it('screenshot-sim: grapesjsFromWidgets does NOT set def.content even if properties.content exists (old data)', () => {
+    const widget = makeWidget({ type: 'screenshot-sim', properties: { content: PLACEHOLDER_HTML } })
+    const [def] = grapesjsFromWidgets([widget])
+    expect(def.content).toBeUndefined()
+  })
+
+  it('rectangle: grapesjsFromWidgets does NOT set def.content (positive allowlist: only text/button)', () => {
+    // Ensures the positive allowlist prevents any arbitrary widget type from getting HTML
+    // injected as def.content — guards against future widget types accidentally crashing.
+    const widget = makeWidget({ type: 'rectangle', properties: { content: '<div>oops</div>' } })
+    const [def] = grapesjsFromWidgets([widget])
+    expect(def.content).toBeUndefined()
+  })
+
+  it('text: grapesjsFromWidgets DOES set def.content with RTE HTML (editable text mode, safe)', () => {
+    const richHtml = '<b>Bold</b> and <em>italic</em>'
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'text', properties: { content: richHtml } })])
+    expect(def.content).toBe(richHtml)
+  })
+
+  it('button: grapesjsFromWidgets DOES set def.content (editable text mode, safe)', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'button', properties: { content: 'Click me' } })])
+    expect(def.content).toBe('Click me')
+  })
+})

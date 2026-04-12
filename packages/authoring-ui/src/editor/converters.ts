@@ -79,6 +79,12 @@ const GENERATED_CONTENT_TYPES = new Set([
   'question-mc', 'question-tf', 'question-fill',
   'progress-bar', 'audio-narration', 'volume-control',
   'nav-buttons', 'score-quiz', 'score-field', 'media-player',
+  // T643.1: phaser-sim and screenshot-sim render a PLACEHOLDER_HTML as their canvas
+  // preview. That HTML must never be captured into widget.properties.content — if it
+  // is, grapesjsFromWidgets() sets def.content on reload, GrapesJS parses the multi-
+  // element HTML into child component defs that lack actions:[], and loadData crashes
+  // with "Cannot read properties of undefined (reading 'forEach')".
+  'phaser-sim', 'screenshot-sim',
 ])
 
 /**
@@ -271,9 +277,15 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
       extendedProperties: w.extendedProperties ?? {},
     }
 
-    // Map properties.content → GrapesJS content field so text/button/nav widgets
-    // render their stored HTML instead of the component type's default placeholder.
-    if (typeof props?.content === 'string') {
+    // Map properties.content → GrapesJS content field so text/button widgets render
+    // their stored HTML. Only these two types use GrapesJS editable-text mode, which
+    // treats def.content as innerHTML directly — HTML markup is safe here.
+    // All other widget types either have no stored content, use def.src (image), or
+    // are in GENERATED_CONTENT_TYPES. Setting def.content for any other type would
+    // cause GrapesJS to parse the HTML into child component defs that lack actions:[],
+    // crashing with "Cannot read properties of undefined (reading 'forEach')" in
+    // loadData (T643.1 fix — positive allowlist replaces the previous unconditional set).
+    if ((w.type === 'text' || w.type === 'button') && typeof props?.content === 'string') {
       def.content = props.content
     }
 

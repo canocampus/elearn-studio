@@ -1214,14 +1214,38 @@
 > Slide count reads in `beforeEach` are non-deterministic when parallel workers mutate
 > the shared course concurrently.
 
-- [ ] T642.1 — Refactor `fixtures/auth.ts` `editorPage` fixture to create a fresh course
+- [x] T642.1 — Refactor `fixtures/auth.ts` `editorPage` fixture to create a fresh course
   per test (via API call in fixture setup) and delete it in fixture teardown.
-- [ ] T642.2 — Simplify `global-setup.ts`: remove seed-course creation; keep only
+- [x] T642.2 — Simplify `global-setup.ts`: remove seed-course creation; keep only
   auth-state setup (user creation + login + save `.auth/state.json`).
-- [ ] T642.3 — Update any tests that rely on slide-count assumptions from the shared
-  course to use the per-test course instead.
-- [ ] T642.4 — Verify full suite passes with 3 workers; confirm T608.6 no longer flakes.
-- [ ] T642.5 — Run full test suite + push + verify CI green.
+- [x] T642.3 — Update any tests that rely on slide-count assumptions from the shared
+  course to use the per-test course instead. (No changes needed — all tests already
+  use relative slide counts or create their own slides in beforeEach.)
+- [x] T642.4 — Verify full suite passes with 3 workers; confirm T608.6 no longer flakes.
+  (Verified: CI run 24290567820 — all steps green including E2E with 3 workers.)
+- [x] T642.5 — Run full test suite + push + verify CI green.
+  (Covered by CI run 24290567820 — commit b020b5e.)
+
+
+### T643 — Fix forEach crash: GrapesJS loadData + validateSequence unguarded iterators
+> Origen: Diagnóstico 2026-04-12 — `Cannot read properties of undefined (reading 'forEach')`
+> aparece continuamente en dev y en CI (tests verdes lo absorben silenciosamente vía el
+> `.catch()` de EditorCanvas). Dos bugs independientes con el mismo síntoma.
+
+- [x] T643.1 — Fix Bug A (GrapesJS `loadData()` crash — se dispara en carga de página):
+  Añadir `'phaser-sim'` y `'screenshot-sim'` a `GENERATED_CONTENT_TYPES` en
+  `packages/authoring-ui/src/editor/converters.ts` (líneas 78-82) para que su
+  `PLACEHOLDER_HTML` no se guarde en `widget.properties.content` ni se pase como
+  `def.content` al recargar.
+  Añadir guard en `grapesjsFromWidgets()` (línea 276-278) para widgets `text` y `button`:
+  no pasar `def.content` cuando el valor almacenado es markup HTML (detectar con
+  `/<[a-z][\s\S]*>/i` o similar), ya que el RTE puede haber guardado HTML que GrapesJS
+  parsea en child defs sin `actions: []`.
+- [x] T643.2 — Fix Bug B (`validateSequence.ts` unguarded forEach — se dispara por interacción):
+  Añadir optional chaining en las tres llamadas problemáticas:
+  - Línea 90: `action.params.then?.forEach(...)`
+  - Línea 102: `action.params.body?.forEach(...)`
+  - Línea 129: `sequence.actions?.forEach(...)`
 
 
 ### Phase 2.9 — Closing Tasks

@@ -313,6 +313,59 @@ describe('validateAllSequences — cycle warnings (T201)', () => {
   })
 })
 
+// ─── T643.2 regression: unguarded forEach on fields missing in old MongoDB docs ──
+
+describe('T643.2 — Bug B regression: optional chaining guards against undefined arrays', () => {
+  it('does not throw when sequence.actions is undefined (old document)', () => {
+    // Old MongoDB documents saved before actions was required may have actions: undefined.
+    const seq = { event: 'click' } as unknown as ActionSequence // actions field missing
+    expect(() =>
+      validateSequence(seq, { widgetIds: [], sharedSequenceNames: [] }),
+    ).not.toThrow()
+    const warnings = validateSequence(seq, { widgetIds: [], sharedSequenceNames: [] })
+    expect(warnings).toHaveLength(0)
+  })
+
+  it('does not throw when condition.then is undefined (old document)', () => {
+    // Old documents may have condition actions without a then array.
+    const seq: ActionSequence = {
+      event: 'click',
+      actions: [
+        {
+          type: 'condition',
+          params: {
+            expression: '$x == 1',
+            then: undefined as unknown as never[],
+          },
+        },
+      ],
+    }
+    expect(() =>
+      validateSequence(seq, { widgetIds: [], sharedSequenceNames: [] }),
+    ).not.toThrow()
+  })
+
+  it('does not throw when loop.body is undefined (old document)', () => {
+    // Old documents may have loop actions without a body array.
+    const seq: ActionSequence = {
+      event: 'click',
+      actions: [
+        {
+          type: 'loop',
+          params: {
+            mode: 'count',
+            count: 3,
+            body: undefined as unknown as never[],
+          },
+        },
+      ],
+    }
+    expect(() =>
+      validateSequence(seq, { widgetIds: [], sharedSequenceNames: [] }),
+    ).not.toThrow()
+  })
+})
+
 // ─── TEST-03: deeply nested validation (T205) ─────────────────────────────────
 
 describe('validateAllSequences — T205 TEST-03: deeply nested If/Loop', () => {
