@@ -26,14 +26,26 @@ vi.mock('../../store/phaserSimStore', () => ({
 
 // ── Mock GrapesJS component (fires real Backbone-style change events) ─────────
 
-type Handler = () => void
+type ChangeHandler = () => void
 
-function makeComponent(ep: PhaserSimExtendedProps) {
+interface ComponentMock {
+  get(key: string): unknown
+  set: ReturnType<typeof vi.fn>
+  on(event: string, handler: ChangeHandler): void
+  off(event: string, handler: ChangeHandler): void
+  getId: ReturnType<typeof vi.fn>
+}
+
+interface EditorMock {
+  getSelected: ReturnType<typeof vi.fn>
+}
+
+function makeComponent(ep: PhaserSimExtendedProps): ComponentMock {
   const props: Record<string, unknown> = {
     type: 'phaser-sim',
     extendedProperties: { ...ep },
   }
-  const listeners: Record<string, Set<Handler>> = {}
+  const listeners: Record<string, Set<ChangeHandler>> = {}
 
   const set = vi.fn((key: string, value: unknown): void => {
     props[key] = value
@@ -43,11 +55,11 @@ function makeComponent(ep: PhaserSimExtendedProps) {
   return {
     get(key: string): unknown { return props[key] },
     set,
-    on(event: string, handler: Handler): void {
+    on(event: string, handler: ChangeHandler): void {
       if (!listeners[event]) listeners[event] = new Set()
       listeners[event].add(handler)
     },
-    off(event: string, handler: Handler): void {
+    off(event: string, handler: ChangeHandler): void {
       listeners[event]?.delete(handler)
     },
     getId: vi.fn().mockReturnValue('comp-phaser-1'),
@@ -55,7 +67,7 @@ function makeComponent(ep: PhaserSimExtendedProps) {
 }
 
 /** Editor mock — does NOT expose store() to prove the panel never calls it. */
-function makeEditor(comp: ReturnType<typeof makeComponent>) {
+function makeEditor(comp: ComponentMock): EditorMock {
   return {
     getSelected: vi.fn().mockReturnValue(comp),
   }
@@ -73,7 +85,7 @@ afterEach(() => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function setupAndRender(ep: PhaserSimExtendedProps = PHASER_SIM_DEFAULT_EXTENDED) {
+function setupAndRender(ep: PhaserSimExtendedProps = PHASER_SIM_DEFAULT_EXTENDED): { comp: ComponentMock; editor: EditorMock } {
   const comp = makeComponent(ep)
   const editor = makeEditor(comp)
   useEditorStore.setState({
@@ -171,7 +183,7 @@ describe('T644.2 — save path routes through comp.set(), not editor.store() (de
     const typeSelect = screen.getByRole('combobox', { name: /type/i })
     fireEvent.change(typeSelect, { target: { value: 'interactive-diagram' } })
 
-    const call = (comp.set as ReturnType<typeof vi.fn>).mock.calls.find(
+    const call = vi.mocked(comp.set).mock.calls.find(
       ([key]: [string]) => key === 'extendedProperties',
     )
     const saved = call?.[1] as PhaserSimExtendedProps

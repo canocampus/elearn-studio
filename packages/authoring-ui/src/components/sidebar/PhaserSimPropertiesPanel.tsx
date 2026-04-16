@@ -203,10 +203,7 @@ function PhaserSimPropertiesPanelInner({ selected, openPreview }: InnerProps) {
 
   function handlePreview(): void {
     const componentId = selected.getId()
-    if (!componentId) {
-      console.warn('[PhaserSimPropertiesPanel] Cannot open preview: component lacks ID')
-      return
-    }
+    if (!componentId) return
     openPreview(getLatest(), componentId)
   }
 
@@ -326,10 +323,10 @@ function PhaserSimPropertiesPanelInner({ selected, openPreview }: InnerProps) {
       <div style={SECTION_STYLE}>
         <div style={SECTION_TITLE_STYLE}>Scene Definition (JSON)</div>
         <PhaserSimSceneDefEditor
-          key={selected.getId() ?? selected.get('cid') as string}
-          initialValue={sceneDefToJson(ep.sceneDef)}
+          key={selected.getId() ?? String(selected.get('cid') ?? '')}
+          value={sceneDefJson}
           jsonError={jsonError}
-          onJsonChange={setSceneDefJson}
+          onChange={setSceneDefJson}
           onBlur={handleSceneDefBlur}
         />
         {jsonError && (
@@ -350,26 +347,17 @@ function PhaserSimPropertiesPanelInner({ selected, openPreview }: InnerProps) {
 // ---------------------------------------------------------------------------
 
 interface SceneDefEditorProps {
-  initialValue: string
+  value: string
   jsonError: boolean
-  onJsonChange: (v: string) => void
+  onChange: (v: string) => void
   onBlur: () => void
 }
 
-function PhaserSimSceneDefEditor({ initialValue, jsonError, onJsonChange, onBlur }: SceneDefEditorProps) {
-  const [value, setValue] = useState(initialValue)
-
-  useEffect(() => {
-    setValue(initialValue)
-  }, [initialValue])
-
+function PhaserSimSceneDefEditor({ value, jsonError, onChange, onBlur }: SceneDefEditorProps) {
   return (
     <textarea
       value={value}
-      onChange={e => {
-        setValue(e.target.value)
-        onJsonChange(e.target.value)
-      }}
+      onChange={e => onChange(e.target.value)}
       onBlur={onBlur}
       rows={8}
       spellCheck={false}
