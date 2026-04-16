@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Component } from 'grapesjs'
 
-type GjsComponent = Component & {
+export type GjsComponent = Component & {
   get(key: string): unknown
   set(key: string, value: unknown): void
   on(event: string, handler: () => void): void
@@ -139,6 +139,7 @@ export function useExtendedProperty<T>(
   }, [component, subKey])
 
   function update(newValue: T) {
+    setValue(newValue)
     const current = (comp.get('extendedProperties') as Record<string, unknown> | undefined) ?? {}
     comp.set('extendedProperties', { ...current, [subKey]: newValue })
   }

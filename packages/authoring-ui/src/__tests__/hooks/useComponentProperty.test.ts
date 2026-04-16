@@ -12,11 +12,19 @@ import { useComponentProperty, useExtendedProperty } from '../../hooks/useCompon
 
 // ── Minimal GrapesJS Component mock ──────────────────────────────────────────
 
-type Handler = () => void
+type ChangeHandler = () => void
 
-function makeComponent(initialProps: Record<string, unknown> = {}) {
+interface ComponentMock {
+  get(key: string): unknown
+  set(key: string, value: unknown): void
+  on(event: string, handler: ChangeHandler): void
+  off(event: string, handler: ChangeHandler): void
+  listenerCount(event: string): number
+}
+
+function makeComponent(initialProps: Record<string, unknown> = {}): ComponentMock {
   const props: Record<string, unknown> = { ...initialProps }
-  const listeners: Record<string, Set<Handler>> = {}
+  const listeners: Record<string, Set<ChangeHandler>> = {}
 
   return {
     get(key: string): unknown {
@@ -27,11 +35,11 @@ function makeComponent(initialProps: Record<string, unknown> = {}) {
       const event = `change:${key}`
       listeners[event]?.forEach(h => h())
     },
-    on(event: string, handler: Handler): void {
+    on(event: string, handler: ChangeHandler): void {
       if (!listeners[event]) listeners[event] = new Set()
       listeners[event].add(handler)
     },
-    off(event: string, handler: Handler): void {
+    off(event: string, handler: ChangeHandler): void {
       listeners[event]?.delete(handler)
     },
     listenerCount(event: string): number {
