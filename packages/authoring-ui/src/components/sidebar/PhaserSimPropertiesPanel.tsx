@@ -22,6 +22,7 @@ import { useState, useEffect } from 'react'
 import type { Component } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
 import { usePhaserSimStore } from '../../store/phaserSimStore'
+import { useComponentProperty } from '../../hooks/useComponentProperty'
 import {
   PHASER_SIM_DEFAULT_EXTENDED,
   PHASER_SIM_TYPES,
@@ -79,16 +80,6 @@ const SECTION_TITLE_STYLE: React.CSSProperties = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getExtendedProps(component: Component): PhaserSimExtendedProps {
-  const raw = component.get('extendedProperties') as Partial<PhaserSimExtendedProps> | undefined
-  return { ...PHASER_SIM_DEFAULT_EXTENDED, ...raw }
-}
-
-function setExtendedProps(component: Component, patch: Partial<PhaserSimExtendedProps>): void {
-  const current = getExtendedProps(component)
-  component.set('extendedProperties', { ...current, ...patch })
-}
-
 function sceneDefToJson(sceneDef: Record<string, unknown> | null): string {
   if (!sceneDef) return ''
   try {
@@ -116,38 +107,61 @@ function parseSceneDef(raw: string): Record<string, unknown> | null {
 // Main component
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Outer shell — null-checks only, no hooks that depend on editor state
+// ---------------------------------------------------------------------------
+
 export function PhaserSimPropertiesPanel() {
   const editor = useEditorStore(s => s.editor)
   const selectedComponentType = useEditorStore(s => s.selectedComponentType)
   const openPreview = usePhaserSimStore(s => s.openPreview)
 
-  // Local state for the JSON textarea (to allow in-progress typing without re-parsing every keystroke)
-  const [sceneDefJson, setSceneDefJson] = useState('')
-  const [jsonError, setJsonError] = useState(false)
-
-  if (!editor || selectedComponentType !== 'phaser-sim') {
-    return null
-  }
+  if (!editor || selectedComponentType !== 'phaser-sim') return null
 
   const selected = editor.getSelected()
   // Guard against Zustand store lag: verify the live component type, not just the store value.
-  // Matches the pattern used in QuestionPropertiesPanel.
-  if (!selected || (selected.get('type') as string) !== 'phaser-sim') {
-    return null
-  }
+  if (!selected || (selected.get('type') as string) !== 'phaser-sim') return null
 
-  const ep = getExtendedProps(selected)
+  return (
+    <PhaserSimPropertiesPanelInner
+      selected={selected}
+      openPreview={openPreview}
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Inner component — subscribes to extendedProperties via useComponentProperty
+// so that undo/redo and any external Backbone mutation re-render the panel.
+// ---------------------------------------------------------------------------
+
+interface InnerProps {
+  selected: Component
+  openPreview: (props: PhaserSimExtendedProps, id: string) => void
+}
+
+function PhaserSimPropertiesPanelInner({ selected, openPreview }: InnerProps) {
+  const [ep, updateEp, getLatest] = useComponentProperty<PhaserSimExtendedProps>(
+    selected,
+    'extendedProperties',
+    PHASER_SIM_DEFAULT_EXTENDED,
+  )
+
+  const [sceneDefJson, setSceneDefJson] = useState(() => sceneDefToJson(ep.sceneDef))
+  const [jsonError, setJsonError] = useState(false)
+
+  // Sync textarea parse-buffer whenever ep.sceneDef changes externally (undo/redo, remote mutation).
+  // Safe during typing: ep.sceneDef only changes after blur commits the value via update().
+  useEffect(() => {
+    setSceneDefJson(sceneDefToJson(ep.sceneDef))
+    setJsonError(false)
+  }, [ep.sceneDef])
 
   function update(patch: Partial<PhaserSimExtendedProps>) {
-    const component = editor!.getSelected()
-    if (!component) return
-    setExtendedProps(component, patch)
-    editor!.store().catch(err => console.error('[PhaserSimPropertiesPanel] store failed:', err))
+    const current = getLatest()
+    updateEp({ ...current, ...patch })
   }
 
-  // Handlers re-fetch the selected component at call time to guard against the case where
-  // the GrapesJS selection changes between the render that opened this panel and the user
-  // clicking a control (e.g., rapid select/deselect while the panel is still mounted).
   function handleSimTypeChange(simType: PhaserSimExtendedProps['simType']): void {
     update({ simType })
   }
@@ -188,15 +202,12 @@ export function PhaserSimPropertiesPanel() {
   }
 
   function handlePreview(): void {
-    const component = editor!.getSelected()
-    if (!component) return
-    const componentId = component.getId()
+    const componentId = selected.getId()
     if (!componentId) {
       console.warn('[PhaserSimPropertiesPanel] Cannot open preview: component lacks ID')
       return
     }
-    const current = getExtendedProps(component)
-    openPreview(current, componentId)
+    openPreview(getLatest(), componentId)
   }
 
   return (
@@ -226,8 +237,9 @@ export function PhaserSimPropertiesPanel() {
       {/* Sim Type */}
       <div style={SECTION_STYLE}>
         <div style={SECTION_TITLE_STYLE}>Simulation Type</div>
-        <label style={LABEL_STYLE}>Type</label>
+        <label htmlFor="phaser-sim-type" style={LABEL_STYLE}>Type</label>
         <select
+          id="phaser-sim-type"
           value={ep.simType}
           onChange={e => handleSimTypeChange(e.target.value as PhaserSimExtendedProps['simType'])}
           style={FIELD_STYLE}
@@ -241,8 +253,9 @@ export function PhaserSimPropertiesPanel() {
       {/* Mode & Scoring */}
       <div style={SECTION_STYLE}>
         <div style={SECTION_TITLE_STYLE}>Mode & Scoring</div>
-        <label style={LABEL_STYLE}>Mode</label>
+        <label htmlFor="phaser-sim-mode" style={LABEL_STYLE}>Mode</label>
         <select
+          id="phaser-sim-mode"
           value={ep.mode}
           onChange={e => handleModeChange(e.target.value as PhaserSimMode)}
           style={{ ...FIELD_STYLE, marginBottom: 8 }}
