@@ -2,7 +2,7 @@
 
 > Status: [ ] = pending | [x] = done | [~] = in progress | [!] = blocked
 > 
-> **Historical tasks (Phases 0–9, T001–T642):** see `docs/tasks_phase0-9.md`
+> **Historical tasks (Phases 0–9, T001–T642):** see `tasks_block_0_init_beta.md`
 > 
 > Active from: Phase 10 — React/GrapesJS Architectural Refactor
 
@@ -26,19 +26,19 @@
 > PhaserSimPropertiesPanel is the only panel that bypasses the established
 > useComponentProperty pattern used by all other panels.
 
-- [ ] T644.1 — Replace direct `getExtendedProps(selected)` read with `useComponentProperty`
+- [x] T644.1 — Replace direct `getExtendedProps(selected)` read with `useComponentProperty`
   subscription so undo/redo re-renders the panel correctly
-- [ ] T644.2 — Remove `editor!.store()` call from `update()` — let the existing
+- [x] T644.2 — Remove `editor!.store()` call from `update()` — let the existing
   `component:update` → debounced autosave path handle persistence
-- [ ] T644.3 — Fix `sceneDefJson` stale mirror: replace `onBlur` sync with a `useEffect`
+- [x] T644.3 — Fix `sceneDefJson` stale mirror: replace `onBlur` sync with a `useEffect`
   that updates the textarea whenever `ep.sceneDef` changes (Backbone → React direction)
-- [ ] T644.4 — Ensure `isSaving`/`setSaveError` Zustand state is updated on all save paths
-  (currently Phaser saves bypass the SaveErrorBanner)
-- [ ] T644.5 — Unit tests: verify save path uses debounce, verify undo re-renders panel,
+- [x] T644.4 — Ensure `isSaving`/`setSaveError` Zustand state is updated on all save paths
+  (currently Phaser saves bypass the SaveErrorBanner) — resolved by T644.2: comp.set() → component:update → triggerAutosave already manages these flags
+- [x] T644.5 — Unit tests: verify save path uses debounce, verify undo re-renders panel,
   verify sceneDefJson stays in sync after external Backbone change
-- [ ] T644.6 — Run full test suite + push + verify CI green
-- [ ] T644.7 — Refine the generated code
-- [ ] T644.8 — A reviewer will generate `docs/issues/issues-T644.md`; resolve before closing
+- [x] T644.6 — Run full test suite + push + verify CI green
+- [x] T644.7 — Refine the generated code (C1-C3 panel, T1-T3 panel test, U1-U4 hook + hook test)
+- [x] T644.8 — A reviewer will generate `docs/issues/issues-T644.md`; resolve before closing — 0 issues found, APPROVED
 
 ---
 
@@ -136,6 +136,40 @@
 
 ---
 
+### T650 — beforeunload flash save: prevent data loss on tab close
+
+> **Source:** Phase 10 audit — autosave debounce (2s) creates a data loss window
+> if the user closes the tab or navigates away from the domain mid-debounce.
+
+- [ ] T650.1 — Add `window.addEventListener('beforeunload', ...)` in EditorCanvas
+  that calls a synchronous `editor.store()` (or `navigator.sendBeacon`) if there
+  is a pending autosave (autosaveTimer !== null)
+- [ ] T650.2 — Unit test: simulate pending autosave + beforeunload → verify store() called
+- [ ] T650.3 — Run full test suite + push + verify CI green
+- [ ] T650.4 — Refine the generated code
+- [ ] T650.5 — A reviewer will generate `docs/issues/issues-T650.md`; resolve before closing
+
+---
+
+### T651 — Unify persistence via requestSave(): single save entry point
+
+> **Source:** Phase 10 audit — triggerAutosave (event-driven) and saveAndLoad
+> (pre-navigation manual) duplicate persistence logic, increasing bug surface.
+> storageManager should be the only component that knows HOW to save.
+
+- [ ] T651.1 — Design `requestSave()` as the single save entry point in storageManager:
+  replaces direct `editor.store()` calls everywhere; handles isSaving/setSaveError
+  Zustand updates centrally. Document in `/decisions/YYYY-MM-DD-request-save.md`
+- [ ] T651.2 — Migrate triggerAutosave in initEditor.ts to use requestSave()
+- [ ] T651.3 — Migrate saveAndLoad pre-navigation save in EditorCanvas to use requestSave()
+- [ ] T651.4 — Update all tests
+- [ ] T651.5 — Run full test suite + push + verify CI green
+- [ ] T651.6 — Refine the generated code
+- [ ] T651.7 — A reviewer will generate `docs/issues/issues-T651.md`; resolve before closing
+
+
+---
+
 ### Phase 10 — Closing Tasks
 
 - [ ] T1000.TEST — All Phase 10 unit tests pass; no regressions in existing suite
@@ -160,3 +194,24 @@ Adding a 4th format (xAPI) without this refactor would add another ~70 LOC of du
 
 ### TD-003 — T642/T643: known issues pending resolution
 > **Source:** T642 (FLAKE-03 per-test course isolation) + T643 (forEach bugs — partially fixed)
+
+### TD-004 — GrapesJS type safety: define ELearnComponent interface
+> **Source:** Phase 10 audit — `as unknown` and `as GjsComponent` casts in
+> `useComponentProperty.ts` (line 40) and other hooks indicate missing typed
+> interface. Create a central `ELearnComponent` interface that extends the
+> GrapesJS Component with the methods we actually use, eliminating scattered casts.
+> **Priority:** Medium — address when starting a new hook or when casts cause a bug.
+
+### TD-005 — useExtendedProperty shallow merge risk
+> **Source:** Phase 10 audit — `useExtendedProperty.update` uses `{ ...current, [subKey]: newValue }`
+> (shallow merge). Safe today because all extendedProperties have flat structure,
+> but risky if a widget introduces nested objects in extendedProperties.
+> **Fix when:** a widget needs nested extendedProperties, or a bug is traced here.
+
+### TD-006 — Replace _isEditorLoading flag with GrapesJS native storage events
+> **Source:** Phase 10 audit (T646.5) — `storage:start:load` / `storage:end:load`
+> native GrapesJS events could replace the manual `_isEditorLoading` module flag,
+> eliminating timing-dependent state outside React. Requires verification that
+> GrapesJS fires these events before loadData() reconstructs components.
+> **Priority:** Low — evaluate during T646.5 investigation.
+> 

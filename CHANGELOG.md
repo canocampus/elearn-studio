@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.48] — 2026-04-17 — T644: Fix PhaserSimPropertiesPanel — align with panel pattern (Phase 10)
+
+### Fixed
+- **[T644.1] `PhaserSimPropertiesPanel` bypassed `useComponentProperty`** (`packages/authoring-ui/src/components/sidebar/PhaserSimPropertiesPanel.tsx`) — Panel was the only one that read `extendedProperties` via direct `getExtendedProps(selected)` call instead of subscribing to the Backbone `change:extendedProperties` event. Result: undo/redo did not re-render the panel and a selection-change stale read was possible. Fix: replaced with `useComponentProperty<PhaserSimExtendedProps>(selected, 'extendedProperties', PHASER_SIM_DEFAULT_EXTENDED)`. Panel split into null-guard outer shell + `PhaserSimPropertiesPanelInner` (all hooks in inner component).
+- **[T644.2] `editor.store()` called directly from panel `update()`** — Violated the rule that only the debounced autosave path in `initEditor.ts` may call `editor.store()`. Removed; saves now flow through `comp.set()` → `component:update` → `triggerAutosave`.
+- **[T644.3] `sceneDefJson` textarea out of sync after external Backbone mutation** — Previous design synced the textarea only on `onBlur` (React → Backbone direction). Undo/redo (Backbone → React direction) would update `ep.sceneDef` but leave the textarea showing stale JSON. Fix: `useEffect([ep.sceneDef])` resets `sceneDefJson` and clears `jsonError` whenever `ep.sceneDef` changes externally.
+
+### Changed
+- **[T644.7] `PhaserSimSceneDefEditor` converted to pure controlled component** — Removed internal `useState`/`useEffect`; all state owned by parent. Props renamed `initialValue`→`value`, `onJsonChange`→`onChange`.
+- **[T644.7] `GjsComponent` type exported** (`packages/authoring-ui/src/hooks/useComponentProperty.ts`) — Was private; now exported so consumers can use it as a proper cast target.
+- **[T644.7] Optimistic `setValue()` in `useExtendedProperty.update()`** — Adds `setValue(newValue)` before `comp.set()` for parity with `useComponentProperty`, ensuring controlled inputs never freeze on sub-key writes.
+
+### Tests
+- **`src/__tests__/sidebar/PhaserSimPropertiesPanel.test.tsx`** — 16 regression tests: T644.1 (4 undo/redo re-render scenarios), T644.2 (4 save-path + patch-merge tests including architectural proof that `editor.store()` is never called), T644.3 (5 textarea-sync scenarios), visibility guard (3 tests).
+- **`src/__tests__/hooks/useComponentProperty.test.ts`** — `ChangeHandler` type rename; `ComponentMock` interface + explicit return type on `makeComponent`.
+
+---
+
 ## [0.5.47] — 2026-04-12 — T643: Fix forEach crashes (GrapesJS loadData + validateSequence)
 
 ### Fixed

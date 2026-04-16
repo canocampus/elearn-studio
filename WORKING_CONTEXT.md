@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-12 — T643 ✅ done (forEach crash fixes: GENERATED_CONTENT_TYPES + validateSequence optional-chaining guards)
+> Last updated: 2026-04-17 — T644 ✅ done (Phase 10: PhaserSimPropertiesPanel aligned with panel pattern — useComponentProperty, no editor.store(), pure controlled textarea)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.47 |
-| **Active phase** | Phase 2.9 — SCORM & Publishing |
-| **Active block** | T290 — NEXT (manual authoring test + visual verification) |
+| **Current version** | v0.5.48 |
+| **Active phase** | Phase 10 — React/GrapesJS Architectural Refactor |
+| **Active block** | T645 — Fix storageManager singletons (next up) |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
 
 ---
 
 ## What Was Last Done
+
+- **T644 — Fix PhaserSimPropertiesPanel: align with panel pattern ✅ (T644 CLOSED)** — Phase 10 first task. `PhaserSimPropertiesPanel` was the only panel that bypassed the established `useComponentProperty` pattern. T644.1: replaced direct `getExtendedProps(selected)` read with `useComponentProperty<PhaserSimExtendedProps>` subscription — undo/redo now re-renders the panel correctly. T644.2: removed `editor.store()` call from `update()` — saves route through `comp.set()` → `component:update` → debounced autosave in `initEditor.ts`. T644.3: replaced `onBlur` sync with `useEffect([ep.sceneDef])` so the textarea reflects any external Backbone mutation (undo/redo, remote). T644.7 refinements: `PhaserSimSceneDefEditor` converted to pure controlled component (no internal state); `GjsComponent` type exported from `useComponentProperty.ts`; optimistic `setValue()` added to `useExtendedProperty.update()` (parity with `useComponentProperty`); `Handler` → `ChangeHandler` rename + `ComponentMock` interface in hook test. 16 panel regression tests + all 712 suite tests green. Code review: APPROVED (0 issues). `docs/issues/issues-T644.md` generated. Commits: `9fcaf6d`, `df52fdf`, `b5e2a20`.
 
 - **T643 — Fix forEach crashes: GrapesJS loadData + validateSequence ✅ (T643 CLOSED)** — Two independent bugs sharing the same `TypeError: Cannot read properties of undefined (reading 'forEach')` symptom. T643.1: `phaser-sim` and `screenshot-sim` were absent from `GENERATED_CONTENT_TYPES` in `converters.ts`; on reload `grapesjsFromWidgets()` set `def.content` to the saved `PLACEHOLDER_HTML` string, GrapesJS parsed it into auto-generated child defs without `actions: []` → crash. Also added guard: `text`/`button` widgets skip setting `def.content` when the stored value is HTML markup (detected via leading `<`). T643.2: three `.forEach()` calls in `validateSequence.ts` (lines 90, 102, 129) had no optional-chaining guard; old MongoDB documents saved before field types were required could have `condition.then`, `loop.body`, or `sequence.actions` absent at runtime → crash when user selected a widget (ActionsPanel render → validateAllSequences). Fixed with `?.forEach()`. 7 converter regression tests + 3 validateSequence regression tests added. 696 unit tests green. CI ✅ (run 24311195340).
 
