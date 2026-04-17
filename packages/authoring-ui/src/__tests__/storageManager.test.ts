@@ -1,9 +1,8 @@
 /**
  * Tests for storageManager.ts
  *
- * Covers reviewer fix:
- *   R-03 — updateStorageContext() replaces per-call options so slide switches
- *           don't require a full editor re-init on every slide switch.
+ * T645.3: storageManager no longer owns its own context singleton.
+ * Context is injected via StorageContextProvider (Dependency Inversion).
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -20,9 +19,37 @@ vi.mock('../editor/converters', () => ({
   widgetsFromGrapesjs: vi.fn().mockReturnValue([]),
 }))
 
-import { updateStorageContext, registerStorageManager, getStorageContext, invalidateCourseCache, generateThumbnail } from '../editor/storageManager'
+import { registerStorageManager, type StorageContextProvider, generateThumbnail } from '../editor/storageManager'
 import * as courseApi from '../api/courseApi'
 import { grapesjsFromWidgets, widgetsFromGrapesjs } from '../editor/converters'
+
+// ---------------------------------------------------------------------------
+// Test helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a mutable provider for tests. Call setContext() to change context
+ * between operations. Call triggerInvalidate() to simulate cache invalidation
+ * (replaces the old invalidateCourseCache() helper).
+ */
+function makeProvider(initial: { courseId: string; slideId: string }) {
+  let context = { ...initial }
+  let invalidateCallback: (() => void) | null = null
+
+  const provider: StorageContextProvider = {
+    getContext: vi.fn(() => ({ ...context })),
+    onCacheInvalidate: vi.fn((cb) => {
+      invalidateCallback = cb
+      return () => { invalidateCallback = null }
+    }),
+  }
+
+  return {
+    provider,
+    setContext: (c: { courseId: string; slideId: string }) => { context = c },
+    triggerInvalidate: () => invalidateCallback?.(),
+  }
+}
 
 // ---------------------------------------------------------------------------
 // T700 — generateThumbnail unit tests
@@ -58,45 +85,6 @@ describe('generateThumbnail', () => {
 })
 
 // ---------------------------------------------------------------------------
-// R-03 — updateStorageContext
-// ---------------------------------------------------------------------------
-
-describe('storageManager — R-03 updateStorageContext', () => {
-  it('accepts a courseId and slideId without throwing', () => {
-    expect(() => updateStorageContext({ courseId: 'c1', slideId: 's1' })).not.toThrow()
-  })
-
-  it('can be called multiple times (slide switching)', () => {
-    updateStorageContext({ courseId: 'c1', slideId: 's1' })
-    updateStorageContext({ courseId: 'c1', slideId: 's2' })
-    updateStorageContext({ courseId: 'c2', slideId: 's3' })
-    // No error expected — module absorbs all context changes
-  })
-})
-
-// ---------------------------------------------------------------------------
-// CRITICAL-01 fix — getStorageContext snapshot for race-condition guard
-// ---------------------------------------------------------------------------
-
-describe('storageManager — getStorageContext', () => {
-  it('returns the current context as a snapshot', () => {
-    updateStorageContext({ courseId: 'c1', slideId: 's1' })
-    const snap = getStorageContext()
-    expect(snap.courseId).toBe('c1')
-    expect(snap.slideId).toBe('s1')
-  })
-
-  it('snapshot is not affected by subsequent updateStorageContext calls', () => {
-    updateStorageContext({ courseId: 'c1', slideId: 's1' })
-    const snap = getStorageContext()
-    updateStorageContext({ courseId: 'c2', slideId: 's2' })
-    // Snapshot is a copy — should reflect the values at snapshot time
-    expect(snap.courseId).toBe('c1')
-    expect(snap.slideId).toBe('s1')
-  })
-})
-
-// ---------------------------------------------------------------------------
 // registerStorageManager
 // ---------------------------------------------------------------------------
 
@@ -104,16 +92,32 @@ describe('storageManager — registerStorageManager', () => {
   let addMock: ReturnType<typeof vi.fn>
   let editor: Editor
 
-  beforeEach(() => {
-    addMock = vi.fn()
-    editor = {
+  function makeEditor(): Editor {
+    return {
       StorageManager: { add: addMock },
       getComponents: vi.fn().mockReturnValue({ toArray: vi.fn().mockReturnValue([]) }),
       getHtml: vi.fn().mockReturnValue('<div></div>'),
       getCss: vi.fn().mockReturnValue(''),
     } as unknown as Editor
+  }
+
+  beforeEach(() => {
     vi.clearAllMocks()
-    invalidateCourseCache() // M-03: reset shared module-level cache before each test
+    addMock = vi.fn()
+    editor = makeEditor()
+
+    // M-03: reset the module-level courseCache before each test.
+    // A provider whose onCacheInvalidate immediately fires the callback achieves this
+    // without exporting a separate invalidateCourseCache() function.
+    registerStorageManager(
+      { StorageManager: { add: vi.fn() } } as unknown as Editor,
+      { getContext: () => ({ courseId: '', slideId: '' }), onCacheInvalidate: (cb) => { cb(); return () => {} } },
+    )
+
+    // Fresh addMock and editor after the above registration
+    vi.clearAllMocks()
+    addMock = vi.fn()
+    editor = makeEditor()
   })
 
   afterEach(() => {
@@ -121,7 +125,8 @@ describe('storageManager — registerStorageManager', () => {
   })
 
   it('registers elearn-api type with GrapesJS editor', () => {
-    registerStorageManager(editor)
+    const ctx = makeProvider({ courseId: '', slideId: '' })
+    registerStorageManager(editor, ctx.provider)
 
     expect(addMock).toHaveBeenCalledOnce()
     expect(addMock).toHaveBeenCalledWith(
@@ -135,8 +140,8 @@ describe('storageManager — registerStorageManager', () => {
 
   describe('load()', () => {
     it('returns empty object when context is missing', async () => {
-      updateStorageContext({ courseId: '', slideId: '' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: '', slideId: '' })
+      registerStorageManager(editor, ctx.provider)
 
       const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
       const result = await impl.load()
@@ -152,8 +157,8 @@ describe('storageManager — registerStorageManager', () => {
       vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
       vi.mocked(grapesjsFromWidgets).mockReturnValue([{ type: 'text' }] as never)
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
 
       const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
       const result = await impl.load()
@@ -169,15 +174,14 @@ describe('storageManager — registerStorageManager', () => {
     it('throws when slide is not found in course', async () => {
       vi.mocked(courseApi.getCourse).mockResolvedValue({ slides: [] } as never)
 
-      updateStorageContext({ courseId: 'c1', slideId: 'missing-slide' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 'missing-slide' })
+      registerStorageManager(editor, ctx.provider)
 
       const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
       await expect(impl.load()).rejects.toThrow('Slide missing-slide not found')
     })
 
     it('T042.5: reuses cached course on second load() for the same courseId', async () => {
-      invalidateCourseCache()
       const mockCourse = {
         slides: [
           { id: 's1', title: 'Slide 1', widgets: [] },
@@ -186,32 +190,31 @@ describe('storageManager — registerStorageManager', () => {
       }
       vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
 
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
       const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
       await impl.load()
 
-      updateStorageContext({ courseId: 'c1', slideId: 's2' })
+      ctx.setContext({ courseId: 'c1', slideId: 's2' })
       await impl.load()
 
       // getCourse should only have been called once (cache hit on second load)
       expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
     })
 
-    it('T042.5: fetches fresh course after invalidateCourseCache()', async () => {
-      invalidateCourseCache()
+    it('T042.5: fetches fresh course after cache invalidation', async () => {
       const mockCourse = {
         slides: [{ id: 's1', title: 'Slide', widgets: [] }],
       }
       vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
 
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
       const impl = addMock.mock.calls[0][1] as { load: () => Promise<unknown> }
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
       await impl.load()
-      invalidateCourseCache()
+      ctx.triggerInvalidate() // replaces invalidateCourseCache()
       await impl.load()
 
       expect(courseApi.getCourse).toHaveBeenCalledTimes(2)
@@ -220,8 +223,8 @@ describe('storageManager — registerStorageManager', () => {
 
   describe('store()', () => {
     it('skips save when context is missing', async () => {
-      updateStorageContext({ courseId: '', slideId: '' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: '', slideId: '' })
+      registerStorageManager(editor, ctx.provider)
 
       const impl = addMock.mock.calls[0][1] as { store: (data: unknown) => Promise<void> }
       await impl.store({})
@@ -236,8 +239,8 @@ describe('storageManager — registerStorageManager', () => {
       vi.mocked(widgetsFromGrapesjs).mockReturnValue(mockWidgets as never)
       vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
 
       const impl = addMock.mock.calls[0][1] as { store: (data: unknown) => Promise<void> }
       await impl.store({})
@@ -251,15 +254,14 @@ describe('storageManager — registerStorageManager', () => {
     })
 
     it('T042.5: invalidates course cache even when store() throws', async () => {
-      invalidateCourseCache()
       const mockCourse = {
         slides: [{ id: 's1', title: 'Slide', widgets: [] }],
       }
       vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
       vi.mocked(courseApi.updateSlide).mockRejectedValue(new Error('save failed'))
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
       const impl = addMock.mock.calls[0][1] as {
         load: () => Promise<unknown>
         store: (data: unknown) => Promise<void>
@@ -281,8 +283,8 @@ describe('storageManager — registerStorageManager', () => {
       vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
 
       const impl = addMock.mock.calls[0][1] as { store: (data: unknown) => Promise<void> }
       await expect(impl.store({})).resolves.toBeUndefined()
@@ -304,8 +306,8 @@ describe('storageManager — registerStorageManager', () => {
       vi.mocked(editor.getCss).mockReturnValue('p{color:red}')
       vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
 
       const impl = addMock.mock.calls[0][1] as { store: (data: unknown) => Promise<void> }
       await impl.store({})
@@ -320,15 +322,14 @@ describe('storageManager — registerStorageManager', () => {
     it('T700.4: store() rejects and propagates the API error (thumbnail isolation does not hide real failures)', async () => {
       vi.mocked(courseApi.updateSlide).mockRejectedValue(new Error('network timeout'))
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
 
       const impl = addMock.mock.calls[0][1] as { store: (data: unknown) => Promise<void> }
       await expect(impl.store({})).rejects.toThrow('network timeout')
     })
 
     it('T640.1: updates course cache after successful store() (no redundant GET)', async () => {
-      invalidateCourseCache()
       const savedWidgets = [{ type: 'text', id: 'w1', bounds: { x: 0, y: 0, width: 100, height: 50 } }]
       const mockCourse = {
         slides: [{ id: 's1', title: 'Slide', widgets: [] }],
@@ -337,8 +338,8 @@ describe('storageManager — registerStorageManager', () => {
       vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
       vi.mocked(widgetsFromGrapesjs).mockReturnValue(savedWidgets as never)
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
       const impl = addMock.mock.calls[0][1] as {
         load: () => Promise<unknown>
         store: (data: unknown) => Promise<void>
@@ -357,7 +358,6 @@ describe('storageManager — registerStorageManager', () => {
     })
 
     it('T640.1: cache reflects saved widgets after store() (BUG-T640 regression)', async () => {
-      invalidateCourseCache()
       const savedWidgets = [{ type: 'text', id: 'w1', bounds: { x: 0, y: 0, width: 100, height: 50 } }]
       const mockCourse = {
         slides: [{ id: 's1', title: 'Slide', widgets: [] }],
@@ -367,8 +367,8 @@ describe('storageManager — registerStorageManager', () => {
       vi.mocked(widgetsFromGrapesjs).mockReturnValue(savedWidgets as never)
       vi.mocked(grapesjsFromWidgets).mockReturnValue([{ type: 'text' }] as never)
 
-      updateStorageContext({ courseId: 'c1', slideId: 's1' })
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 's1' })
+      registerStorageManager(editor, ctx.provider)
       const impl = addMock.mock.calls[0][1] as {
         load: () => Promise<unknown>
         store: (data: unknown) => Promise<void>
@@ -387,8 +387,6 @@ describe('storageManager — registerStorageManager', () => {
       // Scenario: edit slide A, switch to slide B, switch back to slide A.
       // getCourse must be called exactly once throughout (all loads use cache).
       // Slide A must serve the widgets saved during the edit, not the original stale data.
-      invalidateCourseCache()
-
       const originalWidgetsA = [{ type: 'text', id: 'orig-a' }]
       const savedWidgetsA   = [{ type: 'image', id: 'saved-a' }]
       const originalWidgetsB = [{ type: 'button', id: 'orig-b' }]
@@ -402,14 +400,14 @@ describe('storageManager — registerStorageManager', () => {
       vi.mocked(courseApi.getCourse).mockResolvedValue(mockCourse as never)
       vi.mocked(courseApi.updateSlide).mockResolvedValue({} as never)
 
-      registerStorageManager(editor)
+      const ctx = makeProvider({ courseId: 'c1', slideId: 'sA' })
+      registerStorageManager(editor, ctx.provider)
       const impl = addMock.mock.calls[0][1] as {
         load: () => Promise<unknown>
         store: (data: unknown) => Promise<void>
       }
 
       // 1. Load slide A — populates cache (1 API call)
-      updateStorageContext({ courseId: 'c1', slideId: 'sA' })
       await impl.load()
       expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
 
@@ -419,12 +417,12 @@ describe('storageManager — registerStorageManager', () => {
       expect(courseApi.getCourse).toHaveBeenCalledTimes(1) // still 1 — no re-fetch
 
       // 3. Switch to slide B and load — cache hit for same courseId (still 1 API call)
-      updateStorageContext({ courseId: 'c1', slideId: 'sB' })
+      ctx.setContext({ courseId: 'c1', slideId: 'sB' })
       await impl.load()
       expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
 
       // 4. Switch back to slide A and load — cache hit again (still 1 API call)
-      updateStorageContext({ courseId: 'c1', slideId: 'sA' })
+      ctx.setContext({ courseId: 'c1', slideId: 'sA' })
       await impl.load()
       expect(courseApi.getCourse).toHaveBeenCalledTimes(1)
 

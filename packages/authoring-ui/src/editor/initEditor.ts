@@ -8,7 +8,7 @@
 import 'grapesjs/dist/css/grapes.min.css'
 import grapesjs, { type Editor } from 'grapesjs'
 import { buildAssetManagerConfig } from './assetManager'
-import { registerStorageManager, updateStorageContext, getStorageContext } from './storageManager'
+import { registerStorageManager, type StorageContextProvider } from './storageManager'
 import { registerBlocks } from './registerBlocks'
 import { useEditorStore } from '../store/editorStore'
 import { setClipboard, getClipboard } from './clipboard'
@@ -39,7 +39,7 @@ export interface InitEditorOptions {
   onReady?: (editor: Editor) => void
 }
 
-export function initEditor(opts: InitEditorOptions): Editor {
+export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: () => void } {
   const editor = grapesjs.init({
     container: opts.container,
     fromElement: false,
@@ -237,15 +237,30 @@ export function initEditor(opts: InitEditorOptions): Editor {
     }
   }
 
+  // T645.3.1: StorageContextProvider adapter — reads from Zustand without importing it
+  // into storageManager.ts (Dependency Inversion). Zustand subscribe passes current and
+  // previous state so we can detect cacheVersion bumps without subscribeWithSelector.
+  const provider: StorageContextProvider = {
+    getContext() {
+      const { courseId, slideId } = useEditorStore.getState()
+      return { courseId, slideId }
+    },
+    onCacheInvalidate(callback) {
+      return useEditorStore.subscribe((state, prevState) => {
+        if (state.cacheVersion !== prevState.cacheVersion) callback()
+      })
+    },
+  }
+
   // Register custom storage type (elearn-api — see storageManager.ts)
-  registerStorageManager(editor)
+  const unsubscribeCacheInvalidate = registerStorageManager(editor, provider)
 
   // Register widget blocks and component types (T012)
   registerBlocks(editor)
 
   // R-03: prime the context so the first editor.load() call (from EditorCanvas) targets
   // the correct course/slide without requiring a full editor re-init on slide switch.
-  updateStorageContext({ courseId: opts.courseId, slideId: opts.slideId })
+  useEditorStore.getState().setEditorContext({ courseId: opts.courseId, slideId: opts.slideId })
 
   // Select default device
   editor.setDevice('slide')
@@ -414,10 +429,10 @@ export function initEditor(opts: InitEditorOptions): Editor {
   const triggerAutosave = () => {
     if (getEditorLoading()) return
     if (autosaveTimer !== null) clearTimeout(autosaveTimer)
-    const snapshot = getStorageContext()
+    const snapshot = provider.getContext()
     autosaveTimer = setTimeout(async () => {
       autosaveTimer = null
-      const current = getStorageContext()
+      const current = provider.getContext()
       if (current.courseId !== snapshot.courseId || current.slideId !== snapshot.slideId) {
         // Slide was switched during debounce — skip to avoid saving to the wrong slide.
         return
@@ -457,5 +472,5 @@ export function initEditor(opts: InitEditorOptions): Editor {
 
   opts.onReady?.(editor)
 
-  return editor
+  return { editor, cleanup: unsubscribeCacheInvalidate }
 }

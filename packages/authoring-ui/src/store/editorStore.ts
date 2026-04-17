@@ -48,6 +48,13 @@ interface EditorState {
   // New Course dialog visibility
   showNewCourseDialog: boolean
   setShowNewCourseDialog: (show: boolean) => void
+
+  // Storage context — active courseId/slideId for the storage manager
+  courseId: string
+  slideId: string
+  cacheVersion: number
+  setEditorContext: (opts: { courseId: string; slideId: string }) => void
+  bumpCacheVersion: () => void
 }
 
 export const useEditorStore = create<EditorState>()(devtools((set, get) => ({
@@ -84,4 +91,10 @@ export const useEditorStore = create<EditorState>()(devtools((set, get) => ({
 
   showNewCourseDialog: false,
   setShowNewCourseDialog: (showNewCourseDialog) => set({ showNewCourseDialog }),
+
+  courseId: '',
+  slideId: '',
+  cacheVersion: 0,
+  setEditorContext: ({ courseId, slideId }) => set({ courseId, slideId }),
+  bumpCacheVersion: () => set((s) => ({ cacheVersion: s.cacheVersion + 1 })),
 }), { name: 'editorStore', enabled: import.meta.env.DEV }))

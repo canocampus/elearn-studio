@@ -19,6 +19,37 @@ Before doing ANYTHING after completing a subtask:
 Proceeding without explicit confirmation is a protocol violation.
 
 ---
+## 🔍 Pre-Commit Self-Verification Checklist
+
+Before proposing changes to GrapesJS+React integration files, verify the following:
+
+### [ ] Resource Management
+- [ ] Do all added listeners have their corresponding `removeEventListener`?
+- [ ] Are the timers (`setTimeout`/`setInterval`) canceled on cleanup?
+- [ ] Is the GrapesJS instance explicitly destroyed on unmount?
+
+### [ ] Unidirectional Data Flow
+- [ ] Do UI changes in GrapesJS update the React/Zustan state before saving?
+- [ ] Does the save function read from the React state, not directly from `editor.store()`?
+- [ ] Is the debounce mechanism respected for persistence operations?
+
+### [ ] Subscriptions and Re-renders
+- [ ] Do GrapesJS component property reads use subscriptions with cleanup?
+- [ ] Are load/error states (`isSaving`, `saveError`) updated on all save paths?
+- [ ] Are components re-rendered when Backbone model properties change?
+
+### [ ] Type Safety and Errors
+- [ ] Are `editor.store()` errors propagated to the UI state (error banner)?
+- [ ] Is `editor.getSelected()` validated as not null before operating?
+- [ ] Are uninitialized or loading editor cases handled correctly?
+
+### ✅ GrapesJS Block Validation Pre-Commit
+- [ ] Does each defined block have `content` as a valid HTML string or a `render` function that returns a DOM element?
+- [ ] Do custom blocks have `attributes` and `category` defined to appear in the correct panel?
+- [ ] Has the block been tested in isolation (without React) to rule out pure GrapesJS errors?
+
+---
+
 ## 1. Session Start Protocol
 
 Before making any change or proposing any solution, the agent MUST execute these

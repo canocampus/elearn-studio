@@ -18,7 +18,6 @@ import {
   reorderSlides,
   updateSlide,
 } from '../../api/courseApi'
-import { invalidateCourseCache } from '../../editor/storageManager'
 import { useToast } from '../ui/Toast'
 
 export function SlideList() {
@@ -50,7 +49,7 @@ export function SlideList() {
     setIsAdding(true)
     try {
       const updated = await addSlide(course!._id, nextSlideTitle(course!.slides))
-      invalidateCourseCache()
+      useEditorStore.getState().bumpCacheVersion()
       setCourse(updated)
       setCurrentSlideIndex(updated.slides.length - 1)
     } catch (err) {
@@ -71,7 +70,7 @@ export function SlideList() {
     setIsProcessing(true)
     try {
       const updated = await duplicateSlide(course!._id, slide)
-      invalidateCourseCache()
+      useEditorStore.getState().bumpCacheVersion()
       setCourse(updated)
       setCurrentSlideIndex(updated.slides.length - 1)
     } catch (err) {
@@ -93,7 +92,7 @@ export function SlideList() {
     setIsProcessing(true)
     try {
       const updated = await deleteSlide(course!._id, slide.id)
-      invalidateCourseCache()
+      useEditorStore.getState().bumpCacheVersion()
       setCourse(updated)
       setCurrentSlideIndex(Math.min(index, updated.slides.length - 1))
     } catch (err) {

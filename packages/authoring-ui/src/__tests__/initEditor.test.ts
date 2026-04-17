@@ -27,9 +27,7 @@ vi.mock('../editor/assetManager', () => ({
 }))
 
 vi.mock('../editor/storageManager', () => ({
-  registerStorageManager: vi.fn(),
-  updateStorageContext: vi.fn(),
-  getStorageContext: vi.fn().mockReturnValue({ courseId: 'c1', slideId: 's1' }),
+  registerStorageManager: vi.fn().mockReturnValue(vi.fn()),
 }))
 
 vi.mock('../editor/registerBlocks', () => ({
@@ -41,7 +39,13 @@ vi.mock('../store/editorStore', () => ({
     getState: vi.fn().mockReturnValue({
       setIsSaving: vi.fn(),
       setSaveError: vi.fn(),
+      setEditorContext: vi.fn(),
+      bumpCacheVersion: vi.fn(),
+      courseId: 'c1',
+      slideId: 's1',
+      cacheVersion: 0,
     }),
+    subscribe: vi.fn().mockReturnValue(vi.fn()),
   },
 }))
 
@@ -251,7 +255,7 @@ describe('T706 — initEditor component:add position guard', () => {
 
     const result = initEditor(defaultOpts())
 
-    expect(result).toBe(fakeEditor)
+    expect(result.editor).toBe(fakeEditor)
   })
 })
 
@@ -264,7 +268,7 @@ describe('T706 — initEditor component:add position guard', () => {
 // rte:disable events from the RichTextEditor module.
 // ---------------------------------------------------------------------------
 
-import { getStorageContext } from '../editor/storageManager'
+import { useEditorStore } from '../store/editorStore'
 
 /**
  * Mock editor for T637.2 / T800 tests.
@@ -294,7 +298,10 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
     eventCapture = makeEventCapture()
     fakeEditor = makeMockEditorWithStopCommand(eventCapture)
     vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
-    vi.mocked(getStorageContext).mockReturnValue({ courseId: 'c1', slideId: 's1' })
+    vi.mocked(useEditorStore.getState).mockReturnValue({
+      setIsSaving: vi.fn(), setSaveError: vi.fn(), setEditorContext: vi.fn(),
+      bumpCacheVersion: vi.fn(), courseId: 'c1', slideId: 's1', cacheVersion: 0,
+    } as unknown as ReturnType<typeof useEditorStore.getState>)
   })
 
   afterEach(() => {
@@ -366,7 +373,10 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
     updateHandlers.forEach(h => h({}))
 
     // Simulate slide switch mid-debounce: context changes before timer fires
-    vi.mocked(getStorageContext).mockReturnValue({ courseId: 'c1', slideId: 's2' })
+    vi.mocked(useEditorStore.getState).mockReturnValue({
+      setIsSaving: vi.fn(), setSaveError: vi.fn(), setEditorContext: vi.fn(),
+      bumpCacheVersion: vi.fn(), courseId: 'c1', slideId: 's2', cacheVersion: 0,
+    } as unknown as ReturnType<typeof useEditorStore.getState>)
 
     await vi.advanceTimersByTimeAsync(2001)
 
@@ -379,7 +389,10 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
     const updateHandlers = eventCapture.handlers.get('component:update') ?? []
     updateHandlers.forEach(h => h({}))
 
-    vi.mocked(getStorageContext).mockReturnValue({ courseId: 'c2', slideId: 's1' })
+    vi.mocked(useEditorStore.getState).mockReturnValue({
+      setIsSaving: vi.fn(), setSaveError: vi.fn(), setEditorContext: vi.fn(),
+      bumpCacheVersion: vi.fn(), courseId: 'c2', slideId: 's1', cacheVersion: 0,
+    } as unknown as ReturnType<typeof useEditorStore.getState>)
 
     await vi.advanceTimersByTimeAsync(2001)
 

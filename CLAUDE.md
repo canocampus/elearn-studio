@@ -44,6 +44,48 @@ When the UI redesign phase begins, read:
 This phase is deferred. Do NOT apply design tokens until explicitly instructed.
 
 ---
+## 🧩 Mandatory Rules: React + GrapesJS Integration
+
+### Editor Lifecycle
+- ✅ The GrapesJS instance MUST be initialized within a `useEffect` with explicit dependencies `[courseId, slideId]`
+- ✅ The `useEffect` MUST return a cleanup function that executes:
+1. `editor.destroy()`
+2. `clearTimeout(autosaveTimer)` if it exists
+3. `removeEventListener` for any listeners added to the DOM/document
+- ❌ NEVER initialize the editor outside of `useEffect` or in the component body
+
+### Event and State Management
+- ✅ All changes in GrapesJS must be propagated to React via: `component.set()` → `component:update` event → `setState`/Zustand
+- ✅ React's `Zustand` state is the ONLY source of truth for persistence.
+- ❌ NEVER call `editor.store()` directly from a UI handler (input onChange, button click).
+- ✅ Use the existing debounce mechanism in `initEditor.ts` for all save operations.
+
+### Backbone Subscriptions
+- ✅ To read properties from GrapesJS components in React, use the subscription pattern:
+
+```typescript
+ useEffect(() => {
+    const component = editor.getSelected();
+    if (!component) return;
+    
+    const handleChange = () => {
+      // Actualizar estado React/Zustand
+      setProps(component.get('extendedProperties'));
+    };
+    
+    component.on('change:extendedProperties', handleChange);
+    return () => component.off('change:extendedProperties', handleChange);
+  }, [editor, selectedComponentId]);
+
+```
+Before modifying any file that touches GrapesJS, widgets, canvas, or property panels, read:
+`GRAPESJS_REACT_PATTERNS.md`
+
+
+Note: In EditorCanvas.tsx, the editor is already initialized in useEffect.
+This rule applies to any new component that needs to create an editor instance.
+
+---
 
 ## GrapesJS + React Hook Rules
 
@@ -68,6 +110,11 @@ function update(patch: Partial<T>) {
 
 Use `useExtendedProperties` (in `QuestionPropertiesPanel.tsx`) as the canonical pattern
 for new property panels — it wraps `useComponentProperty` and handles this correctly.
+
+### ✅ CSS Verification for Drag-and-Drop
+- The GrapesJS editor container must have an explicit `z-index` and be greater than that of overlapping elements.
+- Use DevTools to inspect `getComputedStyle(canvas).zIndex` during drop debugging.
+- Avoid `position: relative/absolute` in parent elements that might intercept pointer events.
 
 ---
 

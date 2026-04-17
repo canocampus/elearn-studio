@@ -19,41 +19,21 @@ export interface StorageOptions {
   slideId: string
 }
 
-// R-03: Module-level mutable context so the storage manager can access the current
-// slide without requiring a full editor re-init on every slide switch.
-const storageContext: StorageOptions = { courseId: '', slideId: '' }
+/**
+ * Dependency-injection interface for the storage context.
+ * Defined here so storageManager.ts has no Zustand import.
+ * The implementation lives in initEditor.ts (T645.3.1).
+ */
+export interface StorageContextProvider {
+  getContext(): Readonly<StorageOptions>
+  onCacheInvalidate(callback: () => void): () => void
+}
 
 // T042.5: In-memory course cache to eliminate redundant API round-trips on slide
 // switches. Keyed by courseId. On a successful store(), the cache is updated with
 // fresh widget data so the next load() can serve from cache instead of re-fetching.
-// If the PATCH /courses/:id/slides/:slideId request fails (network error or 4xx/5xx),
-// the cache is cleared so stale data is never served on the next load. (L-01)
+// If the PATCH request fails the cache is cleared so stale data is never served. (L-01)
 let courseCache: { courseId: string; doc: CourseDoc } | null = null
-
-/**
- * Updates the active course/slide context that the storage manager reads.
- * Call this before `editor.load()` when switching slides.
- */
-export function updateStorageContext(opts: StorageOptions): void {
-  storageContext.courseId = opts.courseId
-  storageContext.slideId = opts.slideId
-}
-
-/**
- * Returns a snapshot of the current storage context.
- * Used by the autosave handler to detect slide switches during the debounce window.
- */
-export function getStorageContext(): Readonly<StorageOptions> {
-  return { courseId: storageContext.courseId, slideId: storageContext.slideId }
-}
-
-/**
- * Evicts the course cache. Exposed for testing and for explicit invalidation
- * when the course structure changes (e.g. slide added/deleted via SlideList).
- */
-export function invalidateCourseCache(): void {
-  courseCache = null
-}
 
 /**
  * Generates an inline HTML srcdoc string that represents the current slide canvas state.
@@ -75,8 +55,17 @@ export function generateThumbnail(editor: Editor): string {
 /**
  * Registers the `elearn-api` storage type with GrapesJS.
  * Must be called before `editor.load()`.
+ *
+ * T645.3: Accepts a StorageContextProvider so storage context is read from
+ * Zustand without this module importing it (Dependency Inversion).
+ *
+ * Returns an unsubscribe function for the cache-invalidation subscription.
  */
-export function registerStorageManager(editor: Editor): void {
+export function registerStorageManager(editor: Editor, provider: StorageContextProvider): () => void {
+  const unsubscribeCacheInvalidate = provider.onCacheInvalidate(() => {
+    courseCache = null
+  })
+
   editor.StorageManager.add('elearn-api', {
     /**
      * Loads the slide content from the backend.
@@ -84,7 +73,7 @@ export function registerStorageManager(editor: Editor): void {
      * T042.5 — Uses in-memory cache to skip redundant API fetches on slide switches.
      */
     async load() {
-      const { courseId, slideId } = storageContext
+      const { courseId, slideId } = provider.getContext()
       if (!courseId || !slideId) {
         console.warn('[StorageManager] load() skipped — missing context', { courseId, slideId })
         // actions: [] required on the wrapper component — GrapesJS loadData() calls
@@ -113,20 +102,12 @@ export function registerStorageManager(editor: Editor): void {
           throw new Error(`Slide ${slideId} not found in course ${courseId}`)
         }
 
-        // Convert our Widget schema → GrapesJS component tree
         const components = grapesjsFromWidgets(slide.widgets ?? [])
 
-        // GrapesJS loadData() requires project data in { pages: [...] } format.
-        // Returning { components: [...] } directly causes a TypeError in loadData because
-        // PageManager.clear() empties the pages collection before ComponentManager.load()
-        // tries to call getWrapper() — which returns null when no pages exist.
-        // Wrapping in a page with a component object creates the frame + wrapper correctly.
         return {
           pages: [
             {
               id: slideId,
-              // actions: [] required on the wrapper component — GrapesJS loadData() calls
-              // .forEach() on componentDef.actions for every component it processes.
               component: { actions: [], components },
             },
           ],
@@ -143,20 +124,17 @@ export function registerStorageManager(editor: Editor): void {
      * T011.2 — Implementation.
      */
     async store(_data: unknown) {
-      const { courseId, slideId } = storageContext
+      const { courseId, slideId } = provider.getContext()
       if (!courseId || !slideId) {
         console.warn('[StorageManager] store() skipped — missing context', { courseId, slideId })
         return
       }
 
       try {
-        // Convert GrapesJS component tree → our Widget schema
-        // 'components' in data is the array of top-level component definitions
         const widgets = widgetsFromGrapesjs(editor.getComponents().toArray())
 
-        // T700: Thumbnail generation is isolated in its own try-catch so that any
-        // canvas API failure (security policy, missing element, GrapesJS internal error)
-        // does NOT block the widget data from being saved. Data integrity > thumbnail.
+        // T700: Thumbnail generation is isolated so canvas API failures do NOT
+        // block widget data from being saved. Data integrity > thumbnail.
         let thumbnail: string | undefined
         try {
           thumbnail = generateThumbnail(editor)
@@ -167,22 +145,12 @@ export function registerStorageManager(editor: Editor): void {
         await courseApi.updateSlide(courseId, slideId, { widgets, thumbnail })
 
         // T640.1: Update cache with fresh widget data instead of invalidating it.
-        // This avoids a redundant GET /courses/:id on the next load() call.
-        // Only update if the cache already holds this course — if cache is cold
-        // (e.g. first store before any load), leave it as-is.
         if (courseCache?.courseId === courseId) {
-          // JS is single-threaded: no interleaving between load() and this assignment
-          // in the normal event-loop model. If ported to Worker Threads, add a mutex. (H-01)
           if (!Array.isArray(courseCache.doc.slides)) {
-            // Defensive guard: courseCache.doc.slides should always be an array after a
-            // successful load(), but if the cache was seeded with corrupt data we must
-            // not call .map() on undefined. (H-02)
             console.error('[StorageManager] Corrupt cache: slides is not an array, skipping cache update')
             courseCache = null
             return
           }
-          // courseCache.doc is non-null: guaranteed by the outer if-guard (courseCache?.courseId)
-          // and by the TypeScript type { courseId: string; doc: CourseDoc } | null. (M-02)
           const updatedSlides = courseCache.doc.slides.map(s =>
             s.id === slideId ? { ...s, widgets } : s
           )
@@ -196,4 +164,6 @@ export function registerStorageManager(editor: Editor): void {
       }
     },
   })
+
+  return unsubscribeCacheInvalidate
 }

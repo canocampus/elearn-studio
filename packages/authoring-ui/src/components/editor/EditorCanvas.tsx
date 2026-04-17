@@ -13,7 +13,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from 'grapesjs'
 import { initEditor, setEditorLoading } from '../../editor/initEditor'
-import { updateStorageContext } from '../../editor/storageManager'
 import { useEditorStore } from '../../store/editorStore'
 import { useActionsStore } from '../../store/actionsStore'
 import type { ActionSequence } from '../../types/actions'
@@ -64,7 +63,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
     isInitializedRef.current = true
 
-    const editor = initEditor({
+    const { editor, cleanup } = initEditor({
       container: containerRef.current,
       courseId,
       slideId,
@@ -111,6 +110,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
     return () => {
       isInitializedRef.current = false
+      cleanup()
       editor.destroy()
       editorRef.current = null
       setEditor(null)
@@ -194,7 +194,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
           return
         }
 
-        updateStorageContext({ courseId, slideId })
+        useEditorStore.getState().setEditorContext({ courseId, slideId })
 
         // editor.load() in GrapesJS can take a callback or return a promise in newer versions.
         // We wrap it to ensure we set isReady true after the canvas is populated.

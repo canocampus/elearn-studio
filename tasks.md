@@ -54,10 +54,40 @@
   store()/load(), (b) move to Zustand, (c) React ref passed down from EditorCanvas.
   Document decision in `/decisions/YYYY-MM-DD-storage-context.md`
 - [ ] T645.3 — Implement approved design for `storageContext`
+- [ ] T645.3.1 — Implement StorageAdapter with dependency injection:
+interface StorageContextProvider {
+get: () => { courseId: string; slideId: string };ok 
+onInvalidate: (cb: () => void) => void;
+}
+- [ ] T645.3.2: In `load()` and `store()` implementations, add early validation:
+const ctx = provider.getContext();
+if (!ctx.courseId || !ctx.slideId) { 
+console.warn('[Storage] Ignoring store/load: context not ready'); 
+return Promise.resolve(); // or throw new Error('Context pending')
+}
+- [ ] T645.3.2: `initEditor.ts` must store the unsubscribe function and execute it in the cleanup of the useEffect:
+const unsubscribeCache = provider.onCacheInvalidate(() => { courseCache = null; });
+/ ... init logic ...
+return () => {
+unsubscribeCache(); // <-- Required
+
+if (autosaveTimer) clearTimeout(autosaveTimer);
+editor.destroy();
+
+};
+
+}
+- [ ] T645.3.4 — Capture context synchronously at the time of store(), not init
+- [ ]  NOTE T645.3.5: `courseCache` is now "private controlled memoization".
+Its lifecycle is strictly tied to the provider. It is only written to via a synchronous invalidation callback and read after validating `getContext().courseId`. It is not exposed outside of storageManager.ts.
 - [ ] T645.4 — Implement approved design for `courseCache` — ensure React can react
   to cache invalidation (currently silent)
 - [ ] T645.5 — Update all callers and tests
+- [ ] T645.5.1 — Add integration test: fast navigation (slide A → B → A)
+during debounce. Verify that there are no writes to the incorrect slide.
 - [ ] T645.6 — Run full test suite + push + verify CI green
+- [ ] T645.6.1 — Execute `grep -rn "storageContext\|courseCache" src/` to ensure
+complete removal of obsolete references.
 - [ ] T645.7 — Refine the generated code
 - [ ] T645.8 — A reviewer will generate `docs/issues/issues-T645.md`; resolve before closing
 
