@@ -88,7 +88,7 @@
 - [x] T646.6 — Unit tests: mock timers with `vi.useFakeTimers()`, verify `clearTimeout` called during cleanup, verify dragstart handler count stays `===1` after 3 init/destroy cycles
 - [x] T646.7 — Run full test suite + push + verify CI green
 - [x] T646.8 — Refine generated code (lint, types, comments)
-- [ ] T646.9 — Reviewer generates `docs/issues/issues-T646.md`; resolve before closing 646
+- [x] T646.9 — Reviewer generates `docs/issues/issues-T646.md`; resolve before closing 646 — 0 issues found, APPROVED
 
 ---
 

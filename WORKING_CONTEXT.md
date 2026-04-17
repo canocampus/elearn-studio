@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-17 — T645 ✅ done (Phase 10: StorageContextProvider DI — eliminated storageContext/invalidateCourseCache singletons; registerStorageManager + bumpCacheVersion; cleanup fn for T646)
+> Last updated: 2026-04-17 — T646 ✅ done (Phase 10: dragstart leak fixed, autosaveTimer cleared in cleanup, ghost rAF guarded by isUnmounted; 712 unit tests pass)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.49 |
+| **Current version** | v0.5.50 |
 | **Active phase** | Phase 10 — React/GrapesJS Architectural Refactor |
-| **Active block** | T646 — Fix initEditor leaks (next up) |
+| **Active block** | T647 — Fix EditorCanvas pre-navigation store(): add UI state update |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
 
 ---
 
 ## What Was Last Done
+
+- **T646 — Fix initEditor leaks: dragstart listener + autosaveTimer guard ✅ (T646 CLOSED)** — Phase 10 third task. Three accumulated resource leaks fixed in `initEditor.ts`. T646.3: `dragstart` listener extracted as named `dragstartHandler` const — registered once on `blockContainer`, removed by exact same reference in `cleanup()`. Prior to fix, each `initEditor()` call added a new handler without removing the previous; after 3–4 course changes, multiple handlers mutated the drag ghost simultaneously. T646.4: replaced `try/catch` DOM removal with `ghost.isConnected` guard; added `isUnmounted` flag (set to `true` in `cleanup()`) that blocks the `requestAnimationFrame` callback from touching `document.body` after `editor.destroy()`. T646.1/T646.2: `cleanup()` function composes all teardown — `isUnmounted = true` → `clearTimeout(autosaveTimer)` → `removeEventListener('dragstart', dragstartHandler)` → `unsubscribeCacheInvalidate()`. Called by `EditorCanvas` Effect 1 before `editor.destroy()`. T646.5: `_isEditorLoading` module-level flag kept; decision documented in `decisions/2026-04-17-editor-loading-flag.md` (GrapesJS fires `component:add` synchronously during `loadData()` — no React state update can propagate in time). T646.6: 4 new unit tests using `vi.useFakeTimers()` — clearTimeout guard, no-accumulation across 3 cycles, isUnmounted blocks removeChild in rAF; key afterEach pattern: `querySelectorSpy.mockRestore()` NOT `vi.restoreAllMocks()` (restoreAllMocks resets all vi.fn() module mocks). T646.8: task-ref comments removed from dragstart block; tsc clean. Code review: APPROVED (0 issues). `docs/issues/issues-T646.md` generated. 712/712 tests pass. Commits: `00dce16`, `e843512`.
 
 - **T645 — Fix storageManager singletons: StorageContextProvider DI ✅ (T645 CLOSED)** — Phase 10 second task. Eliminated three module-level singletons (`storageContext`, `updateStorageContext`/`getStorageContext`, `invalidateCourseCache`) that bypassed React's lifecycle. Replacement: `StorageContextProvider` interface (T645.3.1) with `getContext()` (reads Zustand `getState()` synchronously at call time — T645.3.4) and `onCacheInvalidate(cb)` (Zustand plain `subscribe` on `cacheVersion` — T645.4). `storageManager.ts` has no Zustand import — DI only. New `registerStorageManager(editor, provider): () => void` replaces old init pattern. `bumpCacheVersion()` Zustand action replaces `invalidateCourseCache()`. `courseCache` lifecycle strictly private to module, reset only via provider callbacks (T645.3.5). Callers updated: `EditorCanvas.tsx`, `TopToolbar.tsx`, `SlideList.tsx` (T645.5). `initEditor` return type changed to `{ editor, cleanup }` — cleanup wraps `unsubscribeCacheInvalidate()` and is designed for T646 extensibility (T645.7). `storageManager.test.ts` rewritten with `makeProvider()` helper; 708/708 tests pass. Old API grep: 0 live calls remain. Code review: APPROVED (0 issues). `docs/issues/issues-T645.md` generated. Commits: `505de96`, `6752076`.
 
@@ -265,8 +267,8 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 ### Phase 10 — React/GrapesJS Architectural Refactor (ACTIVE)
 - ~~**T644** — Fix PhaserSimPropertiesPanel: align with panel pattern~~ ✅ Done (v0.5.48)
 - ~~**T645** — Fix storageManager singletons: StorageContextProvider DI~~ ✅ Done (v0.5.49)
-- **T646** — Fix initEditor leaks: dragstart listener + autosaveTimer 🔄 NEXT UP
-- **T647** — Fix EditorCanvas pre-navigation store(): add UI state update
+- ~~**T646** — Fix initEditor leaks: dragstart listener + autosaveTimer~~ ✅ Done (v0.5.50)
+- **T647** — Fix EditorCanvas pre-navigation store(): add UI state update 🔄 NEXT UP
 - **T648** — Fix Zustand/Backbone duality in all PropertiesPanel components
 - **T649** — Fix stale closure in QuestionPropertiesPanel updateOption
 - **T650** — beforeunload flash save: prevent data loss on tab close

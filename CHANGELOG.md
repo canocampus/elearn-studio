@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.50] — 2026-04-17 — T646: Fix initEditor leaks — dragstart cleanup, autosaveTimer guard, ghost rAF isUnmounted (Phase 10)
+
+### Fixed
+- **[T646.1/T646.3] `dragstart` listener leak eliminated** (`packages/authoring-ui/src/editor/initEditor.ts`) — Prior to this fix, every `initEditor()` call added a new `dragstart` handler to `blockManagerContainer` without ever removing it. After 3–4 course navigations, multiple handlers fired simultaneously, mutating the drag ghost redundantly. Fix: extracted handler as a named `dragstartHandler` const, registered once via `blockContainer?.addEventListener('dragstart', dragstartHandler)`, and removed in `cleanup()` via `blockContainer?.removeEventListener('dragstart', dragstartHandler)`. The `blockContainer` reference is captured once at init time.
+- **[T646.1/T646.2] `autosaveTimer` fires after `editor.destroy()` — prevented** — A 2-second debounced autosave timer started by a `component:update` event could fire after the component unmounted (mid-debounce navigation). Fix: `cleanup()` calls `clearTimeout(autosaveTimer)` before `editor.destroy()` is called by `EditorCanvas`. The `isUnmounted` flag additionally guards any rAF callbacks that could still be in-flight.
+- **[T646.4] Drag ghost DOM removal race fixed** — Replaced `try/catch` fallback for `document.body.removeChild(ghost)` with `if (ghost.isConnected) document.body.removeChild(ghost)`. Added `isUnmounted` boolean flag (set to `true` in `cleanup()`) that guards the `requestAnimationFrame` callback — if the editor is destroyed before the rAF fires, the ghost removal is skipped entirely.
+- **[T646.5] `_isEditorLoading` kept as module-level flag** — Decision documented in `decisions/2026-04-17-editor-loading-flag.md`. The flag cannot be moved to React/Zustand because GrapesJS fires `component:add` synchronously during `loadData()`, before React state updates can propagate — the guard must be synchronous and module-scoped.
+
+### Tests
+- **`src/__tests__/initEditor.test.ts`** — 4 T646.6 tests added (`describe('T646.6 — initEditor cleanup lifecycle')`): T646.6.1 verifies `removeEventListener('dragstart')` called exactly once on `cleanup()`; T646.6.2 verifies a pending autosave timer is cancelled — `editor.store()` not called after `cleanup()` + `vi.runAllTimers()`; T646.6.3 verifies `addEventListener` count stays `=== 1` across 3 init/destroy cycles (no accumulation); T646.6.4 verifies `document.body.removeChild` is NOT called after `cleanup()` + `vi.runAllTimers()` (isUnmounted guard). Uses `vi.useFakeTimers()` + `querySelectorSpy.mockRestore()` in afterEach (NOT `vi.restoreAllMocks()` — would reset module-level mock implementations).
+- **712 unit tests pass** (4 new T646.6 tests included).
+
+---
+
 ## [0.5.49] — 2026-04-17 — T645: Eliminate storageManager singletons — StorageContextProvider DI (Phase 10)
 
 ### Refactored
