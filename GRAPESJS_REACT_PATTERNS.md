@@ -77,14 +77,20 @@ export function useComponentProperty<T>(
 **Full implementation (reference — do not inline):**
 
 ```typescript
+// TD-004: `ELearnComponent` (src/types/ELearnComponent.ts) is the typed view over
+// GrapesJS `Component` used for any attribute that is not in `ComponentProperties`
+// (extendedProperties, actions, questionText, options, sceneDef, etc.). It replaces
+// the previous `GjsComponent` local type and centralises the loose-key signatures.
 export function useComponentProperty<T>(
   component: Component | null,
   key: string,
   defaultValue: T,
 ): UsePropertyReturn<T> {
+  // Narrow once per hook call; all subsequent reads/writes use `comp`.
+  const comp = component as ELearnComponent | null
+
   const [value, setValue] = useState<T>(() => {
-    if (!component) return defaultValue
-    const comp = component as GjsComponent
+    if (!comp) return defaultValue
     const raw = comp.get(key)
     return (raw !== undefined && raw !== null ? raw : defaultValue) as T
   })
@@ -93,14 +99,13 @@ export function useComponentProperty<T>(
   latestRef.current = value
 
   useEffect(() => {
-    if (!component) return                        // no listener registered when null
-    const comp = component as GjsComponent
+    if (!comp) return                             // no listener registered when null
 
     const raw = comp.get(key)
     setValue((raw !== undefined && raw !== null ? raw : defaultValue) as T)
 
     function onChange() {
-      const updated = comp.get(key)
+      const updated = comp!.get(key)
       setValue((updated !== undefined && updated !== null ? updated : defaultValue) as T)
     }
 
@@ -109,8 +114,7 @@ export function useComponentProperty<T>(
   }, [component, key])
 
   function update(newValue: T) {
-    if (!component) return                        // no-op, no side effects
-    const comp = component as GjsComponent
+    if (!comp) return                             // no-op, no side effects
     setValue(newValue)                            // optimistic update (T639.1)
     comp.set(key, newValue)
   }

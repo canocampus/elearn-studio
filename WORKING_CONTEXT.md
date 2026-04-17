@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-17 — **TD-002 CLOSED** ✅ Preview E2E test added (`e2e/tests/preview-handshake.spec.ts`); full T641 postMessage handshake covered + Critical Rule 5 asserted; 163 E2E tests, CI run 24586873603 success (17m03s). Phase 10 (T651) and TD-001 remain closed.
+> Last updated: 2026-04-18 — **TD-004 CLOSED** ✅ `ELearnComponent` interface added (`packages/authoring-ui/src/types/ELearnComponent.ts`); `useComponentProperty.ts` cast sites collapsed (6 → 2); zero runtime change; 731/731 authoring-ui unit tests pass. Phase 10 (T651), TD-001 and TD-002 remain closed.
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.55 |
-| **Active phase** | — (Phase 10 closed; tech-debt backlog TD-003…TD-007 available) |
-| **Active block** | TD-002 ✅ — preview E2E added; no active block |
-| **E2E test count** | 163 tests (161 passing, 2 skipped — TD-002 adds 1 new `@integration` test) |
+| **Current version** | v0.5.56 |
+| **Active phase** | — (Phase 10 closed; tech-debt backlog TD-003, TD-005, TD-006, TD-007 available) |
+| **Active block** | TD-004 ✅ — ELearnComponent interface added; no active block |
+| **E2E test count** | 163 tests (161 passing, 2 skipped) |
 
 ---
 
 ## What Was Last Done
+
+- **TD-004 — `ELearnComponent` typed view over GrapesJS `Component` ✅ (TD-004 CLOSED)** — Pure type-safety refactor. Added `packages/authoring-ui/src/types/ELearnComponent.ts` exporting `ELearnComponent = Component & { get(key: string): unknown; set(key: string, value: unknown): void; on(event: string, handler: () => void): void; off(event: string, handler: () => void): void }`. Replaces the private `GjsComponent` type previously defined inline at `useComponentProperty.ts:4-9`. The interface loosens only the four methods that hooks use with arbitrary string keys/events (because GrapesJS's `Component.get<A extends keyof ComponentProperties>` rejects elearn custom fields like `extendedProperties`, `actions`, `questionText`, `options`, `sceneDef`); every other typed method stays strongly-typed via the base `Component` class. Return type of `get` is `unknown` (not `any`) so callers still narrow at the use site. `useComponentProperty.ts` now narrows `component as ELearnComponent | null` **exactly once per hook** at function entry instead of at every method call — 6 scattered casts collapsed to 2 authoritative narrowings. `GRAPESJS_REACT_PATTERNS.md` code example updated with a leading comment explaining the rename. Scope deliberately narrow: property panels (Button/PhaserSim/Question/Animation/etc.) were NOT refactored because they compile clean against grapesjs's existing typings — their method usage stays within `ComponentProperties`. Test mocks retain `as unknown as Component` casts by design (mock-construction lives at a different type-safety boundary). Production code `grep "as GjsComponent"` and `grep "as unknown as Component"` both return 0 matches. `npx tsc --noEmit`: exit 0. 731/731 authoring-ui unit tests pass unmodified. Version bumped to v0.5.56.
 
 - **TD-002 — Preview feature E2E test ✅ (TD-002 CLOSED)** — Added `e2e/tests/preview-handshake.spec.ts` with one `@integration` test exercising the full T641 preview postMessage handshake end-to-end: click Preview → popup opens at `/preview.html` → popup signals `'elearn-preview-ready'` to correct origin (not `'*'`) → opener receives it → opener posts `{ type:'elearn-preview-data', course, slideIndex }` back → popup's `ELearnPlayer.init('player', course, …)` renders content into `#player` (no `.preview-error` fallback). Critical Rule 5 asserted via `Object.keys(popup.localStorage).length === 0`. Popup spy implementation detail: `context.addInitScript()` wraps `window.opener` via `Object.defineProperty` to record every `postMessage()` call AND registers a `'message'` listener to record every inbound event — all before `preview.html`'s inline script runs (the only way to observe the outbound ready signal since `addInitScript` fires before document scripts). Opener spy installed via `page.evaluate` after the opener page has loaded. CI run 24586873603 completed with success in 17m03s — all 163 E2E tests green including the new one. TD-002 marked DONE in `tasks.md`. Commit: `583b229`.
 

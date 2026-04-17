@@ -314,12 +314,10 @@ Added `e2e/tests/preview-handshake.spec.ts` with one `@integration` test coverin
 ### TD-003 — T642/T643: known issues pending resolution
 > **Source:** T642 (FLAKE-03 per-test course isolation) + T643 (forEach bugs — partially fixed)
 
-### TD-004 — GrapesJS type safety: define ELearnComponent interface
-> **Source:** Phase 10 audit — `as unknown` and `as GjsComponent` casts in
-> `useComponentProperty.ts` (line 40) and other hooks indicate missing typed
-> interface. Create a central `ELearnComponent` interface that extends the
-> GrapesJS Component with the methods we actually use, eliminating scattered casts.
-> **Priority:** Medium — address when starting a new hook or when casts cause a bug.
+### TD-004 — GrapesJS type safety: define ELearnComponent interface ✅ DONE (2026-04-18)
+> **Source:** Phase 10 audit | **Status:** Resolved
+
+New `packages/authoring-ui/src/types/ELearnComponent.ts` exports the canonical `ELearnComponent = Component & { get, set, on, off (loose string keys/events) }` type. `useComponentProperty.ts` imports it, removes the private `GjsComponent` local type, and collapses 6 scattered `as GjsComponent` casts to 2 authoritative `component as ELearnComponent | null` narrowings (one per hook, at function entry). All other methods (`addStyle`, `getStyle`, `setStyle`, `getId`, `components()`, `append()`, `clone()`, `remove()`) remain strongly-typed via the base `Component` class. `get(key)` returns `unknown` (not `any`) so callers must narrow at the use site — type-safety boundary preserved. Production `grep "as GjsComponent"` and `grep "as unknown as Component"` both return 0 matches. Pure type refactor: zero runtime change; all 731/731 authoring-ui unit tests pass unmodified. `GRAPESJS_REACT_PATTERNS.md` pattern example updated to the new type. Property panels and direct-`Component` callers were never refactored because they already compile clean against grapesjs's existing typings (their method usage stays within `ComponentProperties`).
 
 ### TD-005 — useExtendedProperty shallow merge risk
 > **Source:** Phase 10 audit — `useExtendedProperty.update` uses `{ ...current, [subKey]: newValue }`

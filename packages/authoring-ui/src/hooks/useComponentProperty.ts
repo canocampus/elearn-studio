@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Component } from 'grapesjs'
-
-export type GjsComponent = Component & {
-  get(key: string): unknown
-  set(key: string, value: unknown): void
-  on(event: string, handler: () => void): void
-  off(event: string, handler: () => void): void
-}
+import type { ELearnComponent } from '../types/ELearnComponent'
 
 /**
  * Labeled tuple returned by useComponentProperty and useExtendedProperty.
@@ -41,9 +35,14 @@ export function useComponentProperty<T>(
   key: string,
   defaultValue: T,
 ): UsePropertyReturn<T> {
+  // TD-004: narrow to ELearnComponent once so the rest of the hook reads/writes
+  // arbitrary string keys without scattered `as GjsComponent` casts. ELearnComponent
+  // extends Component, so this is a safe widening of the available method surface,
+  // not a structural change.
+  const comp = component as ELearnComponent | null
+
   const [value, setValue] = useState<T>(() => {
-    if (!component) return defaultValue
-    const comp = component as GjsComponent
+    if (!comp) return defaultValue
     const raw = comp.get(key)
     return (raw !== undefined && raw !== null ? raw : defaultValue) as T
   })
@@ -56,14 +55,13 @@ export function useComponentProperty<T>(
   latestRef.current = value
 
   useEffect(() => {
-    if (!component) return
-    const comp = component as GjsComponent
+    if (!comp) return
 
     const raw = comp.get(key)
     setValue((raw !== undefined && raw !== null ? raw : defaultValue) as T)
 
     function onChange() {
-      const updated = comp.get(key)
+      const updated = comp!.get(key)
       const val = (updated !== undefined && updated !== null ? updated : defaultValue) as T
       setValue(val)
     }
@@ -79,8 +77,7 @@ export function useComponentProperty<T>(
   }, [component, key])
 
   function update(newValue: T) {
-    if (!component) return
-    const comp = component as GjsComponent
+    if (!comp) return
     // T639.1: apply optimistic React state update immediately so controlled inputs
     // (value={state} + onChange) never freeze waiting for the Backbone event.
     // T649: update ref synchronously so getLatest() returns the new value for
@@ -113,9 +110,11 @@ export function useExtendedProperty<T>(
   subKey: string,
   defaultValue: T,
 ): UsePropertyReturn<T> {
+  // TD-004: single narrowing point for the whole function — mirrors useComponentProperty.
+  const comp = component as ELearnComponent | null
+
   function readValue(): T {
-    if (!component) return defaultValue
-    const comp = component as GjsComponent
+    if (!comp) return defaultValue
     const ext = comp.get('extendedProperties')
     if (ext !== null && ext !== undefined && typeof ext === 'object' && subKey in (ext as object)) {
       return (ext as Record<string, unknown>)[subKey] as T
@@ -131,8 +130,7 @@ export function useExtendedProperty<T>(
   latestRef.current = value
 
   useEffect(() => {
-    if (!component) return
-    const comp = component as GjsComponent
+    if (!comp) return
 
     setValue(readValue())
 
@@ -150,8 +148,7 @@ export function useExtendedProperty<T>(
   }, [component, subKey])
 
   function update(newValue: T) {
-    if (!component) return
-    const comp = component as GjsComponent
+    if (!comp) return
     // T649: update ref synchronously so getLatest() returns the new value for
     // consecutive calls within the same render cycle.
     setValue(newValue)

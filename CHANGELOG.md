@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.56] — 2026-04-18 — TD-004: `ELearnComponent` type + TD-002: Preview E2E + TD-001: Shared `runExport()`
+
+### Added
+- **[TD-004] `ELearnComponent` typed view over GrapesJS `Component`** (`packages/authoring-ui/src/types/ELearnComponent.ts`) — central interface replacing the scattered `as GjsComponent` / `as unknown as Component` casts that hooks used to reach non-`ComponentProperties` attributes (`extendedProperties`, `actions`, `questionText`, `options`, `sceneDef`, `prevLabel`, `nextLabel`, etc.). Loosens only `get`/`set`/`on`/`off` to accept arbitrary string keys and event names; all other grapesjs methods (`addStyle`, `getStyle`, `setStyle`, `getId`, `components()`, `append()`, `clone()`, `remove()`) stay strongly-typed via the base `Component` class. Return type of `get` is `unknown` (not `any`) so callers must narrow at the use site.
+- **[TD-002] Preview-popup E2E handshake test** (`e2e/tests/preview-handshake.spec.ts`) — one `@integration` test covering the full T641 postMessage handshake: Preview click → popup opens at `/preview.html` → popup signals `'elearn-preview-ready'` to correct origin (not `'*'`) → opener receives it → opener replies `{ type:'elearn-preview-data', course, slideIndex }` → popup's `ELearnPlayer.init('player', course, …)` renders content into `#player`. Asserts Critical Rule 5 (preview popup writes zero keys to `localStorage`).
+- **[TD-001] Shared `runExport()` export pipeline** (`backend/api/src/lib/export/runExport.ts`, `backend/api/src/__tests__/export/runExport.test.ts`) — pure function `runExport(course, format, options?)` plus a `PACKERS` registry keyed by `ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'`. Asset helpers (`collectAssetSrcs`, `rewriteAssetSrcs`, `downloadAssets`) moved into the same module and exported for direct testing. 17 new unit tests cover dispatch, pipeline order, result shape, error-path cleanup, missing-asset skip, format-specific tmpDir prefixes.
+
+### Refactored
+- **[TD-004] `useComponentProperty.ts` cast-collapsing** — local `GjsComponent` type removed (it was private to this file); each of the two hooks (`useComponentProperty`, `useExtendedProperty`) now narrows `component as ELearnComponent` exactly once at function entry instead of at every method call. 6 scattered casts reduced to 2 authoritative narrowings. Zero runtime change; all 38 hook unit tests pass unmodified.
+- **[TD-001] `backend/api/src/routes/courses.ts` export routes** — three SCORM/AICC export routes (each ~35-line hand-rolled pipeline: mkdtemp → collectAssetSrcs → downloadAssets → rewriteAssetSrcs → pack → filename sanitise → res.download + tmpDir cleanup on both success and error) replaced with a `buildExportHandler(format): RequestHandler` factory plus 3 one-line `coursesRouter.post()` registrations. tmpDir ownership contract made explicit: `runExport` owns cleanup on the error path; caller owns it on the success path inside the `res.download` completion callback. Adding xAPI as a 4th format is now **2 LOC** (one `PACKERS` entry + one route line) vs. the pre-TD-001 **~70 LOC**.
+
+### Changed
+- **[TD-004] `GRAPESJS_REACT_PATTERNS.md` pattern example** updated — code sample for `useComponentProperty` now imports and narrows to `ELearnComponent`; a leading comment explains why the rename happened and directs readers to the new interface in `src/types/ELearnComponent.ts`.
+
+### Notes
+- TD-004 is a **pure type-safety refactor** — zero runtime-behaviour changes, zero new or updated tests (the existing 38 hook tests exercise the same code paths via the same public API). Production code `grep "as GjsComponent"` / `grep "as unknown as Component"` both return **0 matches**. Test files retain their `as unknown as Component` mock-construction casts by design (ELearnComponent is not a mock-construction convenience; mock fakes live at a different type-safety boundary).
+- TD-001 `courses.ts` subtotal: **−137 LOC of route-layer plumbing** (175 → 38) in exchange for **+170 LOC** of reusable helper + **+270 LOC** of tests. Net production LOC +33, but the signal-to-noise ratio in `courses.ts` improves dramatically and every future format adds 2 lines instead of 70.
+- TD-002 uses `context.addInitScript` to install a `window.opener.postMessage` proxy spy in the popup BEFORE `preview.html`'s inline script runs — the only way to observe the outgoing ready signal without modifying production code.
+
+---
+
 ## [0.5.55] — 2026-04-17 — T651: Unified persistence via `requestSave()` + Phase 10 closure
 
 ### Phase 10 complete
