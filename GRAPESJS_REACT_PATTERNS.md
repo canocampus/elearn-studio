@@ -1,6 +1,7 @@
 # Approved Patterns: GrapesJS + React in elearn-studio
 
-> Last updated: T648 (2026-04-17). All patterns below are battle-tested and shipped.
+> Last updated: Phase 10 complete (T651, 2026-04-17). All patterns below are
+> battle-tested and shipped.
 > Before modifying any file that touches GrapesJS, widgets, canvas, or property panels,
 > read this file in full.
 
@@ -15,7 +16,8 @@ export function EditorCanvas({ courseId, slideId }: Props) {
   const editorRef = useRef<Editor | null>(null)
 
   useEffect(() => {
-    const { editor, cleanup } = initEditor({
+    // T650/T651: initEditor now returns a four-tuple.
+    const { editor, cleanup, hasPendingChanges, requestSave } = initEditor({
       container: containerRef.current!,
       courseId,
       slideId,
@@ -25,10 +27,22 @@ export function EditorCanvas({ courseId, slideId }: Props) {
     })
     editorRef.current = editor
 
+    // T651.3: expose the unified save closure via Zustand so SaveErrorBanner,
+    // useActionsSave, SimulationEditor, and saveAndLoad all share one entry point.
+    useEditorStore.getState().setRequestSave(requestSave)
+
+    // T650.2: dirty-state warning on tab close mid-debounce (uses hasPendingChanges).
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasPendingChanges()) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+
     return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
       cleanup()             // clears autosaveTimer, removes dragstart listener, unsubscribes cache
       editor.destroy()
       editorRef.current = null
+      useEditorStore.getState().setRequestSave(null)
     }
   }, [courseId, slideId])   // explicit deps — remounts on slide/course change
 
@@ -39,8 +53,11 @@ export function EditorCanvas({ courseId, slideId }: Props) {
 Rules:
 - `useEffect` deps MUST be `[courseId, slideId]` — never `[]`
 - cleanup MUST run before `editor.destroy()` — order matters
-- `initEditor` returns a `cleanup()` that handles `clearTimeout(autosaveTimer)`,
+- `initEditor` returns `{ editor, cleanup, hasPendingChanges, requestSave }`
+- `cleanup()` handles `clearTimeout(autosaveTimer)`,
   `blockContainer.removeEventListener('dragstart', ...)`, and `unsubscribeCache()`
+- `hasPendingChanges` (T650) is a closure over `autosaveTimer`; read at event time, no parallel flag
+- `requestSave` (T651) must be published to Zustand AND cleared on unmount
 
 ---
 
@@ -163,24 +180,50 @@ then call `useComponentProperty(selected, ...)` with full confidence.
 
 ---
 
-## Pattern 4: Centralized Persistence (T645/T647)
+## Pattern 4: Unified Persistence via `requestSave()` (T645/T647/T651)
 
-Save path: `comp.set()` → `component:update` event → `triggerAutosave()` (debounced 2s) → `editor.store()` → backend.
+Save recipe (post-T651):
+
+```
+comp.set()
+  → component:update event
+  → triggerAutosave() (debounced 2 s, with RTE + race guards)
+  → requestSave()                           ← unified entry point, T651
+  → performSave(editor, hooks)              ← pure primitive in storageManager
+  → editor.store()                          ← ONLY direct call in the codebase
+  → backend
+```
+
+`requestSave` is a Zustand-bound closure constructed in `initEditor.ts` that wires
+`performSave` to `setIsSaving`/`setSaveError`. Every save path in the app routes
+through it — `grep "editor.store()"` is green everywhere except
+`storageManager.ts:68` (inside `performSave`).
 
 ```typescript
-// ✅ CORRECT: write via comp.set() — triggers the autosave path automatically
+// ✅ CORRECT: write via comp.set() — triggers the debounced autosave automatically
 const [ep, updateEp] = useComponentProperty(selected, 'extendedProperties', DEFAULT)
-updateEp({ ...getLatest(), newField: value })   // comp.set() fires internally
+updateEp({ ...getLatest(), newField: value })
 
-// ❌ PROHIBITED: calling editor.store() from a UI handler
+// ✅ CORRECT: dispatch an immediate save via requestSave from a non-editor context
+//             (pre-navigation, retry banner, actions-save subscribe, simulation editor)
+const requestSave = useEditorStore.getState().requestSave
+if (requestSave) {
+  await requestSave({ timeoutMs: 5000 })   // timeoutMs optional; only pre-nav uses it
+}
+
+// ❌ PROHIBITED: calling editor.store() directly — bypasses performSave + UI state
 function handleClick() {
-  editor.store()   // bypasses debounce, bypasses UI state (isSaving/setSaveError)
+  editor.store()   // adds a sixth call site; recreates the drift that T651 eliminated
 }
 ```
 
-Pre-navigation save (slide switch) lives in `EditorCanvas.tsx saveAndLoad()` and wraps
-`editor.store()` in `Promise.race([store(), timeout])` with `setIsSaving`/`setSaveError`
-Zustand state updates on all paths (T647).
+Pre-navigation save (slide switch) lives in `EditorCanvas.tsx saveAndLoad()` and calls
+`requestSave({ timeoutMs: 5000 })`. The `stopCommand('text-edit')` RTE flush stays
+inline at this caller — it is a caller responsibility, not part of the save recipe.
+
+Retry/actions-save/simulation-save paths all read the closure from Zustand:
+`useEditorStore.getState().requestSave?.()`. Null-safe: the field is `null` until the
+editor is ready and after unmount.
 
 ---
 
@@ -218,9 +261,10 @@ useEffect(() => {
   // missing: return () => comp.off('change:content', handler)
 }, [])
 
-// ❌ PROHIBITED — editor.store() from a click handler
+// ❌ PROHIBITED — editor.store() from a click handler (T651)
 function handleSave() {
-  editor!.store()   // bypasses debounce, isSaving flag never set
+  editor!.store()   // bypasses performSave, isSaving flag never set, no saveError on failure
+  // ✅ Use: useEditorStore.getState().requestSave?.()
 }
 
 // ❌ PROHIBITED — stale closure patch-merge (T639)

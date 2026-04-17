@@ -3,8 +3,11 @@
  *
  * Subscribes to actionsStore changes and persists action sequences back to
  * the course document whenever the sequences for the current widget change.
- * Delegates to the GrapesJS editor.store() (Storage Manager) so that the
- * save path is identical to all other slide edits.
+ * T651.3: delegates to requestSave() (the unified save entry point) so that
+ * the save path — and its isSaving/saveError UI state — is identical to all
+ * other slide edits. Prior to T651 this path called editor.store() directly
+ * and swallowed errors into console.error, leaving users with no indication
+ * of a failed save.
  */
 
 import { useEffect, useRef } from 'react'
@@ -54,7 +57,7 @@ export function useActionsSave() {
       lastSavedRef.current = sequences
 
       // Update the in-memory course doc so the GrapesJS storage manager picks
-      // up the latest sequences on the next editor.store() call.
+      // up the latest sequences on the next requestSave() call (T651.3).
       const { course, currentSlideIndex, setCourse } = useEditorStore.getState()
       if (!course) return
 

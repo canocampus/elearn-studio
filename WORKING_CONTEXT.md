@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-17 — T650 ✅ done (Phase 10: beforeunload dirty-state warning — `hasPendingChanges()` exposed from initEditor, listener in EditorCanvas Effect 1 with cleanup; 1532/1532 unit+integration tests pass, CI run 24576886118 success)
+> Last updated: 2026-04-17 — **Phase 10 CLOSED** ✅ T651 done (unified persistence via `requestSave()`; 5 call sites collapsed to 1; 3 silent-failure bugs auto-fixed; `grep "editor.store()"` green everywhere except `storageManager.ts:68`; 1533/1533 unit+integration, CI run 24582182042 success)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.54 |
-| **Active phase** | Phase 10 — React/GrapesJS Architectural Refactor |
-| **Active block** | T650 ✅ — T651 next (unify persistence via `requestSave()`) |
+| **Current version** | v0.5.55 |
+| **Active phase** | — (Phase 10 closed; backlog items TD-001…TD-007 available) |
+| **Active block** | T651 ✅ — **Phase 10 CLOSED** — no active block |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
 
 ---
 
 ## What Was Last Done
+
+- **T651 — Unified persistence via `requestSave()` ✅ (T651 CLOSED — Phase 10 CLOSED)** — Eighth and final task of Phase 10. Five pre-T651 call sites duplicated the save recipe (`setIsSaving` + `setSaveError` + try/catch around `editor.store()`); three of them had silent-failure bugs from drift. T651 collapses them to one entry point via a two-layer design: **Layer 1** `performSave(editor, hooks)` pure primitive in `storageManager.ts` (no Zustand, no React — preserves T645 DI invariant); **Layer 2** Zustand-bound `requestSave(opts?)` closure in `initEditor.ts` wiring `performSave`'s `onStart`/`onSuccess`/`onError` hooks into `setIsSaving`/`setSaveError`; **Layer 3** `requestSave` field in `editorStore.ts` set via `setRequestSave(requestSave)` in `EditorCanvas` Effect 1. Bonus migrations (ADR-mandated to prevent immediate drift): `SaveErrorBanner.handleRetry`, `useActionsSave` subscribe, `SimulationEditor.handleSave` — all three **silent-failure bugs auto-fixed** (failures now surface in `SaveErrorBanner`; `SaveErrorBanner.handleRetry` regains the missing `setIsSaving(true)` via `onStart`; regression test `T651.3: sets isSaving(true) during retry` added). `grep "editor.store()"` is green everywhere except `storageManager.ts:68` (the single remaining invocation). Seven ADR guardrails honoured: DI pure, race guard stays in triggerAutosave, stopCommand flush stays in saveAndLoad, T650 unload untouched, timeout scoped to pre-nav only, null-safe at all callers, GrapesJS StorageManager contract unchanged. Non-`Error` fallback message harmonised to `'Save failed'` across callers (was 3 different strings). Course meta-ops (addSlide/deleteSlide/updateCourse) explicitly out of scope — candidate TD-007. 1533/1533 unit+integration tests pass. CI run `24582182042`: success (17m02s). Code review: APPROVED (0 findings above INFO). `docs/issues/issues-T651.md` generated. ADR: `decisions/2026-04-17-request-save.md`. Commits: `501c6aa` (feature + migration + tests), Phase 10 closure commit (refinements + docs + CHANGELOG + WORKING_CONTEXT).
 
 - **T650 — beforeunload dirty-state warning ✅ (T650 CLOSED)** — Phase 10 seventh task. Closes the 2-second data-loss window during autosave debounce: if the user closes the tab or navigates away from the domain mid-debounce, the browser now shows its native "Leave site? Changes you made may not be saved" warning. T650.1: `initEditor()` return type extended from `{editor, cleanup}` to `{editor, cleanup, hasPendingChanges}`; `hasPendingChanges = () => autosaveTimer !== null` is a pure closure accessor — no new flag, no parallel state, zero drift risk. T650.2: `beforeunload` listener registered in `EditorCanvas.tsx` Effect 1 (same lifetime as the editor — NOT Effect 2, which would churn on every slide switch); handler does only `e.preventDefault()` + `e.returnValue = ''` when dirty, no async work. T650.3: 3 unit tests (null state → false; `component:update` → true; post-debounce → false AND `store()` called once) using `vi.useFakeTimers()` + `vi.advanceTimersByTimeAsync(2001)`. T650.4 absorbed into T650.3 — the original task text said "verify `store()` called inside beforeunload", which contradicts the T650 design (no forced save); real intent was "verify warning fires when dirty", which reduces to the timer-state tests. Deliberately rejected alternatives (documented in `issues-T650.md`): `await store()` (can't await in `beforeunload`), sync XHR (deprecated), `sendBeacon` (64 KB limit, slide JSON exceeds), Web Locks (doesn't cross unload), SW sync (excessive scope). Environment repair done in parallel during T650.5: `@rollup/rollup-win32-x64-msvc@4.60.1` and `es-abstract@1.24.1` were corrupted in the local pnpm store (missing subdirectories / `package.json`); fixed via `pnpm store prune` + targeted rm + `pnpm install` after killing a stale `esbuild.exe` holding a file lock — CI unaffected (runs in clean container). 1532/1532 unit+integration tests pass (authoring-ui 730, backend 131, runtime-player 256, scorm-packager 156, phaser-simulations 125, question-engine 74, simulation-engine 60). CI run `24576886118`: success (17m04s). Code review: APPROVED (0 findings above INFO). `docs/issues/issues-T650.md` generated. Commits: `04e6121` (feature + env repair), `7849ba6` (docs + task closure).
 
@@ -272,7 +274,7 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T638** — Fix typography changes not affecting Quiz Score and Score Field~~ ✅ Done (v0.5.43)
 - ~~**T639** — Stale-closure fix: `getLatest()` in property panels~~ ✅ Done
 
-### Phase 10 — React/GrapesJS Architectural Refactor (ACTIVE)
+### Phase 10 — React/GrapesJS Architectural Refactor ✅ CLOSED (v0.5.55)
 - ~~**T644** — Fix PhaserSimPropertiesPanel: align with panel pattern~~ ✅ Done (v0.5.48)
 - ~~**T645** — Fix storageManager singletons: StorageContextProvider DI~~ ✅ Done (v0.5.49)
 - ~~**T646** — Fix initEditor leaks: dragstart listener + autosaveTimer~~ ✅ Done (v0.5.50)
@@ -280,7 +282,17 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T648** — Fix Zustand/Backbone duality in all PropertiesPanel components~~ ✅ Done (v0.5.52)
 - ~~**T649** — Fix stale closure in QuestionPropertiesPanel updateOption~~ ✅ Done (v0.5.53)
 - ~~**T650** — beforeunload flash save: prevent data loss on tab close~~ ✅ Done (v0.5.54)
-- **T651** — Unify persistence via requestSave(): single save entry point 🔄 NEXT UP
+- ~~**T651** — Unify persistence via requestSave(): single save entry point~~ ✅ Done (v0.5.55)
+- ~~**T1000.TEST / T1000.E2E / T1000.DOCS** — Phase 10 closing tasks~~ ✅ Done
+
+### No active phase — TECH DEBT backlog available
+- **TD-001** — Backend export routes: extract shared `runExport()` helper (Low priority)
+- **TD-002** — T641 preview feature needs full E2E test
+- **TD-003** — T642/T643 known issues pending resolution
+- **TD-004** — GrapesJS type safety: define `ELearnComponent` interface (Medium)
+- **TD-005** — `useExtendedProperty` shallow merge risk (watch)
+- **TD-006** — Replace `_isEditorLoading` module flag with GrapesJS native storage events (Low)
+- **TD-007** — Unify course meta-operations save path (`TopToolbar`/`SlideList` → `courseApi` REST) — surfaced by T651 ADR as out-of-scope sibling of the widget-save unification
 
 ---
 

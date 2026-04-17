@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.55] — 2026-04-17 — T651: Unified persistence via `requestSave()` + Phase 10 closure
+
+### Phase 10 complete
+Phase 10 (React/GrapesJS Architectural Refactor) closes with this release. 12 audit findings across 4 files (`PhaserSimPropertiesPanel`, `storageManager`, `initEditor`, `EditorCanvas`) resolved across T644–T651. Test count grew from 686 (phase start) to 1533 (1.23x) with zero regressions shipped. Every architectural guardrail committed in the phase ADRs (`storageManager` DI, panel-selection source-of-truth, storage context provider, editor-loading flag, request-save design) is honoured and covered by tests.
+
+### Refactored
+- **[T651] `requestSave()` as the single save entry point** — Five pre-T651 call sites duplicated the "save recipe" (`setIsSaving` + `setSaveError` + try/catch around `editor.store()`). Three of the five had silent-failure bugs from drift. T651 replaces them with one unified entry point routed through a pure `performSave(editor, hooks)` primitive (`storageManager.ts`, no Zustand/React) plus a Zustand-bound `requestSave(opts?)` closure built in `initEditor.ts`. `grep "editor.store()"` is now green everywhere except `storageManager.ts:68`. ADR: `decisions/2026-04-17-request-save.md`.
+- **[T651.2] `triggerAutosave` migrated** (`packages/authoring-ui/src/editor/initEditor.ts`) — debounce callback now calls `await requestSave().catch(() => {})`. Race guard (CRITICAL-01) and `isRteActive` defer stay inline — lifecycle-specific, not part of the save recipe.
+- **[T651.3] `saveAndLoad` pre-navigation save migrated** (`packages/authoring-ui/src/components/editor/EditorCanvas.tsx`) — replaces manual `Promise.race([store(), 5s])` + `setIsSaving`/`setSaveError` block with `await requestSaveFn({ timeoutMs: 5000 })`. `stopCommand('text-edit')` flush stays inline (caller responsibility). `console.error` retained for audit.
+- **[T651.3] Three bonus migrations** — `SaveErrorBanner.handleRetry`, `useActionsSave` subscribe callback, `SimulationEditor.handleSave` all moved to `requestSave()`. ADR flagged these as strictly in scope to prevent drift reappearing the moment the feature lands.
+
+### Fixed
+- **[T651.3] `SaveErrorBanner` retry: "Saving…" badge now fires** — Pre-T651 the handler called `editor.store()` directly without touching `isSaving`. Users saw the retry begin with no UI feedback. Now `requestSave()` sets `isSaving(true)` via `performSave`'s `onStart` hook. Regression test guards this (`T651.3: sets isSaving(true) during retry`).
+- **[T651.3] `useActionsSave` silent failures now surface in UI** — Pre-T651 the callback swallowed `editor.store()` rejections into `console.error`. A real 500 from the backend produced no user-facing signal. Now failures route through `requestSave()` → `onError` → Zustand `saveError` → `SaveErrorBanner`. `console.error` retained for audit trail.
+- **[T651.3] `SimulationEditor` silent failures now surface in UI** — Same root cause and same fix as `useActionsSave`.
+
+### Added
+- **[T651] `performSave(editor, hooks)` + `SaveHooks` interface** (`packages/authoring-ui/src/editor/storageManager.ts`) — pure primitive. Four fields: `onStart`, `onSuccess`, `onError(message)`, `timeoutMs`. Minimal surface by design; telemetry/retry budget not added (ADR guardrail).
+- **[T651] `requestSave` Zustand field** (`packages/authoring-ui/src/store/editorStore.ts`) — nullable function reference, set by `EditorCanvas` Effect 1 after `initEditor()` returns, cleared on unmount.
+- **[T651] ADR `decisions/2026-04-17-request-save.md`** — documents the two-layer design, rejected alternatives (A/C/D), and 7 binding guardrails.
+- **[T651] `docs/issues/issues-T651.md`** — self-review covering architecture, rejection rationale, guardrail verification, migration table, deliberate non-scope.
+
+### Changed
+- **Non-`Error` rejection fallback message harmonised to `'Save failed'`** across all callers. Pre-T651 used three different strings (`'Pre-navigation save failed'`, `'Autosave failed'`, raw `String(err)`). Cosmetic consistency gain; `Error.message` is passed through unchanged.
+- **Return type of `initEditor()`** expanded to `{ editor, cleanup, hasPendingChanges, requestSave }`. Additive; existing destructures already named the consumed fields explicitly.
+
+### Docs
+- **`GRAPESJS_REACT_PATTERNS.md`** — Pattern 1 updated to show the four-tuple return; Pattern 4 rewritten as "Unified Persistence via `requestSave()` (T645/T647/T651)" with the full save-recipe diagram; prohibited `editor.store()` example annotated with `requestSave()` alternative. Last-updated header bumped to Phase 10 complete.
+- **`WORKING_CONTEXT.md`** — Current State table updated to v0.5.55, Active block reflects Phase 10 complete, Next Steps advances to TECH DEBT backlog.
+
+### Tests
+- **`initEditor.test.ts`** — mock of `../editor/storageManager` switched to `vi.importActual` so the real `performSave` reaches `editor.store()` under test. 38/38 pass.
+- **`EditorCanvas.test.tsx`** — `setupInitEditorMock` returns a four-tuple with a real `performSave`-backed `requestSave`. Fallback message expectation updated to `'Save failed'`. 4/4 pass.
+- **`SaveErrorBanner.test.tsx`** — migrated to the `requestSave` shape via a `makeRequestSave(mockStore)` helper that runs the real `performSave` against a mock editor. Added T651.3 regression test: `isSaving === true` during retry. 6/6 pass.
+- **Monorepo totals: 1533/1533** unit+integration (backend 131, authoring-ui 731, runtime-player 256, scorm-packager 156 passed + 4 skipped, phaser-simulations 125, question-engine 74, simulation-engine 60). TSC exit 0; lint 0 errors (2 pre-existing warnings in `useComponentProperty.ts`, not touched).
+- **CI run `24582182042`: success (17m02s)** — Lint, TypeScript, unit+integration, builds, E2E, coverage upload all green. CodeQL `24582181559`: success (1m13s).
+
+### Deliberate non-scope
+- **Course meta-operations** (`addSlide`, `deleteSlide`, `updateCourse`, slide reorder/rename in `TopToolbar.tsx`/`SlideList.tsx`) remain on their REST path and keep their own duplicated `setIsSaving`/`setSaveError` blocks. T651 unifies the **widget-save** path only. Tracked as candidate TD-007 for a future refactor.
+- No automatic retry budget, no telemetry hooks — minimal `SaveHooks` interface by design.
+
+---
+
 ## [0.5.54] — 2026-04-17 — T650: beforeunload dirty-state warning (Phase 10)
 
 ### Added
