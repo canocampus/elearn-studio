@@ -885,3 +885,68 @@ describe('T646.6 — initEditor cleanup lifecycle', () => {
     expect(removeChildSpy).not.toHaveBeenCalled()
   })
 })
+
+// ---------------------------------------------------------------------------
+// T650.3 — hasPendingChanges reflects autosave timer state
+//
+// hasPendingChanges() is a pure closure over autosaveTimer:
+//   - null        → returns false (idle / just saved)
+//   - !== null    → returns true  (2 s debounce in flight)
+// It exists so that EditorCanvas can wire a beforeunload warning (T650.2)
+// without forcing a synchronous store() on tab close.
+// ---------------------------------------------------------------------------
+
+describe('T650.3 — hasPendingChanges reflects autosave timer state', () => {
+  let eventCapture: ReturnType<typeof makeEventCapture>
+  let fakeEditor: Editor
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+    eventCapture = makeEventCapture()
+    fakeEditor = makeMockFakeEditor(eventCapture)
+    vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+    vi.mocked(useEditorStore.getState).mockReturnValue({
+      setIsSaving: vi.fn(),
+      setSaveError: vi.fn(),
+      setEditorContext: vi.fn(),
+      bumpCacheVersion: vi.fn(),
+      courseId: 'c1',
+      slideId: 's1',
+      cacheVersion: 0,
+    } as unknown as ReturnType<typeof useEditorStore.getState>)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('T650.3.1: returns false when autosaveTimer is null (no debounce pending)', () => {
+    const { hasPendingChanges } = initEditor(defaultOpts())
+    expect(hasPendingChanges()).toBe(false)
+  })
+
+  it('T650.3.2: returns true after component:update fires (debounce in flight)', () => {
+    const { hasPendingChanges } = initEditor(defaultOpts())
+
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+    expect(updateHandlers.length).toBeGreaterThan(0)
+    updateHandlers.forEach((h) => h({}))
+
+    expect(hasPendingChanges()).toBe(true)
+  })
+
+  it('T650.3.3: returns false after store() completes (timer cleared)', async () => {
+    const { hasPendingChanges } = initEditor(defaultOpts())
+
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+    updateHandlers.forEach((h) => h({}))
+    expect(hasPendingChanges()).toBe(true)
+
+    // Advance past the 2 s debounce so the scheduled store() runs and clears the timer.
+    await vi.advanceTimersByTimeAsync(2001)
+
+    expect(fakeEditor.store).toHaveBeenCalledOnce()
+    expect(hasPendingChanges()).toBe(false)
+  })
+})

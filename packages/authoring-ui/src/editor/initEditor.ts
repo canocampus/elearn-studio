@@ -39,7 +39,7 @@ export interface InitEditorOptions {
   onReady?: (editor: Editor) => void
 }
 
-export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: () => void } {
+export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: () => void; hasPendingChanges: () => boolean } {
   const editor = grapesjs.init({
     container: opts.container,
     fromElement: false,
@@ -473,6 +473,9 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
 
   opts.onReady?.(editor)
 
+  // T650.1 — true while the 2s debounce is in flight; false once store() completes or cleanup runs.
+  const hasPendingChanges = () => autosaveTimer !== null
+
   const cleanup = () => {
     isUnmounted = true
     if (autosaveTimer !== null) clearTimeout(autosaveTimer)
@@ -480,5 +483,5 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
     unsubscribeCacheInvalidate()
   }
 
-  return { editor, cleanup }
+  return { editor, cleanup, hasPendingChanges }
 }

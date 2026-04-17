@@ -63,7 +63,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
     isInitializedRef.current = true
 
-    const { editor, cleanup } = initEditor({
+    const { editor, cleanup, hasPendingChanges } = initEditor({
       container: containerRef.current,
       courseId,
       slideId,
@@ -108,7 +108,18 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
     editorRef.current = editor
 
+    // T650.2 — Warn the user if they try to close the tab mid-debounce.
+    // hasPendingChanges() reads autosaveTimer !== null at event time — no store() called here.
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasPendingChanges()) {
+        e.preventDefault()
+        e.returnValue = ''  // Required for Chrome legacy support
+      }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+
     return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
       isInitializedRef.current = false
       cleanup()
       editor.destroy()
