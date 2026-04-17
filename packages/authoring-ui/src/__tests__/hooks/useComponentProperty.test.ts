@@ -539,3 +539,119 @@ describe('useComponentProperty — Undo/Redo simulation (T648)', () => {
     expect(result.current[2]()).toBe(100)
   })
 })
+
+// ── T649.4: two consecutive array-mutation calls without intermediate re-render ─
+
+/**
+ * T649 regression test — stale closure in array mutation callbacks.
+ *
+ * Without getLatest(), two consecutive updateOption calls before the next render
+ * both read the same stale ep.options from the render closure. The second call
+ * overwrites the first's result because both spread the same pre-first-update array.
+ *
+ * With getLatest(), each call reads latestRef.current (updated synchronously after
+ * every comp.set()), so the second call sees the result of the first.
+ */
+describe('useComponentProperty — T649 stale-closure in array mutations', () => {
+  type MCOption = { id: string; text: string; isCorrect: boolean }
+  type MCEp = { options: MCOption[] }
+
+  function makeOptionComponent(initialOptions: MCOption[]) {
+    return makeComponent({
+      extendedProperties: { options: initialOptions } satisfies MCEp,
+    })
+  }
+
+  it('T649.4: two consecutive updateOption calls without re-render both apply (no stale closure)', () => {
+    const opts: MCOption[] = [
+      { id: 'opt1', text: 'Original A', isCorrect: false },
+      { id: 'opt2', text: 'Original B', isCorrect: false },
+    ]
+    const comp = makeOptionComponent(opts)
+    const defaults: MCEp = { options: [] }
+
+    const { result } = renderHook(() => {
+      const [ep, setEp, getLatest] = useComponentProperty<MCEp>(
+        comp as never,
+        'extendedProperties',
+        defaults,
+      )
+      // Canonical T649 pattern: always use getLatest() inside mutation callback
+      function updateOption(id: string, patch: Partial<MCOption>) {
+        const current = getLatest()
+        setEp({ options: current.options.map(o => (o.id === id ? { ...o, ...patch } : o)) })
+      }
+      return { ep, updateOption }
+    })
+
+    // Fire both updates synchronously — no render between them
+    act(() => {
+      result.current.updateOption('opt1', { text: 'Updated A' })
+      result.current.updateOption('opt2', { text: 'Updated B' })
+    })
+
+    const final = (comp.get('extendedProperties') as MCEp).options
+    expect(final.find(o => o.id === 'opt1')?.text).toBe('Updated A')
+    expect(final.find(o => o.id === 'opt2')?.text).toBe('Updated B')
+  })
+
+  it('T649.4: two consecutive addAnswer calls without re-render both append (no stale closure)', () => {
+    const comp = makeComponent({ extendedProperties: { answers: ['first'] } })
+
+    const { result } = renderHook(() => {
+      const [, setEp, getLatest] = useComponentProperty<{ answers: string[] }>(
+        comp as never,
+        'extendedProperties',
+        { answers: [] },
+      )
+      function addAnswer(text: string) {
+        const current = getLatest()
+        setEp({ answers: [...current.answers, text] })
+      }
+      return { addAnswer }
+    })
+
+    act(() => {
+      result.current.addAnswer('second')
+      result.current.addAnswer('third')
+    })
+
+    const final = (comp.get('extendedProperties') as { answers: string[] }).answers
+    expect(final).toEqual(['first', 'second', 'third'])
+  })
+})
+
+// ── T649.5: getLatest() reflects external comp.set() immediately ──────────────
+
+describe('useComponentProperty — T649.5 getLatest() after external comp.set()', () => {
+  it('getLatest() reflects rolled-back options array immediately after Undo (comp.set())', () => {
+    const initial = [
+      { id: 'a', text: 'Option A', isCorrect: true },
+      { id: 'b', text: 'Option B', isCorrect: false },
+    ]
+    const comp = makeComponent({ extendedProperties: { options: initial } })
+
+    const { result } = renderHook(() =>
+      useComponentProperty<{ options: typeof initial }>(
+        comp as never,
+        'extendedProperties',
+        { options: [] },
+      ),
+    )
+
+    // Simulate user adding an option via UI
+    act(() => {
+      const [, setEp, getLatest] = result.current
+      const current = getLatest()
+      setEp({ options: [...current.options, { id: 'c', text: 'Option C', isCorrect: false }] })
+    })
+    expect(result.current[2]().options).toHaveLength(3)
+
+    // Simulate GrapesJS Undo: restores original 2-option state via external comp.set()
+    act(() => { comp.set('extendedProperties', { options: initial }) })
+
+    // getLatest() must reflect the rolled-back value without waiting for next render
+    expect(result.current[2]().options).toHaveLength(2)
+    expect(result.current[2]().options[0].id).toBe('a')
+  })
+})

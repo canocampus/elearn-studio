@@ -83,7 +83,10 @@ export function useComponentProperty<T>(
     const comp = component as GjsComponent
     // T639.1: apply optimistic React state update immediately so controlled inputs
     // (value={state} + onChange) never freeze waiting for the Backbone event.
+    // T649: update ref synchronously so getLatest() returns the new value for
+    // consecutive calls within the same render cycle (no stale-closure between batched updates).
     setValue(newValue)
+    latestRef.current = newValue
     comp.set(key, newValue)
   }
 
@@ -149,7 +152,10 @@ export function useExtendedProperty<T>(
   function update(newValue: T) {
     if (!component) return
     const comp = component as GjsComponent
+    // T649: update ref synchronously so getLatest() returns the new value for
+    // consecutive calls within the same render cycle.
     setValue(newValue)
+    latestRef.current = newValue
     const current = (comp.get('extendedProperties') as Record<string, unknown> | undefined) ?? {}
     comp.set('extendedProperties', { ...current, [subKey]: newValue })
   }

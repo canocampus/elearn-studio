@@ -197,18 +197,22 @@ function MCPropertiesForm({ component }: { component: Component }) {
   const [ep, update, getLatest] = useExtendedProperties<MCExtendedProps>(component, MC_DEFAULT_EXTENDED)
 
   function updateOption(id: string, patch: Partial<MCOption>) {
-    update({
-      options: ep.options.map(o => (o.id === id ? { ...o, ...patch } : o)),
-    })
+    // T649: stale-closure fix via getLatest()
+    const current = getLatest()
+    update({ options: current.options.map(o => (o.id === id ? { ...o, ...patch } : o)) })
   }
 
   function addOption() {
-    update({ options: [...ep.options, { id: crypto.randomUUID(), text: 'New option', isCorrect: false }] })
+    // T649: stale-closure fix via getLatest()
+    const current = getLatest()
+    update({ options: [...current.options, { id: crypto.randomUUID(), text: 'New option', isCorrect: false }] })
   }
 
   function removeOption(id: string) {
-    if (ep.options.length <= 2) return // keep minimum 2 options
-    update({ options: ep.options.filter(o => o.id !== id) })
+    // T649: stale-closure fix via getLatest()
+    const current = getLatest()
+    if (current.options.length <= 2) return // keep minimum 2 options
+    update({ options: current.options.filter(o => o.id !== id) })
   }
 
   return (
@@ -252,11 +256,11 @@ function MCPropertiesForm({ component }: { component: Component }) {
             <input
               type="radio"
               checked={opt.isCorrect}
-              onChange={() =>
-                update({
-                  options: ep.options.map(o => ({ ...o, isCorrect: o.id === opt.id })),
-                })
-              }
+              onChange={() => {
+                // T649: stale-closure fix via getLatest()
+                const current = getLatest()
+                update({ options: current.options.map(o => ({ ...o, isCorrect: o.id === opt.id })) })
+              }}
               title="Mark as correct"
               style={{ flexShrink: 0, accentColor: '#89b4fa' }}
             />
@@ -373,17 +377,22 @@ function FillPropertiesForm({ component }: { component: Component }) {
   const [ep, update, getLatest] = useExtendedProperties<FillExtendedProps>(component, FILL_DEFAULT_EXTENDED)
 
   function addAnswer() {
-    update({ answers: [...ep.answers, ''] })
+    // T649: stale-closure fix via getLatest()
+    const current = getLatest()
+    update({ answers: [...current.answers, ''] })
   }
 
   function removeAnswer(index: number) {
-    if (ep.answers.length <= 1) return
-    update({ answers: ep.answers.filter((_, i) => i !== index) })
+    // T649: stale-closure fix via getLatest()
+    const current = getLatest()
+    if (current.answers.length <= 1) return
+    update({ answers: current.answers.filter((_, i) => i !== index) })
   }
 
   function updateAnswer(index: number, value: string) {
-    const answers = ep.answers.map((a, i) => (i === index ? value : a))
-    update({ answers })
+    // T649: stale-closure fix via getLatest()
+    const current = getLatest()
+    update({ answers: current.answers.map((a, i) => (i === index ? value : a)) })
   }
 
   return (

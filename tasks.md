@@ -139,18 +139,103 @@
 
 ---
 
-### T649 — Fix stale closure in QuestionPropertiesPanel updateOption
+### T649 — Fix stale closure in QuestionPropertiesPanel.updateOption (and siblings)
 
-> **Issue:** #12 (ep.options from closure render — two rapid updateOption calls can
-> lose one update)
+> **Issue:** #12 (stale closure in patch-merge of options and nested properties)
+> **Scope:** QuestionPropertiesPanel.tsx — updateOption, addOption, removeOption + grep for similar patterns in other panels
+> **Risk:** Low — reproducible in programmatic tests, quick edit macros or complex Undo/Redo
+> **Related:** T639 (stale-closure prevention), T648 (canonical hook adoption), ADR: decisions/2026-04-17-panel-selection-source.md
 
-- [ ] T649.1 — Replace `ep.options.map(...)` in `updateOption` with
-  `getLatest().options.map(...)` — same fix applied in T639 for the parent patch
-- [ ] T649.2 — Unit test: two rapid `updateOption` calls before next render →
-  both changes present in final state (reproduces the race described in audit)
-- [ ] T649.3 — Run full test suite + push + verify CI green
-- [ ] T649.4 — Refine the generated code
-- [ ] T649.5 — A reviewer will generate `docs/issues/issues-T649.md`; resolve before closing
+## 🎯 Root Cause
+In `QuestionPropertiesPanel.tsx:199-210` (and similar patterns in other panels):
+```typescript
+function updateOption(id: string, patch: Partial<MCOption>) {
+  update({
+    options: ep.options.map(o => (o.id === id ? { ...o, ...patch } : o)),
+    // ⚠️ ep.options  comes from the closure of the previous render
+    // If two updateOptions fire before the next render,
+    // the second one overwrites the first one with stale data.
+  })
+}
+```
+The anti-pattern is reading ep.prop directly from the render closure instead of using getLatest() to get the most recently committed value.
+
+📐 MANDATORY GUARDRAILS T649
+getLatest() is mandatory in any function that patches/merges nested arrays/objects (ep.options, ep.choices, ep.tracks, etc.).
+
+Don't optimize prematurely: While `ep.prop.map(...)` "works" in normal UI, the pattern using `getLatest()` has zero overhead and prevents bugs in edge cases.
+Extend to other panels: If `ButtonPropertiesPanel`, `MediaPlayerPropertiesPanel`, etc., have similar functions (`updateChoice`, `updateTrack`, etc.), apply the same fix proactively.
+No direct reads of `ep.prop` in update functions: All updates must go through `getLatest()`.
+
+🔧 Correct Pattern (Canonical — T648 + T639)
+
+```typescript
+// ✅ CORRECT — patch-merge using getLatest() to avoid stale closure
+function updateOption(id: string, patch: Partial<MCOption>) {
+  const current = getLatest()  // read the most recent committed value, not the render closure 
+  updateEp({
+    ...current,
+    options: current.options.map(o => (o.id === id ? { ...o, ...patch } : o)),
+  })
+}
+
+// ✅ CORRECT — addOption using getLatest()
+function addOption(newOption: MCOption) {
+  const current = getLatest()
+  updateEp({
+    ...current,
+    options: [...current.options, newOption],
+  })
+}
+
+// ✅ CORRECT — removeOption using getLatest()
+function removeOption(id: string) {
+  const current = getLatest()
+  updateEp({
+    ...current,
+    options: current.options.filter(o => o.id !== id),
+  })
+}
+```
+
+📋 Detailed Tasks
+- [ ] T649.1 — Audit: Identify ALL functions that patch-merge on ep.options or ep.otherArrayProp and read from the render closure.
+Useful command: grep -rnE "ep\.\w+\.(map|filter|find)" src/components/sidebar/*PropertiesPanel.tsx
+Document each finding in a table: Panel | Function | Line | Risk | Action
+- [ ] T649.2 — Fix QuestionPropertiesPanel: replace ep.options reads with getLatest().options in updateOption, addOption, removeOption
+Maintain the useComponentProperty signature: [ep, updateEp, getLatest] = useComponentProperty(...)
+Verify that updateEp is called with { ...getLatest(), ...patch }
+- [ ] T649.3 — Preventive audit on other panels: apply the same pattern if similar functionality is detected
+Panels to review: ButtonPropertiesPanel, MediaPlayerPropertiesPanel, AudioNarrationPropertiesPanel, ProgressBarPropertiesPanel, VolumeControlPropertiesPanel
+PhaserSimPropertiesPanel: already compliant (T648.1.1) — DO NOT TOUCH
+- [ ] T649.4 — Regression test: simulate two consecutive updateOption calls without intermediate re-rendering → verify that both patches are applied (no loss of the first)
+
+```typescript
+it('T649.4: two consecutive updateOption calls apply both patches (no stale closure)', async () => { 
+// Setup: component with two options 
+// Call updateOption('opt1', { label: 'A' }) 
+// Call updateOption('opt2', { label: 'B' }) without waiting for re-render 
+// Verify: both options have updated labels (not just the second)
+})
+```
+- [ ] T649.5 — Undo/Redo test: verify that getLatest() reflects the rollbacked value immediately after external comp.set()
+
+```typescript
+it('T649.5: getLatest() reflects external comp.set() (Undo/Redo) immediately', async () => { 
+// Setup: useComponentProperty hook 
+// Simulate external change: component.set('extendedProperties', { options: [...] }) 
+// Verify: getLatest() returns the new value without waiting for next render
+})
+```
+- [ ] T649.6 — Run full test suite + push + verify CI green
+* Confirm that the 724+ tests continue to pass
+* Confirm that npm run lint does not introduce new warnings
+
+- [ ] T649.7 — Refine generated code
+* Añadir comentarios // T649: stale-closure fix via getLatest() en líneas clave
+* Verificar consistencia de nombres: [value, update, getLatest] en todos los usos del hook
+- [ ] T649.8 — A reviewer will generate docs/issues/issues-T649.md; resolve before closing
+*Incluir: resumen, tabla de cambios, ADR link, validación de tests, nota sobre prevención preventiva en otros paneles
 
 ---
 
