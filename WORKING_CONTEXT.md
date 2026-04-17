@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-17 — T649 ✅ done (Phase 10: stale-closure fix in array mutations — latestRef now updated synchronously in useComponentProperty.update(); 727 unit tests pass)
+> Last updated: 2026-04-17 — T650 ✅ done (Phase 10: beforeunload dirty-state warning — `hasPendingChanges()` exposed from initEditor, listener in EditorCanvas Effect 1 with cleanup; 1532/1532 unit+integration tests pass, CI run 24576886118 success)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.53 |
+| **Current version** | v0.5.54 |
 | **Active phase** | Phase 10 — React/GrapesJS Architectural Refactor |
-| **Active block** | T649 ✅ — T650 next (beforeunload flash save) |
+| **Active block** | T650 ✅ — T651 next (unify persistence via `requestSave()`) |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
 
 ---
 
 ## What Was Last Done
+
+- **T650 — beforeunload dirty-state warning ✅ (T650 CLOSED)** — Phase 10 seventh task. Closes the 2-second data-loss window during autosave debounce: if the user closes the tab or navigates away from the domain mid-debounce, the browser now shows its native "Leave site? Changes you made may not be saved" warning. T650.1: `initEditor()` return type extended from `{editor, cleanup}` to `{editor, cleanup, hasPendingChanges}`; `hasPendingChanges = () => autosaveTimer !== null` is a pure closure accessor — no new flag, no parallel state, zero drift risk. T650.2: `beforeunload` listener registered in `EditorCanvas.tsx` Effect 1 (same lifetime as the editor — NOT Effect 2, which would churn on every slide switch); handler does only `e.preventDefault()` + `e.returnValue = ''` when dirty, no async work. T650.3: 3 unit tests (null state → false; `component:update` → true; post-debounce → false AND `store()` called once) using `vi.useFakeTimers()` + `vi.advanceTimersByTimeAsync(2001)`. T650.4 absorbed into T650.3 — the original task text said "verify `store()` called inside beforeunload", which contradicts the T650 design (no forced save); real intent was "verify warning fires when dirty", which reduces to the timer-state tests. Deliberately rejected alternatives (documented in `issues-T650.md`): `await store()` (can't await in `beforeunload`), sync XHR (deprecated), `sendBeacon` (64 KB limit, slide JSON exceeds), Web Locks (doesn't cross unload), SW sync (excessive scope). Environment repair done in parallel during T650.5: `@rollup/rollup-win32-x64-msvc@4.60.1` and `es-abstract@1.24.1` were corrupted in the local pnpm store (missing subdirectories / `package.json`); fixed via `pnpm store prune` + targeted rm + `pnpm install` after killing a stale `esbuild.exe` holding a file lock — CI unaffected (runs in clean container). 1532/1532 unit+integration tests pass (authoring-ui 730, backend 131, runtime-player 256, scorm-packager 156, phaser-simulations 125, question-engine 74, simulation-engine 60). CI run `24576886118`: success (17m04s). Code review: APPROVED (0 findings above INFO). `docs/issues/issues-T650.md` generated. Commits: `04e6121` (feature + env repair), `7849ba6` (docs + task closure).
 
 - **T649 — Stale-closure fix in array mutations: synchronous latestRef update ✅ (T649 CLOSED)** — Phase 10 sixth task. Root cause: `latestRef.current` was only assigned at React render time (`latestRef.current = value` in render body of hook). Two consecutive `update()` calls within the same render cycle both read the same stale ref — second call silently discarded the first update. Fix: added `latestRef.current = newValue` synchronously inside `update()` in both `useComponentProperty` and `useExtendedProperty` (before `comp.set(key, newValue)`). Panel fix: 9 stale-closure sites in `QuestionPropertiesPanel` patched — `updateOption`, `addOption`, `removeOption`, radio `onChange`, `addAnswer`, `removeAnswer`, `updateAnswer` all now call `const current = getLatest()` first. Preventive audit of ButtonPropertiesPanel and 4 other panels: no array mutation patterns found — no changes needed. T649.4 regression: two consecutive array-mutation calls in same `act()` block both apply. T649.5: `getLatest()` reflects external `comp.set()` immediately. 727/727 unit tests pass. Code review: APPROVED. `docs/issues/issues-T649.md` generated. Commit: `74befb8`.
 
@@ -275,10 +277,10 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T645** — Fix storageManager singletons: StorageContextProvider DI~~ ✅ Done (v0.5.49)
 - ~~**T646** — Fix initEditor leaks: dragstart listener + autosaveTimer~~ ✅ Done (v0.5.50)
 - ~~**T647** — Fix EditorCanvas pre-navigation store(): add UI state update~~ ✅ Done (v0.5.51)
-- **T648** — Fix Zustand/Backbone duality in all PropertiesPanel components 🔄 NEXT UP
-- **T649** — Fix stale closure in QuestionPropertiesPanel updateOption
-- **T650** — beforeunload flash save: prevent data loss on tab close
-- **T651** — Unify persistence via requestSave(): single save entry point
+- ~~**T648** — Fix Zustand/Backbone duality in all PropertiesPanel components~~ ✅ Done (v0.5.52)
+- ~~**T649** — Fix stale closure in QuestionPropertiesPanel updateOption~~ ✅ Done (v0.5.53)
+- ~~**T650** — beforeunload flash save: prevent data loss on tab close~~ ✅ Done (v0.5.54)
+- **T651** — Unify persistence via requestSave(): single save entry point 🔄 NEXT UP
 
 ---
 
