@@ -312,7 +312,9 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 | Audio Narration | ✅ Working | Block + canvas preview + Props panel (T607); runtime `<audio>` rendering |
 | Progress Bar | ✅ Working | Block + Props panel (T608); runtime `visitedSlides` progress tracking |
 | Volume Control | ✅ Working | Block + Props panel (T609); runtime global volume/mute with `applyVolumeToSlide()` |
-| SaveErrorBanner | ✅ Working | Persistent red banner on autosave failure (T622); Retry button clears on success; nav blocked when `saveError !== null` |
+| SaveErrorBanner | ✅ Working | Persistent red banner on autosave failure (T622); Retry button clears on success; nav blocked when `saveError !== null`; **T651.3 fix**: retry now fires `isSaving(true)` — "Saving…" badge visible during retry attempt |
+| Unified save path | ✅ Working | All save callers (autosave, pre-nav, retry, actions-save, sim-save) route through `requestSave()` (T651); `grep "editor.store()"` green except `storageManager.ts:68` |
+| `beforeunload` warning | ✅ Working | Native browser dialog fires when `hasPendingChanges()` is true (T650); no async work / no `sendBeacon` in the handler |
 | useComponentProperty | ✅ Working | Optimistic `setValue` before `comp.set()`; no bounce-back on rapid typing (T620) |
 | useExtendedProperties | ✅ Working | Reads `comp.get('extendedProperties')` directly; stale closure eliminated (T621) |
 | Image widget initialize | ✅ Working | `extendFnView: ['initialize']` — prototype chain hack removed (T623) |
