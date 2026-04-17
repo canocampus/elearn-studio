@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.53] — 2026-04-17 — T649: Stale-closure fix — synchronous latestRef update in useComponentProperty
+
+### Fixed
+- **[T649] `latestRef.current` not updated synchronously in `update()`** (`packages/authoring-ui/src/hooks/useComponentProperty.ts`) — Root cause: `latestRef.current` was only assigned at render time (`latestRef.current = value` in render body). Two consecutive `update()` calls within the same React render cycle (e.g. rapid option edits) both read the same stale ref, causing the second call to overwrite the first. Fix: added `latestRef.current = newValue` synchronously inside `update()` in both `useComponentProperty` and `useExtendedProperty`, immediately after `setValue(newValue)` and before `comp.set(key, newValue)`.
+- **[T649] 9 stale-closure sites in `QuestionPropertiesPanel`** (`packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`) — `MCPropertiesForm.updateOption()`, `addOption()`, `removeOption()`, and the radio `onChange` inline handler all read `ep.options` from the render closure instead of `getLatest().options`. Same issue in `FillPropertiesForm.addAnswer()`, `removeAnswer()`, and `updateAnswer()` reading `ep.answers`. All 9 sites replaced with `const current = getLatest()` pattern; comment `// T649: stale-closure fix via getLatest()` added on each.
+
+### Tests
+- **T649.4** — Two consecutive `updateOption` calls within a single `act()` block both apply (no stale closure); two consecutive `addAnswer` calls both append. Added to `src/__tests__/hooks/useComponentProperty.test.ts`.
+- **T649.5** — `getLatest()` reflects an external `comp.set()` (simulated Undo/Redo) immediately without waiting for re-render. Added to `src/__tests__/hooks/useComponentProperty.test.ts`.
+- **727/727 unit tests pass** (2 new T649 regression tests included).
+
+---
+
+## [0.5.52] — 2026-04-17 — T648: Fix Zustand/Backbone duality in all PropertiesPanel components (Phase 10)
+
+### Fixed
+- **[T648] All PropertiesPanel components migrated to canonical Backbone subscription pattern** — All panels now use `useComponentProperty` (hook, never `selected.get('prop')` in render body). Zustand `selectedComponentType` is the render gate only; within-panel sub-form routing reads `selected.get('type')` from Backbone synchronously. Eliminated keystroke-level global re-renders caused by Zustand property mirrors.
+- **[T648] `useComponentProperty` null-safe** — Hook now accepts `component: Component | null` and returns `defaultValue` immediately when `component` is null, eliminating the conditional hook call anti-pattern in outer panel shells.
+
+---
+
 ## [0.5.51] — 2026-04-17 — T647: Surface pre-navigation save errors in SaveErrorBanner UI
 
 ### Fixed

@@ -199,16 +199,16 @@ function removeOption(id: string) {
 ```
 
 📋 Detailed Tasks
-- [ ] T649.1 — Audit: Identify ALL functions that patch-merge on ep.options or ep.otherArrayProp and read from the render closure.
+- [x] T649.1 — Audit: Identify ALL functions that patch-merge on ep.options or ep.otherArrayProp and read from the render closure.
 Useful command: grep -rnE "ep\.\w+\.(map|filter|find)" src/components/sidebar/*PropertiesPanel.tsx
 Document each finding in a table: Panel | Function | Line | Risk | Action
-- [ ] T649.2 — Fix QuestionPropertiesPanel: replace ep.options reads with getLatest().options in updateOption, addOption, removeOption
+- [x] T649.2 — Fix QuestionPropertiesPanel: replace ep.options reads with getLatest().options in updateOption, addOption, removeOption
 Maintain the useComponentProperty signature: [ep, updateEp, getLatest] = useComponentProperty(...)
 Verify that updateEp is called with { ...getLatest(), ...patch }
-- [ ] T649.3 — Preventive audit on other panels: apply the same pattern if similar functionality is detected
+- [x] T649.3 — Preventive audit on other panels: apply the same pattern if similar functionality is detected
 Panels to review: ButtonPropertiesPanel, MediaPlayerPropertiesPanel, AudioNarrationPropertiesPanel, ProgressBarPropertiesPanel, VolumeControlPropertiesPanel
 PhaserSimPropertiesPanel: already compliant (T648.1.1) — DO NOT TOUCH
-- [ ] T649.4 — Regression test: simulate two consecutive updateOption calls without intermediate re-rendering → verify that both patches are applied (no loss of the first)
+- [x] T649.4 — Regression test: simulate two consecutive updateOption calls without intermediate re-rendering → verify that both patches are applied (no loss of the first)
 
 ```typescript
 it('T649.4: two consecutive updateOption calls apply both patches (no stale closure)', async () => { 
@@ -218,7 +218,7 @@ it('T649.4: two consecutive updateOption calls apply both patches (no stale clos
 // Verify: both options have updated labels (not just the second)
 })
 ```
-- [ ] T649.5 — Undo/Redo test: verify that getLatest() reflects the rollbacked value immediately after external comp.set()
+- [x] T649.5 — Undo/Redo test: verify that getLatest() reflects the rollbacked value immediately after external comp.set()
 
 ```typescript
 it('T649.5: getLatest() reflects external comp.set() (Undo/Redo) immediately', async () => { 
@@ -227,14 +227,14 @@ it('T649.5: getLatest() reflects external comp.set() (Undo/Redo) immediately', a
 // Verify: getLatest() returns the new value without waiting for next render
 })
 ```
-- [ ] T649.6 — Run full test suite + push + verify CI green
+- [x] T649.6 — Run full test suite + push + verify CI green
 * Confirm that the 724+ tests continue to pass
 * Confirm that npm run lint does not introduce new warnings
 
-- [ ] T649.7 — Refine generated code
+- [x] T649.7 — Refine generated code
 * Añadir comentarios // T649: stale-closure fix via getLatest() en líneas clave
 * Verificar consistencia de nombres: [value, update, getLatest] en todos los usos del hook
-- [ ] T649.8 — A reviewer will generate docs/issues/issues-T649.md; resolve before closing
+- [x] T649.8 — A reviewer will generate docs/issues/issues-T649.md; resolve before closing
 *Incluir: resumen, tabla de cambios, ADR link, validación de tests, nota sobre prevención preventiva en otros paneles
 
 ---

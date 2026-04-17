@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-17 — T647 ✅ done (Phase 10: pre-navigation store() errors now surface in SaveErrorBanner via Zustand; 716 unit tests pass)
+> Last updated: 2026-04-17 — T649 ✅ done (Phase 10: stale-closure fix in array mutations — latestRef now updated synchronously in useComponentProperty.update(); 727 unit tests pass)
 
 ---
 
@@ -11,14 +11,18 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.51 |
+| **Current version** | v0.5.53 |
 | **Active phase** | Phase 10 — React/GrapesJS Architectural Refactor |
-| **Active block** | T648 — Fix Zustand/Backbone duality in all PropertiesPanel components |
+| **Active block** | T649 ✅ — T650 next (beforeunload flash save) |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
 
 ---
 
 ## What Was Last Done
+
+- **T649 — Stale-closure fix in array mutations: synchronous latestRef update ✅ (T649 CLOSED)** — Phase 10 sixth task. Root cause: `latestRef.current` was only assigned at React render time (`latestRef.current = value` in render body of hook). Two consecutive `update()` calls within the same render cycle both read the same stale ref — second call silently discarded the first update. Fix: added `latestRef.current = newValue` synchronously inside `update()` in both `useComponentProperty` and `useExtendedProperty` (before `comp.set(key, newValue)`). Panel fix: 9 stale-closure sites in `QuestionPropertiesPanel` patched — `updateOption`, `addOption`, `removeOption`, radio `onChange`, `addAnswer`, `removeAnswer`, `updateAnswer` all now call `const current = getLatest()` first. Preventive audit of ButtonPropertiesPanel and 4 other panels: no array mutation patterns found — no changes needed. T649.4 regression: two consecutive array-mutation calls in same `act()` block both apply. T649.5: `getLatest()` reflects external `comp.set()` immediately. 727/727 unit tests pass. Code review: APPROVED. `docs/issues/issues-T649.md` generated. Commit: `74befb8`.
+
+- **T648 — Fix Zustand/Backbone duality in all PropertiesPanel components ✅ (T648 CLOSED)** — Phase 10 fifth task. All panels migrated to canonical `useComponentProperty` pattern. `useComponentProperty` made null-safe (accepts `Component | null`). Zustand `selectedComponentType` = render gate only; within-panel routing reads `selected.get('type')` from Backbone synchronously. Eliminated keystroke-level global re-renders. 724/724 tests pass.
 
 - **T647 — Fix EditorCanvas pre-navigation store(): add UI state update ✅ (T647 CLOSED)** — Phase 10 fourth task. The `saveAndLoad()` pre-navigation save block in `EditorCanvas.tsx` silently caught errors via `console.error` but never updated Zustand, so `SaveErrorBanner` never appeared on slide-switch failures. Fix: added `setIsSaving(true)` + `setSaveError(null)` at block entry, `setSaveError(msg)` in catch with `err instanceof Error` narrowing (fallback: `'Pre-navigation save failed'`), and `finally { setIsSaving(false) }` — guarantees reset on success, error, and timeout. `useEditorStore.getState()` called synchronously at block entry (avoids stale closure). Verified no race with `triggerAutosave`: CRITICAL-01 guard in `initEditor.ts` returns early before touching `setIsSaving` when context has changed at debounce fire time. New file: `src/__tests__/EditorCanvas.test.tsx` — 4 regression tests using real Zustand store (not mocked) + mocked `initEditor`. All 4/4 pass. 716/716 unit tests green. Code review: APPROVED (0 issues). `docs/issues/issues-T647.md` generated.
 
