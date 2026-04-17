@@ -8,7 +8,7 @@
 import 'grapesjs/dist/css/grapes.min.css'
 import grapesjs, { type Editor } from 'grapesjs'
 import { buildAssetManagerConfig } from './assetManager'
-import { registerStorageManager, type StorageContextProvider } from './storageManager'
+import { performSave, registerStorageManager, type StorageContextProvider } from './storageManager'
 import { registerBlocks } from './registerBlocks'
 import { useEditorStore } from '../store/editorStore'
 import { setClipboard, getClipboard } from './clipboard'
@@ -39,7 +39,12 @@ export interface InitEditorOptions {
   onReady?: (editor: Editor) => void
 }
 
-export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: () => void; hasPendingChanges: () => boolean } {
+export function initEditor(opts: InitEditorOptions): {
+  editor: Editor
+  cleanup: () => void
+  hasPendingChanges: () => boolean
+  requestSave: (opts?: { timeoutMs?: number }) => Promise<void>
+} {
   const editor = grapesjs.init({
     container: opts.container,
     fromElement: false,
@@ -426,6 +431,21 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
   editor.on('rte:enable', () => { isRteActive = true })
   editor.on('rte:disable', () => { isRteActive = false })
 
+  // T651.2 — Single save entry point. Wires performSave into Zustand UI state so every
+  // caller gets consistent feedback via SaveErrorBanner and the "Saving…" badge.
+  // Lifecycle-specific concerns (context race guard, RTE-active defer, pre-nav
+  // stopCommand flush) are NOT part of requestSave — they stay at each caller.
+  // See decisions/2026-04-17-request-save.md.
+  const requestSave = async (opts: { timeoutMs?: number } = {}): Promise<void> => {
+    const { setIsSaving, setSaveError } = useEditorStore.getState()
+    return performSave(editor, {
+      onStart: () => { setIsSaving(true); setSaveError(null) },
+      onSuccess: () => { setIsSaving(false) },
+      onError: (msg) => { setIsSaving(false); setSaveError(msg) },
+      timeoutMs: opts.timeoutMs,
+    })
+  }
+
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null
   const triggerAutosave = () => {
     if (getEditorLoading()) return
@@ -446,16 +466,10 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
         return
       }
 
-      const { setIsSaving, setSaveError } = useEditorStore.getState()
-      setIsSaving(true)
-      setSaveError(null)
-      try {
-        await editor.store()
-      } catch (err) {
-        setSaveError(err instanceof Error ? err.message : 'Autosave failed')
-      } finally {
-        setIsSaving(false)
-      }
+      // T651.2: unified save via requestSave (isSaving/saveError centrally managed).
+      // Swallow the rejection here — requestSave has already surfaced it via Zustand;
+      // rethrowing would produce an unhandled promise rejection in the setTimeout scope.
+      await requestSave().catch(() => { /* error already in Zustand */ })
     }, AUTOSAVE_DEBOUNCE_MS)
   }
 
@@ -483,5 +497,5 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
     unsubscribeCacheInvalidate()
   }
 
-  return { editor, cleanup, hasPendingChanges }
+  return { editor, cleanup, hasPendingChanges, requestSave }
 }

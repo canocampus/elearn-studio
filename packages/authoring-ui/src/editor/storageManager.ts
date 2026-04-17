@@ -36,6 +36,58 @@ export interface StorageContextProvider {
 let courseCache: { courseId: string; doc: CourseDoc } | null = null
 
 /**
+ * T651: Pure save primitive.
+ *
+ * Wraps `editor.store()` with optional timeout and standardised error narrowing.
+ * All UI state (isSaving / saveError) is threaded through the caller-provided
+ * hooks — this function imports neither Zustand nor React.
+ *
+ * The Zustand-bound closure `requestSave` in `initEditor.ts` wires this into
+ * `useEditorStore` so components can dispatch saves without rebuilding the
+ * hook object each time. See `decisions/2026-04-17-request-save.md`.
+ *
+ * Contract:
+ *  - `onStart` fires synchronously before `editor.store()` begins.
+ *  - On success: `onSuccess` fires, the returned promise resolves.
+ *  - On failure: `onError(msg)` fires with a narrowed message, then the error
+ *    is re-thrown so the caller can observe it if needed.
+ *  - `timeoutMs`, when provided, bounds the wait; exceeding it rejects with a
+ *    timeout Error (the underlying `editor.store()` may still complete in the
+ *    background — the caller is simply no longer waiting for it).
+ */
+export interface SaveHooks {
+  onStart?: () => void
+  onSuccess?: () => void
+  onError?: (message: string) => void
+  timeoutMs?: number
+}
+
+export async function performSave(editor: Editor, hooks: SaveHooks = {}): Promise<void> {
+  hooks.onStart?.()
+  try {
+    const promise = editor.store() as Promise<unknown>
+    if (hooks.timeoutMs !== undefined) {
+      await Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`[storageManager] store() timed out after ${hooks.timeoutMs}ms`)),
+            hooks.timeoutMs,
+          ),
+        ),
+      ])
+    } else {
+      await promise
+    }
+    hooks.onSuccess?.()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Save failed'
+    hooks.onError?.(msg)
+    throw err
+  }
+}
+
+/**
  * Generates an inline HTML srcdoc string that represents the current slide canvas state.
  * Used as the thumbnail payload sent to the backend on every save.
  *

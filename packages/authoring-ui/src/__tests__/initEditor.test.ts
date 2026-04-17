@@ -26,9 +26,16 @@ vi.mock('../editor/assetManager', () => ({
   buildAssetManagerConfig: vi.fn().mockReturnValue({}),
 }))
 
-vi.mock('../editor/storageManager', () => ({
-  registerStorageManager: vi.fn().mockReturnValue(vi.fn()),
-}))
+// T651.2: keep real performSave so triggerAutosave still reaches editor.store()
+// under test. Only registerStorageManager is mocked — its real impl calls
+// editor.StorageManager.add() which needs a full GrapesJS editor we don't have.
+vi.mock('../editor/storageManager', async () => {
+  const actual = await vi.importActual<typeof import('../editor/storageManager')>('../editor/storageManager')
+  return {
+    ...actual,
+    registerStorageManager: vi.fn().mockReturnValue(vi.fn()),
+  }
+})
 
 vi.mock('../editor/registerBlocks', () => ({
   registerBlocks: vi.fn(),

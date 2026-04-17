@@ -11,7 +11,9 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, waitFor, act } from '@testing-library/react'
+import type { Editor } from 'grapesjs'
 import { useEditorStore } from '../store/editorStore'
+import { performSave } from '../editor/storageManager'
 
 // ---------------------------------------------------------------------------
 // Hoisted mock factories — must be declared before vi.mock() calls
@@ -76,7 +78,18 @@ function setupInitEditorMock(mockEditor: ReturnType<typeof makeMockEditor>) {
   mockInitEditor.mockImplementation(
     ({ onReady }: { onReady: (ed: unknown) => void }) => {
       onReady(mockEditor)
-      return { editor: mockEditor, cleanup: vi.fn() }
+      // T651.3: mock returns a real requestSave bound to the mock editor via
+      // the real performSave — exercising the full save recipe under test.
+      const requestSave = (opts: { timeoutMs?: number } = {}): Promise<void> => {
+        const { setIsSaving, setSaveError } = useEditorStore.getState()
+        return performSave(mockEditor as unknown as Editor, {
+          onStart:   () => { setIsSaving(true); setSaveError(null) },
+          onSuccess: () => { setIsSaving(false) },
+          onError:   (msg) => { setIsSaving(false); setSaveError(msg) },
+          timeoutMs: opts.timeoutMs,
+        })
+      }
+      return { editor: mockEditor, cleanup: vi.fn(), hasPendingChanges: () => false, requestSave }
     },
   )
 }
@@ -88,7 +101,7 @@ function setupInitEditorMock(mockEditor: ReturnType<typeof makeMockEditor>) {
 describe('EditorCanvas — T647 pre-navigation save error surfacing', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useEditorStore.setState({ isSaving: false, saveError: null, editor: null })
+    useEditorStore.setState({ isSaving: false, saveError: null, editor: null, requestSave: null })
     mockSetEditorLoading.mockReset()
   })
 
@@ -157,8 +170,8 @@ describe('EditorCanvas — T647 pre-navigation save error surfacing', () => {
     })
 
     await waitFor(() => {
-      // Non-Error value → fallback message
-      expect(useEditorStore.getState().saveError).toBe('Pre-navigation save failed')
+      // Non-Error value → fallback message (T651.3: harmonised to 'Save failed' across all callers)
+      expect(useEditorStore.getState().saveError).toBe('Save failed')
       expect(useEditorStore.getState().isSaving).toBe(false)
     })
   })

@@ -63,7 +63,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
     isInitializedRef.current = true
 
-    const { editor, cleanup, hasPendingChanges } = initEditor({
+    const { editor, cleanup, hasPendingChanges, requestSave } = initEditor({
       container: containerRef.current,
       courseId,
       slideId,
@@ -108,6 +108,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
     editorRef.current = editor
 
+    // T651.3 — Expose the unified save closure via Zustand so SaveErrorBanner,
+    // EditorCanvas saveAndLoad, useActionsSave and SimulationEditor all share one entry point.
+    useEditorStore.getState().setRequestSave(requestSave)
+
     // T650.2 — Warn the user if they try to close the tab mid-debounce.
     // hasPendingChanges() reads autosaveTimer !== null at event time — no store() called here.
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -125,6 +129,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       editor.destroy()
       editorRef.current = null
       setEditor(null)
+      useEditorStore.getState().setRequestSave(null)
     }
     // Effect 1 intentionally runs only when courseId changes.
     // setEditor/setRightTab/setSelectedComponentType are stable Zustand actions.
@@ -175,36 +180,27 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
       try {
         if (shouldSaveBeforeSwitch && !controller.signal.aborted) {
-          const { setIsSaving, setSaveError } = useEditorStore.getState()
-          setIsSaving(true)
-          setSaveError(null)
+          // BUG-2 fix: stop any active text-edit command before storing.
+          // Without this, the text buffer for the currently focused text widget is not
+          // flushed to the GrapesJS model. widgetsFromGrapesjs() would then read
+          // the pre-keystroke text content, silently losing the user's latest typing.
+          // The autosave debounce path in initEditor.ts already does this correctly.
+          // Not part of the save recipe — stays here as a caller responsibility (T651.3).
+          if (editor.Commands.isActive('text-edit')) {
+            editor.stopCommand('text-edit')
+          }
 
-          try {
-            // BUG-2 fix: stop any active text-edit command before storing.
-            // Without this, the text buffer for the currently focused text widget is not
-            // flushed to the GrapesJS model. widgetsFromGrapesjs() would then read
-            // the pre-keystroke text content, silently losing the user's latest typing.
-            // The autosave debounce path in initEditor.ts already does this correctly.
-            if (editor.Commands.isActive('text-edit')) {
-              editor.stopCommand('text-edit')
+          // T651.3: unified save via requestSave. isSaving / saveError are set centrally.
+          // 5 s timeout preserved from T647 to prevent a hung store() from freezing navigation.
+          // console.error retained for log aggregation; navigation is never blocked —
+          // a failed save is better than a frozen UI.
+          const requestSaveFn = useEditorStore.getState().requestSave
+          if (requestSaveFn) {
+            try {
+              await requestSaveFn({ timeoutMs: 5000 })
+            } catch (err) {
+              console.error('[EditorCanvas] Failed to save slide before switching:', err)
             }
-
-            // storageContext still points to the OLD slide here — store() saves the right data.
-            // Timeout: if store() hangs (network stall, GrapesJS state corruption) we must
-            // not block slide navigation. 5s is generous for a local/fast API call.
-            await Promise.race([
-              editor.store() as Promise<unknown>,
-              new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('[EditorCanvas] store() timed out after 5s')), 5000)
-              ),
-            ])
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Pre-navigation save failed'
-            setSaveError(msg)
-            // Log but don't block navigation — a failed save is better than a frozen UI.
-            console.error('[EditorCanvas] Failed to save slide before switching:', err)
-          } finally {
-            setIsSaving(false)
           }
         }
 

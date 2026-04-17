@@ -29,7 +29,13 @@ export function SimulationEditor() {
       const component = editor.getWrapper()?.find(`#${editingComponentId}`)[0]
       if (component) {
         component.set('extendedProperties', { ...component.get('extendedProperties'), simConfig: config })
-        editor.store().catch(err => console.error('[SimulationEditor] store failed:', err))
+        // T651.3: unified save — isSaving / saveError handled centrally via requestSave.
+        // Prior to T651.3 this path swallowed errors into console.error only, leaving
+        // the user with no UI indication of a failed save.
+        const requestSave = useEditorStore.getState().requestSave
+        if (requestSave) {
+          requestSave().catch(err => console.error('[SimulationEditor] store failed:', err))
+        }
       }
     }
     closePanel()

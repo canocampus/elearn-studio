@@ -71,7 +71,7 @@ export function useActionsSave() {
 
       setCourse({ ...course, slides: updatedSlides })
 
-      const { editor } = useEditorStore.getState()
+      const { editor, requestSave } = useEditorStore.getState()
       if (editor) {
         // Sync actions to the GrapesJS component model so storageManager's store()
         // reads the updated value via widgetsFromGrapesjs (c.get('actions')).
@@ -94,9 +94,13 @@ export function useActionsSave() {
         if (component) {
           component.set('elearnActions', sequences)
         }
-        void editor.store().catch((err: unknown) => {
-          console.error('[useActionsSave] store() failed:', err)
-        })
+        // T651.3: unified save — failures now surface via SaveErrorBanner instead of
+        // being swallowed into console.error only. Log retained for audit trail.
+        if (requestSave) {
+          void requestSave().catch((err: unknown) => {
+            console.error('[useActionsSave] store() failed:', err)
+          })
+        }
       }
     })
   }, [])

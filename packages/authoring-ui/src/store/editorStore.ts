@@ -29,6 +29,12 @@ interface EditorState {
   saveError: string | null
   setSaveError: (error: string | null) => void
 
+  // T651.3: unified save entry point — bound closure returned by initEditor().
+  // Null until the editor is ready; set via setRequestSave in EditorCanvas Effect 1.
+  // See decisions/2026-04-17-request-save.md.
+  requestSave: ((opts?: { timeoutMs?: number }) => Promise<void>) | null
+  setRequestSave: (fn: EditorState['requestSave']) => void
+
   // Left sidebar tab: 'slides' | 'blocks'
   leftTab: 'slides' | 'blocks'
   setLeftTab: (tab: 'slides' | 'blocks') => void
@@ -76,6 +82,9 @@ export const useEditorStore = create<EditorState>()(devtools((set, get) => ({
   setIsSaving: (isSaving) => set({ isSaving }),
   saveError: null,
   setSaveError: (saveError) => set({ saveError }),
+
+  requestSave: null,
+  setRequestSave: (requestSave) => set({ requestSave }),
 
   leftTab: 'slides',
   setLeftTab: (leftTab) => set({ leftTab }),
