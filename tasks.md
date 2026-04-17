@@ -94,16 +94,18 @@
 
 ### T647 — Fix EditorCanvas pre-navigation store(): add UI state update
 
-> **Issue:** #8 (editor.store() in saveAndLoad() does not update isSaving/setSaveError)
-> Errors during pre-navigation save are silently swallowed — user sees no feedback.
 
-- [ ] T647.1 — Add `setIsSaving(true)` / `setSaveError()` calls around the
-  `editor.store()` call in `saveAndLoad()` — consistent with the autosave path
-- [ ] T647.2 — Unit test: verify SaveErrorBanner state is set when pre-navigation
-  store() fails
-- [ ] T647.3 — Run full test suite + push + verify CI green
-- [ ] T647.4 — Refine the generated code
-- [ ] T647.5 — A reviewer will generate `docs/issues/issues-T647.md`; resolve before closing
+> **Issue:** #12 (saveAndLoad editor.store() errors only log to console)
+> **Scope:** EditorCanvas.tsx saveAndLoad() pre-switch block
+> **Risk:** Low — isolated change, no impact on autosave debounce or storage adapter
+
+- [x] T647.1 — Add `useEditorStore.getState().setIsSaving(true/false)` and `setSaveError()` around the `await Promise.race([editor.store(), timeout])` block
+- [x] T647.2 — Ensure `setSaveError` extracts a user-friendly message (`err instanceof Error ? err.message : 'Save failed'`)
+- [x] T647.3 — Verify no conflict with `triggerAutosave` UI state (autosave aborts via CRITICAL-01 guard before this block runs)
+- [x] T647.4 — Unit/E2E test: simulate network failure during slide switch → verify `SaveErrorBanner` appears and `isSaving` resets to `false`
+- [x] T647.5 — Run full test suite + push + verify CI green
+- [x] T647.6 — Refine generated code (lint, types, comments)
+- [x] T647.7 — Reviewer generates `docs/issues/issues-T647.md`; resolve before closing
 
 ---
 

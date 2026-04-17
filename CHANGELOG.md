@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.51] — 2026-04-17 — T647: Surface pre-navigation save errors in SaveErrorBanner UI
+
+### Fixed
+- **[T647] Pre-navigation `store()` errors now surface in `SaveErrorBanner`** (`packages/authoring-ui/src/components/editor/EditorCanvas.tsx`) — The `saveAndLoad()` async function in Effect 2 previously silently caught `store()` failures with only a `console.error`. This violated the consistent-feedback principle: autosave errors already set `isSaving`/`saveError` in the Zustand store (via `initEditor.ts` lines 449–458), but the pre-navigation save path did not. Fix: added `setIsSaving(true)` + `setSaveError(null)` before the `Promise.race([editor.store(), timeout])` block, `setSaveError(msg)` in the `catch` (with `err instanceof Error ? err.message : 'Pre-navigation save failed'` narrowing), and `finally { setIsSaving(false) }`. The `console.error` is kept (belt-and-suspenders alongside UI state). Navigation is never blocked — a failed save is better than a frozen UI.
+- **[T647.3] No race with `triggerAutosave` UI state** — The CRITICAL-01 guard in `triggerAutosave` returns before calling `setIsSaving()` when the context has changed. In the narrow window where the autosave timer fires concurrently with `saveAndLoad()`'s `store()`, both stores write the same content to the same endpoint (harmless duplicate) and both `finally` blocks reset `isSaving` to `false`.
+
+### Tests
+- **`src/__tests__/EditorCanvas.test.tsx`** (new, 4 tests) — T647 regression suite using real Zustand store + mocked `initEditor`: T647.1 verifies `saveError` receives the rejection message and `isSaving` resets to `false`; T647.2 verifies success path leaves `saveError` null and calls `load()` twice; T647.3 verifies non-`Error` rejection produces fallback message `'Pre-navigation save failed'`; T647.4 verifies initial mount does not call `store()`.
+- **716 unit tests pass** (4 new T647 tests included).
+
+---
+
 ## [0.5.50] — 2026-04-17 — T646: Fix initEditor leaks — dragstart cleanup, autosaveTimer guard, ghost rAF isUnmounted (Phase 10)
 
 ### Fixed

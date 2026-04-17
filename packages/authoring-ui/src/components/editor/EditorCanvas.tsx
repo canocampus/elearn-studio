@@ -164,6 +164,10 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
       try {
         if (shouldSaveBeforeSwitch && !controller.signal.aborted) {
+          const { setIsSaving, setSaveError } = useEditorStore.getState()
+          setIsSaving(true)
+          setSaveError(null)
+
           try {
             // BUG-2 fix: stop any active text-edit command before storing.
             // Without this, the text buffer for the currently focused text widget is not
@@ -184,8 +188,12 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
               ),
             ])
           } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Pre-navigation save failed'
+            setSaveError(msg)
             // Log but don't block navigation — a failed save is better than a frozen UI.
             console.error('[EditorCanvas] Failed to save slide before switching:', err)
+          } finally {
+            setIsSaving(false)
           }
         }
 

@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-17 — T646 ✅ done (Phase 10: dragstart leak fixed, autosaveTimer cleared in cleanup, ghost rAF guarded by isUnmounted; 712 unit tests pass)
+> Last updated: 2026-04-17 — T647 ✅ done (Phase 10: pre-navigation store() errors now surface in SaveErrorBanner via Zustand; 716 unit tests pass)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.50 |
+| **Current version** | v0.5.51 |
 | **Active phase** | Phase 10 — React/GrapesJS Architectural Refactor |
-| **Active block** | T647 — Fix EditorCanvas pre-navigation store(): add UI state update |
+| **Active block** | T648 — Fix Zustand/Backbone duality in all PropertiesPanel components |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
 
 ---
 
 ## What Was Last Done
+
+- **T647 — Fix EditorCanvas pre-navigation store(): add UI state update ✅ (T647 CLOSED)** — Phase 10 fourth task. The `saveAndLoad()` pre-navigation save block in `EditorCanvas.tsx` silently caught errors via `console.error` but never updated Zustand, so `SaveErrorBanner` never appeared on slide-switch failures. Fix: added `setIsSaving(true)` + `setSaveError(null)` at block entry, `setSaveError(msg)` in catch with `err instanceof Error` narrowing (fallback: `'Pre-navigation save failed'`), and `finally { setIsSaving(false) }` — guarantees reset on success, error, and timeout. `useEditorStore.getState()` called synchronously at block entry (avoids stale closure). Verified no race with `triggerAutosave`: CRITICAL-01 guard in `initEditor.ts` returns early before touching `setIsSaving` when context has changed at debounce fire time. New file: `src/__tests__/EditorCanvas.test.tsx` — 4 regression tests using real Zustand store (not mocked) + mocked `initEditor`. All 4/4 pass. 716/716 unit tests green. Code review: APPROVED (0 issues). `docs/issues/issues-T647.md` generated.
 
 - **T646 — Fix initEditor leaks: dragstart listener + autosaveTimer guard ✅ (T646 CLOSED)** — Phase 10 third task. Three accumulated resource leaks fixed in `initEditor.ts`. T646.3: `dragstart` listener extracted as named `dragstartHandler` const — registered once on `blockContainer`, removed by exact same reference in `cleanup()`. Prior to fix, each `initEditor()` call added a new handler without removing the previous; after 3–4 course changes, multiple handlers mutated the drag ghost simultaneously. T646.4: replaced `try/catch` DOM removal with `ghost.isConnected` guard; added `isUnmounted` flag (set to `true` in `cleanup()`) that blocks the `requestAnimationFrame` callback from touching `document.body` after `editor.destroy()`. T646.1/T646.2: `cleanup()` function composes all teardown — `isUnmounted = true` → `clearTimeout(autosaveTimer)` → `removeEventListener('dragstart', dragstartHandler)` → `unsubscribeCacheInvalidate()`. Called by `EditorCanvas` Effect 1 before `editor.destroy()`. T646.5: `_isEditorLoading` module-level flag kept; decision documented in `decisions/2026-04-17-editor-loading-flag.md` (GrapesJS fires `component:add` synchronously during `loadData()` — no React state update can propagate in time). T646.6: 4 new unit tests using `vi.useFakeTimers()` — clearTimeout guard, no-accumulation across 3 cycles, isUnmounted blocks removeChild in rAF; key afterEach pattern: `querySelectorSpy.mockRestore()` NOT `vi.restoreAllMocks()` (restoreAllMocks resets all vi.fn() module mocks). T646.8: task-ref comments removed from dragstart block; tsc clean. Code review: APPROVED (0 issues). `docs/issues/issues-T646.md` generated. 712/712 tests pass. Commits: `00dce16`, `e843512`.
 
@@ -268,8 +270,8 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T644** — Fix PhaserSimPropertiesPanel: align with panel pattern~~ ✅ Done (v0.5.48)
 - ~~**T645** — Fix storageManager singletons: StorageContextProvider DI~~ ✅ Done (v0.5.49)
 - ~~**T646** — Fix initEditor leaks: dragstart listener + autosaveTimer~~ ✅ Done (v0.5.50)
-- **T647** — Fix EditorCanvas pre-navigation store(): add UI state update 🔄 NEXT UP
-- **T648** — Fix Zustand/Backbone duality in all PropertiesPanel components
+- ~~**T647** — Fix EditorCanvas pre-navigation store(): add UI state update~~ ✅ Done (v0.5.51)
+- **T648** — Fix Zustand/Backbone duality in all PropertiesPanel components 🔄 NEXT UP
 - **T649** — Fix stale closure in QuestionPropertiesPanel updateOption
 - **T650** — beforeunload flash save: prevent data loss on tab close
 - **T651** — Unify persistence via requestSave(): single save entry point
