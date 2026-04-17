@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.49] — 2026-04-17 — T645: Eliminate storageManager singletons — StorageContextProvider DI (Phase 10)
+
+### Refactored
+- **[T645] `storageContext` singleton eliminated** (`packages/authoring-ui/src/editor/storageManager.ts`) — Replaced the three module-level singletons (`storageContext`, `updateStorageContext`, `getStorageContext`) and the imperative `invalidateCourseCache()` function with a `StorageContextProvider` interface. The provider is instantiated in `initEditor.ts` and passed into `registerStorageManager(editor, provider)`. `storageManager.ts` now has no Zustand import — context is injected via DI. Context is read at `load()`/`store()` invocation time via `provider.getContext()` (synchronous Zustand `getState()` call), preserving the race-condition guard for fast navigation.
+- **[T645.3.4] Context captured synchronously at call time** — `provider.getContext()` returns the live Zustand slice at the moment `load()`/`store()` executes, not a stale snapshot from registration time. Prevents courseId/slideId desync on fast slide navigation.
+- **[T645.3.5] `courseCache` lifecycle strictly tied to provider** — Cache is now exclusively managed inside `registerStorageManager`. Invalidation is driven by `provider.onCacheInvalidate(callback)` — a Zustand `subscribe` callback that fires whenever `bumpCacheVersion()` is called in the store.
+- **[T645.4] `bumpCacheVersion()` replaces `invalidateCourseCache()`** (`packages/authoring-ui/src/store/editorStore.ts`) — New Zustand action increments `cacheVersion` counter. The `onCacheInvalidate` subscriber in `registerStorageManager` detects the version bump and resets `courseCache = null`.
+- **[T645.5] All callers updated** — `EditorCanvas.tsx`, `TopToolbar.tsx`, `SlideList.tsx` call `bumpCacheVersion()` in place of `invalidateCourseCache()`. `initEditor` return type changed from `Editor` to `{ editor: Editor; cleanup: () => void }` — cleanup wraps `unsubscribeCacheInvalidate()` and is designed to be extended by T646 (autosaveTimer + dragstart).
+- **[T645.7] Cleanup wrapper in `initEditor.ts`** — Explicit `cleanup()` function returned alongside `editor`. Stale autoload comment corrected to reflect the current `setEditorContext()` / `provider.getContext()` path. Designed for T646 extensibility.
+
+### Tests
+- **`src/__tests__/storageManager.test.ts`** — Rewritten to use `makeProvider()` helper (returns `{ provider, setContext, triggerInvalidate }`). `beforeEach` resets `courseCache` via immediate-callback provider. 16 tests covering: load cache-hit/miss, store cache update, cache invalidation via `triggerInvalidate`, early guard (missing courseId/slideId), corrupt-slides guard, error paths.
+- **`src/__tests__/initEditor.test.ts`** — Zustand mock extended with `subscribe`, `bumpCacheVersion`, `cacheVersion`. Return type assertion: `expect(result.editor).toBe(fakeEditor)`.
+- **All 708 unit tests pass.** No live calls to old API (`updateStorageContext`, `getStorageContext`, `invalidateCourseCache`) remain — confirmed by grep.
+
+---
+
 ## [0.5.48] — 2026-04-17 — T644: Fix PhaserSimPropertiesPanel — align with panel pattern (Phase 10)
 
 ### Fixed

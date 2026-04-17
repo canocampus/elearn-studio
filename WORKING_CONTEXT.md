@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-17 — T644 ✅ done (Phase 10: PhaserSimPropertiesPanel aligned with panel pattern — useComponentProperty, no editor.store(), pure controlled textarea)
+> Last updated: 2026-04-17 — T645 ✅ done (Phase 10: StorageContextProvider DI — eliminated storageContext/invalidateCourseCache singletons; registerStorageManager + bumpCacheVersion; cleanup fn for T646)
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.48 |
+| **Current version** | v0.5.49 |
 | **Active phase** | Phase 10 — React/GrapesJS Architectural Refactor |
-| **Active block** | T645 — Fix storageManager singletons (next up) |
+| **Active block** | T646 — Fix initEditor leaks (next up) |
 | **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
 
 ---
 
 ## What Was Last Done
+
+- **T645 — Fix storageManager singletons: StorageContextProvider DI ✅ (T645 CLOSED)** — Phase 10 second task. Eliminated three module-level singletons (`storageContext`, `updateStorageContext`/`getStorageContext`, `invalidateCourseCache`) that bypassed React's lifecycle. Replacement: `StorageContextProvider` interface (T645.3.1) with `getContext()` (reads Zustand `getState()` synchronously at call time — T645.3.4) and `onCacheInvalidate(cb)` (Zustand plain `subscribe` on `cacheVersion` — T645.4). `storageManager.ts` has no Zustand import — DI only. New `registerStorageManager(editor, provider): () => void` replaces old init pattern. `bumpCacheVersion()` Zustand action replaces `invalidateCourseCache()`. `courseCache` lifecycle strictly private to module, reset only via provider callbacks (T645.3.5). Callers updated: `EditorCanvas.tsx`, `TopToolbar.tsx`, `SlideList.tsx` (T645.5). `initEditor` return type changed to `{ editor, cleanup }` — cleanup wraps `unsubscribeCacheInvalidate()` and is designed for T646 extensibility (T645.7). `storageManager.test.ts` rewritten with `makeProvider()` helper; 708/708 tests pass. Old API grep: 0 live calls remain. Code review: APPROVED (0 issues). `docs/issues/issues-T645.md` generated. Commits: `505de96`, `6752076`.
 
 - **T644 — Fix PhaserSimPropertiesPanel: align with panel pattern ✅ (T644 CLOSED)** — Phase 10 first task. `PhaserSimPropertiesPanel` was the only panel that bypassed the established `useComponentProperty` pattern. T644.1: replaced direct `getExtendedProps(selected)` read with `useComponentProperty<PhaserSimExtendedProps>` subscription — undo/redo now re-renders the panel correctly. T644.2: removed `editor.store()` call from `update()` — saves route through `comp.set()` → `component:update` → debounced autosave in `initEditor.ts`. T644.3: replaced `onBlur` sync with `useEffect([ep.sceneDef])` so the textarea reflects any external Backbone mutation (undo/redo, remote). T644.7 refinements: `PhaserSimSceneDefEditor` converted to pure controlled component (no internal state); `GjsComponent` type exported from `useComponentProperty.ts`; optimistic `setValue()` added to `useExtendedProperty.update()` (parity with `useComponentProperty`); `Handler` → `ChangeHandler` rename + `ComponentMock` interface in hook test. 16 panel regression tests + all 712 suite tests green. Code review: APPROVED (0 issues). `docs/issues/issues-T644.md` generated. Commits: `9fcaf6d`, `df52fdf`, `b5e2a20`.
 
@@ -258,12 +260,17 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T636** — Cross-slide copy/paste~~ ✅ Done (v0.5.42)
 - ~~**T637** — Text widget editing: RTE cursor loss investigation + fixes~~ ✅ Done (v0.5.43)
 - ~~**T638** — Fix typography changes not affecting Quiz Score and Score Field~~ ✅ Done (v0.5.43)
-- **T639** — Stale-closure fix: `getLatest()` in property panels 🔄 IN PROGRESS (T639.1–T639.6 ✅, T639.7–T639.11 pending)
-  - T639.7: Unit test — rapid consecutive `update()` calls must not lose data
-  - T639.8: E2E regression — rapidly type MC question text + add option → both persist
-  - T639.9: Full suite + CI green
-  - T639.10: Refine generated code
-  - T639.11: Code reviewer generates `docs/issues/issues-T639.md`
+- ~~**T639** — Stale-closure fix: `getLatest()` in property panels~~ ✅ Done
+
+### Phase 10 — React/GrapesJS Architectural Refactor (ACTIVE)
+- ~~**T644** — Fix PhaserSimPropertiesPanel: align with panel pattern~~ ✅ Done (v0.5.48)
+- ~~**T645** — Fix storageManager singletons: StorageContextProvider DI~~ ✅ Done (v0.5.49)
+- **T646** — Fix initEditor leaks: dragstart listener + autosaveTimer 🔄 NEXT UP
+- **T647** — Fix EditorCanvas pre-navigation store(): add UI state update
+- **T648** — Fix Zustand/Backbone duality in all PropertiesPanel components
+- **T649** — Fix stale closure in QuestionPropertiesPanel updateOption
+- **T650** — beforeunload flash save: prevent data loss on tab close
+- **T651** — Unify persistence via requestSave(): single save entry point
 
 ---
 

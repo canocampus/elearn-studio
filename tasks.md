@@ -64,8 +64,8 @@
 - [x] T645.5.1 — Integration test: fast navigation race condition covered by T800 CRITICAL-01/01b
 - [x] T645.6 — Run full test suite (708/708 pass) + commit
 - [x] T645.6.1 — grep confirms no live calls to old API remain (only comments)
-- [ ] T645.7 — Refine the generated code
-- [ ] T645.8 — A reviewer will generate `docs/issues/issues-T645.md`; resolve before closing
+- [x] T645.7 — Refine the generated code
+- [x] T645.8 — A reviewer will generate `docs/issues/issues-T645.md`; resolve before closing — 0 issues found, APPROVED
 
 ---
 
