@@ -102,11 +102,15 @@ export function useComponentProperty<T>(
 }
 ```
 
-**Key invariants (enforced by tests — 35 passing):**
+**Key invariants (enforced by tests — 38 passing):**
 - `null` component → returns `defaultValue`, registers no listener, `update()` is a pure no-op
 - Rapid A→B→A selection → value always matches the currently mounted component
 - `comp.set()` externally (Undo/Redo) → React re-renders via `onChange` handler
 - `getLatest()` returns the ref-backed value — safe to call inside stale closures (T639.1)
+- Two consecutive `update()` calls within the same `act()` / event cycle → second call sees
+  the first call's value via `getLatest()` — no silent clobber (T649)
+
+> ⚠️ **Implementation Note**: `latestRef.current` is updated **synchronously** within `update()` (not just on render). This ensures that `getLatest()` reflects the most recent value even if called from another callback in the same event cycle. This pattern is essential to avoid stale closures in batched operations.
 
 ---
 
