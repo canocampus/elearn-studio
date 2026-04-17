@@ -306,8 +306,10 @@ it('T649.5: getLatest() reflects external comp.set() (Undo/Redo) immediately', a
 
 Shared pipeline extracted to `backend/api/src/lib/export/runExport.ts`: pure function `runExport(course, format, options?)` with a `PACKERS` registry keyed by `ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'`. Asset pipeline helpers (`collectAssetSrcs`, `rewriteAssetSrcs`, `downloadAssets`) moved into the same module and exported for direct testing. Route layer in `courses.ts` reduced from 3× ~35-line handlers to a single `buildExportHandler(format)` factory + 3 one-line route registrations. Error path owns tmpDir cleanup inside `runExport` (caller only sees tmpDir on success). 17 unit tests cover dispatch, pipeline order, result shape, error-path cleanup, missing-asset skip, format-specific tmpDir prefixes. Backend suite: 148/148 pass (pre-TD-001: 131; +17 new). **xAPI marginal cost: 70 LOC → 2 LOC (35×).**
 
-### TD-002 — T641: preview feature needs full E2E test
-> **Source:** T641 — T611.10 skip removed but full popup flow not E2E tested end-to-end
+### TD-002 — T641: preview feature needs full E2E test ✅ DONE (2026-04-17)
+> **Source:** T641 — T611.10 skip removed but full popup flow not E2E tested end-to-end | **Status:** Resolved
+
+Added `e2e/tests/preview-handshake.spec.ts` with one `@integration` test covering the full handshake: Preview click → popup opens at `/preview.html` → popup signals `'elearn-preview-ready'` to correct origin (not `'*'`) → opener receives the signal → opener posts `{ type:'elearn-preview-data', course, slideIndex }` → popup's `ELearnPlayer.init('player', course, …)` renders content into `#player`. Critical Rule 5 is asserted (`Object.keys(localStorage).length === 0` in popup). Popup spy installed via `context.addInitScript()` so it intercepts `window.opener.postMessage` and inbound `message` events before `preview.html`'s inline script runs. CI run 24586873603 (E2E stage) completed with success in 17m03s — all 163 E2E tests green including the new one.
 
 ### TD-003 — T642/T643: known issues pending resolution
 > **Source:** T642 (FLAKE-03 per-test course isolation) + T643 (forEach bugs — partially fixed)

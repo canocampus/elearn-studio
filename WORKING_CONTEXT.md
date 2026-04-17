@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-17 — **Phase 10 CLOSED** ✅ T651 done (unified persistence via `requestSave()`; 5 call sites collapsed to 1; 3 silent-failure bugs auto-fixed; `grep "editor.store()"` green everywhere except `storageManager.ts:68`; 1533/1533 unit+integration, CI run 24582182042 success)
+> Last updated: 2026-04-17 — **TD-002 CLOSED** ✅ Preview E2E test added (`e2e/tests/preview-handshake.spec.ts`); full T641 postMessage handshake covered + Critical Rule 5 asserted; 163 E2E tests, CI run 24586873603 success (17m03s). Phase 10 (T651) and TD-001 remain closed.
 
 ---
 
@@ -12,13 +12,17 @@
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
 | **Current version** | v0.5.55 |
-| **Active phase** | — (Phase 10 closed; backlog items TD-001…TD-007 available) |
-| **Active block** | T651 ✅ — **Phase 10 CLOSED** — no active block |
-| **E2E test count** | 162 tests (160 passing, 2 skipped — T611.10 resolved) |
+| **Active phase** | — (Phase 10 closed; tech-debt backlog TD-003…TD-007 available) |
+| **Active block** | TD-002 ✅ — preview E2E added; no active block |
+| **E2E test count** | 163 tests (161 passing, 2 skipped — TD-002 adds 1 new `@integration` test) |
 
 ---
 
 ## What Was Last Done
+
+- **TD-002 — Preview feature E2E test ✅ (TD-002 CLOSED)** — Added `e2e/tests/preview-handshake.spec.ts` with one `@integration` test exercising the full T641 preview postMessage handshake end-to-end: click Preview → popup opens at `/preview.html` → popup signals `'elearn-preview-ready'` to correct origin (not `'*'`) → opener receives it → opener posts `{ type:'elearn-preview-data', course, slideIndex }` back → popup's `ELearnPlayer.init('player', course, …)` renders content into `#player` (no `.preview-error` fallback). Critical Rule 5 asserted via `Object.keys(popup.localStorage).length === 0`. Popup spy implementation detail: `context.addInitScript()` wraps `window.opener` via `Object.defineProperty` to record every `postMessage()` call AND registers a `'message'` listener to record every inbound event — all before `preview.html`'s inline script runs (the only way to observe the outbound ready signal since `addInitScript` fires before document scripts). Opener spy installed via `page.evaluate` after the opener page has loaded. CI run 24586873603 completed with success in 17m03s — all 163 E2E tests green including the new one. TD-002 marked DONE in `tasks.md`. Commit: `583b229`.
+
+- **TD-001 — Backend export routes: shared `runExport()` helper ✅ (TD-001 CLOSED)** — See `docs/issues/issues-TD-001.md`. Shared pipeline extracted to `backend/api/src/lib/export/runExport.ts` with a `PACKERS` registry; route layer in `courses.ts` reduced from 3× ~35-line handlers to a single `buildExportHandler(format)` factory + 3 one-line registrations. 17 new tests; backend 148/148 pass. **xAPI marginal cost: 70 LOC → 2 LOC (35×).** CI run 24584714505 success.
 
 - **T651 — Unified persistence via `requestSave()` ✅ (T651 CLOSED — Phase 10 CLOSED)** — Eighth and final task of Phase 10. Five pre-T651 call sites duplicated the save recipe (`setIsSaving` + `setSaveError` + try/catch around `editor.store()`); three of them had silent-failure bugs from drift. T651 collapses them to one entry point via a two-layer design: **Layer 1** `performSave(editor, hooks)` pure primitive in `storageManager.ts` (no Zustand, no React — preserves T645 DI invariant); **Layer 2** Zustand-bound `requestSave(opts?)` closure in `initEditor.ts` wiring `performSave`'s `onStart`/`onSuccess`/`onError` hooks into `setIsSaving`/`setSaveError`; **Layer 3** `requestSave` field in `editorStore.ts` set via `setRequestSave(requestSave)` in `EditorCanvas` Effect 1. Bonus migrations (ADR-mandated to prevent immediate drift): `SaveErrorBanner.handleRetry`, `useActionsSave` subscribe, `SimulationEditor.handleSave` — all three **silent-failure bugs auto-fixed** (failures now surface in `SaveErrorBanner`; `SaveErrorBanner.handleRetry` regains the missing `setIsSaving(true)` via `onStart`; regression test `T651.3: sets isSaving(true) during retry` added). `grep "editor.store()"` is green everywhere except `storageManager.ts:68` (the single remaining invocation). Seven ADR guardrails honoured: DI pure, race guard stays in triggerAutosave, stopCommand flush stays in saveAndLoad, T650 unload untouched, timeout scoped to pre-nav only, null-safe at all callers, GrapesJS StorageManager contract unchanged. Non-`Error` fallback message harmonised to `'Save failed'` across callers (was 3 different strings). Course meta-ops (addSlide/deleteSlide/updateCourse) explicitly out of scope — candidate TD-007. 1533/1533 unit+integration tests pass. CI run `24582182042`: success (17m02s). Code review: APPROVED (0 findings above INFO). `docs/issues/issues-T651.md` generated. ADR: `decisions/2026-04-17-request-save.md`. Commits: `501c6aa` (feature + migration + tests), Phase 10 closure commit (refinements + docs + CHANGELOG + WORKING_CONTEXT).
 
