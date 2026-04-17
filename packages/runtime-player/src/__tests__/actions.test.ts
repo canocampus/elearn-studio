@@ -586,6 +586,104 @@ describe('EventDispatcher', () => {
   })
 })
 
+// ─── TD-003 regression: legacy MongoDB data (undefined arrays) ───────────────
+//
+// Legacy documents persisted before `actions` / `then` / `else` / `body` became
+// required fields can arrive at runtime with those arrays missing. Iterating
+// over `undefined` throws TypeError and aborts the sequence. The guards added
+// in executor.ts / dispatcher.ts / callSequence.ts must turn these cases into
+// no-ops instead of crashes.
+
+describe('TD-003 — forEach guards on legacy MongoDB data', () => {
+  it('ActionExecutor.run() no-ops on undefined actions array', async () => {
+    const ctx = makeCtx()
+    await expect(
+      // @ts-expect-error intentionally passing undefined to exercise the guard
+      new ActionExecutor(ctx).run(undefined),
+    ).resolves.toBeUndefined()
+  })
+
+  it('ActionExecutor.run() no-ops on empty actions array (control)', async () => {
+    const ctx = makeCtx()
+    await expect(new ActionExecutor(ctx).run([])).resolves.toBeUndefined()
+  })
+
+  it('condition with undefined then branch does not throw', async () => {
+    const ctx = makeCtx()
+    ctx.variables.set('flag', 'true')
+    // @ts-expect-error intentionally omit then/else to simulate legacy data
+    const action: Action = {
+      type: 'condition',
+      params: { expression: '$flag' /* then / else missing */ },
+    }
+    await expect(new ActionExecutor(ctx).run([action])).resolves.toBeUndefined()
+  })
+
+  it('loop with undefined body does not throw', async () => {
+    const ctx = makeCtx()
+    // @ts-expect-error intentionally omit body to simulate legacy data
+    const action: Action = {
+      type: 'loop',
+      params: { mode: 'count', count: 3 /* body missing */ },
+    }
+    await expect(new ActionExecutor(ctx).run([action])).resolves.toBeUndefined()
+  })
+
+  it('call-sequence referencing a shared sequence without actions does not throw', async () => {
+    const ctx = makeCtx({
+      // @ts-expect-error legacy shared sequence missing actions
+      sharedSequences: [{ name: 'legacyShared' }],
+    })
+    const action: Action = {
+      type: 'call-sequence',
+      params: { sequenceName: 'legacyShared' },
+    }
+    await expect(new ActionExecutor(ctx).run([action])).resolves.toBeUndefined()
+  })
+
+  it('EventDispatcher.attachWidget does not throw on undefined sequences', () => {
+    const ctx = makeCtx()
+    const dispatcher = new EventDispatcher(ctx)
+    const el = document.createElement('button')
+    document.body.appendChild(el)
+    expect(() =>
+      // @ts-expect-error legacy widget with no actions persisted
+      dispatcher.attachWidget(el, 'w1', undefined),
+    ).not.toThrow()
+    dispatcher.teardown()
+    document.body.removeChild(el)
+  })
+
+  it('EventDispatcher.fireSlideEvent does not throw on undefined outer array', () => {
+    const ctx = makeCtx()
+    const dispatcher = new EventDispatcher(ctx)
+    expect(() =>
+      // @ts-expect-error simulate a slide render call with no widgets collected
+      dispatcher.fireSlideEvent('enterSlide', undefined),
+    ).not.toThrow()
+  })
+
+  it('EventDispatcher.fireSlideEvent does not throw on entry with undefined sequences', () => {
+    const ctx = makeCtx()
+    const dispatcher = new EventDispatcher(ctx)
+    expect(() =>
+      dispatcher.fireSlideEvent('enterSlide', [
+        // @ts-expect-error legacy widget entry missing its sequences array
+        { widgetId: 'w1' /* sequences missing */ },
+      ]),
+    ).not.toThrow()
+  })
+
+  it('EventDispatcher.fireWidgetEvent does not throw on undefined sequences', () => {
+    const ctx = makeCtx()
+    const dispatcher = new EventDispatcher(ctx)
+    expect(() =>
+      // @ts-expect-error legacy widget with no actions persisted
+      dispatcher.fireWidgetEvent('w1', 'click', undefined),
+    ).not.toThrow()
+  })
+})
+
 // ─── ActionExecutor — play-animation ─────────────────────────────────────────
 
 describe('ActionExecutor — play-animation', () => {

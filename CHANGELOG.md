@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.57] — 2026-04-18 — TD-003: T642 isolation confirmed + T643 runtime forEach guards
+
+### Fixed
+- **[TD-003 / T643] Runtime player no longer crashes on legacy MongoDB sequences with undefined arrays** — `packages/runtime-player/src/actions/executor.ts` guards `for (const action of actions ?? [])`; `packages/runtime-player/src/actions/dispatcher.ts` guards `attachWidget` (`sequences ?? []`), `fireSlideEvent` (outer `allWidgetSequences ?? []` + inner `(sequences ?? []).filter(…)`), and `fireWidgetEvent` (`(sequences ?? []).filter(…)`); `packages/runtime-player/src/actions/builtins/callSequence.ts` guards `shared.actions ?? []`. The single executor guard transparently covers every recursive caller (`condition.then`/`else`, `loop.body`, `call-sequence`), so `condition.ts` and `loop.ts` are deliberately left untouched. Root cause: prior to the `Action[]` field becoming mandatory, some documents persisted with `then`/`else`/`body`/`actions` simply absent; the T643.2 fix covered the authoring-side `validateSequence.ts` but missed the runtime-player equivalents.
+
+### Added
+- **[TD-003] 9 runtime-player regression tests** (`packages/runtime-player/src/__tests__/actions.test.ts` → new `TD-003 — forEach guards on legacy MongoDB data` describe) — each test feeds an intentionally-typed-`@ts-expect-error` legacy shape (`undefined` array) to `ActionExecutor.run` / `EventDispatcher.attachWidget` / `fireSlideEvent` / `fireWidgetEvent` / call-sequence with an action-less shared sequence, and asserts the call **resolves to a no-op instead of throwing**. Runtime-player suite: **256 → 265 tests (all green)**.
+- **[TD-003] `docs/issues/issues-TD-003.md`** — self-review combining T642 audit confirmation with the T643 runtime-side fix, including the full pre-fix audit table of every `.forEach` / `for … of` site in the action engine (which were guarded before, which were not, which are structurally safe because they iterate NodeLists).
+
+### Notes
+- **[TD-003 / T642] FLAKE-03 confirmed resolved** — audit of `e2e/global-setup.ts:15-18` and `e2e/fixtures/auth.ts:56-86` confirms the per-test course isolation delivered in the prior T642.2 fix: `global-setup.ts` no longer calls `POST /courses`; each test gets a fresh course ID created in the `editorPage` fixture setup phase and deleted in teardown with a re-fetched token. No code change required for T642. Local 3-worker verification was blocked by a Vite esbuild subprocess crash (env issue unrelated to TD-003); CI is authoritative and has passed every run since T642.2.
+- **[TD-003] Deliberately out-of-scope**: (a) a schema-level migration backfilling `actions: []` on legacy MongoDB documents — proper long-term fix but carries data-loss risk without a dry-run audit; (b) a generic `safeIter(arr)` helper — three explicit `?? []` at three call sites is clearer than one abstraction that would obscure which array is being guarded against which legacy shape.
+- **[TD-003] Rejected reorg**: adding redundant guards inside `condition.ts` / `loop.ts` — the executor-level guard already covers recursion through `this.run(…)`, so extra local guards would be dead defensive code that no test could distinguish from the executor guard.
+
+---
+
 ## [0.5.56] — 2026-04-18 — TD-004: `ELearnComponent` type + TD-002: Preview E2E + TD-001: Shared `runExport()`
 
 ### Added

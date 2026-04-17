@@ -23,5 +23,7 @@ export async function executeCallSequence(
     console.warn(`[call-sequence] No shared sequence found with name "${sequenceName}"`)
     return
   }
-  await run(shared.actions)
+  // TD-003: legacy SharedActionSequence documents may have actions undefined.
+  // Executor.run() also guards, but keep the explicit default here for clarity.
+  await run(shared.actions ?? [])
 }

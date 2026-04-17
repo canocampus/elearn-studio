@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-18 — **TD-004 CLOSED** ✅ `ELearnComponent` interface added (`packages/authoring-ui/src/types/ELearnComponent.ts`); `useComponentProperty.ts` cast sites collapsed (6 → 2); zero runtime change; 731/731 authoring-ui unit tests pass. Phase 10 (T651), TD-001 and TD-002 remain closed.
+> Last updated: 2026-04-18 — **TD-003 CLOSED** ✅ T642 (FLAKE-03) confirmed resolved by prior T642.2 fixture isolation; T643 extended to runtime-player (executor.ts, dispatcher.ts, callSequence.ts) — 6 unguarded iteration sites fixed with `?? []` defaults, 9 new regression tests, 265/265 runtime-player tests pass, 731/731 authoring-ui pass. TD-004, TD-002, TD-001 and Phase 10 (T651) remain closed.
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.56 |
-| **Active phase** | — (Phase 10 closed; tech-debt backlog TD-003, TD-005, TD-006, TD-007 available) |
-| **Active block** | TD-004 ✅ — ELearnComponent interface added; no active block |
+| **Current version** | v0.5.57 |
+| **Active phase** | — (Phase 10 closed; tech-debt backlog TD-005, TD-006, TD-007 available) |
+| **Active block** | TD-003 ✅ — T642/T643 resolved; no active block |
 | **E2E test count** | 163 tests (161 passing, 2 skipped) |
 
 ---
 
 ## What Was Last Done
+
+- **TD-003 — T642 (FLAKE-03) confirmed resolved + T643 runtime forEach guards ✅ (TD-003 CLOSED)** — Bundled resolution of two independent tech-debt items. **T642 (FLAKE-03)**: audit confirms the per-test course isolation was already delivered by the prior T642.2 fixture fix — `e2e/global-setup.ts:15-18` no longer calls `POST /courses` (comment explicitly documents the removal); `e2e/fixtures/auth.ts:56-86` creates a fresh course per test in the `editorPage` fixture setup phase and deletes it in teardown with a re-fetched token. Every CI run since T642.2 has passed FLAKE-03; no code change was required. **T643 runtime extension**: authoring-side was already guarded in T643.1/T643.2 (`validateSequence.ts` with `?.forEach`, `converters.ts` with hard-coded `actions: []`), but the runtime player had 6 unguarded iteration sites over legacy MongoDB data. Fix: `packages/runtime-player/src/actions/executor.ts` → `for (const action of actions ?? [])` at the load-bearing recursion point (transparently protects `condition.then`/`else`, `loop.body`, and `call-sequence` via delegation); `packages/runtime-player/src/actions/dispatcher.ts` → `attachWidget(sequences ?? [])`, `fireSlideEvent` outer+inner (`allWidgetSequences ?? []` + `(sequences ?? []).filter(…)`), `fireWidgetEvent((sequences ?? []).filter(…))`; `packages/runtime-player/src/actions/builtins/callSequence.ts` → `run(shared.actions ?? [])` (belt-and-suspenders). Deliberate non-fixes: `condition.ts` and `loop.ts` left untouched (executor guard covers them via `this.run()` recursion; adding local guards would be dead defensive code no test can distinguish); `querySelectorAll().forEach()` sites (9 of them across `index.ts`, `handlers.ts`, `visibility.ts`) left unguarded — NodeList is never undefined, adding guards would create a false impression of risk. Schema-level migration of legacy documents deferred — proper long-term fix but carries data-loss risk without dry-run audit; runtime guards remain as cheap safety net. Coverage: 9 new regression tests in `actions.test.ts` (new describe `TD-003 — forEach guards on legacy MongoDB data`) feed `@ts-expect-error` legacy shapes (undefined arrays) to every affected entry point and assert no-op resolution instead of TypeError. Runtime-player suite: 256 → **265/265 pass**. Authoring-ui: **731/731 pass** (no regression). `npx tsc --noEmit` both packages: exit 0. `docs/issues/issues-TD-003.md` generated. Version bumped to v0.5.57.
 
 - **TD-004 — `ELearnComponent` typed view over GrapesJS `Component` ✅ (TD-004 CLOSED)** — Pure type-safety refactor. Added `packages/authoring-ui/src/types/ELearnComponent.ts` exporting `ELearnComponent = Component & { get(key: string): unknown; set(key: string, value: unknown): void; on(event: string, handler: () => void): void; off(event: string, handler: () => void): void }`. Replaces the private `GjsComponent` type previously defined inline at `useComponentProperty.ts:4-9`. The interface loosens only the four methods that hooks use with arbitrary string keys/events (because GrapesJS's `Component.get<A extends keyof ComponentProperties>` rejects elearn custom fields like `extendedProperties`, `actions`, `questionText`, `options`, `sceneDef`); every other typed method stays strongly-typed via the base `Component` class. Return type of `get` is `unknown` (not `any`) so callers still narrow at the use site. `useComponentProperty.ts` now narrows `component as ELearnComponent | null` **exactly once per hook** at function entry instead of at every method call — 6 scattered casts collapsed to 2 authoritative narrowings. `GRAPESJS_REACT_PATTERNS.md` code example updated with a leading comment explaining the rename. Scope deliberately narrow: property panels (Button/PhaserSim/Question/Animation/etc.) were NOT refactored because they compile clean against grapesjs's existing typings — their method usage stays within `ComponentProperties`. Test mocks retain `as unknown as Component` casts by design (mock-construction lives at a different type-safety boundary). Production code `grep "as GjsComponent"` and `grep "as unknown as Component"` both return 0 matches. `npx tsc --noEmit`: exit 0. 731/731 authoring-ui unit tests pass unmodified. Version bumped to v0.5.56.
 

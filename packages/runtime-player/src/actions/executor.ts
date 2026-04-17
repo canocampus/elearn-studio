@@ -35,10 +35,19 @@ export class ActionExecutor {
    * Execute a list of actions serially.
    * This method is intentionally public so ConditionAction / LoopAction
    * can recurse into it for nested sequences.
+   *
+   * TD-003: `actions` is declared `Action[]`, but on legacy MongoDB documents
+   * saved before `then`/`else`/`body`/`actions` became required fields, the
+   * array may arrive as `undefined` at runtime (e.g. a condition action whose
+   * `then` branch was empty was persisted without the key). Iterating over
+   * `undefined` throws TypeError and aborts the whole sequence. Default to `[]`
+   * so the action call becomes a no-op instead — preserves forward-compat with
+   * any future caller that forgets the guard and matches the defensive pattern
+   * used in `validateSequence.ts` (authoring-side).
    */
   async run(actions: Action[]): Promise<void> {
     const errors: Error[] = []
-    for (const action of actions) {
+    for (const action of actions ?? []) {
       const startTs = Date.now()
       window.dispatchEvent(new CustomEvent('elearn:action:start', {
         detail: { type: action.type, timestamp: startTs },

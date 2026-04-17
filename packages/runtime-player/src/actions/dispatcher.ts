@@ -38,7 +38,9 @@ export class EventDispatcher {
     widgetId: string,
     sequences: ActionSequence[],
   ): void {
-    for (const seq of sequences) {
+    // TD-003: defensive guard — legacy MongoDB documents may omit the `actions`
+    // field on a widget with no sequences, so `sequences` arrives as undefined.
+    for (const seq of sequences ?? []) {
       const domEvent = widgetEventToDom(seq.event)
       if (!domEvent) continue
 
@@ -88,8 +90,11 @@ export class EventDispatcher {
     eventName: 'enterSlide' | 'exitSlide',
     allWidgetSequences: Array<{ widgetId: string; sequences: ActionSequence[] }>,
   ): void {
-    for (const { sequences } of allWidgetSequences) {
-      const matching = sequences.filter((s) => s.event === eventName)
+    // TD-003: `allWidgetSequences` is assembled from course.slides[i].widgets[j].actions
+    // in the player; a legacy widget without actions persisted as undefined reaches
+    // this loop through the outer `sequences` field.
+    for (const { sequences } of allWidgetSequences ?? []) {
+      const matching = (sequences ?? []).filter((s) => s.event === eventName)
       for (const seq of matching) {
         this.executor.run(seq.actions).catch((err) => {
           console.error(`[EventDispatcher] Error executing ${eventName}:`, err)
@@ -102,7 +107,8 @@ export class EventDispatcher {
    * Fire a named event for a specific widget (e.g. 'questionAnswered', 'questionCorrect').
    */
   fireWidgetEvent(widgetId: string, eventName: string, sequences: ActionSequence[]): void {
-    const matching = sequences.filter((s) => s.event === eventName)
+    // TD-003: guard against legacy widgets missing the actions array.
+    const matching = (sequences ?? []).filter((s) => s.event === eventName)
     for (const seq of matching) {
       this.executor.run(seq.actions).catch((err) => {
         console.error(`[EventDispatcher] Error executing ${eventName} on ${widgetId}:`, err)
