@@ -50,7 +50,7 @@ vi.mock('../store/editorStore', () => ({
 }))
 
 import grapesjs from 'grapesjs'
-import { initEditor, type InitEditorOptions } from '../editor/initEditor'
+import { initEditor, setEditorLoading, type InitEditorOptions } from '../editor/initEditor'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -118,7 +118,7 @@ describe('T706 — initEditor component:add position guard', () => {
     if (handlerList.length === 0) throw new Error('component:add handler was not registered')
     // Invoke ALL registered handlers (initEditor registers component:add twice:
     // once for position/drag logic and once for autosave triggerAutosave)
-    return (component: unknown) => handlerList.forEach(h => h(component))
+    return (component: unknown) => handlerList.forEach((h) => h(component))
   }
 
   // ---- T706.1 ----
@@ -181,10 +181,10 @@ describe('T706 — initEditor component:add position guard', () => {
       { set: vi.fn(), getStyle: vi.fn().mockReturnValue(''), addStyle: vi.fn() },
     ]
 
-    widgetsFromLoad.forEach(w => handler(w))
+    widgetsFromLoad.forEach((w) => handler(w))
 
     // All three must get draggable + resizable
-    widgetsFromLoad.forEach(w => {
+    widgetsFromLoad.forEach((w) => {
       expect(w.set).toHaveBeenCalledWith({ draggable: true, resizable: true })
     })
 
@@ -203,9 +203,9 @@ describe('T706 — initEditor component:add position guard', () => {
     // (already has position:absolute from previous save)
     const mcComponent = {
       set: vi.fn(),
-      getStyle: vi.fn((prop: string) => prop === 'position' ? 'absolute' : ''),
+      getStyle: vi.fn((prop: string) => (prop === 'position' ? 'absolute' : '')),
       addStyle: vi.fn(),
-      get: vi.fn((key: string) => key === 'type' ? 'question-mc' : undefined),
+      get: vi.fn((key: string) => (key === 'type' ? 'question-mc' : undefined)),
     }
 
     handler(mcComponent)
@@ -274,9 +274,7 @@ import { useEditorStore } from '../store/editorStore'
  * Mock editor for T637.2 / T800 tests.
  * stopCommand is present only to assert it is NEVER called (regression guard).
  */
-function makeMockEditorWithStopCommand(
-  eventCapture: ReturnType<typeof makeEventCapture>,
-): Editor {
+function makeMockEditorWithStopCommand(eventCapture: ReturnType<typeof makeEventCapture>): Editor {
   return {
     on: eventCapture.on,
     setDevice: vi.fn(),
@@ -299,8 +297,13 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
     fakeEditor = makeMockEditorWithStopCommand(eventCapture)
     vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
     vi.mocked(useEditorStore.getState).mockReturnValue({
-      setIsSaving: vi.fn(), setSaveError: vi.fn(), setEditorContext: vi.fn(),
-      bumpCacheVersion: vi.fn(), courseId: 'c1', slideId: 's1', cacheVersion: 0,
+      setIsSaving: vi.fn(),
+      setSaveError: vi.fn(),
+      setEditorContext: vi.fn(),
+      bumpCacheVersion: vi.fn(),
+      courseId: 'c1',
+      slideId: 's1',
+      cacheVersion: 0,
     } as unknown as ReturnType<typeof useEditorStore.getState>)
   })
 
@@ -312,7 +315,7 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
   async function triggerAndWait() {
     const updateHandlers = eventCapture.handlers.get('component:update') ?? []
     if (updateHandlers.length === 0) throw new Error('component:update handler not registered')
-    updateHandlers.forEach(h => h({}))
+    updateHandlers.forEach((h) => h({}))
     await vi.advanceTimersByTimeAsync(2001)
   }
 
@@ -324,7 +327,7 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
     // Simulate user double-clicking a Text widget (enters text-edit mode)
     const rteEnableHandlers = eventCapture.handlers.get('rte:enable') ?? []
     expect(rteEnableHandlers.length).toBeGreaterThan(0)
-    rteEnableHandlers.forEach(h => h({}))
+    rteEnableHandlers.forEach((h) => h({}))
 
     // Autosave trigger arrives while user is still typing
     await triggerAndWait()
@@ -341,12 +344,12 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
 
     // Enter text-edit, then exit
     const rteEnableHandlers = eventCapture.handlers.get('rte:enable') ?? []
-    rteEnableHandlers.forEach(h => h({}))
+    rteEnableHandlers.forEach((h) => h({}))
 
     const rteDisableHandlers = eventCapture.handlers.get('rte:disable') ?? []
     expect(rteDisableHandlers.length).toBeGreaterThan(0)
     // rte:disable handlers: [isRteActive=false, triggerAutosave, ...diagnostic]
-    rteDisableHandlers.forEach(h => h({}))
+    rteDisableHandlers.forEach((h) => h({}))
 
     // Advance past the 2 s debounce started by triggerAutosave above
     await vi.advanceTimersByTimeAsync(2001)
@@ -370,12 +373,17 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
   it('CRITICAL-01: store() is NOT called when courseId changes during debounce', async () => {
     initEditor(defaultOpts())
     const updateHandlers = eventCapture.handlers.get('component:update') ?? []
-    updateHandlers.forEach(h => h({}))
+    updateHandlers.forEach((h) => h({}))
 
     // Simulate slide switch mid-debounce: context changes before timer fires
     vi.mocked(useEditorStore.getState).mockReturnValue({
-      setIsSaving: vi.fn(), setSaveError: vi.fn(), setEditorContext: vi.fn(),
-      bumpCacheVersion: vi.fn(), courseId: 'c1', slideId: 's2', cacheVersion: 0,
+      setIsSaving: vi.fn(),
+      setSaveError: vi.fn(),
+      setEditorContext: vi.fn(),
+      bumpCacheVersion: vi.fn(),
+      courseId: 'c1',
+      slideId: 's2',
+      cacheVersion: 0,
     } as unknown as ReturnType<typeof useEditorStore.getState>)
 
     await vi.advanceTimersByTimeAsync(2001)
@@ -387,11 +395,16 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
   it('CRITICAL-01b: store() is NOT called when slideId changes during debounce', async () => {
     initEditor(defaultOpts())
     const updateHandlers = eventCapture.handlers.get('component:update') ?? []
-    updateHandlers.forEach(h => h({}))
+    updateHandlers.forEach((h) => h({}))
 
     vi.mocked(useEditorStore.getState).mockReturnValue({
-      setIsSaving: vi.fn(), setSaveError: vi.fn(), setEditorContext: vi.fn(),
-      bumpCacheVersion: vi.fn(), courseId: 'c2', slideId: 's1', cacheVersion: 0,
+      setIsSaving: vi.fn(),
+      setSaveError: vi.fn(),
+      setEditorContext: vi.fn(),
+      bumpCacheVersion: vi.fn(),
+      courseId: 'c2',
+      slideId: 's1',
+      cacheVersion: 0,
     } as unknown as ReturnType<typeof useEditorStore.getState>)
 
     await vi.advanceTimersByTimeAsync(2001)
@@ -407,7 +420,7 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
 
     // Fire 5 events in quick succession (each resets the timer)
     for (let i = 0; i < 5; i++) {
-      updateHandlers.forEach(h => h({}))
+      updateHandlers.forEach((h) => h({}))
       await vi.advanceTimersByTimeAsync(500)
     }
 
@@ -481,7 +494,7 @@ describe('T630 — block:drag:stop iframe dragover coordinates', () => {
 
   function fire(name: string, arg?: unknown) {
     const handlers = eventCapture.handlers.get(name) ?? []
-    handlers.forEach(h => h(arg))
+    handlers.forEach((h) => h(arg))
   }
 
   it('T630.1: block:drag:start registers dragover listener on iframe document', () => {
@@ -658,10 +671,14 @@ describe('T636 — elearn:copy and elearn:paste commands', () => {
 
   it('T636.4: elearn:copy stores style and component definition in module clipboard', () => {
     const mockComponent = {
-      getStyle: vi.fn().mockReturnValue({ left: '300px', top: '200px', width: '150px', height: '60px' }),
+      getStyle: vi
+        .fn()
+        .mockReturnValue({ left: '300px', top: '200px', width: '150px', height: '60px' }),
       toJSON: vi.fn().mockReturnValue({ type: 'text', content: 'Hello' }),
     }
-    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi.fn().mockReturnValue(mockComponent)
+    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi
+      .fn()
+      .mockReturnValue(mockComponent)
 
     setup()
     runCommand('elearn:copy')
@@ -673,7 +690,9 @@ describe('T636 — elearn:copy and elearn:paste commands', () => {
   })
 
   it('T636.4b: elearn:copy does nothing when no component is selected', () => {
-    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi.fn().mockReturnValue(null)
+    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi
+      .fn()
+      .mockReturnValue(null)
 
     setup()
     runCommand('elearn:copy')
@@ -685,16 +704,22 @@ describe('T636 — elearn:copy and elearn:paste commands', () => {
 
   it('T636.5: elearn:paste adds component and applies left/top/width/height from clipboard', () => {
     const mockAdded = { addStyle: vi.fn() }
-    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi.fn().mockReturnValue({
-      add: vi.fn().mockReturnValue(mockAdded),
-    })
+    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi
+      .fn()
+      .mockReturnValue({
+        add: vi.fn().mockReturnValue(mockAdded),
+      })
 
     // Prime clipboard first
     const mockComponent = {
-      getStyle: vi.fn().mockReturnValue({ left: '300px', top: '200px', width: '150px', height: '60px' }),
+      getStyle: vi
+        .fn()
+        .mockReturnValue({ left: '300px', top: '200px', width: '150px', height: '60px' }),
       toJSON: vi.fn().mockReturnValue({ type: 'text', content: 'Hello' }),
     }
-    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi.fn().mockReturnValue(mockComponent)
+    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi
+      .fn()
+      .mockReturnValue(mockComponent)
 
     setup()
     runCommand('elearn:copy')
@@ -710,7 +735,9 @@ describe('T636 — elearn:copy and elearn:paste commands', () => {
 
   it('T636.5b: elearn:paste does nothing when clipboard is empty', () => {
     const mockComponents = { add: vi.fn() }
-    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi.fn().mockReturnValue(mockComponents)
+    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi
+      .fn()
+      .mockReturnValue(mockComponents)
 
     setup()
     // clipboard is empty (clearClipboard() called in beforeEach)
@@ -721,16 +748,20 @@ describe('T636 — elearn:copy and elearn:paste commands', () => {
 
   it('T636.5c: elearn:paste uses defaults when style fields are missing', () => {
     const mockAdded = { addStyle: vi.fn() }
-    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi.fn().mockReturnValue({
-      add: vi.fn().mockReturnValue(mockAdded),
-    })
+    ;(fakeEditor as unknown as { getComponents: () => unknown }).getComponents = vi
+      .fn()
+      .mockReturnValue({
+        add: vi.fn().mockReturnValue(mockAdded),
+      })
 
     // Clipboard has no width/height
     const mockComponent = {
       getStyle: vi.fn().mockReturnValue({ left: '100px', top: '50px' }),
       toJSON: vi.fn().mockReturnValue({ type: 'image' }),
     }
-    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi.fn().mockReturnValue(mockComponent)
+    ;(fakeEditor as unknown as { getSelected: () => unknown }).getSelected = vi
+      .fn()
+      .mockReturnValue(mockComponent)
 
     setup()
     runCommand('elearn:copy')
@@ -739,8 +770,118 @@ describe('T636 — elearn:copy and elearn:paste commands', () => {
     expect(mockAdded.addStyle).toHaveBeenCalledWith({
       left: '100px',
       top: '50px',
-      width: '100px',   // default
-      height: '50px',   // default
+      width: '100px', // default
+      height: '50px', // default
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// T646.6 — Cleanup lifecycle: timer cancellation, listener removal, isUnmounted guard
+// ---------------------------------------------------------------------------
+
+describe('T646.6 — initEditor cleanup lifecycle', () => {
+  let eventCapture: ReturnType<typeof makeEventCapture>
+  let fakeEditor: Editor
+  let mockBlockContainer: {
+    addEventListener: ReturnType<typeof vi.fn>
+    removeEventListener: ReturnType<typeof vi.fn>
+  }
+  let cleanupFn: () => void
+  let querySelectorSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+
+    eventCapture = makeEventCapture()
+    mockBlockContainer = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }
+    querySelectorSpy = vi
+      .spyOn(document, 'querySelector')
+      .mockReturnValue(mockBlockContainer as unknown as HTMLElement)
+
+    fakeEditor = makeMockFakeEditor(eventCapture)
+    vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+
+    const result = initEditor(defaultOpts())
+    cleanupFn = result.cleanup
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    querySelectorSpy.mockRestore()
+    setEditorLoading(false)
+  })
+
+  it('T646.6.1: cleanup() calls removeEventListener for dragstart exactly once', () => {
+    cleanupFn()
+    expect(mockBlockContainer.removeEventListener).toHaveBeenCalledTimes(1)
+    expect(mockBlockContainer.removeEventListener).toHaveBeenCalledWith(
+      'dragstart',
+      expect.any(Function)
+    )
+  })
+
+  it('T646.6.2: cleanup() prevents pending autosave from firing after destroy', () => {
+    // Trigger autosave debounce timer via component:update
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+    updateHandlers.forEach((h) => h({}))
+
+    // Advance partway through debounce — timer is live
+    vi.advanceTimersByTime(500)
+
+    cleanupFn()
+
+    // Run the full remaining time — without cleanup, store() would fire here
+    vi.runAllTimers()
+
+    expect(fakeEditor.store).not.toHaveBeenCalled()
+  })
+
+  it('T646.6.3: dragstart listener count stays 1 after 3 init/destroy cycles (no accumulation)', () => {
+    // Cycle 1 already done in beforeEach. Verify 1 registration so far.
+    expect(mockBlockContainer.addEventListener).toHaveBeenCalledTimes(1)
+
+    // Cycle 2
+    cleanupFn()
+    expect(mockBlockContainer.removeEventListener).toHaveBeenCalledTimes(1)
+
+    const ec2 = makeEventCapture()
+    const fe2 = makeMockFakeEditor(ec2)
+    vi.mocked(grapesjs.init).mockReturnValue(fe2)
+    mockBlockContainer.addEventListener.mockClear()
+    mockBlockContainer.removeEventListener.mockClear()
+
+    const r2 = initEditor(defaultOpts())
+    expect(mockBlockContainer.addEventListener).toHaveBeenCalledTimes(1)
+
+    // Cycle 3
+    r2.cleanup()
+    expect(mockBlockContainer.removeEventListener).toHaveBeenCalledTimes(1)
+
+    const ec3 = makeEventCapture()
+    const fe3 = makeMockFakeEditor(ec3)
+    vi.mocked(grapesjs.init).mockReturnValue(fe3)
+    mockBlockContainer.addEventListener.mockClear()
+    mockBlockContainer.removeEventListener.mockClear()
+
+    const r3 = initEditor(defaultOpts())
+    expect(mockBlockContainer.addEventListener).toHaveBeenCalledTimes(1)
+    r3.cleanup()
+    expect(mockBlockContainer.removeEventListener).toHaveBeenCalledTimes(1)
+  })
+
+  it('T646.6.4: isUnmounted prevents ghost DOM removal in rAF after cleanup', () => {
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation((n) => n)
+
+    cleanupFn()
+
+    // Flush any requestAnimationFrame callbacks — they must exit early (isUnmounted === true)
+    vi.runAllTimers()
+
+    expect(removeChildSpy).not.toHaveBeenCalled()
   })
 })

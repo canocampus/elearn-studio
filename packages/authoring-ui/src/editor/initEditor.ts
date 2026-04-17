@@ -338,22 +338,26 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
   // large rectangle) with a small 24×24 indicator. The ghost is positioned with the
   // cursor at its top-left corner (hotspot 0,0) so the user can see exactly where the
   // widget's top-left will land. This makes drop placement predictable and intuitive.
-  {
-    const blockContainer = document.querySelector<HTMLElement>(opts.blockManagerContainer)
-    blockContainer?.addEventListener('dragstart', (e: Event) => {
-      const de = e as DragEvent
-      if (!de.dataTransfer) return
-      const ghost = document.createElement('div')
-      ghost.style.cssText =
-        'position:fixed;top:-9999px;left:-9999px;width:24px;height:24px;' +
-        'background:#6366f1;border-radius:3px;opacity:0.85;pointer-events:none;'
-      document.body.appendChild(ghost)
-      de.dataTransfer.setDragImage(ghost, 0, 0)
-      requestAnimationFrame(() => {
-        try { document.body.removeChild(ghost) } catch { /* Already removed or not in DOM */ }
-      })
+  // Handler stored as named reference so cleanup() can call removeEventListener with
+  // the exact same function reference (T646.1). isUnmounted guards the rAF callback
+  // so it does not touch document.body after editor destroy (T646.4).
+  let isUnmounted = false
+  const blockContainer = document.querySelector<HTMLElement>(opts.blockManagerContainer)
+  const dragstartHandler = (e: Event) => {
+    const de = e as DragEvent
+    if (!de.dataTransfer) return
+    const ghost = document.createElement('div')
+    ghost.style.cssText =
+      'position:fixed;top:-9999px;left:-9999px;width:24px;height:24px;' +
+      'background:#6366f1;border-radius:3px;opacity:0.85;pointer-events:none;'
+    document.body.appendChild(ghost)
+    de.dataTransfer.setDragImage(ghost, 0, 0)
+    requestAnimationFrame(() => {
+      if (isUnmounted) return
+      if (ghost.isConnected) document.body.removeChild(ghost)
     })
   }
+  blockContainer?.addEventListener('dragstart', dragstartHandler)
 
   // T636 — Custom copy/paste commands with cross-slide position preservation.
   //
@@ -472,9 +476,10 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
 
   opts.onReady?.(editor)
 
-  // Cleanup function: unsubscribes cache invalidation listener.
-  // T646 will extend this to also cancel autosaveTimer and remove the dragstart listener.
   const cleanup = () => {
+    isUnmounted = true
+    if (autosaveTimer !== null) clearTimeout(autosaveTimer)
+    blockContainer?.removeEventListener('dragstart', dragstartHandler)
     unsubscribeCacheInvalidate()
   }
 

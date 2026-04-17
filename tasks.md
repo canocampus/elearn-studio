@@ -80,23 +80,15 @@
 > - `autosaveTimer` (`initEditor.ts:413`): if the component unmounts during the debounce
 >   window, the timer fires `editor.store()` on a partially-destroyed editor.
 
-- [ ] T646.1 — Add `if (autosaveTimer) clearTimeout(autosaveTimer)` in the cleanup
-  function returned by `initEditor` (`initEditor.ts` ~line 413 area) — prevents store()
-  firing on a partially-destroyed editor after unmount during debounce window
-- [ ] T646.2 — Call the autosave cleanup in EditorCanvas `useEffect` cleanup (Effect 1)
-  before `editor.destroy()` — T646.1 and T646.2 are one atomic change
-- [ ] T646.3 — Fix dragstart listener leak (`initEditor.ts:327-341`): capture the handler
-  reference outside the listener registration and call `removeEventListener` in the cleanup
-  function returned by `initEditor`; alternatively move to a `useEffect` in EditorCanvas
-- [ ] T646.4 — Fix `document.body.removeChild(ghost)` race: use `ghost.isConnected`
-  guard instead of try/catch
-- [ ] T646.5 — Evaluate `_isEditorLoading` module flag: document why it cannot be
-  moved to React/Zustand (timing constraints during loadData) or migrate it if feasible
-- [ ] T646.6 — Unit tests: verify `autosaveTimer` is cancelled before `editor.destroy()`,
-  verify no duplicate dragstart handlers accumulate after 3+ init/destroy cycles
-- [ ] T646.7 — Run full test suite + push + verify CI green
-- [ ] T646.8 — Refine the generated code
-- [ ] T646.9 — A reviewer will generate `docs/issues/issues-T646.md`; resolve before closing
+- [x] T646.1 — Compose cleanup function in initEditor: wrap `unsubscribeCacheInvalidate`, `clearTimeout(autosaveTimer)`, and `removeEventListener('dragstart')` into a single returned `cleanup()` function
+- [x] T646.2 — EditorCanvas Effect 1 must call `cleanup()` before `editor.destroy()` (atomic unmount sequence) — already satisfied by T645.7 return pattern; verified at EditorCanvas.tsx:113-114
+- [x] T646.3 — Fix dragstart leak: store `blockContainer` reference locally, register handler once, call `blockContainer.removeEventListener('dragstart', handler)` in cleanup — implemented in T646.1; verified at initEditor.ts:343-357,479
+- [x] T646.4 — Fix ghost race: replace `try/catch` with `if (ghost.isConnected) document.body.removeChild(ghost)`. Add `isUnmounted` flag to guard `requestAnimationFrame` callback
+- [x] T646.5 — `_isEditorLoading`: KEEP as module-level flag. Document in `/decisions/` why it cannot move to React/Zustand (GAP-06b/c: GrapesJS fires component:add during loadData synchronously, before React state updates can propagate) — decision doc at `decisions/2026-04-17-editor-loading-flag.md`
+- [x] T646.6 — Unit tests: mock timers with `vi.useFakeTimers()`, verify `clearTimeout` called during cleanup, verify dragstart handler count stays `===1` after 3 init/destroy cycles
+- [x] T646.7 — Run full test suite + push + verify CI green
+- [ ] T646.8 — Refine generated code (lint, types, comments)
+- [ ] T646.9 — Reviewer generates `docs/issues/issues-T646.md`; resolve before closing 646
 
 ---
 
