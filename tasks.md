@@ -87,7 +87,7 @@
 - [x] T646.5 — `_isEditorLoading`: KEEP as module-level flag. Document in `/decisions/` why it cannot move to React/Zustand (GAP-06b/c: GrapesJS fires component:add during loadData synchronously, before React state updates can propagate) — decision doc at `decisions/2026-04-17-editor-loading-flag.md`
 - [x] T646.6 — Unit tests: mock timers with `vi.useFakeTimers()`, verify `clearTimeout` called during cleanup, verify dragstart handler count stays `===1` after 3 init/destroy cycles
 - [x] T646.7 — Run full test suite + push + verify CI green
-- [ ] T646.8 — Refine generated code (lint, types, comments)
+- [x] T646.8 — Refine generated code (lint, types, comments)
 - [ ] T646.9 — Reviewer generates `docs/issues/issues-T646.md`; resolve before closing 646
 
 ---

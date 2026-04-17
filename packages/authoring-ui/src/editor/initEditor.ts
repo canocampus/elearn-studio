@@ -334,13 +334,10 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
     })
   }
 
-  // T630.UX — Replace the browser's default block drag ghost (full block element,
-  // large rectangle) with a small 24×24 indicator. The ghost is positioned with the
-  // cursor at its top-left corner (hotspot 0,0) so the user can see exactly where the
-  // widget's top-left will land. This makes drop placement predictable and intuitive.
-  // Handler stored as named reference so cleanup() can call removeEventListener with
-  // the exact same function reference (T646.1). isUnmounted guards the rAF callback
-  // so it does not touch document.body after editor destroy (T646.4).
+  // Replace the browser's default block drag ghost (full block element, large rectangle)
+  // with a small 24×24 indicator. The ghost is positioned with the cursor at its top-left
+  // corner (hotspot 0,0) so the user can see exactly where the widget's top-left will land.
+  // isUnmounted guards the rAF callback so it does not touch document.body after editor.destroy().
   let isUnmounted = false
   const blockContainer = document.querySelector<HTMLElement>(opts.blockManagerContainer)
   const dragstartHandler = (e: Event) => {
