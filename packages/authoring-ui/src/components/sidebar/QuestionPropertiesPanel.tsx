@@ -506,6 +506,7 @@ export function QuestionPropertiesPanel() {
     )
   }
 
+  // T648: within-panel routing from Backbone only — no Zustand fallback
   const type = selected.get('type') as string
 
   return (

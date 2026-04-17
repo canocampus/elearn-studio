@@ -133,9 +133,9 @@
 - [x] T648.3.2 — Verify subscription cleanup: all panels use `useComponentProperty` which returns `comp.off()` in useEffect cleanup; no bare `component.on()` calls found
 - [x] T648.4 — Unit tests: null component (returns defaultValue, no crash, no listener); rapid A→B→A selection (no stale data); Undo/Redo simulation (external `comp.set()` triggers re-render; `getLatest()` reflects rollback). 35/35 pass, 724/724 full suite pass
 - [x] T648.4.1 — Undo/Redo test: `useComponentProperty — Undo/Redo simulation (T648)` suite added — 2 tests covering re-render and getLatest() after simulated undo
-- [ ] T648.5 — Run full test suite + push + verify CI green
-- [ ] T648.6 — Refine the generated code
-- [ ] T648.7 — A reviewer will generate `docs/issues/issues-T648.md`; resolve before closing
+- [x] T648.5 — Run full test suite + push + verify CI green — 724/724 pass; pushed `96c5247`
+- [x] T648.6 — Refine the generated code — `setValue` → `update` in NavButtonChildLabel; T648 comments on `const type` in both panels; imports verified clean
+- [x] T648.7 — A reviewer will generate `docs/issues/issues-T648.md`; resolve before closing — 0 issues found, APPROVED
 
 ---
 

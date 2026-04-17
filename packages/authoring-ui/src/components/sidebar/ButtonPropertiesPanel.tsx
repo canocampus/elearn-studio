@@ -208,7 +208,7 @@ function NavButtonChildLabel({
   label: string
   placeholder: string
 }) {
-  const [value, setValue] = useComponentProperty<string>(child, 'content', placeholder)
+  const [value, update] = useComponentProperty<string>(child, 'content', placeholder)
 
   return (
     <>
@@ -216,7 +216,7 @@ function NavButtonChildLabel({
       <input
         type="text"
         value={value}
-        onChange={e => setValue(e.target.value)}
+        onChange={e => update(e.target.value)}
         style={{ ...FIELD_STYLE, marginBottom: 8 }}
         placeholder={placeholder}
       />
@@ -289,6 +289,7 @@ export function ButtonPropertiesPanel() {
     )
   }
 
+  // T648: within-panel routing from Backbone only — no Zustand fallback
   const type = selected.get('type') as string
 
   return (
