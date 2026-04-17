@@ -301,12 +301,10 @@ it('T649.5: getLatest() reflects external comp.set() (Undo/Redo) immediately', a
 
 ## TECH DEBT BACKLOG
 
-### TD-001 — Backend export routes: extract shared `runExport()` helper
-> **Source:** T635 review | **Priority:** Low — address when xAPI format support is implemented
+### TD-001 — Backend export routes: extract shared `runExport()` helper ✅ DONE (2026-04-17)
+> **Source:** T635 review | **Status:** Resolved | **Review doc:** `docs/issues/issues-TD-001.md`
 
-The three POST routes `/courses/:id/export/scorm12`, `/export/scorm2004`, and `/export/aicc`
-each duplicate ~70 LOC of identical logic. Extract a shared `runExport()` helper.
-Adding a 4th format (xAPI) without this refactor would add another ~70 LOC of duplication.
+Shared pipeline extracted to `backend/api/src/lib/export/runExport.ts`: pure function `runExport(course, format, options?)` with a `PACKERS` registry keyed by `ExportFormat = 'scorm12' | 'scorm2004' | 'aicc'`. Asset pipeline helpers (`collectAssetSrcs`, `rewriteAssetSrcs`, `downloadAssets`) moved into the same module and exported for direct testing. Route layer in `courses.ts` reduced from 3× ~35-line handlers to a single `buildExportHandler(format)` factory + 3 one-line route registrations. Error path owns tmpDir cleanup inside `runExport` (caller only sees tmpDir on success). 17 unit tests cover dispatch, pipeline order, result shape, error-path cleanup, missing-asset skip, format-specific tmpDir prefixes. Backend suite: 148/148 pass (pre-TD-001: 131; +17 new). **xAPI marginal cost: 70 LOC → 2 LOC (35×).**
 
 ### TD-002 — T641: preview feature needs full E2E test
 > **Source:** T641 — T611.10 skip removed but full popup flow not E2E tested end-to-end
