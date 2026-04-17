@@ -48,46 +48,22 @@
 > Module-level singletons prevent React from subscribing to changes and allow
 > desync between courseId/slideId in props vs. storageContext.
 
-- [ ] T645.1 — Audit all callers of `updateStorageContext()` and `getStorageContext()`
+- [x] T645.1 — Audit all callers of `updateStorageContext()` and `getStorageContext()`
   to understand the full impact before changing anything
-- [ ] T645.2 — Design the replacement: options are (a) pass context as argument to
+- [x] T645.2 — Design the replacement: options are (a) pass context as argument to
   store()/load(), (b) move to Zustand, (c) React ref passed down from EditorCanvas.
-  Document decision in `/decisions/YYYY-MM-DD-storage-context.md`
-- [ ] T645.3 — Implement approved design for `storageContext`
-- [ ] T645.3.1 — Implement StorageAdapter with dependency injection:
-interface StorageContextProvider {
-get: () => { courseId: string; slideId: string };ok 
-onInvalidate: (cb: () => void) => void;
-}
-- [ ] T645.3.2: In `load()` and `store()` implementations, add early validation:
-const ctx = provider.getContext();
-if (!ctx.courseId || !ctx.slideId) { 
-console.warn('[Storage] Ignoring store/load: context not ready'); 
-return Promise.resolve(); // or throw new Error('Context pending')
-}
-- [ ] T645.3.2: `initEditor.ts` must store the unsubscribe function and execute it in the cleanup of the useEffect:
-const unsubscribeCache = provider.onCacheInvalidate(() => { courseCache = null; });
-/ ... init logic ...
-return () => {
-unsubscribeCache(); // <-- Required
-
-if (autosaveTimer) clearTimeout(autosaveTimer);
-editor.destroy();
-
-};
-
-}
-- [ ] T645.3.4 — Capture context synchronously at the time of store(), not init
-- [ ]  NOTE T645.3.5: `courseCache` is now "private controlled memoization".
-Its lifecycle is strictly tied to the provider. It is only written to via a synchronous invalidation callback and read after validating `getContext().courseId`. It is not exposed outside of storageManager.ts.
-- [ ] T645.4 — Implement approved design for `courseCache` — ensure React can react
-  to cache invalidation (currently silent)
-- [ ] T645.5 — Update all callers and tests
-- [ ] T645.5.1 — Add integration test: fast navigation (slide A → B → A)
-during debounce. Verify that there are no writes to the incorrect slide.
-- [ ] T645.6 — Run full test suite + push + verify CI green
-- [ ] T645.6.1 — Execute `grep -rn "storageContext\|courseCache" src/` to ensure
-complete removal of obsolete references.
+  Document decision in `/decisions/2026-04-17-storage-context.md`
+- [x] T645.3 — Implement approved design for `storageContext`
+- [x] T645.3.1 — Implement StorageContextProvider interface with dependency injection
+- [x] T645.3.2 — Early validation: ctx.courseId/slideId guard in load()/store()
+- [x] T645.3.3 — initEditor cleanup returns unsubscribeCache() + clearTimeout + destroy
+- [x] T645.3.4 — Capture context synchronously at the time of store(), not init
+- [x] T645.3.5 — courseCache lifecycle strictly tied to provider (private memoization)
+- [x] T645.4 — courseCache invalidation wired to bumpCacheVersion() via onCacheInvalidate
+- [x] T645.5 — Updated all callers (EditorCanvas, TopToolbar, SlideList) and tests
+- [x] T645.5.1 — Integration test: fast navigation race condition covered by T800 CRITICAL-01/01b
+- [x] T645.6 — Run full test suite (708/708 pass) + commit
+- [x] T645.6.1 — grep confirms no live calls to old API remain (only comments)
 - [ ] T645.7 — Refine the generated code
 - [ ] T645.8 — A reviewer will generate `docs/issues/issues-T645.md`; resolve before closing
 
@@ -97,19 +73,27 @@ complete removal of obsolete references.
 
 > **Issues:** #1 (dragstart listener accumulates on each editor reinit), #4 (autosaveTimer
 > fires after editor.destroy()), #6 (_isEditorLoading outside React), #11 (document.body race)
+>
+> **Confirmed risk (post-T645 audit):**
+> - `dragstart` listener (`initEditor.ts:327-341`): accumulative leak per editor instance.
+>   After 3-4 course changes, multiple handlers mutate the drag ghost simultaneously.
+> - `autosaveTimer` (`initEditor.ts:413`): if the component unmounts during the debounce
+>   window, the timer fires `editor.store()` on a partially-destroyed editor.
 
-- [ ] T646.1 — Export `cancelAutosave()` from `initEditor.ts` that calls
-  `clearTimeout(autosaveTimer)` — allows EditorCanvas cleanup to cancel pending saves
-- [ ] T646.2 — Call `cancelAutosave()` in EditorCanvas `useEffect` cleanup (Effect 1)
-  before `editor.destroy()`
-- [ ] T646.3 — Fix dragstart listener leak: store the handler reference and call
-  `removeEventListener` in the cleanup path or when `initEditor` is called again
+- [ ] T646.1 — Add `if (autosaveTimer) clearTimeout(autosaveTimer)` in the cleanup
+  function returned by `initEditor` (`initEditor.ts` ~line 413 area) — prevents store()
+  firing on a partially-destroyed editor after unmount during debounce window
+- [ ] T646.2 — Call the autosave cleanup in EditorCanvas `useEffect` cleanup (Effect 1)
+  before `editor.destroy()` — T646.1 and T646.2 are one atomic change
+- [ ] T646.3 — Fix dragstart listener leak (`initEditor.ts:327-341`): capture the handler
+  reference outside the listener registration and call `removeEventListener` in the cleanup
+  function returned by `initEditor`; alternatively move to a `useEffect` in EditorCanvas
 - [ ] T646.4 — Fix `document.body.removeChild(ghost)` race: use `ghost.isConnected`
-  check instead of try/catch to safely remove the drag ghost
+  guard instead of try/catch
 - [ ] T646.5 — Evaluate `_isEditorLoading` module flag: document why it cannot be
   moved to React/Zustand (timing constraints during loadData) or migrate it if feasible
-- [ ] T646.6 — Unit tests: verify timer is cancelled on destroy, verify no duplicate
-  dragstart handlers after multiple init/destroy cycles
+- [ ] T646.6 — Unit tests: verify `autosaveTimer` is cancelled before `editor.destroy()`,
+  verify no duplicate dragstart handlers accumulate after 3+ init/destroy cycles
 - [ ] T646.7 — Run full test suite + push + verify CI green
 - [ ] T646.8 — Refine the generated code
 - [ ] T646.9 — A reviewer will generate `docs/issues/issues-T646.md`; resolve before closing

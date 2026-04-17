@@ -60,11 +60,11 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
       type: 'elearn-api',
       // INTENTIONAL — do NOT change to true.
       // Race condition when autoload:true (step-by-step):
-      //   1. grapesjs.init() fires storageManager.load() before updateStorageContext()
-      //      has set courseId/slideId.
-      //   2. storageManager.load() sees empty context → returns blank { pages: [...] }.
+      //   1. grapesjs.init() fires storageManager.load() before setEditorContext()
+      //      has written courseId/slideId to Zustand.
+      //   2. provider.getContext() returns empty strings → load() returns blank canvas.
       //   3. GrapesJS renders a blank canvas via loadData(blank).
-      //   4. EditorCanvas Effect 2 calls updateStorageContext() + editor.load() with the
+      //   4. EditorCanvas Effect 2 calls setEditorContext() + editor.load() with the
       //      correct slide.
       //   5. storageManager.load() returns correct widget data → loadData(widgets).
       //   6. If the async blank-load from step 3 settles after step 5, it overwrites
@@ -472,5 +472,11 @@ export function initEditor(opts: InitEditorOptions): { editor: Editor; cleanup: 
 
   opts.onReady?.(editor)
 
-  return { editor, cleanup: unsubscribeCacheInvalidate }
+  // Cleanup function: unsubscribes cache invalidation listener.
+  // T646 will extend this to also cancel autosaveTimer and remove the dragstart listener.
+  const cleanup = () => {
+    unsubscribeCacheInvalidate()
+  }
+
+  return { editor, cleanup }
 }
