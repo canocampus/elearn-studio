@@ -60,27 +60,27 @@ This phase is deferred. Do NOT apply design tokens until explicitly instructed.
 - ❌ NEVER call `editor.store()` directly from a UI handler (input onChange, button click).
 - ✅ Use the existing debounce mechanism in `initEditor.ts` for all save operations.
 
-### Backbone Subscriptions
-- ✅ To read properties from GrapesJS components in React, use the subscription pattern:
+### Backbone Subscriptions — use the canonical hook, never inline
+
+**NEVER** read `component.get('prop')` in the render body. It is a snapshot — stale after Undo/Redo.
+**ALWAYS** use `useComponentProperty` from `src/hooks/useComponentProperty.ts`:
 
 ```typescript
- useEffect(() => {
-    const component = editor.getSelected();
-    if (!component) return;
-    
-    const handleChange = () => {
-      // Actualizar estado React/Zustand
-      setProps(component.get('extendedProperties'));
-    };
-    
-    component.on('change:extendedProperties', handleChange);
-    return () => component.off('change:extendedProperties', handleChange);
-  }, [editor, selectedComponentId]);
+// ✅ CORRECT — subscribes to change:extendedProperties, re-renders on Undo/Redo
+const [ep, updateEp, getLatest] = useComponentProperty(
+  selected,                    // Component | null — null-safe (T648)
+  'extendedProperties',
+  DEFAULT_EXTENDED_PROPS,
+)
 
+// ✅ CORRECT — patch-merge using getLatest() to avoid stale closure (T639.1)
+function update(patch: Partial<ExtendedProps>) {
+  updateEp({ ...getLatest(), ...patch })
+}
 ```
+
 Before modifying any file that touches GrapesJS, widgets, canvas, or property panels, read:
 `GRAPESJS_REACT_PATTERNS.md`
-
 
 Note: In EditorCanvas.tsx, the editor is already initialized in useEffect.
 This rule applies to any new component that needs to create an editor instance.
@@ -89,27 +89,47 @@ This rule applies to any new component that needs to create an editor instance.
 
 ## GrapesJS + React Hook Rules
 
-### extendedProperties patch-merge rule (T639)
+### Zustand vs Backbone — source of truth (T648)
 
-**RULE:** When updating a partial patch of `extendedProperties` in a property panel,
-**NEVER** spread over a closure variable (`ep`). Always read the latest committed value
-via `getLatest()` (returned by `useComponentProperty`) or `comp.get('extendedProperties')`.
+| Data | Use | Reason |
+|---|---|---|
+| Which panel to render | Zustand `selectedComponentType` | Sidebar routing — cross-cutting, OK to lag 1 render |
+| Within-panel sub-form routing | `selected.get('type')` (Backbone) | Must be synchronous; Zustand can lag 5–20ms |
+| All component property values | `useComponentProperty` (Backbone subscription) | Authoritative; Zustand mirror causes keystroke-level global re-renders |
 
 ```typescript
-// WRONG — ep may be stale if two updates fire in the same render cycle
-function update(patch: Partial<T>) {
-  setEp({ ...ep, ...patch })  // ❌ ep from closure is the value at last render
-}
+// ✅ CORRECT pattern for every PropertiesPanel
+export function ButtonPropertiesPanel() {
+  const selectedComponentType = useEditorStore(s => s.selectedComponentType)
+  const editor = useEditorStore(s => s.editor)
 
-// CORRECT — getLatest() reads latestRef.current, always the most-recent committed value
-function update(patch: Partial<T>) {
-  const current = getLatest()  // ✅ always fresh
-  setEp({ ...current, ...patch })
+  if (!editor || !selectedComponentType || !isButtonWidgetType(selectedComponentType)) return null
+
+  const selected = editor.getSelected()
+  if (!selected || selected.get('type') !== 'button') return null  // Backbone double-check
+
+  // All data via hook — never selected.get('prop') in render body
+  const [content, updateContent] = useComponentProperty(selected, 'content', '')
+  const type = selected.get('type') as string  // within-panel routing from Backbone ONLY
+  // NOT: selected.get('type') || selectedComponentType  ← PROHIBITED (T648)
 }
 ```
 
-Use `useExtendedProperties` (in `QuestionPropertiesPanel.tsx`) as the canonical pattern
-for new property panels — it wraps `useComponentProperty` and handles this correctly.
+### extendedProperties patch-merge rule (T639)
+
+**RULE:** Always read the latest committed value via `getLatest()` before merging a partial patch.
+
+```typescript
+// ❌ WRONG — ep from closure may be stale if two updates fire in the same render cycle
+function update(patch: Partial<T>) {
+  updateEp({ ...ep, ...patch })
+}
+
+// ✅ CORRECT — getLatest() reads latestRef.current, always the most-recent committed value
+function update(patch: Partial<T>) {
+  updateEp({ ...getLatest(), ...patch })
+}
+```
 
 ### ✅ CSS Verification for Drag-and-Drop
 - The GrapesJS editor container must have an explicit `z-index` and be greater than that of overlapping elements.

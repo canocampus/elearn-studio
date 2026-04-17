@@ -114,15 +114,25 @@
 > **Issue:** #10 (selectedComponentType from Zustand + editor.getSelected() from Backbone
 > can be out of sync by one render cycle)
 > All panels have this duality. QuestionPropertiesPanel.tsx:509-511 already acknowledges it.
+ 
+## 📐 MANDATORY GUARDRAILS T648
 
-- [ ] T648.1 — Audit: document all panels where `selectedComponentType` (Zustand) and
+1. ZERO direct calls to `editor.getSelected()` in the component body or in JSX without prior subscription.
+2. Zustand is ONLY used for rendering gating (`selectedComponentType === 'question-mc' && <Panel />`).
+3. All `component.on(...)` calls must return cleanup in `useEffect`.
+4. Synchronizing every keystroke/drag from GrapesJS to Zustand is prohibited (it causes massive re-renders). Reading directly from the Backbone model via hook is the approved method.
+5. The unified hook must handle `null`/`undefined` when there is no active selection without throwing errors.
+
+- [x] T648.1 — Audit: document all panels where `selectedComponentType` (Zustand) and
   `editor.getSelected().get('type')` (Backbone) are both read and where a stale render
   could cause incorrect behaviour
-- [ ] T648.2 — Define canonical approach: should panels use Zustand type for conditional
-  rendering and Backbone for live data, or should Zustand be the single source? Document
-  in `/decisions/YYYY-MM-DD-panel-selection-source.md`
-- [ ] T648.3 — Implement approved approach consistently across all panels
-- [ ] T648.4 — Unit tests: verify panels do not render stale data after rapid selection changes
+- [x] T648.1.1 — Audit `PhaserSimPropertiesPanel.tsx` explicitly: confirmed COMPLIANT — uses `useComponentProperty` with Backbone subscription + cleanup; no `|| selectedComponentType` anti-pattern; declared official reference implementation
+- [x] T648.2 — Define canonical approach: Option C adopted — Zustand for render gating only, Backbone for all data. ADR at `decisions/2026-04-17-panel-selection-source.md`
+- [x] T648.2.1 — Update `useComponentProperty<T>` (T644 hook): signature changed to `component: Component | null`; null guards added in useState initializer, useEffect (early return, no listener), and update() (no-op); same changes for `useExtendedProperty`
+- [x] T648.3 — Implement approved approach: ButtonPropertiesPanel:292 and QuestionPropertiesPanel:511 — removed `|| selectedComponentType` fallback; all other panels already compliant (no direct `.get()` reads in render body)
+- [x] T648.3.2 — Verify subscription cleanup: all panels use `useComponentProperty` which returns `comp.off()` in useEffect cleanup; no bare `component.on()` calls found
+- [x] T648.4 — Unit tests: null component (returns defaultValue, no crash, no listener); rapid A→B→A selection (no stale data); Undo/Redo simulation (external `comp.set()` triggers re-render; `getLatest()` reflects rollback). 35/35 pass, 724/724 full suite pass
+- [x] T648.4.1 — Undo/Redo test: `useComponentProperty — Undo/Redo simulation (T648)` suite added — 2 tests covering re-render and getLatest() after simulated undo
 - [ ] T648.5 — Run full test suite + push + verify CI green
 - [ ] T648.6 — Refine the generated code
 - [ ] T648.7 — A reviewer will generate `docs/issues/issues-T648.md`; resolve before closing

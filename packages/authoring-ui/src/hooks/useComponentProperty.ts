@@ -37,13 +37,13 @@ type UsePropertyReturn<T> = [
  *   without relying on a potentially stale closure variable.
  */
 export function useComponentProperty<T>(
-  component: Component,
+  component: Component | null,
   key: string,
   defaultValue: T,
 ): UsePropertyReturn<T> {
-  const comp = component as GjsComponent
-
   const [value, setValue] = useState<T>(() => {
+    if (!component) return defaultValue
+    const comp = component as GjsComponent
     const raw = comp.get(key)
     return (raw !== undefined && raw !== null ? raw : defaultValue) as T
   })
@@ -56,6 +56,9 @@ export function useComponentProperty<T>(
   latestRef.current = value
 
   useEffect(() => {
+    if (!component) return
+    const comp = component as GjsComponent
+
     const raw = comp.get(key)
     setValue((raw !== undefined && raw !== null ? raw : defaultValue) as T)
 
@@ -76,6 +79,8 @@ export function useComponentProperty<T>(
   }, [component, key])
 
   function update(newValue: T) {
+    if (!component) return
+    const comp = component as GjsComponent
     // T639.1: apply optimistic React state update immediately so controlled inputs
     // (value={state} + onChange) never freeze waiting for the Backbone event.
     setValue(newValue)
@@ -101,13 +106,13 @@ export function useComponentProperty<T>(
  *   latest sub-key value inside event callbacks or rapid consecutive updates).
  */
 export function useExtendedProperty<T>(
-  component: Component,
+  component: Component | null,
   subKey: string,
   defaultValue: T,
 ): UsePropertyReturn<T> {
-  const comp = component as GjsComponent
-
   function readValue(): T {
+    if (!component) return defaultValue
+    const comp = component as GjsComponent
     const ext = comp.get('extendedProperties')
     if (ext !== null && ext !== undefined && typeof ext === 'object' && subKey in (ext as object)) {
       return (ext as Record<string, unknown>)[subKey] as T
@@ -123,6 +128,9 @@ export function useExtendedProperty<T>(
   latestRef.current = value
 
   useEffect(() => {
+    if (!component) return
+    const comp = component as GjsComponent
+
     setValue(readValue())
 
     function onChange() {
@@ -139,6 +147,8 @@ export function useExtendedProperty<T>(
   }, [component, subKey])
 
   function update(newValue: T) {
+    if (!component) return
+    const comp = component as GjsComponent
     setValue(newValue)
     const current = (comp.get('extendedProperties') as Record<string, unknown> | undefined) ?? {}
     comp.set('extendedProperties', { ...current, [subKey]: newValue })

@@ -289,7 +289,7 @@ export function ButtonPropertiesPanel() {
     )
   }
 
-  const type = (selected.get('type') as string) || selectedComponentType
+  const type = selected.get('type') as string
 
   return (
     <div data-testid="button-properties-panel" style={{ overflowY: 'auto', flex: 1 }}>

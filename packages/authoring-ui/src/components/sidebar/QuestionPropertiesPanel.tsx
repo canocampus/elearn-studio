@@ -506,9 +506,7 @@ export function QuestionPropertiesPanel() {
     )
   }
 
-  // T014-M-01: derive the type from the live GrapesJS component as source of truth;
-  // fall back to Zustand only if the component has no type attribute yet.
-  const type = (selected.get('type') as string) || selectedComponentType
+  const type = selected.get('type') as string
 
   return (
     <div data-testid="question-properties-panel" style={{ overflowY: 'auto', flex: 1 }}>

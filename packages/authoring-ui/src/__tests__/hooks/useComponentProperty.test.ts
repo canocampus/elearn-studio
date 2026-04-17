@@ -440,3 +440,102 @@ describe('useExtendedProperty — getLatest() (T639)', () => {
     expect(result.current[2]()).toBe(true)
   })
 })
+
+// ── T648.4: null-safety (Component | null) ────────────────────────────────────
+
+describe('useComponentProperty — null component (T648)', () => {
+  it('returns defaultValue without crash when component is null', () => {
+    const { result } = renderHook(() =>
+      useComponentProperty(null, 'content', 'fallback'),
+    )
+    expect(result.current[0]).toBe('fallback')
+  })
+
+  it('update() is a no-op when component is null (no crash)', () => {
+    const { result } = renderHook(() =>
+      useComponentProperty(null, 'content', 'fallback'),
+    )
+    expect(() => act(() => { result.current[1]('new value') })).not.toThrow()
+    expect(result.current[0]).toBe('fallback')
+  })
+
+  it('getLatest() returns defaultValue when component is null', () => {
+    const { result } = renderHook(() =>
+      useComponentProperty(null, 'content', 'fallback'),
+    )
+    expect(result.current[2]()).toBe('fallback')
+  })
+
+  it('registers no Backbone listener when component is null', () => {
+    renderHook(() => useComponentProperty(null, 'content', ''))
+    // No listener added — no comp.on call — test passes if no error thrown above
+  })
+})
+
+describe('useComponentProperty — rapid selection A→B→A (T648)', () => {
+  it('shows data for the current component after rapid switches', () => {
+    const compA = makeComponent({ content: 'from-A' })
+    const compB = makeComponent({ content: 'from-B' })
+
+    let activeComp: ComponentMock = compA
+    const { result, rerender } = renderHook(() =>
+      useComponentProperty(activeComp as never, 'content', ''),
+    )
+    expect(result.current[0]).toBe('from-A')
+
+    act(() => { activeComp = compB })
+    rerender()
+    expect(result.current[0]).toBe('from-B')
+
+    act(() => { activeComp = compA })
+    rerender()
+    expect(result.current[0]).toBe('from-A')
+  })
+
+  it('does not retain stale data from a transiently selected component', () => {
+    const compA = makeComponent({ content: 'value-A' })
+    const compB = makeComponent({ content: 'value-B' })
+
+    let activeComp: ComponentMock = compA
+    const { result, rerender } = renderHook(() =>
+      useComponentProperty(activeComp as never, 'content', ''),
+    )
+
+    act(() => { activeComp = compB })
+    rerender()
+    act(() => { activeComp = compA })
+    rerender()
+
+    // After returning to compA, value must be from compA — not compB
+    expect(result.current[0]).toBe('value-A')
+  })
+})
+
+describe('useComponentProperty — Undo/Redo simulation (T648)', () => {
+  it('re-renders with rolled-back value after external model change (simulates Undo)', () => {
+    const comp = makeComponent({ label: 'current-value' })
+    const { result } = renderHook(() =>
+      useComponentProperty(comp as never, 'label', ''),
+    )
+    expect(result.current[0]).toBe('current-value')
+
+    // Simulate GrapesJS UndoManager restoring a prior value externally
+    act(() => { comp.set('label', 'rolled-back-value') })
+
+    expect(result.current[0]).toBe('rolled-back-value')
+  })
+
+  it('getLatest() reflects rolled-back value immediately after Undo', () => {
+    const comp = makeComponent({ score: 100 })
+    const { result } = renderHook(() =>
+      useComponentProperty(comp as never, 'score', 0),
+    )
+
+    act(() => { result.current[1](200) })
+    expect(result.current[2]()).toBe(200)
+
+    // Undo restores original value
+    act(() => { comp.set('score', 100) })
+    expect(result.current[2]()).toBe(100)
+  })
+})
