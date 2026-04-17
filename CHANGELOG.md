@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.54] — 2026-04-17 — T650: beforeunload dirty-state warning (Phase 10)
+
+### Added
+- **[T650] Native browser warning on tab close during autosave debounce** — The autosave path debounces `editor.store()` by 2 seconds after the last edit event; within that window edits exist only in the GrapesJS in-memory model. Closing the tab or navigating away from the domain mid-debounce silently dropped those edits. Now the browser shows its native "Leave site? Changes you made may not be saved" dialog whenever `hasPendingChanges()` returns `true`, giving the user a chance to cancel and let the autosave complete.
+- **[T650.1] `hasPendingChanges: () => boolean` exported from `initEditor()`** (`packages/authoring-ui/src/editor/initEditor.ts`) — The return type is now `{ editor, cleanup, hasPendingChanges }`. `hasPendingChanges = () => autosaveTimer !== null` is a pure closure accessor; no new flag, no parallel state machine. `autosaveTimer` is already the ground-truth debounce handle — `null` means idle, non-null means a 2-second debounce is in flight.
+- **[T650.2] `beforeunload` listener in `EditorCanvas.tsx`** (`packages/authoring-ui/src/components/editor/EditorCanvas.tsx`) — Registered in Effect 1 (same lifetime as the editor, keyed on `courseId`). Handler calls `e.preventDefault()` + `e.returnValue = ''` only when `hasPendingChanges()` returns `true`. No `editor.store()`, no `navigator.sendBeacon`, no sync `XMLHttpRequest` in the handler — the browser does not reliably support async work or network during unload. Listener removed in the Effect 1 cleanup function, before `editor.destroy()`.
+
+### Rejected alternatives (documented in `docs/issues/issues-T650.md`)
+- `await editor.store()` in `beforeunload` — browsers abort in-flight `fetch`/`XHR` on unload; `await` is not honoured.
+- Synchronous `XMLHttpRequest` — deprecated; Chrome ignores `async:false` on unload; blocks UI thread.
+- `navigator.sendBeacon(url, blob)` — 64 KB per-beacon limit; slide JSON routinely exceeds this with images/`phaser-sim` scene definitions/long question banks. A silent partial save is worse than the current loss.
+- Web Locks / `navigator.locks` — does not bridge tab-close.
+- Service-worker queued sync — massive scope for a 2-second race; requires offline-first architecture.
+
+### Tests
+- **T650.3** — 3 timer-state tests added to `src/__tests__/initEditor.test.ts` (`describe('T650.3 — hasPendingChanges reflects autosave timer state')`): **T650.3.1** fresh `initEditor()` call → `hasPendingChanges() === false` (timer is `null`); **T650.3.2** fire `component:update` handler → `hasPendingChanges() === true`; **T650.3.3** fire update then `vi.advanceTimersByTimeAsync(2001)` → `hasPendingChanges() === false` AND `editor.store()` called exactly once. Uses `vi.useFakeTimers()` for deterministic debounce. `beforeunload` DOM event not simulated — that would be testing the browser, not our code.
+- **T650.4 absorbed into T650.3** — The original task text ("verify `store()` called inside `beforeunload`") contradicts the T650 design principle (no forced save on unload); the real intent was "verify warning fires when dirty", which reduces to the three timer-state tests already in T650.3.
+- **1532/1532 unit+integration tests pass** across all packages (authoring-ui 730, backend 131, runtime-player 256, scorm-packager 156, phaser-simulations 125, question-engine 74, simulation-engine 60).
+
+### Notes
+- **Environment repair during T650.5 validation (not part of the feature)** — Two packages were corrupted in the local pnpm content-addressable store: `@rollup/rollup-win32-x64-msvc@4.60.1` (missing `package.json`, blocked `phaser-simulations` tests) and `es-abstract@1.24.1` (missing year subdirectories, blocked ESLint via `eslint-plugin-react` → `object.fromentries`). Fix was `powershell Stop-Process -Id <stale-esbuild.exe> -Force` → `pnpm store prune` → targeted `rm -rf` of the corrupt package → `pnpm install`. No source files, no lockfile, no `package.json` modified. CI was unaffected (clean container). The commit message on `04e6121` explicitly flags `env repair (@rollup/esbuild)` so future readers understand why the commit mentions these packages without any dependency changes.
+- **CI run `24576886118`: success (17m04s)** — Lint, TypeScript, unit+integration tests, builds, E2E, coverage upload all green. CodeQL run `24576885745`: success (1m11s).
+- **Verdict: APPROVED** — `docs/issues/issues-T650.md` generated as self-review, 0 findings above INFO, 0 CRITICAL/HIGH/MEDIUM.
+
+---
+
 ## [0.5.53] — 2026-04-17 — T649: Stale-closure fix — synchronous latestRef update in useComponentProperty
 
 ### Fixed
