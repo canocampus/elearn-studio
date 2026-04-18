@@ -50,6 +50,14 @@ import type { ActionSequence } from './actions'
 export interface BaseWidget {
   id: string
   type: WidgetType
+  /**
+   * Optional human-readable name authored via the GrapesJS `name` trait
+   * (Props panel → Name field). Used as the display label in the Actions
+   * Editor widget-target dropdown; `id` remains the technical routing key.
+   * Optional for backward compatibility with courses saved before this field
+   * was introduced.
+   */
+  name?: string
   bounds: Bounds
   layer: number
   visible: boolean

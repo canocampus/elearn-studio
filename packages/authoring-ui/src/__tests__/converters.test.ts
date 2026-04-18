@@ -1033,3 +1033,71 @@ describe('T643.1 — Bug A regression: sim widget content never stored or restor
     expect(def.content).toBe('Click me')
   })
 })
+
+// ---------------------------------------------------------------------------
+// Bug #4 — `name` trait round-trip (Actions Editor widget target labels)
+// ---------------------------------------------------------------------------
+
+describe('Bug #4 — name trait round-trip for Actions Editor dropdown', () => {
+  it('widgetsFromGrapesjs reads the name trait from model into widget.name', () => {
+    // Simulate a GrapesJS component that has a name trait set via Props → Name
+    const comp = {
+      getStyle: () => ({}),
+      getAttributes: () => ({ id: 'w-abc', name: 'HintButton' }),
+      getId: () => 'w-abc',
+      get: (key: string) => (key === 'type' ? 'button' : key === 'name' ? 'HintButton' : undefined),
+      getInnerHTML: () => undefined,
+      components: () => ({ at: () => undefined }),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect(widget.name).toBe('HintButton')
+    expect(widget.id).toBe('w-abc') // id stays authoritative for action routing
+  })
+
+  it('widget.name is undefined when the name trait is blank', () => {
+    const comp = {
+      getStyle: () => ({}),
+      getAttributes: () => ({ id: 'w-xyz' }),
+      getId: () => 'w-xyz',
+      get: (key: string) => (key === 'type' ? 'rectangle' : undefined),
+      getInnerHTML: () => undefined,
+      components: () => ({ at: () => undefined }),
+    } as unknown as Component
+
+    const [widget] = widgetsFromGrapesjs([comp])
+    expect(widget.name).toBeUndefined()
+  })
+
+  it('grapesjsFromWidgets restores widget.name into def.attributes.name', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ id: 'w-1', name: 'StartButton' })])
+    const attrs = def.attributes as Record<string, unknown>
+    expect(attrs.name).toBe('StartButton')
+  })
+
+  it('grapesjsFromWidgets does not set attributes.name when widget.name is absent', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ id: 'w-2' })])
+    const attrs = def.attributes as Record<string, unknown>
+    expect(attrs.name).toBeUndefined()
+  })
+
+  it('full round-trip preserves the name trait', () => {
+    const original = makeWidget({ id: 'w-3', type: 'button', name: 'SubmitBtn' })
+    const [def] = grapesjsFromWidgets([original])
+    const comp = defToComponent(def)
+    const [restored] = widgetsFromGrapesjs([comp])
+    expect(restored.name).toBe('SubmitBtn')
+    expect(restored.id).toBe('w-3')
+  })
+
+  it('falls back gracefully when only properties.name exists (legacy courses)', () => {
+    // Legacy courses saved before BaseWidget.name existed may have the name
+    // in properties. grapesjsFromWidgets copies it into attributes via the
+    // T611 attribute restoration loop, so widgetsFromGrapesjs picks it up.
+    const legacy = makeWidget({ id: 'w-4', properties: { name: 'LegacyName' } })
+    const [def] = grapesjsFromWidgets([legacy])
+    const comp = defToComponent(def)
+    const [restored] = widgetsFromGrapesjs([comp])
+    expect(restored.name).toBe('LegacyName')
+  })
+})

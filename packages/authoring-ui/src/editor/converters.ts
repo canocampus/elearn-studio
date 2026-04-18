@@ -205,9 +205,19 @@ export function widgetsFromGrapesjs(components: Component[]): BaseWidget[] {
       mergedProps.nextLabel = (nextChild?.get('content') as string | undefined) ?? NAV_BUTTON_DEFAULTS.nextLabel
     }
 
+    // Extract the human-readable `name` trait (Props → Name). Used as display
+    // label for widget-target dropdowns (Actions Editor). Kept at top-level on
+    // BaseWidget alongside `id` so consumers can render it directly without
+    // digging into properties. Read both model and attribute paths: the
+    // `name` trait has no changeProp flag, so GrapesJS mirrors it to the HTML
+    // attribute, but c.get('name') may also return it on certain setups.
+    const rawName = (c.get('name') as string | undefined) ?? (attributes.name as string | undefined) ?? ''
+    const name = typeof rawName === 'string' ? rawName.trim() : ''
+
     return {
       id: attributes.id || c.getId(),
       type: (componentType as WidgetType) || 'rectangle',
+      name: name || undefined, // omit empty strings to keep storage tidy
       bounds,
       layer: (() => {
         const zIdx = style['z-index']
@@ -252,6 +262,13 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
       if (['content', 'src', 'style', 'actions',
            'extendedProperties', 'elearnActions', 'properties'].includes(key)) continue
       attributes[key] = value
+    }
+
+    // Restore the human-readable name trait. The top-level widget.name is the
+    // authoritative source; only fall through to properties.name for legacy
+    // courses saved before widget.name existed.
+    if (typeof w.name === 'string' && w.name.length > 0) {
+      attributes.name = w.name
     }
 
     const def: GrapesJsComponentDef = {

@@ -189,8 +189,10 @@ function WidgetIdParam({ label, widgetId, onChange }: WidgetIdParamProps) {
       >
         <option value="">— select widget —</option>
         {widgets.map((w) => (
+          // UX: show human-readable name; fallback to ID for unnamed widgets.
+          // `value` stays as w.id (technical routing key for action execution).
           <option key={w.id} value={w.id}>
-            {w.id}
+            {w.name || w.id}
           </option>
         ))}
       </select>
