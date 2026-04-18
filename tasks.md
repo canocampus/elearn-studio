@@ -441,3 +441,21 @@ if (!editor || !selectedComponentType || !isButtonWidgetType(selectedComponentTy
 - [x] TD-010.3 — Update the 7 panel tests in `SidebarPanels.test.tsx`; add new unit-test file `PropsEmptyState.test.tsx` (6 tests).
 - [x] TD-010.4 — `tsc -b` exit 0; authoring-ui vitest 769/769 pass (33 → 34 files); runtime-player 265/265 pass; E2E `widget-persistence-across-slides` + `docs-screenshots` still green.
 - [ ] TD-010.5 — Verify visually on each widget type (text, image, button, rectangle, nav-buttons, done-button, progress-bar, media-player, audio-narration, volume-control, score-quiz, score-field, mc, tf, fill, phaser-sim, screenshot-sim) that only one panel is visible + sidebar is not scrollable due to empty copy.
+
+---
+
+### [x] TD-011 — `registerQuestionBlocks` hidden inside `registerMediaPlayerWidget` ✅ DONE (2026-04-19)
+
+**Discovered via** `/graphify packages/authoring-ui/src --mode deep` — `registerBlocks()` surfaced as the top god node (degree 13). Source inspection revealed `registerQuestionBlocks(editor)` was called inside `registerMediaPlayerWidget()` at L448 of `packages/authoring-ui/src/editor/registerBlocks.ts` instead of from the top-level `registerBlocks()` dispatcher. The structural invariant "every widget-family registrar is called from the dispatcher" was violated silently: if a future refactor dropped `registerMediaPlayerWidget` from the dispatcher, the entire question widget system would disappear from the block sidebar with no test red, no type error, and no runtime warning — the only symptom would be users no longer seeing MC/TF/Fill in the sidebar. Neither the 769 unit tests nor the 24-spec / 165-test Playwright suite could have caught this because `registerMediaPlayerWidget` was still being called, so the misplaced line kept working by accident.
+
+**Fix (1 file, 2 lines):** cut `registerQuestionBlocks(editor)` from inside `registerMediaPlayerWidget` (L448), add it to the main `registerBlocks()` dispatcher alongside `registerSimBlock` and `registerPhaserSimBlock`. Zero functional change — only the registration-call location moved.
+
+**Verification:** `npx tsc -b` exit 0 · authoring-ui vitest **769/769** pass (unchanged — no test had to change because the functional contract is identical) · existing E2E `question-widget.spec.ts` **30/30** pass in 3m 19s on `chromium` (T601.0a/0b/0c + T601.1 + T601.5/6 + persistence + T611 mandatory-gate + T620.5 + T621.5 + T631.3/4/6 + T639 — covers drag-to-canvas, default content render, per-type discovery in the Blocks panel, props-panel round-trip, and persistence across reload, i.e. the full regression surface).
+
+**Post-mortem — why tests could not have found this:** the bug is about structural cleanliness, not functional behaviour. A dispatcher that gains a hidden side effect inside one of its branches passes every existing test until the branch itself is removed or reordered. Assertions like "registration order matches declared order" or "no registrar calls another registrar" would catch this category of bug but are not idiomatic in Playwright/vitest — they are structural properties better expressed as graph queries. TD-011 is the first documented case where `/graphify` surfaced a latent coupling that test coverage alone cannot express.
+
+**Subtasks:**
+- [x] TD-011.1 — Move `registerQuestionBlocks(editor)` from `registerMediaPlayerWidget` L448 to `registerBlocks()` L46.
+- [x] TD-011.2 — `npx tsc -b` exit 0 + authoring-ui vitest 769/769 pass (unchanged).
+- [x] TD-011.3 — Existing E2E `question-widget.spec.ts` 30/30 pass against running dev stack (ports 3000/3001).
+- [x] TD-011.4 — Commit + push (`3fbb519`); docs closure in `CHANGELOG.md` v0.5.64 + `WORKING_CONTEXT.md`.

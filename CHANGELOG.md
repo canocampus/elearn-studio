@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.64] — 2026-04-19 — TD-011: `registerQuestionBlocks` moved to top-level dispatcher
+
+### Fixed
+- **[TD-011] `registerQuestionBlocks(editor)` was called from inside `registerMediaPlayerWidget` instead of the top-level `registerBlocks()` dispatcher** (`packages/authoring-ui/src/editor/registerBlocks.ts`). Line 448 of `registerMediaPlayerWidget` contained an out-of-place `registerQuestionBlocks(editor)` call — the entire question-widget family (MC, TF, Fill) was registered only as a side effect of media-player registration. Invisible coupling: a future refactor that dropped `registerMediaPlayerWidget` from the dispatcher would silently remove MC/TF/Fill from the block sidebar with no test red, no type error, no runtime warning. Neither the 769 unit tests nor the 24-spec / 165-test Playwright suite caught this because `registerMediaPlayerWidget` was still being called, so the misplaced line kept working by accident. Fix: cut L448, add `registerQuestionBlocks(editor)` to `registerBlocks()` L46 alongside `registerSimBlock` and `registerPhaserSimBlock`. 1 file, 2 lines, zero functional change — only the registration-call location moved. Discovered via `/graphify packages/authoring-ui/src --mode deep`: `registerBlocks()` surfaced as the top god node (degree 13) and source inspection of the dispatcher revealed the nested call.
+
+### Notes
+- **[TD-011] Verification**: `npx tsc -b` exit 0; authoring-ui vitest **769/769 pass** (unchanged — the functional contract is identical so no test had to change); existing E2E `question-widget.spec.ts` **30/30 pass** in 3m 19s on chromium (T601.0a/0b/0c + T601.1 + T601.5/6 + persistence + T611 mandatory-gate + T620.5 + T621.5 + T631.3/4/6 + T639 — covers drag-to-canvas, default content render, per-type discovery in the Blocks panel, props-panel round-trip, and persistence across reload).
+- **[TD-011] Why tests could not have found this**: the bug is about structural cleanliness, not behaviour. A dispatcher that gains a hidden side effect inside one of its branches passes every existing test until the branch itself is removed or reordered. Assertions like "registration order matches declared order" or "no registrar calls another registrar" would catch this category but are not idiomatic in Playwright/vitest — they are structural properties better expressed as graph queries. TD-011 is the first documented case in this project where `/graphify` surfaced a latent coupling that test coverage alone cannot express.
+- **[TD-011] No `docs/issues/issues-TD-011.md`** — the fix is 2 lines, 0 CRITICAL/HIGH/MEDIUM/LOW; the inline tasks.md entry + this CHANGELOG entry + `WORKING_CONTEXT.md` line carry the context.
+- **[TD-011] Commit**: `3fbb519`.
+
+---
+
 ## [0.5.63] — 2026-04-18 — TD-009 + TD-010: widget persistence across slide switches + centralised Props empty-state
 
 ### Fixed
