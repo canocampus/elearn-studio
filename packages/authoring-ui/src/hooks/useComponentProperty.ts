@@ -158,6 +158,25 @@ export function useExtendedProperty<T>(
     // readValue() — never a captured closure of those values.
   }, [component, subKey])
 
+  /**
+   * Performs shallow merge on the TOP-LEVEL `extendedProperties` object:
+   * `{ ...current, [subKey]: newValue }`.
+   *
+   * If `subKey` points to a nested object (e.g. `'scoring'`, `'options'`),
+   * `newValue` **REPLACES the entire nested object** — it does NOT deep-merge.
+   *
+   * To update a field inside a nested object, use the T639 get-latest-spread
+   * pattern at the caller:
+   * ```ts
+   * const [, updateEp, getLatest] = useExtendedProperty(selected, 'scoring', DEFAULT)
+   * updateEp({ ...getLatest(), weight: 50 })
+   * ```
+   * This prevents silent loss of sibling keys like `attempts` or `mandatory`.
+   *
+   * TD-005: In development mode only, a `console.warn` fires when a shallow
+   * replace would lose keys from a previously-nested object — see the
+   * `isPlainObject` guard below.
+   */
   function update(newValue: T) {
     if (!comp) return
     // T649: update ref synchronously so getLatest() returns the new value for
@@ -165,8 +184,38 @@ export function useExtendedProperty<T>(
     setValue(newValue)
     latestRef.current = newValue
     const current = (comp.get('extendedProperties') as Record<string, unknown> | undefined) ?? {}
+
+    // TD-005: Dev-only lost-key detector. Warns if the caller is replacing a
+    // nested object with a partial-shape one (the exact bug pattern the shallow
+    // merge invites). Does NOT fire for arrays — arrays are always replaced
+    // wholesale and that is the intended contract. Does NOT fire in production.
+    if (process.env.NODE_ENV !== 'production') {
+      const prev = current[subKey]
+      if (isPlainObject(prev) && isPlainObject(newValue)) {
+        const lost = Object.keys(prev).filter(k => !(k in newValue))
+        if (lost.length > 0) {
+          console.warn(
+            `[TD-005] useExtendedProperty: shallow-replace at "${subKey}" lost keys: ${lost.join(', ')}. ` +
+              `To preserve existing keys, use getLatest() + spread: ` +
+              `updateEp({ ...getLatest(), ${subKey}: { ...getLatest().${subKey}, ...patch } })`,
+          )
+        }
+      }
+    }
+
     comp.set('extendedProperties', { ...current, [subKey]: newValue })
   }
 
   return [value, update, () => latestRef.current]
+}
+
+/**
+ * TD-005: plain-object guard used by the lost-key detector.
+ *
+ * Returns true only for non-null, non-array, typeof-object values. Arrays are
+ * excluded because the shallow-replace contract for arrays is intentional
+ * (options lists, nodes, etc. are replaced wholesale by design).
+ */
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
 }

@@ -6,7 +6,7 @@
  * change events — no guard flag needed.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useComponentProperty, useExtendedProperty } from '../../hooks/useComponentProperty'
 
@@ -703,5 +703,135 @@ describe('useExtendedProperty — defaultValue stability contract (TD-004)', () 
     expect(result.current[0]).toBe('#ff0000')
     // Listener NOT re-registered
     expect(comp.listenerCount('change:extendedProperties')).toBe(listenersBefore)
+  })
+})
+
+// ── TD-005: shallow-replace contract + lost-key detector ─────────────────────
+//
+// useExtendedProperty.update() performs a shallow merge on the TOP-LEVEL
+// extendedProperties object: { ...current, [subKey]: newValue }. If subKey
+// points to a nested object, newValue REPLACES the entire object — it does
+// NOT deep-merge. The dev-only warning detects when that shallow replace would
+// lose sibling keys from a previously-nested object (the exact bug the
+// shallow merge invites).
+//
+// These tests document the contract (tests 1, 3, 4) and verify the warning
+// only fires when it should (test 2).
+
+describe('useExtendedProperty — TD-005 shallow-replace contract + lost-key warning', () => {
+  it('shallow replace of nested object works as documented (replaces entirely)', () => {
+    const comp = makeComponent({
+      extendedProperties: {
+        scoring: { weight: 100, attempts: -1, mandatory: false },
+      },
+    })
+    const { result } = renderHook(() =>
+      useExtendedProperty<Record<string, unknown>>(
+        comp as never,
+        'scoring',
+        { weight: 100, attempts: -1, mandatory: false },
+      ),
+    )
+
+    // Fully-shaped replacement — no keys are lost, no warning expected
+    act(() => { result.current[1]({ weight: 50, attempts: 3, mandatory: true }) })
+
+    const ext = comp.get('extendedProperties') as Record<string, unknown>
+    expect(ext.scoring).toEqual({ weight: 50, attempts: 3, mandatory: true })
+    expect(result.current[0]).toEqual({ weight: 50, attempts: 3, mandatory: true })
+  })
+
+  it('warning fires when shallow-replace of a nested object loses keys', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const comp = makeComponent({
+        extendedProperties: {
+          scoring: { weight: 100, attempts: -1, mandatory: false },
+        },
+      })
+      const { result } = renderHook(() =>
+        useExtendedProperty<Record<string, unknown>>(
+          comp as never,
+          'scoring',
+          { weight: 100, attempts: -1, mandatory: false },
+        ),
+      )
+
+      // Partial shape — drops 'attempts' and 'mandatory' — the TD-005 bug pattern
+      act(() => { result.current[1]({ weight: 50 }) })
+
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      const msg = warnSpy.mock.calls[0][0] as string
+      expect(msg).toContain('[TD-005]')
+      expect(msg).toContain('"scoring"')
+      expect(msg).toContain('lost keys')
+      expect(msg).toContain('attempts')
+      expect(msg).toContain('mandatory')
+      expect(msg).toContain('getLatest()')
+
+      // Behaviour still honoured: shallow-replace committed as requested
+      const ext = comp.get('extendedProperties') as Record<string, unknown>
+      expect(ext.scoring).toEqual({ weight: 50 })
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('no warning when replacing a nested object with same-shape value (all prev keys present)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const comp = makeComponent({
+        extendedProperties: {
+          scoring: { weight: 100, attempts: -1, mandatory: false },
+        },
+      })
+      const { result } = renderHook(() =>
+        useExtendedProperty<Record<string, unknown>>(
+          comp as never,
+          'scoring',
+          { weight: 100, attempts: -1, mandatory: false },
+        ),
+      )
+
+      // Same-shape replacement — no keys lost
+      act(() => { result.current[1]({ weight: 50, attempts: 3, mandatory: true }) })
+
+      expect(warnSpy).not.toHaveBeenCalled()
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('no warning for array-of-objects replacement (options) — arrays are always replaced wholesale by contract', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const initialOptions = [
+        { id: '1', text: 'A', isCorrect: true },
+        { id: '2', text: 'B', isCorrect: false },
+      ]
+      const comp = makeComponent({ extendedProperties: { options: initialOptions } })
+      const { result } = renderHook(() =>
+        useExtendedProperty<Array<Record<string, unknown>>>(
+          comp as never,
+          'options',
+          [],
+        ),
+      )
+
+      // Replace with a completely different array — still valid by contract
+      act(() => {
+        result.current[1]([
+          { id: '3', text: 'C', isCorrect: true },
+          { id: '4', text: 'D', isCorrect: false },
+          { id: '5', text: 'E', isCorrect: false },
+        ])
+      })
+
+      expect(warnSpy).not.toHaveBeenCalled()
+      const ext = comp.get('extendedProperties') as Record<string, unknown>
+      expect(ext.options).toHaveLength(3)
+    } finally {
+      warnSpy.mockRestore()
+    }
   })
 })
