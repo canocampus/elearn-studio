@@ -2,7 +2,7 @@
 
 > **This file is the first thing to read at the start of every Claude Code session.**
 > It is updated by Claude Code after every completed task block.
-> Last updated: 2026-04-18 — **TD-006 CLOSED** ✅ Audit of `grapesjs@0.21.13` confirms the prior T646.5 ADR (2026-04-17) is still accurate: `storage:end:load` fires inside `Storage.load()` BEFORE `loadData()` reconstructs components, so it cannot replace the synchronous `_isEditorLoading` gate. **No production-code change.** Added permanent regression test (5 structural assertions against bundled `grapes.mjs`) that fails loudly if a future grapesjs release inverts the order → TD-006 reopens automatically. **Backlog cleared** — TD-005, TD-006, TD-007 all closed; v0.5.61.
+> Last updated: 2026-04-18 — **TD-008 CLOSED** ✅ Manual-audit pass fixed 4 minor UI/UX bugs ahead of user-manual v2 rewrite: (#1) Phaser preview modal now re-layouts on window resize; (#2) all widget component defaults standardised to `properties: []` (GrapesJS-required shape); (#3) Phaser placeholder scene now fires `sim-complete` in all modes (not only demo), so courses containing a Phaser sim can progress in practice/assessment; (#4, HIGH UX) Actions Editor widget-target dropdown shows the human-readable `name` trait instead of cryptic GrapesJS IDs — `BaseWidget.name?: string` added to shared-types with full round-trip round-trip in converters and backward-compat for legacy courses. 6 new round-trip regression tests. **Ready for user-manual v2 rewrite** — §3 (Actions Editor) no longer needs to document a cryptic-ID workaround. v0.5.62; CI runs `24608241954` + `24608814942` both green.
 
 ---
 
@@ -11,14 +11,16 @@
 | Field | Value |
 |---|---|
 | **Latest release** | v0.0.1-beta (2026-03-31) |
-| **Current version** | v0.5.61 |
-| **Active phase** | — (Phase 10 closed; tech-debt backlog cleared — TD-001 through TD-007 all resolved) |
-| **Active block** | TD-006 ✅ — no active block |
+| **Current version** | v0.5.62 |
+| **Active phase** | — (Phase 10 closed; tech-debt backlog cleared — TD-001 through TD-008 all resolved) |
+| **Active block** | TD-008 ✅ — **Ready for User Manual v2 rewrite** |
 | **E2E test count** | 163 tests (161 passing, 2 skipped) |
 
 ---
 
 ## What Was Last Done
+
+- **TD-008 — Manual-audit pass: 4 minor UI/UX bugs fixed before User Manual v2 ✅ (TD-008 CLOSED, v0.5.62)** — Pre-requisite cleanup ahead of the user-manual v2 rewrite (`docs/user-manual-v2-scope.md`). Functional review of v0.5.61 surfaced 4 inconsistencies. Fixed in two commits, both CI-green. **Bug #1 (LOW — `62153ca`)**: `PhaserSimPreviewModal` captured `window.innerWidth`/`Height` once at mount; resize left stale dimensions. Added `useState(viewport)` + `useEffect` resize listener with cleanup. **Bug #2 (LOW — `62153ca`)**: `properties: {}` vs `[]` inconsistency across 14 widget defaults. GrapesJS's Style Manager `PropertyComposite` internally calls `this.get('properties') || []` — object shape is crash bait despite `GENERATED_CONTENT_TYPES` omit-on-load already masking it. Standardised to `[]` uniformly across `registerBlocks.ts`, `registerQuestionBlocks.ts`, `registerSimBlock.ts`, `registerPhaserSimBlock.ts`, and `converters.ts::NavButtonChildDef`. Test `registerBlocks.test.ts` updated: `toEqual({})` → `toEqual([])` for all 14 types. **Bug #3 (LOW — `62153ca`)**: Phaser placeholder `sim-complete` only fired in `mode === 'demo'`; practice/assessment modes never emitted completion → courses with Phaser sims could not progress. Confirmed T036 (per-simType scene builders) was NOT in immediate backlog (`grep T036 tasks.md WORKING_CONTEXT.md` → 0 matches), so fixed directly: removed mode guard; all modes auto-complete at 2 s with score `100` (demo/practice) or `config.passingScore` (assessment). T036 will replace the placeholder entirely. **Bug #4 (HIGH UX — `de0ad2e`)**: Actions Editor widget-target dropdown rendered `{w.id}` (cryptic GrapesJS IDs like `c32kq3`) instead of the human-readable `name` trait set in Props → Name. Fixed in four places: (a) `BaseWidget.name?: string` added to `@elearn-studio/shared-types` (optional, backward-compatible); (b) `widgetsFromGrapesjs` reads `c.get('name') ?? attributes.name ?? ''` (trimmed, empty → undefined) and populates top-level `widget.name`; (c) `grapesjsFromWidgets` restores `attributes.name = widget.name` on reload; (d) `ActionItemEditor.tsx` `<option>` label changed to `{w.name || w.id}` while `value` stays `w.id` (technical routing key untouched). Backward-compat: legacy courses with `name` only in `widget.properties` continue to work via the T611 attribute restoration loop — verified by dedicated regression test. **Test coverage**: 6 new round-trip tests in `converters.test.ts` under `Bug #4 — name trait round-trip for Actions Editor dropdown`. Authoring-ui suite 755 → **761/761 pass** across 33 files; runtime-player **265/265**; `pnpm -r lint` 0 errors; `npx tsc -b` exit 0. **CI**: runs `24608241954` (bugs #1-#3) and `24608814942` (bug #4) both success with full E2E. Self-review `docs/issues/issues-TD-008.md` (0 CRITICAL/HIGH/MEDIUM/LOW). Unblocks user-manual v2 §3 (Actions Editor) — authors name widgets and the dropdown shows those names.
 
 - **TD-006 — `_isEditorLoading` audit: native events confirmed insufficient ✅ (TD-006 CLOSED, v0.5.61)** — TD-006 asked whether GrapesJS's native `storage:start:load` / `storage:end:load` events could replace the `_isEditorLoading` module flag in `initEditor.ts`. The 2026-04-17 ADR (T646.5) had already documented the answer was no, but flagged it as "future work" pending re-verification. The 2026-04-18 audit closes that loop empirically against the currently-installed `grapesjs@0.21.13`. **Audit method**: static inspection of `node_modules/.../grapesjs/dist/grapes.mjs` (the compiled bundle IS the runtime behaviour for the question "does Storage.load yield before loadData runs?"), backed by a permanent vitest regression test that reads the same file and asserts the structural call order. Live `grapesjs.init()` was tried first but hangs in vitest jsdom — grapesjs uses iframe canvases / DOM measurement APIs jsdom does not implement; static inspection is equivalent and stable across CI runs. **Findings**: `EditorModel.prototype.load` (line 61352 of `grapes.mjs`) `await`s `this.Storage.load(options)` THEN calls `this.loadData(result)` synchronously. `StorageManager.prototype.onEnd` (line 42110) fires `storage:end:load` inside `Storage.load()` — before its promise resolves. So the timeline of `editor.load()` is: `storage:start:load` → custom storage resolves → `storage:end:load` → `EditorModel.load` awakens → `loadData(result)` → cascade of `component:add × N`. Using `storage:end:load` to clear the gate would lift it three steps before the `component:add` cascade arrives → `triggerAutosave` would start the debounce timer incorrectly → exactly the bug the gate exists to prevent. **No production-code change**: `_isEditorLoading` flag, `setEditorLoading`/`getEditorLoading` accessors, `EditorCanvas.tsx` set/clear sites, `triggerAutosave` reading `getEditorLoading()` — all unchanged. **Added**: (1) `decisions/2026-04-18-editor-loading-flag.md` recording the audit method, evidence (with exact line numbers and source snippets from `grapes.mjs`), and reopen criteria. Extends `decisions/2026-04-17-editor-loading-flag.md`. (2) `packages/authoring-ui/src/__tests__/editor/grapesEventOrder.test.ts` with 5 structural assertions: source loads (sanity), `Storage.load(options)` precedes `loadData(result)` textually in `EditorModel.prototype.load`, `StorageManager.onEnd` references `endLoad` for type `'load'`, `StorageEvents.endLoad === 'storage:end:load'` (event name pinned), regex regression-guard `yield.*?Storage\.load[\s\S]*?loadData\(result\)`. Runs in 17 ms (no editor init). (3) `docs/issues/issues-TD-006.md` self-review (0 CRITICAL/HIGH/MEDIUM/LOW). **Verification**: `npx tsc -b` exit 0; new audit file 5/5 pass; full authoring-ui suite 750 → **755/755 pass** (32 → 33 files); `pnpm -r lint` 0 errors; `_isEditorLoading` references unchanged in 5 files (1 production: `initEditor.ts`; 1 React caller: `EditorCanvas.tsx`; 2 test files; 1 audit doc). **Reopen criteria**: the regression test fails — happens iff a future grapesjs release inverts the call order. Until then, TD-006 is closed with rationale "Native events timing insufficient".
 
@@ -301,14 +303,15 @@ Todos los items críticos (C-01, C-02, C-03) y deuda técnica (D-01, D-02) cerra
 - ~~**T651** — Unify persistence via requestSave(): single save entry point~~ ✅ Done (v0.5.55)
 - ~~**T1000.TEST / T1000.E2E / T1000.DOCS** — Phase 10 closing tasks~~ ✅ Done
 
-### No active phase — TECH DEBT backlog available
-- **TD-001** — Backend export routes: extract shared `runExport()` helper (Low priority)
-- **TD-002** — T641 preview feature needs full E2E test
-- **TD-003** — T642/T643 known issues pending resolution
-- **TD-004** — GrapesJS type safety: define `ELearnComponent` interface (Medium)
-- **TD-005** — `useExtendedProperty` shallow merge risk (watch)
-- **TD-006** — Replace `_isEditorLoading` module flag with GrapesJS native storage events (Low)
-- **TD-007** — Unify course meta-operations save path (`TopToolbar`/`SlideList` → `courseApi` REST) — surfaced by T651 ADR as out-of-scope sibling of the widget-save unification
+### No active phase — TECH DEBT backlog CLEARED (all resolved)
+- **TD-001** through **TD-008** — ✅ All closed. See `CHANGELOG.md` entries v0.5.55 through v0.5.62.
+
+### Next: User Manual v2 rewrite
+> **Scope doc:** `docs/user-manual-v2-scope.md`
+> **Blockers:** none (TD-008 closed).
+> **Writing order:** §2 (authoring walkthroughs, mechanical) → §3 (Actions Editor, now unblocked) + §8 (end-to-end worked example) → §4 (Phaser with real JSON) → §5 (publish) → §6 (QA) → §7 (troubleshooting) → §9 (glossary).
+> **Target length:** 3–4× v1 (≈ 15–25 KB markdown).
+> **Pending decision:** T036 Phaser per-simType scene builders (LOW priority; placeholder workaround acceptable until real scene rendering lands).
 
 ---
 

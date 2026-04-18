@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.62] — 2026-04-18 — TD-008: 4 minor UI/UX bug fixes ahead of user-manual v2 rewrite
+
+### Fixed
+- **[TD-008 / Bug #1] `PhaserSimPreviewModal` now tracks window resizes** (`packages/authoring-ui/src/components/simulation/PhaserSimPreviewModal.tsx`) — modal previously captured `window.innerWidth` / `window.innerHeight` once at mount; resizing the browser left stale dimensions and clipped the modal. Fixed with `useState(viewport)` + `useEffect` `'resize'` listener + cleanup on unmount. SSR-safe via `typeof window !== 'undefined'` guards.
+- **[TD-008 / Bug #2] Component-default `properties` shape standardised to `[]`** (`editor/registerBlocks.ts`, `registerQuestionBlocks.ts`, `registerSimBlock.ts`, `registerPhaserSimBlock.ts`, `editor/converters.ts`) — 14 widget defaults plus `nav-buttons` children switched from `properties: {}` to `properties: []`. GrapesJS's Style Manager `PropertyComposite` calls `this.get('properties') || []` then iterates; object shape was latent crash bait despite `GENERATED_CONTENT_TYPES` already omitting it on load for known-risky types. `converters.ts::NavButtonChildDef` type updated to `properties: []` with an inline comment documenting the GrapesJS requirement. Test `registerBlocks.test.ts` updated: `toEqual({})` → `toEqual([])` for all 14 widget types.
+- **[TD-008 / Bug #3] Phaser placeholder scene fires `sim-complete` in ALL modes** (`packages/runtime-player/src/widgets/phaserSimWidget.ts`) — previously only `mode === 'demo'` auto-completed after 2 s; practice/assessment modes rendered the label but never emitted completion, so courses containing a Phaser sim could not progress in those modes. Removed the mode guard. Score reported: `100` for demo/practice (unconditional pass), `config.passingScore` for assessment (meets author's threshold). Placeholder remains temporary — will be replaced entirely by T036 per-simType scene builders.
+- **[TD-008 / Bug #4] Actions Editor dropdown shows widget names instead of cryptic GrapesJS IDs** — authors set "HintButton" in Props → Name but the `Show` / `Hide` / `Play Media` / `Score Question` dropdowns displayed `c32kq3`, `df12x8`, etc. Fixed in four places: (a) `packages/shared-types/src/widgets.ts` — `BaseWidget.name?: string` added (optional, backward-compatible); (b) `packages/authoring-ui/src/editor/converters.ts::widgetsFromGrapesjs` — reads `c.get('name') ?? attributes.name ?? ''` (trims, omits empty) and populates top-level `widget.name`; (c) same file `grapesjsFromWidgets` — restores `attributes.name = widget.name` on reload when non-empty; (d) `packages/authoring-ui/src/components/actions/ActionItemEditor.tsx` — `<option>` label changed to `{w.name || w.id}` while `value` stays `w.id` (technical routing key unchanged). Backward-compat path verified: legacy courses with `name` only in `widget.properties` continue to work via the T611 attribute restoration loop.
+
+### Added
+- **[TD-008] 6 round-trip regression tests** in `packages/authoring-ui/src/__tests__/converters.test.ts` under a new `Bug #4 — name trait round-trip for Actions Editor dropdown` describe: (1) `widgetsFromGrapesjs` reads the `name` trait from model into `widget.name`; (2) `widget.name` is `undefined` when blank; (3) `grapesjsFromWidgets` restores `widget.name` into `def.attributes.name`; (4) no `attributes.name` when `widget.name` absent; (5) full round-trip preserves the `name` trait; (6) legacy-properties fallback (courses saved pre-TD-008 with `name` only in `widget.properties`).
+- **[TD-008] Self-review** (`docs/issues/issues-TD-008.md`) — autonomous; includes root-cause analysis, fix rationale, scope note on `widget.properties` MongoDB shape (unchanged), backward-compat path, and verification matrix. 0 open CRITICAL/HIGH/MEDIUM.
+- **[TD-008] User-manual v2 scope document** (`docs/user-manual-v2-scope.md`) — drafted before the bug-fix pass to capture what v1 missed, agreed §1-§9 plan, Actions Editor investigation notes (triggers, actions, DSL, widget referencing), and the research that identified Bug #4 as a documentation blocker.
+
+### Notes
+- **[TD-008] T036 still deferred**: per-simType Phaser scene builders (ProcessFlowScene, InteractiveDiagramScene, GamifiedQuizScene, PhysicsDemoScene, ConceptAnimatorScene) remain future work. The placeholder fix is explicitly temporary; comment in `phaserSimWidget.ts` points to T036 as the permanent replacement.
+- **[TD-008] `widget.properties` MongoDB storage shape untouched**: stays `Record<string, unknown>`. Only the GrapesJS component-def `properties` field was standardised. Backend Course schema unchanged.
+- **[TD-008] Ready for user-manual v2 rewrite**: TD-008 was the documentation blocker. §3 of the manual can now describe correct UX ("name your widget in Props → Name and it appears as that name in the dropdown") without a workaround clause.
+- **[TD-008] Verification matrix**: `npx tsc -b packages/shared-types packages/authoring-ui packages/runtime-player` → exit 0; authoring-ui suite 755 → **761/761 pass** across 33 files; runtime-player **265/265 pass** (no change); `pnpm -r lint` 0 errors (2 historical TD-004 warnings unchanged); CI run `24608241954` (bugs #1-#3) and `24608814942` (bug #4) both green including full E2E suite.
+- **[TD-008] Commits**: `62153ca` (bugs #1, #2, #3 bundled) + `de0ad2e` (bug #4, isolated because it introduced a shared-types schema change).
+
+---
+
 ## [0.5.61] — 2026-04-18 — TD-006: `_isEditorLoading` audit confirms native events insufficient (closed; no code change)
 
 ### Added
