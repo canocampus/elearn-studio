@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.60] — 2026-04-18 — TD-005: `useExtendedProperty` shallow-merge contract + dev-only lost-key detector
+
+### Added
+- **[TD-005] Dev-only lost-key warning in `useExtendedProperty.update()`** (`packages/authoring-ui/src/hooks/useComponentProperty.ts`) — fires `console.warn` when `update(newValue)` is about to shallow-replace a nested object with a partial-shape one, losing sibling keys. Triggers only when `process.env.NODE_ENV !== 'production'` AND both `prev` and `newValue` are plain objects (`isPlainObject` helper: `typeof v === 'object' && v !== null && !Array.isArray(v)` — arrays excluded on purpose). Message includes the subKey name, the lost-key list, and the literal fix snippet pointing to the T639 `getLatest()` + spread pattern. Production bundles tree-shake the entire branch — zero runtime cost in prod.
+- **[TD-005] Explicit JSDoc contract on `useExtendedProperty.update()`** stating that `newValue` REPLACES the entire nested object (does NOT deep-merge), and documenting the canonical T639 partial-update pattern: `updateEp({ ...getLatest(), [subKey]: { ...getLatest()[subKey], ...patch } })`.
+- **[TD-005] 4 regression tests** in `packages/authoring-ui/src/__tests__/hooks/useComponentProperty.test.ts` under a new `useExtendedProperty — TD-005 shallow-replace contract + lost-key warning` describe block:
+  - `shallow replace of nested object works as documented (replaces entirely)` — full-shape replacement of `scoring` succeeds without warning.
+  - `warning fires when shallow-replace of a nested object loses keys` — partial `{ weight: 50 }` over `{ weight, attempts, mandatory }` triggers exactly one `console.warn` whose message is asserted to contain `[TD-005]`, the subKey name, both lost key names, and the `getLatest()` suggestion. Behaviour (commit the shallow replace) still honoured.
+  - `no warning when replacing a nested object with same-shape value` — guards against false positives.
+  - `no warning for array-of-objects replacement (options)` — documents that wholesale-replace for arrays is intentional contract.
+  - All tests use `vi.spyOn(console, 'warn').mockImplementation(() => {})` with `mockRestore()` in `finally` so no other test sees the spy.
+- **[TD-005] Self-review** (`docs/issues/issues-TD-005.md`) — autonomous, includes: why the original "Option B literal" (`FlatExtendedProperties` type + warn-on-any-object) was rejected after audit revealed `extendedProperties` already contains nested shapes (`scoring`, `options`, `sceneDef`); why deep-merge was rejected on four grounds (YAGNI, array semantics ambiguity, bundle cost, debuggability); what was actually implemented; what this does NOT do (no production cost, no type changes, no caller migration). 0 CRITICAL/HIGH/MEDIUM/LOW.
+
+### Notes
+- **[TD-005] Premise correction**: the `tasks.md` description "all extendedProperties have flat structure" was already incorrect when written. Audit traces nested shapes back to T639 (when `QuestionScoring` was extracted) and earlier (when `MCOption[]` shipped). The original ticket framing — "preventive fix in case nested shapes appear" — was reactively reframed as "diagnostic for the bug pattern that already-existing nested shapes invite". The reframe is documented at length in `docs/issues/issues-TD-005.md`.
+- **[TD-005] Verification**: `npx tsc --noEmit` exit 0; `useComponentProperty.test.ts` 40 → **44/44 pass**; full authoring-ui suite 746 → **750/750 pass** across 32 files; `pnpm -r lint` 0 errors (2 historical TD-004 warnings unchanged).
+- **[TD-005] Commit**: `d6b54f5`.
+
+---
+
 ## [0.5.59] — 2026-04-18 — TD-007: unified course-meta save path via `requestCourseMutation`
 
 ### Added
