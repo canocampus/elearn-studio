@@ -42,9 +42,9 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
   // only the post-success side effects (setCourse + operation-specific state).
   async function handleNewSlide() {
     if (!course) return
-    const rcm = useEditorStore.getState().requestCourseMutation
-    if (!rcm) return
-    const updated = await rcm(() => addSlide(course._id, nextSlideTitle(course.slides)))
+    const updated = await useEditorStore.getState().requestCourseMutation(
+      () => addSlide(course._id, nextSlideTitle(course.slides)),
+    )
     if (!updated) {
       toast.error(`Failed to add slide: ${useEditorStore.getState().saveError ?? 'unknown error'}`)
       return
@@ -82,9 +82,9 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
       return
     }
     if (!confirm(`Delete "${currentSlide.title}"?`)) return
-    const rcm = useEditorStore.getState().requestCourseMutation
-    if (!rcm) return
-    const updated = await rcm(() => deleteSlide(course._id, currentSlide.id))
+    const updated = await useEditorStore.getState().requestCourseMutation(
+      () => deleteSlide(course._id, currentSlide.id),
+    )
     if (!updated) {
       toast.error(`Failed to delete slide: ${useEditorStore.getState().saveError ?? 'unknown error'}`)
       return
@@ -97,9 +97,9 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
   async function handleSaveSettings(updated: CourseSettings) {
     if (!course) return
     setShowSettings(false)
-    const rcm = useEditorStore.getState().requestCourseMutation
-    if (!rcm) return
-    const saved = await rcm(() => updateCourse(course._id, { settings: updated }))
+    const saved = await useEditorStore.getState().requestCourseMutation(
+      () => updateCourse(course._id, { settings: updated }),
+    )
     if (!saved) {
       toast.error(`Failed to save settings: ${useEditorStore.getState().saveError ?? 'unknown error'}`)
       return

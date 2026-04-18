@@ -42,10 +42,6 @@ export function SlideList() {
   // centralised setIsSaving / setSaveError / bumpCacheVersion. Local per-op
   // flags were removed; the global `isSaving` flag replaces them for per-row
   // button disabled states. Toast level unified to `error`.
-  function getRcm() {
-    return useEditorStore.getState().requestCourseMutation
-  }
-
   function getSaveError() {
     return useEditorStore.getState().saveError ?? 'unknown error'
   }
@@ -56,9 +52,9 @@ export function SlideList() {
 
   async function handleAddSlide() {
     if (isSaving) return
-    const rcm = getRcm()
-    if (!rcm) return
-    const updated = await rcm(() => addSlide(course!._id, nextSlideTitle(course!.slides)))
+    const updated = await useEditorStore.getState().requestCourseMutation(
+      () => addSlide(course!._id, nextSlideTitle(course!.slides)),
+    )
     if (!updated) {
       toast.error(`Failed to add slide: ${getSaveError()}`)
       return
@@ -73,9 +69,9 @@ export function SlideList() {
 
   async function handleDuplicate(slide: Slide) {
     if (isSaving) return
-    const rcm = getRcm()
-    if (!rcm) return
-    const updated = await rcm(() => duplicateSlide(course!._id, slide))
+    const updated = await useEditorStore.getState().requestCourseMutation(
+      () => duplicateSlide(course!._id, slide),
+    )
     if (!updated) {
       toast.error(`Failed to duplicate slide: ${getSaveError()}`)
       return
@@ -91,9 +87,9 @@ export function SlideList() {
   async function handleDelete(slide: Slide, index: number) {
     if (isSaving || course!.slides.length <= 1) return
     if (!window.confirm(`Delete "${slide.title}"?`)) return
-    const rcm = getRcm()
-    if (!rcm) return
-    const updated = await rcm(() => deleteSlide(course!._id, slide.id))
+    const updated = await useEditorStore.getState().requestCourseMutation(
+      () => deleteSlide(course!._id, slide.id),
+    )
     if (!updated) {
       toast.error(`Failed to delete slide: ${getSaveError()}`)
       return
@@ -116,9 +112,9 @@ export function SlideList() {
     const trimmed = editingTitle.trim()
     setEditingId(null)
     if (!trimmed || trimmed === slide.title) return
-    const rcm = getRcm()
-    if (!rcm) return
-    const updated = await rcm(() => updateSlide(course!._id, slide.id, { title: trimmed }))
+    const updated = await useEditorStore.getState().requestCourseMutation(
+      () => updateSlide(course!._id, slide.id, { title: trimmed }),
+    )
     if (!updated) {
       toast.error(`Failed to rename slide: ${getSaveError()}`)
       return
@@ -154,9 +150,9 @@ export function SlideList() {
     ids.splice(adjustedDropIndex, 0, moved)
     setDragIndex(null)
     setDropIndex(null)
-    const rcm = getRcm()
-    if (!rcm) return
-    const updated = await rcm(() => reorderSlides(course!._id, ids))
+    const updated = await useEditorStore.getState().requestCourseMutation(
+      () => reorderSlides(course!._id, ids),
+    )
     if (!updated) {
       toast.error(`Failed to reorder slides: ${getSaveError()}`)
       return

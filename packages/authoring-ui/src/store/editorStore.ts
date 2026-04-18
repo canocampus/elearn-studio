@@ -6,6 +6,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { Editor } from 'grapesjs'
 import type { CourseDoc, Slide } from '../types/course'
+import { performCourseMutation } from '../lib/courseMutation'
 
 interface EditorState {
   // GrapesJS editor instance (set after init)
@@ -35,15 +36,13 @@ interface EditorState {
   requestSave: ((opts?: { timeoutMs?: number }) => Promise<void>) | null
   setRequestSave: (fn: EditorState['requestSave']) => void
 
-  // TD-007: unified course-meta mutation entry point — bound closure constructed
-  // in initEditor() alongside requestSave. Takes a courseApi call and funnels
-  // setIsSaving/setSaveError/bumpCacheVersion around it. Null until the editor
-  // is ready; set via setRequestCourseMutation in EditorCanvas Effect 1.
+  // TD-007: unified course-meta mutation entry point. Always-available store
+  // action (no editor dependency — only uses Zustand setters for
+  // setIsSaving / setSaveError / bumpCacheVersion). Callers pass the REST call
+  // as a thunk; the action centralises UI-state transitions and cache bumping.
   // See decisions/2026-04-18-course-mutation.md.
   requestCourseMutation:
-    | (<R>(apiCall: () => Promise<R>, opts?: { bumpCache?: boolean }) => Promise<R | undefined>)
-    | null
-  setRequestCourseMutation: (fn: EditorState['requestCourseMutation']) => void
+    <R>(apiCall: () => Promise<R>, opts?: { bumpCache?: boolean }) => Promise<R | undefined>
 
   // Left sidebar tab: 'slides' | 'blocks'
   leftTab: 'slides' | 'blocks'
@@ -96,8 +95,20 @@ export const useEditorStore = create<EditorState>()(devtools((set, get) => ({
   requestSave: null,
   setRequestSave: (requestSave) => set({ requestSave }),
 
-  requestCourseMutation: null,
-  setRequestCourseMutation: (requestCourseMutation) => set({ requestCourseMutation }),
+  requestCourseMutation: async <R>(
+    apiCall: () => Promise<R>,
+    opts: { bumpCache?: boolean } = {},
+  ): Promise<R | undefined> => {
+    const { setIsSaving, setSaveError, bumpCacheVersion } = get()
+    return performCourseMutation(apiCall, {
+      onStart: () => { setIsSaving(true); setSaveError(null) },
+      onSuccess: () => {
+        if (opts.bumpCache !== false) bumpCacheVersion()
+        setIsSaving(false)
+      },
+      onError: (msg) => { setIsSaving(false); setSaveError(msg) },
+    })
+  },
 
   leftTab: 'slides',
   setLeftTab: (leftTab) => set({ leftTab }),

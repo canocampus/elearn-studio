@@ -63,7 +63,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
 
     isInitializedRef.current = true
 
-    const { editor, cleanup, hasPendingChanges, requestSave, requestCourseMutation } = initEditor({
+    const { editor, cleanup, hasPendingChanges, requestSave } = initEditor({
       container: containerRef.current,
       courseId,
       slideId,
@@ -112,9 +112,8 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
     // EditorCanvas saveAndLoad, useActionsSave and SimulationEditor all share one entry point.
     useEditorStore.getState().setRequestSave(requestSave)
 
-    // TD-007 — Expose the unified course-meta mutation closure so TopToolbar and
-    // SlideList share one entry point for add/delete/update/reorder/rename/duplicate.
-    useEditorStore.getState().setRequestCourseMutation(requestCourseMutation)
+    // TD-007 — requestCourseMutation is a plain store action, not editor-bound.
+    // No lifecycle registration needed here (unlike requestSave).
 
     // T650.2 — Warn the user if they try to close the tab mid-debounce.
     // hasPendingChanges() reads autosaveTimer !== null at event time — no store() called here.
@@ -134,7 +133,6 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       editorRef.current = null
       setEditor(null)
       useEditorStore.getState().setRequestSave(null)
-      useEditorStore.getState().setRequestCourseMutation(null)
     }
     // Effect 1 intentionally runs only when courseId changes.
     // setEditor/setRightTab/setSelectedComponentType are stable Zustand actions.
