@@ -196,25 +196,28 @@ describe('T607.4 — SlideList slide items are draggable', () => {
 
 // ─── T607.5–T607.8 — QuestionPropertiesPanel ─────────────────────────────────
 
-describe('T607.8 — QuestionPropertiesPanel empty state', () => {
-  it('shows hint when no editor is loaded', () => {
+// TD-010: the panel now returns `null` instead of an inline empty-state div.
+// The user-facing "Select a widget" message lives centrally in AppLayout.
+// These tests assert the null-render contract.
+describe('TD-010 — QuestionPropertiesPanel returns null when inapplicable', () => {
+  it('returns null when no editor is loaded', () => {
     useEditorStore.setState({ editor: null, selectedComponentType: null })
-    render(<QuestionPropertiesPanel />)
-    expect(screen.getByText(/Select a question widget/i)).toBeTruthy()
+    const { container } = render(<QuestionPropertiesPanel />)
+    expect(container.firstChild).toBeNull()
   })
 
-  it('shows hint when a non-question widget type is selected', () => {
+  it('returns null when a non-question widget type is selected', () => {
     const editor = makeMockEditor(makeMockComponent('text', {}))
     useEditorStore.setState({ editor, selectedComponentType: 'text' })
-    render(<QuestionPropertiesPanel />)
-    expect(screen.getByText(/Select a question widget/i)).toBeTruthy()
+    const { container } = render(<QuestionPropertiesPanel />)
+    expect(container.firstChild).toBeNull()
   })
 
-  it('shows "No component selected" when question type is set but getSelected returns null', () => {
+  it('returns null when question type is set but getSelected returns null', () => {
     const editor = makeMockEditor(null)
     useEditorStore.setState({ editor, selectedComponentType: 'question-mc' })
-    render(<QuestionPropertiesPanel />)
-    expect(screen.getByText(/No component selected/i)).toBeTruthy()
+    const { container } = render(<QuestionPropertiesPanel />)
+    expect(container.firstChild).toBeNull()
   })
 })
 

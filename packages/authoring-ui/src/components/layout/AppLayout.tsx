@@ -42,6 +42,7 @@ import { useDebugMode } from '../../hooks/useDebugMode'
 import { CourseInspector } from '../debug/CourseInspector'
 import { CourseHistory } from '../debug/CourseHistory'
 import { ActionsDebugOverlay } from '../debug/ActionsDebugOverlay'
+import { hasCustomPropsPanel, PropsEmptyState } from './propsEmptyState'
 
 interface AppLayoutProps {
   courseId: string
@@ -56,6 +57,8 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
   const setLeftTab = useEditorStore(s => s.setLeftTab)
   const rightTab = useEditorStore(s => s.rightTab)
   const setRightTab = useEditorStore(s => s.setRightTab)
+  const selectedComponentType = useEditorStore(s => s.selectedComponentType)
+  const propsHasCustomPanel = hasCustomPropsPanel(selectedComponentType)
 
   const [publishing, setPublishing] = useState(false)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
@@ -244,27 +247,33 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
             </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'properties' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-            <PanelErrorBoundary name="QuestionPropertiesPanel">
-              <QuestionPropertiesPanel />
-            </PanelErrorBoundary>
-            <PanelErrorBoundary name="PhaserSimPropertiesPanel">
-              <PhaserSimPropertiesPanel />
-            </PanelErrorBoundary>
-            <PanelErrorBoundary name="ButtonPropertiesPanel">
-              <ButtonPropertiesPanel />
-            </PanelErrorBoundary>
-            <PanelErrorBoundary name="MediaPlayerPropertiesPanel">
-              <MediaPlayerPropertiesPanel />
-            </PanelErrorBoundary>
-            <PanelErrorBoundary name="AudioNarrationPropertiesPanel">
-              <AudioNarrationPropertiesPanel />
-            </PanelErrorBoundary>
-            <PanelErrorBoundary name="ProgressBarPropertiesPanel">
-              <ProgressBarPropertiesPanel />
-            </PanelErrorBoundary>
-            <PanelErrorBoundary name="VolumeControlPropertiesPanel">
-              <VolumeControlPropertiesPanel />
-            </PanelErrorBoundary>
+            {propsHasCustomPanel ? (
+              <>
+                <PanelErrorBoundary name="QuestionPropertiesPanel">
+                  <QuestionPropertiesPanel />
+                </PanelErrorBoundary>
+                <PanelErrorBoundary name="PhaserSimPropertiesPanel">
+                  <PhaserSimPropertiesPanel />
+                </PanelErrorBoundary>
+                <PanelErrorBoundary name="ButtonPropertiesPanel">
+                  <ButtonPropertiesPanel />
+                </PanelErrorBoundary>
+                <PanelErrorBoundary name="MediaPlayerPropertiesPanel">
+                  <MediaPlayerPropertiesPanel />
+                </PanelErrorBoundary>
+                <PanelErrorBoundary name="AudioNarrationPropertiesPanel">
+                  <AudioNarrationPropertiesPanel />
+                </PanelErrorBoundary>
+                <PanelErrorBoundary name="ProgressBarPropertiesPanel">
+                  <ProgressBarPropertiesPanel />
+                </PanelErrorBoundary>
+                <PanelErrorBoundary name="VolumeControlPropertiesPanel">
+                  <VolumeControlPropertiesPanel />
+                </PanelErrorBoundary>
+              </>
+            ) : (
+              <PropsEmptyState selectedType={selectedComponentType} />
+            )}
           </div>
           <div style={{ display: rightTab === 'actions' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
             <PanelErrorBoundary name="ActionsPanel">

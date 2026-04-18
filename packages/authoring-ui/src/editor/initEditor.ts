@@ -466,6 +466,24 @@ export function initEditor(opts: InitEditorOptions): {
         return
       }
 
+      // TD-009 fix: the event-handler side of triggerAutosave early-returns when
+      // the loading gate is up, but the timer callback (this closure) was set
+      // BEFORE the gate rose — it can fire mid-load. Example failing flow:
+      //   t=0    user adds widget on slide A → timer set, fires at t=2s.
+      //   t=0.5  user clicks slide B → Effect 2 flushes save, loads slide B.
+      //   t=1.0  user clicks back to slide A → Effect 2 flushes save, STARTS
+      //          loading slide A (setEditorLoading(true), storage.load() awaits).
+      //   t=2.0  timer fires, snapshot=A matches current=A, proceeds.
+      //          GrapesJS is mid-load: old components cleared, new not yet set.
+      //          requestSave() serialises the empty state → PATCH /slides/A
+      //          widgets=[] → corrupts the cache → next load returns empty.
+      // The fix: defer any save while a load is in flight. The explicit
+      // requestSave inside EditorCanvas Effect 2 already persisted the pending
+      // edits BEFORE the load started, so skipping this autosave is safe.
+      if (getEditorLoading()) {
+        return
+      }
+
       // T637.2: If RTE (text-edit) is active, defer autosave until the user exits.
       // rte:disable fires when text-edit ends and triggers triggerAutosave directly
       // (see listener below), so typed content is never lost.

@@ -490,30 +490,13 @@ export function QuestionPropertiesPanel() {
   const editor = useEditorStore(s => s.editor)
   const selectedComponentType = useEditorStore(s => s.selectedComponentType)
 
+  // TD-010: return null; centralised empty-state lives in AppLayout.
   if (!editor || !selectedComponentType || !isQuestionWidgetType(selectedComponentType)) {
-    return (
-      <div
-        style={{
-          padding: 16,
-          color: '#6c7086',
-          fontSize: 12,
-          textAlign: 'center',
-          lineHeight: 1.6,
-        }}
-      >
-        Select a question widget to edit its properties.
-      </div>
-    )
+    return null
   }
 
   const selected = editor.getSelected()
-  if (!selected) {
-    return (
-      <div style={{ padding: 16, color: '#6c7086', fontSize: 12, textAlign: 'center' }}>
-        No component selected.
-      </div>
-    )
-  }
+  if (!selected) return null
 
   // T648: within-panel routing from Backbone only — no Zustand fallback
   const type = selected.get('type') as string

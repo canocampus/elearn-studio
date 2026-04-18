@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.63] — 2026-04-18 — TD-009 + TD-010: widget persistence across slide switches + centralised Props empty-state
+
+### Fixed
+- **[TD-009] Widgets lost when switching slides rapidly** — three overlapping races, all addressed:
+  1. **React 18 StrictMode concurrent loads** (`packages/authoring-ui/src/components/editor/EditorCanvas.tsx`): Effect 2 double-invokes on mount, firing two `editor.load()` calls in parallel. The cancelled first run's `loadData()` still resolved and cleared the canvas AFTER the test/user added a widget. Fixed with `lastLoadContextRef` + `lastLoadPromiseRef` — the second invocation short-circuits and awaits the first load's promise instead of racing it.
+  2. **Autosave timer firing mid-load** (`packages/authoring-ui/src/editor/initEditor.ts`): the `setTimeout` callback did not re-check `getEditorLoading()`, so a pending autosave scheduled BEFORE a slide switch could fire DURING `editor.load()` and PATCH empty widgets to the current slide. Added an early-return when the loading gate is up; the explicit pre-switch `requestSave` inside Effect 2 already persisted pending edits.
+  3. **Stale `data-editor-ready` attribute on slide switch** (`packages/authoring-ui/src/components/editor/EditorCanvas.tsx`): `setIsReady(false)` only scheduled a re-render — the DOM attribute didn't flip to `"false"` before async work started, so any observer (Playwright's waitFor, user code) could see the previous slide's `"true"` and race ahead. A widget observed during that window would be serialised into the NEW slide's PATCH by flush-before-switch, because the editor tree still held the old slide's content. Fixed by imperatively setting `containerRef.current.setAttribute('data-editor-ready', 'false')` synchronously right after `setIsReady(false)`.
+- **[TD-010] PropertiesPanels no longer stack empty-state placeholders** (`packages/authoring-ui/src/components/sidebar/*.tsx`, `packages/authoring-ui/src/components/layout/propsEmptyState.tsx`, `packages/authoring-ui/src/components/layout/AppLayout.tsx`): previously, when a widget was selected, the 6 unrelated PropertiesPanels each rendered their own "Select a X widget" fallback, producing up to 6 pieces of stacked dead copy below the real panel. The 6 panels now `return null` when they don't apply; `AppLayout` renders a single centralised `<PropsEmptyState>` when none of the 7 panels matches (covers both "nothing selected" and "widget type without a custom panel, styled via Styles tab").
+
+### Added
+- **[TD-009] E2E regression guard** (`e2e/tests/widget-persistence-across-slides.spec.ts`) — two scenarios: (a) single-hop add → switch → switch back; (b) multi-hop add → 5-slide round-trip. Both assert the button's GrapesJS id survives via `editor.getWrapper().find('#' + id)`.
+- **[TD-009] Unit tests for the autosave-during-load guard** in `packages/authoring-ui/src/__tests__/initEditor.test.ts` (2 tests: guard up → save suppressed; guard down → save runs).
+- **[TD-010] `propsEmptyState.tsx` module** — `hasCustomPropsPanel(type: string | null): boolean` + `<PropsEmptyState selectedType />`. Extracted from AppLayout into its own file so unit tests can import without pulling in `SimulationEditor → react-konva → konva`.
+- **[TD-010] Unit tests** (`packages/authoring-ui/src/__tests__/layout/PropsEmptyState.test.tsx`, 6 tests) pinning the contract of both exports (widget-family classification, select-a-widget vs Styles-tab copy, single-node invariant).
+
+### Changed
+- **[TD-010] `SidebarPanels.test.tsx`** — 7 panel suites updated: `container.firstChild === null` when the panel does not apply, instead of looking for the "Select a X widget" text that no longer exists.
+
+### Notes
+- **[TD-009 + TD-010] Verification matrix**: `npx tsc -b` exit 0; authoring-ui vitest 763 → **769/769 pass** across 34 files (+1 file, +6 tests for TD-010); runtime-player **265/265 pass** (unchanged); E2E `widget-persistence-across-slides` 2/2 pass after fix (100% failure rate before); E2E `docs-screenshots` still green.
+- **[TD-009] `widget-persistence-across-slides.spec.ts` was the discovery vector for the third race.** The spec was green immediately after the first two fixes landed, then regressed 3/3 after TD-010 moved `selectedComponentType` into AppLayout (extra re-renders surfaced the stale-ready window). Adding browser-console forwarding and a `[STORE]` diagnostic log identified that the editor tree was still showing the previous slide's components at `readySignal` attached — pointing directly at the attribute-flip race.
+
+---
+
 ## [0.5.62] — 2026-04-18 — TD-008: 4 minor UI/UX bug fixes ahead of user-manual v2 rewrite
 
 ### Fixed

@@ -217,30 +217,14 @@ export function MediaPlayerPropertiesPanel() {
   const editor = useEditorStore(s => s.editor)
   const selectedComponentType = useEditorStore(s => s.selectedComponentType)
 
+  // TD-010: return null so a single centralised empty-state in AppLayout
+  // shows ONE message instead of stacked panel placeholders.
   if (!editor || !selectedComponentType || !isMediaPlayerWidgetType(selectedComponentType)) {
-    return (
-      <div
-        style={{
-          padding: 16,
-          color: '#6c7086',
-          fontSize: 12,
-          textAlign: 'center',
-          lineHeight: 1.6,
-        }}
-      >
-        Select a media player widget to edit its properties.
-      </div>
-    )
+    return null
   }
 
   const selected = editor.getSelected()
-  if (!selected) {
-    return (
-      <div style={{ padding: 16, color: '#6c7086', fontSize: 12, textAlign: 'center' }}>
-        No component selected.
-      </div>
-    )
-  }
+  if (!selected) return null
 
   return (
     <div data-testid="media-player-properties-panel" style={{ overflowY: 'auto', flex: 1 }}>

@@ -353,3 +353,90 @@ Pre-requisite cleanup before writing the v2 user manual. Functional review of v0
 > **Source:** T651 ADR deliberate out-of-scope | **Status:** Resolved | **Commits:** `769a12a` (refactor) + `4cd6bb8` (null-window fix) | **CI:** run `24602663078` green in 17m 08s | **ADR:** `decisions/2026-04-18-course-mutation.md` | **Review doc:** `docs/issues/issues-TD-007.md`
 
 Unified all 8 course-meta call sites (`TopToolbar.tsx` ×3 + `SlideList.tsx` ×5) behind a new `requestCourseMutation<R>(apiCall, opts?)` entry point. Two-layer design adapted (not mirrored) from T651: Layer 1 `packages/authoring-ui/src/lib/courseMutation.ts` exports pure `performCourseMutation<R>(apiCall, hooks)` (no Zustand, no React — narrows errors, returns `R | undefined`); **Layer 2 lives as a plain always-available store action inside `editorStore.ts`** (NOT inside `initEditor.ts` as the first draft tried — see post-mortem below). Layer 2 wires `setIsSaving`/`setSaveError`/`bumpCacheVersion` with `bumpCache: true` as default invariant. Store field is non-nullable; no `setRequestCourseMutation`, no `EditorCanvas` registration. **Latent cache-invalidation bug fixed as side effect**: `commitRename` and `handleDrop` did not call `bumpCacheVersion()` → storageManager cache held pre-mutation slide list → stale title/order could surface on next `editor.load()`. Both paths now bump cache automatically via the default. Local `isAdding`/`isProcessing` flags in `SlideList.tsx` deleted; render uses global `useEditorStore(s => s.isSaving)` → `SaveErrorBanner` and "Saving…" badge now surface for all 8 mutations (previously only the 3 toolbar ones). Toast severity unified to `error` across the 5 SlideList sites (was `warning`). `grep "isAdding\|isProcessing"` returns 0 matches. 8 tests for the pure primitive + 5 tests for the store action (including a null-window regression guard); authoring-ui suite 733 → **746/746 pass** (32 files). `npx tsc --noEmit` exit 0; `pnpm -r lint` 0 errors. **Post-mortem**: first push (`769a12a`) placed Layer 2 inside `initEditor.ts` (mirror T651 literally). The `| null` store field + `if (!rcm) return` caller guards produced a null window between app mount and EditorCanvas Effect 1 → E2E fixture `editorPage.addSlide()` clicked Add Slide during that window → silent no-op → 30 s × 3 retries × ~20 failing tests → CI E2E step cancelled at 27 min (run `24601830271`). Fix-forward (`4cd6bb8`) moved Layer 2 into the store directly because `requestCourseMutation` has no editor dependency; symmetric-mirror was the wrong heuristic. Guardrail: layer-2 placement follows the Layer 1 primitive's dependencies, not file-layout symmetry.
+
+---
+
+### [x] TD-009 — Widgets lost when switching slides rapidly (React StrictMode concurrent-load race) ✅ DONE (2026-04-18)
+> **Source:** Surfaced while building `e2e/tests/docs-screenshots.spec.ts` (2026-04-18) | **Status:** Resolved | **Priority:** MEDIUM (was — data loss confirmed)
+
+**Root causes (three distinct races, discovered in sequence):**
+
+1. **React 18 StrictMode concurrent loads.** StrictMode double-invokes `EditorCanvas` Effect 2 on mount. Each invocation calls `editor.load()` asynchronously. The first run is cancelled (isCancelled=true) but its in-flight `editor.load()` still resolves — at which point GrapesJS's `loadData()` runs synchronously, clearing the canvas. If a widget was added AFTER `readySignal` fired (by the second run) but BEFORE the first run's load completed, the stale `loadData()` would wipe it.
+
+2. **Autosave timer firing mid-load.** The autosave `setTimeout` callback in `initEditor.ts` did not re-check `getEditorLoading()`, so a pending timer could fire DURING `editor.load()` and PATCH a transient empty widget list to the current slide.
+
+3. **Stale `data-editor-ready` attribute on slide switch.** Effect 2's `setIsReady(false)` only schedules a re-render — the DOM attribute does not flip from `"true"` to `"false"` in the same event-loop tick. Any observer polling the attribute (Playwright, or user code reacting to navigation) could see the stale `"true"` from the previous slide's load and race ahead. In practice, a widget added RIGHT after a "ready" observation on the previous slide could be serialised INTO the new slide's PATCH by the flush-before-switch save, because the editor tree still held the old slide's content.
+
+**Fix (three files, minimal diffs):**
+
+1. `packages/authoring-ui/src/components/editor/EditorCanvas.tsx` (race #1) — `lastLoadContextRef` + `lastLoadPromiseRef` track the (courseId, slideId) of the last-started load and its promise. Effect 2 short-circuits when re-invoked with the same context (StrictMode twin), awaiting the already-in-flight load before calling `setIsReady(true)`.
+
+2. `packages/authoring-ui/src/editor/initEditor.ts` (race #2) — added `if (getEditorLoading()) return` inside the `setTimeout` callback so a pending autosave cannot fire mid-`editor.load()`. The explicit `requestSave` inside Effect 2 already persisted any pending edits before the load started, so dropping the timer-driven save is always safe.
+
+3. `packages/authoring-ui/src/components/editor/EditorCanvas.tsx` (race #3) — imperatively set `data-editor-ready="false"` on the container ref synchronously right after `setIsReady(false)`, so the DOM attribute flips immediately and any external observer sees an accurate "load in progress" state.
+
+**Verification:**
+- `packages/authoring-ui/src/__tests__/initEditor.test.ts` — 2 new unit tests (`TD-009`, `TD-009 control`) exercise both paths: save suppressed during load, save runs normally otherwise. 40/40 suite pass.
+- `e2e/tests/widget-persistence-across-slides.spec.ts` — new E2E regression guard with 2 scenarios (single-hop and multi-hop through 5 slides). 2/2 pass, re-run 5× to confirm no flake.
+- `docs-screenshots.spec.ts` — full 52-screenshot campaign still green after fix.
+- Authoring-ui vitest: 755 → **763/763 pass** (32 → 33 files).
+- Runtime-player: **265/265 pass** (unchanged).
+- `tsc -b` exit 0.
+
+**Subtasks:**
+- [x] TD-009.1 — Audit `switchSlide` / `storageManager` — no dedicated switch method, flush-before-switch logic already existed; identified three subtler races instead.
+- [x] TD-009.2 — Wrote E2E reproducer, confirmed count=0 after rapid round-trip (100% failure rate before the fix).
+- [x] TD-009.2b — Implement autosave-during-load guard (`initEditor.ts`).
+- [x] TD-009.2c — Implement StrictMode concurrent-load guard (`EditorCanvas.tsx`).
+- [x] TD-009.2d — Imperative `data-editor-ready="false"` flip in `EditorCanvas.tsx` to eliminate stale-ready race on slide switch.
+- [x] TD-009.3 — Unit tests (`initEditor.test.ts`) + E2E regression guard (`widget-persistence-across-slides.spec.ts`).
+- [x] TD-009.4 — Full test suite green (769/769 authoring-ui, 265/265 runtime-player, 2/2 E2E persistence guard); docs-screenshots campaign re-verified; `tsc -b` exit 0.
+
+---
+
+### [x] TD-010 — PropertiesPanels stack empty-state placeholders instead of returning `null` ✅ DONE (2026-04-18)
+> **Source:** Surfaced while building `e2e/tests/docs-screenshots.spec.ts` (2026-04-18) | **Status:** Resolved | **Priority:** MEDIUM (UX)
+
+**Symptom:** When a widget is selected and its matching PropertiesPanel is shown (e.g. `QuestionPropertiesPanel` for an MC question), the other six panels (`ButtonPropertiesPanel`, `MediaPlayerPropertiesPanel`, `AudioNarrationPropertiesPanel`, `ProgressBarPropertiesPanel`, `VolumeControlPropertiesPanel`, `PhaserSimPropertiesPanel`) still render and each shows its own "Select a X widget to edit its properties." message stacked below the real panel. The right sidebar ends up with 6 pieces of dead copy that the author has to scroll past.
+
+**Why it's wrong:** The empty-state exists to guide the user when nothing is selected. With a widget selected, the matching panel already answers "what can I do" — the other 6 messages are noise that makes the UI look broken.
+
+**Root cause:** Each panel's top-level conditional is:
+```tsx
+if (!editor || !selectedComponentType || !isButtonWidgetType(selectedComponentType)) {
+  return <div>Select a button widget to edit its properties.</div>   // ← should be `return null`
+}
+```
+(Same pattern in `Question`, `MediaPlayer`, `AudioNarration`, `ProgressBar`, `VolumeControl`, `PhaserSim`.)
+
+**Proposed fix (centralised approach):**
+1. Each `*PropertiesPanel` returns `null` when not applicable (remove the empty-state div).
+2. `AppLayout.tsx` wraps the Props tab container and, **if no panel matched** (no child renders anything), shows a single generic empty state: "Select a widget in the canvas to edit its properties." Detection can be via a sibling component that reads `selectedComponentType` and the set of widget types that HAVE custom panels.
+
+**Alternative fix (per-panel null):** Just change every `return <empty-state>` to `return null`. Simpler; the sidebar is just blank for widgets without a custom panel (text/image/rectangle/score-*). Less clear UX but trivial to apply.
+
+**Files affected (7):**
+- `packages/authoring-ui/src/components/sidebar/QuestionPropertiesPanel.tsx`
+- `packages/authoring-ui/src/components/sidebar/ButtonPropertiesPanel.tsx`
+- `packages/authoring-ui/src/components/sidebar/MediaPlayerPropertiesPanel.tsx`
+- `packages/authoring-ui/src/components/sidebar/AudioNarrationPropertiesPanel.tsx`
+- `packages/authoring-ui/src/components/sidebar/ProgressBarPropertiesPanel.tsx`
+- `packages/authoring-ui/src/components/sidebar/VolumeControlPropertiesPanel.tsx`
+- `packages/authoring-ui/src/components/sidebar/PhaserSimPropertiesPanel.tsx`
+- `packages/authoring-ui/src/components/layout/AppLayout.tsx` (only if going with the centralised approach)
+
+**Applied fix (centralised approach):**
+- The 6 panels that previously returned a per-widget empty-state div now `return null` when they do not apply.
+- A new module `packages/authoring-ui/src/components/layout/propsEmptyState.tsx` exports `hasCustomPropsPanel(type)` and `<PropsEmptyState selectedType />`. Extracted to its own file so unit tests can import these helpers without pulling in AppLayout's `SimulationEditor → react-konva → konva` chain.
+- `AppLayout.tsx` renders the 7 `PanelErrorBoundary`-wrapped panels only when `hasCustomPropsPanel(selectedComponentType)` is true; otherwise it renders `<PropsEmptyState selectedType={selectedComponentType} />`, which shows:
+  - "Select a widget on the canvas to edit its properties." when nothing is selected, or
+  - "This widget has no dedicated properties. Use the Styles tab to change its appearance." when a widget type without a custom panel is selected (text/image/rectangle/score-*).
+- `PropsEmptyState.test.tsx` pins the contract of `hasCustomPropsPanel` (11 widget families → true, 6 families → false, null → false) and `<PropsEmptyState>` (single node, correct copy for both states).
+- `SidebarPanels.test.tsx` updated: the 7 panel suites now assert `container.firstChild === null` when the panel does not apply, instead of looking for the "Select a X widget" text that no longer exists.
+
+**Subtasks:**
+- [x] TD-010.1 — Apply null returns in all 7 panels (6 had per-widget empty states; `PhaserSimPropertiesPanel` already returned null).
+- [x] TD-010.2 — Add centralised `PropsEmptyState` + `hasCustomPropsPanel` in `propsEmptyState.tsx`; wire it into AppLayout's Props tab container.
+- [x] TD-010.3 — Update the 7 panel tests in `SidebarPanels.test.tsx`; add new unit-test file `PropsEmptyState.test.tsx` (6 tests).
+- [x] TD-010.4 — `tsc -b` exit 0; authoring-ui vitest 769/769 pass (33 → 34 files); runtime-player 265/265 pass; E2E `widget-persistence-across-slides` + `docs-screenshots` still green.
+- [ ] TD-010.5 — Verify visually on each widget type (text, image, button, rectangle, nav-buttons, done-button, progress-bar, media-player, audio-narration, volume-control, score-quiz, score-field, mc, tf, fill, phaser-sim, screenshot-sim) that only one panel is visible + sidebar is not scrollable due to empty copy.

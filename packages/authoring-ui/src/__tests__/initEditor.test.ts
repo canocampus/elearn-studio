@@ -439,6 +439,51 @@ describe('T800 — triggerAutosave: RTE-active defer + rte:disable trigger', () 
 
     expect(fakeEditor.store).toHaveBeenCalledOnce()
   })
+
+  // ---- TD-009 — autosave timer callback MUST re-check the loading gate ----
+
+  it('TD-009: store() is NOT called when the loading gate rises AFTER the timer was scheduled', async () => {
+    initEditor(defaultOpts())
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+
+    // Schedule the autosave — gate is down, so triggerAutosave proceeds to setTimeout.
+    updateHandlers.forEach((h) => h({}))
+
+    // Now simulate a slide switch: EditorCanvas Effect 2 sets the gate BEFORE
+    // editor.load() runs. The pending timer must not fire a save during this
+    // window, or it will serialise the transient (empty) GrapesJS state and
+    // corrupt the slide being loaded.
+    setEditorLoading(true)
+
+    await vi.advanceTimersByTimeAsync(2001)
+
+    expect(fakeEditor.store).not.toHaveBeenCalled()
+
+    // Cleanup: lower the gate so subsequent tests are not affected.
+    setEditorLoading(false)
+  })
+
+  it('TD-009 control: store() IS called when the gate falls before the timer fires', async () => {
+    initEditor(defaultOpts())
+    const updateHandlers = eventCapture.handlers.get('component:update') ?? []
+
+    updateHandlers.forEach((h) => h({}))
+
+    setEditorLoading(true)
+    await vi.advanceTimersByTimeAsync(1000)
+    setEditorLoading(false)
+
+    // Fire the timer AFTER the gate was lowered. The guard should let the save
+    // through because loading has completed. But the SAME timer that was set
+    // when the gate was down cannot un-schedule itself; it will fire and the
+    // in-callback guard is what decides.
+    await vi.advanceTimersByTimeAsync(2001)
+
+    // Because the gate is now DOWN and the snapshot still matches, the save
+    // proceeds as usual — this proves the guard only suppresses during load,
+    // it does not drop pending saves forever.
+    expect(fakeEditor.store).toHaveBeenCalledOnce()
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -40,6 +40,18 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
   const isInitializedRef = useRef(false)
   // Track previous context to detect genuine slide switches (vs. initial mount).
   const prevContextRef = useRef<{ courseId: string; slideId: string } | null>(null)
+  // TD-009: Track the context of the last load we STARTED. StrictMode double-
+  // invokes Effect 2 on mount with the SAME slideId. The first run's
+  // editor.load() is async; while it is awaiting storage.load(), cleanup
+  // runs (isCancelled=true), then the second run starts — if we let it
+  // call editor.load() again, we end up with two concurrent loads. The
+  // first one's loadData() fires AFTER the second run has returned and
+  // the test (or user) has added a widget, silently clearing the canvas.
+  // By remembering the last-started (courseId, slideId) we skip the second
+  // invocation for the same slide, letting the first one's already-in-flight
+  // load complete normally and updating setIsReady once it resolves.
+  const lastLoadContextRef = useRef<{ courseId: string; slideId: string } | null>(null)
+  const lastLoadPromiseRef = useRef<Promise<void> | null>(null)
   const setEditor = useEditorStore(s => s.setEditor)
   const setSelectedComponentType = useEditorStore(s => s.setSelectedComponentType)
   const setRightTab = useEditorStore(s => s.setRightTab)
@@ -145,6 +157,27 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
     const editor = editorRef.current
     if (!editor) return
 
+    // TD-009: In React StrictMode the mount effect is invoked twice with the
+    // same deps. Skip the redundant second invocation — otherwise we fire two
+    // concurrent editor.load() calls, and the first one's loadData() runs
+    // AFTER the test/user has added content, clearing the canvas.
+    const lastLoad = lastLoadContextRef.current
+    if (
+      lastLoad !== null &&
+      lastLoad.courseId === courseId &&
+      lastLoad.slideId === slideId
+    ) {
+      // If the earlier run's load is still in flight, wait for it before
+      // declaring ready; otherwise the flag is already true.
+      if (lastLoadPromiseRef.current) {
+        lastLoadPromiseRef.current.then(() => setIsReady(true)).catch(() => setIsReady(true))
+      } else {
+        setIsReady(true)
+      }
+      return
+    }
+    lastLoadContextRef.current = { courseId, slideId }
+
     const prev = prevContextRef.current
     prevContextRef.current = { courseId, slideId }
 
@@ -158,6 +191,15 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
     const shouldSaveBeforeSwitch = prev !== null && prev.slideId !== slideId
 
     setIsReady(false)
+    // E2E/race-safety: setIsReady(false) is async — React hasn't flipped the
+    // data-editor-ready attribute to "false" yet. If a test (or any external
+    // observer) was waiting on the *previous* slide's readySignal, it would
+    // see the stale "true" and race ahead before the new slide has loaded.
+    // Flip the attribute synchronously on the DOM element so the ready signal
+    // correctly reflects "load in progress".
+    if (containerRef.current) {
+      containerRef.current.setAttribute('data-editor-ready', 'false')
+    }
 
     // AbortController guards against:
     //  1. Concurrent saveAndLoad() calls when Effect 2 fires rapidly (rapid slide clicks)
@@ -225,10 +267,14 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
         setEditorLoading(true)
         const loadPromise = editor.load() as Promise<unknown> | undefined
         if (loadPromise && typeof loadPromise.then === 'function') {
+          // TD-009: expose this load's promise so a StrictMode-twin Effect 2
+          // run can await completion instead of firing a second load.
+          lastLoadPromiseRef.current = loadPromise.then(() => undefined, () => undefined)
           loadPromise
             .then(() => {
               clearTimeout(fallbackTimer)
               setEditorLoading(false)
+              lastLoadPromiseRef.current = null
               // isCancelled is set in this Effect 2 run's cleanup, so a stale .then() from a
               // superseded slide switch (or from a destroyed editor's load) cannot call
               // setIsReady(true) while the newer run is still in-flight.
@@ -239,6 +285,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
             .catch((err) => {
               clearTimeout(fallbackTimer)
               setEditorLoading(false)
+              lastLoadPromiseRef.current = null
               console.error('[EditorCanvas] load() failed:', err)
               // Always recover on load failure, even if this run was cancelled.
               // - Component unmounted: setIsReady is a no-op in React 18.
