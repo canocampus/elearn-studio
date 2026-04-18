@@ -40,6 +40,7 @@ export function registerBlocks(editor: Editor): void {
   registerAudioNarrationWidget(editor)
   registerProgressBarWidget(editor)
   registerVolumeControlWidget(editor)
+  registerQuestionBlocks(editor)
   registerSimBlock(editor)
   registerPhaserSimBlock(editor)
 }
@@ -445,7 +446,6 @@ function registerMediaPlayerWidget(editor: Editor): void {
       style: { position: 'absolute', width: '320px', height: '200px' },
     },
   })
-  registerQuestionBlocks(editor)
 }
 
 function registerAudioNarrationWidget(editor: Editor): void {
