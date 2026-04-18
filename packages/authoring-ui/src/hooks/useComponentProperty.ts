@@ -188,8 +188,9 @@ export function useExtendedProperty<T>(
     // TD-005: Dev-only lost-key detector. Warns if the caller is replacing a
     // nested object with a partial-shape one (the exact bug pattern the shallow
     // merge invites). Does NOT fire for arrays — arrays are always replaced
-    // wholesale and that is the intended contract. Does NOT fire in production.
-    if (process.env.NODE_ENV !== 'production') {
+    // wholesale and that is the intended contract. Does NOT fire in production
+    // (Vite tree-shakes the branch when `import.meta.env.DEV === false`).
+    if (import.meta.env.DEV) {
       const prev = current[subKey]
       if (isPlainObject(prev) && isPlainObject(newValue)) {
         const lost = Object.keys(prev).filter(k => !(k in newValue))

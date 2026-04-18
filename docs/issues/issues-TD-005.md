@@ -72,7 +72,7 @@ Explicit statement of the shallow-replace semantics + the canonical T639 pattern
 Runs inside `update()` before the shallow merge. Fires exactly when the contract mismatch matters: **previous value was a nested object AND new value is a nested object AND new value is missing keys that were present**. Does NOT fire for arrays (wholesale replace is intended), does NOT fire in production builds:
 
 ```typescript
-if (process.env.NODE_ENV !== 'production') {
+if (import.meta.env.DEV) {
   const prev = current[subKey]
   if (isPlainObject(prev) && isPlainObject(newValue)) {
     const lost = Object.keys(prev).filter(k => !(k in newValue))
@@ -117,7 +117,7 @@ All four tests use `vi.spyOn(console, 'warn').mockImplementation(() => {})` with
 ## What this does NOT do
 
 - Does **not** change the shallow-merge behaviour for any caller — runtime semantics are identical to pre-TD-005.
-- Does **not** emit in production builds — `process.env.NODE_ENV !== 'production'` gate means the warning is tree-shaken by Vite/esbuild in prod bundles.
+- Does **not** emit in production builds — `import.meta.env.DEV` gate means the warning is tree-shaken by Vite in prod bundles. (Note: original draft used `process.env.NODE_ENV` but production `tsc -b && vite build` does not include `@types/node` in scope; switched to Vite-native `import.meta.env.DEV` which is the same thing without the type dependency. Caught by CI run `24605557979`.)
 - Does **not** type-restrict `extendedProperties` — the existing heterogeneous shapes (primitives, arrays, nested objects) remain legal.
 - Does **not** require callers to migrate — the T639 get-latest-spread pattern was already documented and used; TD-005 only adds a diagnostic for accidental misuse.
 
