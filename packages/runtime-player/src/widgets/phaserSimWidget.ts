@@ -120,12 +120,15 @@ function makePlaceholderScene(config: PhaserSimConfig): Record<string, unknown> 
         wordWrap: { width: config.width - 40 },
       })
 
-      // Auto-complete after 2 seconds in demo mode so courses can progress.
-      if (config.mode === 'demo') {
-        this.time.delayedCall(2000, () => {
-          this.events.emit('sim-complete', 100)
-        })
-      }
+      // Placeholder auto-completes in ALL modes so courses with Phaser sims can
+      // progress regardless of mode. The real scene builders (per-simType) will
+      // replace this and emit scores based on user interaction.
+      // Score reported: 100 in demo/practice (unconditional pass),
+      // passingScore in assessment (so the course meets the author's threshold).
+      const placeholderScore = config.mode === 'assessment' ? config.passingScore : 100
+      this.time.delayedCall(2000, () => {
+        this.events.emit('sim-complete', placeholderScore)
+      })
     },
   }
 }

@@ -280,11 +280,14 @@ describe('registerBlocks', () => {
     ]
 
     for (const type of ALL_COMPONENT_TYPES) {
-      it(`component "${type}" defaults include properties: {}`, () => {
+      it(`component "${type}" defaults include properties: []`, () => {
+        // GrapesJS Style Manager PropertyComposite expects an array here
+        // (this.get('properties') || []).forEach(...). Standardised to [] across
+        // all widget types — see converters.ts NavButtonChildDef comment.
         const comp = getComponent(editor, type)
         const defaults = (comp?.model as Record<string, unknown>)?.defaults as Record<string, unknown>
         expect(defaults).toHaveProperty('properties')
-        expect(defaults?.properties).toEqual({})
+        expect(defaults?.properties).toEqual([])
       })
 
       it(`component "${type}" defaults include elearnActions: []`, () => {

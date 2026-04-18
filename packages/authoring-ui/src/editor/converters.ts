@@ -50,7 +50,11 @@ export interface NavButtonChildDef {
   draggable: boolean
   actions: []
   elearnActions: []
-  properties: Record<string, unknown>
+  // GrapesJS Style Manager PropertyComposite expects an array here
+  // (this.get('properties') || []).forEach(...). See the omit-on-load logic
+  // in grapesjsFromWidgets() below. The defaults in registerBlocks.ts use []
+  // uniformly across all widget types.
+  properties: []
   extendedProperties: Record<string, unknown>
   style: Record<string, string>
 }
@@ -320,7 +324,7 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
           draggable: false,
           actions: [],
           elearnActions: [],
-          properties: {},
+          properties: [],
           extendedProperties: {},
           style: {
             padding: '8px 16px',
@@ -340,7 +344,7 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
           draggable: false,
           actions: [],
           elearnActions: [],
-          properties: {},
+          properties: [],
           extendedProperties: {},
           style: {
             padding: '8px 16px',

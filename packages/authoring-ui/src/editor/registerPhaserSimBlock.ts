@@ -53,7 +53,7 @@ export function registerPhaserSimBlock(editor: Editor): void {
         droppable: false,
         selectable: true,
         content: PLACEHOLDER_HTML,
-        properties: {},
+        properties: [],
         actions: [],
         elearnActions: [],
         extendedProperties: { ...PHASER_SIM_DEFAULT_EXTENDED } as PhaserSimExtendedProps,

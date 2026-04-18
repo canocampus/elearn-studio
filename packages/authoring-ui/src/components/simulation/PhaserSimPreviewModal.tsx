@@ -10,6 +10,7 @@
  *   - A Phaser runtime placeholder (actual Phaser init happens in runtime-player — T035)
  */
 
+import { useEffect, useState } from 'react'
 import { usePhaserSimStore } from '../../store/phaserSimStore'
 import type { PhaserSimExtendedProps } from '../../types/phaserSim'
 import { PHASER_SIM_TYPES } from '../../types/phaserSim'
@@ -52,6 +53,22 @@ export function PhaserSimPreviewModal() {
   const config = usePhaserSimStore(s => s.config)
   const closePreview = usePhaserSimStore(s => s.closePreview)
 
+  // Track viewport size so the modal re-layouts when the window is resized
+  // while the preview is open (fixes: stale dimensions after resize).
+  const [viewport, setViewport] = useState(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    h: typeof window !== 'undefined' ? window.innerHeight : 768,
+  }))
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    function onResize() {
+      setViewport({ w: window.innerWidth, h: window.innerHeight })
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   if (!previewOpen || !config) return null
 
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>): void {
@@ -76,8 +93,8 @@ export function PhaserSimPreviewModal() {
           background: '#1e1e2e',
           border: '1px solid #313244',
           borderRadius: 8,
-          width: Math.min(config.width ?? 800, window.innerWidth - 64),
-          maxHeight: window.innerHeight - 64,
+          width: Math.min(config.width ?? 800, viewport.w - 64),
+          maxHeight: viewport.h - 64,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -123,7 +140,7 @@ export function PhaserSimPreviewModal() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 12,
-              minHeight: Math.min(config.height ?? 500, window.innerHeight - 160),
+              minHeight: Math.min(config.height ?? 500, viewport.h - 160),
               color: '#a6e3a1',
               fontFamily: 'Inter, system-ui, sans-serif',
             }}
