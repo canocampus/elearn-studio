@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.59] — 2026-04-18 — TD-007: unified course-meta save path via `requestCourseMutation`
+
+### Added
+- **[TD-007] `performCourseMutation<R>(apiCall, hooks)` generic primitive** (`packages/authoring-ui/src/lib/courseMutation.ts`) — Layer 1 pure function mirroring T651's `performSave`: takes a `courseApi` callable and optional `onStart`/`onSuccess`/`onError` hooks, narrows any thrown error to a message string, returns the API result on success or `undefined` on failure. Zero Zustand/React dependency — testable in isolation.
+- **[TD-007] `requestCourseMutation` Zustand-bound closure** (`packages/authoring-ui/src/editor/initEditor.ts`) — Layer 2 closure constructed alongside `requestSave` that wires `performCourseMutation` into `setIsSaving`/`setSaveError`/`bumpCacheVersion`. Default `bumpCache: true` is the invariant — any course mutation invalidates the storageManager cache; the `{ bumpCache: false }` escape hatch is kept for future callers that may mutate metadata the cache does not mirror (no current caller uses it). Exposed via `useEditorStore.getState().requestCourseMutation` (Layer 3).
+- **[TD-007] 8 regression tests for the pure primitive** (`packages/authoring-ui/src/__tests__/lib/courseMutation.test.ts`) — success path, error path (Error + non-Error narrowing via `String(err)`), hook ordering guarantees (`onStart` synchronous before await, `onSuccess`/`onError` after), optional hooks.
+- **[TD-007] 3 regression tests for the Zustand closure** (`packages/authoring-ui/src/__tests__/initEditor.test.ts` → new `TD-007 — requestCourseMutation closure wires Zustand state and cache bump` describe) — success path asserts `setIsSaving(true)` → `bumpCacheVersion()` → `setIsSaving(false)`; `{ bumpCache: false }` asserts the bump is skipped; error path asserts `setSaveError(msg)` + `setIsSaving(false)` + no bump + `undefined` return.
+- **[TD-007] ADR** (`decisions/2026-04-18-course-mutation.md`) — options evaluated (per-operation wrappers / generic two-layer / HOF-only / Zustand middleware), selection rationale (two-layer mirror of T651 for consistent mental model), design guardrails (`setCourse` stays at caller, `bumpCache: true` default, no re-throw, toast stays caller-owned), test plan.
+- **[TD-007] Self-review** (`docs/issues/issues-TD-007.md`) — 4 drift findings (D-01 through D-04) all documented as resolved; no open CRITICAL/HIGH/MEDIUM.
+
+### Fixed
+- **[TD-007 / D-02] Latent cache-invalidation bug in slide rename and slide reorder** — `SlideList.commitRename` (`updateSlide`) and `SlideList.handleDrop` (`reorderSlides`) mutated the course via REST but did NOT call `bumpCacheVersion()`. `storageManager`'s in-memory `courseCache` (keyed by course ID) held the pre-mutation slide list, so a later `editor.load()` triggered by a slide switch could reconstruct the canvas from stale cache and show the old title or old order. Resolution: both sites now route through `requestCourseMutation` with the default `bumpCache: true`, guaranteeing cache invalidation on every successful mutation. Latent — no user report — but the path existed; the two paths that missed `bumpCacheVersion` are the ones the T651 refactor explicitly scoped out, exactly the drift TD-007 was designed to kill.
+- **[TD-007 / D-01] `isSaving` global state now reflects SlideList operations** — the 5 SlideList sites did not set the global `isSaving` flag; only the 3 TopToolbar sites did. `SaveErrorBanner` and the "Saving…" toolbar badge never appeared for sidebar drag-reorder, rename, or duplicate. Resolution: every mutation now passes through `requestCourseMutation`, which flips `setIsSaving` around every REST call. User feedback surface is now symmetric across toolbar and sidebar.
+- **[TD-007 / D-03] Toast level unified to `error`** — the 5 SlideList sites used `toast.warning` for identical failure conditions that TopToolbar treated as `toast.error`. Standardised on `error` to match TopToolbar and the non-variant `SaveErrorBanner`.
+
+### Changed
+- **[TD-007 / D-04] Removed local in-flight flags from `SlideList.tsx`** — `isAdding` (1 site) and `isProcessing` (3 sites, 1 site used no flag at all) collapsed into the global `useEditorStore(s => s.isSaving)` selector. Button `disabled` states and action-button `isBusy` prop (renamed from `isProcessing` on the `SlideItem` child for clarity) now all read from the unified global flag. `grep -rn "isAdding\|isProcessing" packages/authoring-ui/src/` returns **0 matches**.
+- **[TD-007] Migrated all 8 call sites** (`TopToolbar.tsx` ×3 + `SlideList.tsx` ×5) to the `requestCourseMutation` pattern: `const rcm = useEditorStore.getState().requestCourseMutation; if (!rcm) return; const updated = await rcm(() => courseApi.X(...)); if (!updated) { toast.error(...); return }; setCourse(updated); /* op-specific side effect */`. Post-success side effects (`setCurrentSlideIndex`, `setEditingId(null)`, `dragIndex`/`dropIndex` reset) stay local — genuine operation-specific logic, not boilerplate. Callers shrank by ~35% on average (e.g., `handleNewSlide` 17 → 11 LOC).
+- **[TD-007] `editorStore.ts` — new fields** `requestCourseMutation: (<R>(apiCall, opts?) => Promise<R | undefined>) | null` + `setRequestCourseMutation`. `EditorCanvas.tsx` Effect 1 registers the closure via `setRequestCourseMutation(requestCourseMutation)` alongside the existing `setRequestSave`, and clears it on cleanup (symmetric with T651).
+
+### Notes
+- **[TD-007] Verification**: `grep "isAdding\|isProcessing"` → 0 matches; `grep "bumpCacheVersion"` → only store definition + Layer 2 closure + test mocks + caller comments (no call site invokes it directly anymore); `npx tsc --noEmit` → exit 0; authoring-ui suite: 733 → **744/744 pass** across 31 files; `pnpm -r lint` → 0 errors, 2 info-warnings (TD-004 historical, unchanged).
+- **[TD-007] Deliberately out of scope**: (a) course-meta calls in packages other than authoring-ui — none exist today; a future `PublishDialog` or admin panel consumer will be required to route through `requestCourseMutation` (doc to be added to `08-persistence-flow.md`); (b) batching/retry/telemetry hooks on `performCourseMutation` — the seam exists via the hooks object, no caller needs it today; (c) TopToolbar.test.tsx rewrite — the file does not exercise the mutation handlers.
+- **[TD-007] Bundled with ADR + self-review**: `decisions/2026-04-18-course-mutation.md` + `docs/issues/issues-TD-007.md` — 4 drift findings all marked RESOLVED; 0 open issues above INFO.
+
+---
+
 ## [0.5.58] — 2026-04-18 — TD-004 micro-polish: ESLint warnings reduced + defaultValue stability contract tests
 
 ### Changed

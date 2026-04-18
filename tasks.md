@@ -336,22 +336,7 @@ New `packages/authoring-ui/src/types/ELearnComponent.ts` exports the canonical `
 > GrapesJS fires these events before loadData() reconstructs components.
 > **Priority:** Low — evaluate during T646.5 investigation.
 
-### TD-007 — Unify course meta-operations save path
-> **Source:** T651 ADR (`decisions/2026-04-17-request-save.md`) — Deliberately
-> out-of-scope for T651, surfaced by the inventory audit.
->
-> T651 unified the widget-save path (all `editor.store()` invocations collapsed
-> into one `requestSave()` entry point). Course meta-operations (`addSlide`,
-> `deleteSlide`, `updateCourse`, slide reorder/rename in `TopToolbar.tsx` and
-> `SlideList.tsx`) do **not** go through `editor.store()` — they call `courseApi`
-> REST endpoints directly. They have their own duplicated `setIsSaving`/`setSaveError`
-> blocks at 8 sites (TopToolbar: 3; SlideList: 5) and the same drift risk T651 just
-> eliminated for the widget path.
->
-> **Priority:** Medium — fix before a 9th site lands. Design sketch: extend the
-> `requestSave` pattern with a parallel `requestCourseMutation(apiCall)` helper, OR
-> consolidate per-operation (`requestAddSlide`, `requestDeleteSlide`) into thin wrappers.
-> Decide in a new ADR.
-> **Fix when:** next PR adds a course-meta operation OR one of the existing sites
-> drifts (forgets to clear `saveError` on success, etc.).
-> 
+### TD-007 — Unify course meta-operations save path ✅ DONE (2026-04-18)
+> **Source:** T651 ADR deliberate out-of-scope | **Status:** Resolved | **ADR:** `decisions/2026-04-18-course-mutation.md` | **Review doc:** `docs/issues/issues-TD-007.md`
+
+Unified all 8 course-meta call sites (`TopToolbar.tsx` ×3 + `SlideList.tsx` ×5) behind a new `requestCourseMutation<R>(apiCall, opts?)` entry point. Two-layer design mirroring T651: Layer 1 `packages/authoring-ui/src/lib/courseMutation.ts` exports pure `performCourseMutation<R>(apiCall, hooks)` (no Zustand, no React — narrows errors, returns `R | undefined`); Layer 2 closure in `initEditor.ts` wires `setIsSaving`/`setSaveError`/`bumpCacheVersion` with `bumpCache: true` as default invariant; Layer 3 exposed via `editorStore.requestCourseMutation` field, registered in `EditorCanvas.tsx` Effect 1 alongside `setRequestSave`. **Latent cache-invalidation bug fixed as side effect**: `commitRename` and `handleDrop` did not call `bumpCacheVersion()` → storageManager cache held pre-mutation slide list → stale title/order could surface on next `editor.load()`. Both paths now route through the closure with default options. Local `isAdding`/`isProcessing` flags in `SlideList.tsx` deleted; render uses global `useEditorStore(s => s.isSaving)` → `SaveErrorBanner` and "Saving…" badge now surface for all 8 mutations (previously only the 3 toolbar ones). Toast severity unified to `error` across the 5 SlideList sites (was `warning`). `grep "isAdding\|isProcessing"` returns 0 matches. 8 tests for the pure primitive + 3 tests for the Zustand closure; authoring-ui suite 733 → **744/744 pass**. `npx tsc --noEmit` exit 0; `pnpm -r lint` 0 errors.

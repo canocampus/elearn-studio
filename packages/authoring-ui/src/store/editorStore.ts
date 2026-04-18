@@ -35,6 +35,16 @@ interface EditorState {
   requestSave: ((opts?: { timeoutMs?: number }) => Promise<void>) | null
   setRequestSave: (fn: EditorState['requestSave']) => void
 
+  // TD-007: unified course-meta mutation entry point — bound closure constructed
+  // in initEditor() alongside requestSave. Takes a courseApi call and funnels
+  // setIsSaving/setSaveError/bumpCacheVersion around it. Null until the editor
+  // is ready; set via setRequestCourseMutation in EditorCanvas Effect 1.
+  // See decisions/2026-04-18-course-mutation.md.
+  requestCourseMutation:
+    | (<R>(apiCall: () => Promise<R>, opts?: { bumpCache?: boolean }) => Promise<R | undefined>)
+    | null
+  setRequestCourseMutation: (fn: EditorState['requestCourseMutation']) => void
+
   // Left sidebar tab: 'slides' | 'blocks'
   leftTab: 'slides' | 'blocks'
   setLeftTab: (tab: 'slides' | 'blocks') => void
@@ -85,6 +95,9 @@ export const useEditorStore = create<EditorState>()(devtools((set, get) => ({
 
   requestSave: null,
   setRequestSave: (requestSave) => set({ requestSave }),
+
+  requestCourseMutation: null,
+  setRequestCourseMutation: (requestCourseMutation) => set({ requestCourseMutation }),
 
   leftTab: 'slides',
   setLeftTab: (leftTab) => set({ leftTab }),

@@ -26,18 +26,28 @@ export function SlideList() {
   const setCourse = useEditorStore(s => s.setCourse)
   const currentSlideIndex = useEditorStore(s => s.currentSlideIndex)
   const setCurrentSlideIndex = useEditorStore(s => s.setCurrentSlideIndex)
+  const isSaving = useEditorStore(s => s.isSaving)
   const saveError = useEditorStore(s => s.saveError)
-  const setSaveError = useEditorStore(s => s.setSaveError)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dropIndex, setDropIndex] = useState<number | null>(null)
-  const [isAdding, setIsAdding] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
 
   if (!course) {
     return <div style={styles.empty}>No course loaded</div>
+  }
+
+  // TD-007 — All REST mutations route through requestCourseMutation:
+  // centralised setIsSaving / setSaveError / bumpCacheVersion. Local per-op
+  // flags were removed; the global `isSaving` flag replaces them for per-row
+  // button disabled states. Toast level unified to `error`.
+  function getRcm() {
+    return useEditorStore.getState().requestCourseMutation
+  }
+
+  function getSaveError() {
+    return useEditorStore.getState().saveError ?? 'unknown error'
   }
 
   // -------------------------------------------------------------------------
@@ -45,20 +55,16 @@ export function SlideList() {
   // -------------------------------------------------------------------------
 
   async function handleAddSlide() {
-    if (isAdding) return
-    setIsAdding(true)
-    try {
-      const updated = await addSlide(course!._id, nextSlideTitle(course!.slides))
-      useEditorStore.getState().bumpCacheVersion()
-      setCourse(updated)
-      setCurrentSlideIndex(updated.slides.length - 1)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setSaveError(msg)
-      toast.error(`Failed to add slide: ${msg}`)
-    } finally {
-      setIsAdding(false)
+    if (isSaving) return
+    const rcm = getRcm()
+    if (!rcm) return
+    const updated = await rcm(() => addSlide(course!._id, nextSlideTitle(course!.slides)))
+    if (!updated) {
+      toast.error(`Failed to add slide: ${getSaveError()}`)
+      return
     }
+    setCourse(updated)
+    setCurrentSlideIndex(updated.slides.length - 1)
   }
 
   // -------------------------------------------------------------------------
@@ -66,20 +72,16 @@ export function SlideList() {
   // -------------------------------------------------------------------------
 
   async function handleDuplicate(slide: Slide) {
-    if (isProcessing) return
-    setIsProcessing(true)
-    try {
-      const updated = await duplicateSlide(course!._id, slide)
-      useEditorStore.getState().bumpCacheVersion()
-      setCourse(updated)
-      setCurrentSlideIndex(updated.slides.length - 1)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setSaveError(msg)
-      toast.warning(`Failed to duplicate slide: ${msg}`)
-    } finally {
-      setIsProcessing(false)
+    if (isSaving) return
+    const rcm = getRcm()
+    if (!rcm) return
+    const updated = await rcm(() => duplicateSlide(course!._id, slide))
+    if (!updated) {
+      toast.error(`Failed to duplicate slide: ${getSaveError()}`)
+      return
     }
+    setCourse(updated)
+    setCurrentSlideIndex(updated.slides.length - 1)
   }
 
   // -------------------------------------------------------------------------
@@ -87,21 +89,17 @@ export function SlideList() {
   // -------------------------------------------------------------------------
 
   async function handleDelete(slide: Slide, index: number) {
-    if (isProcessing || course!.slides.length <= 1) return
+    if (isSaving || course!.slides.length <= 1) return
     if (!window.confirm(`Delete "${slide.title}"?`)) return
-    setIsProcessing(true)
-    try {
-      const updated = await deleteSlide(course!._id, slide.id)
-      useEditorStore.getState().bumpCacheVersion()
-      setCourse(updated)
-      setCurrentSlideIndex(Math.min(index, updated.slides.length - 1))
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setSaveError(msg)
-      toast.warning(`Failed to delete slide: ${msg}`)
-    } finally {
-      setIsProcessing(false)
+    const rcm = getRcm()
+    if (!rcm) return
+    const updated = await rcm(() => deleteSlide(course!._id, slide.id))
+    if (!updated) {
+      toast.error(`Failed to delete slide: ${getSaveError()}`)
+      return
     }
+    setCourse(updated)
+    setCurrentSlideIndex(Math.min(index, updated.slides.length - 1))
   }
 
   // -------------------------------------------------------------------------
@@ -114,21 +112,18 @@ export function SlideList() {
   }
 
   async function commitRename(slide: Slide) {
-    if (isProcessing) return
+    if (isSaving) return
     const trimmed = editingTitle.trim()
     setEditingId(null)
     if (!trimmed || trimmed === slide.title) return
-    setIsProcessing(true)
-    try {
-      const updated = await updateSlide(course!._id, slide.id, { title: trimmed })
-      setCourse(updated)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setSaveError(msg)
-      toast.warning(`Failed to rename slide: ${msg}`)
-    } finally {
-      setIsProcessing(false)
+    const rcm = getRcm()
+    if (!rcm) return
+    const updated = await rcm(() => updateSlide(course!._id, slide.id, { title: trimmed }))
+    if (!updated) {
+      toast.error(`Failed to rename slide: ${getSaveError()}`)
+      return
     }
+    setCourse(updated)
   }
 
   // -------------------------------------------------------------------------
@@ -159,15 +154,15 @@ export function SlideList() {
     ids.splice(adjustedDropIndex, 0, moved)
     setDragIndex(null)
     setDropIndex(null)
-    try {
-      const updated = await reorderSlides(course!._id, ids)
-      setCourse(updated)
-      setCurrentSlideIndex(adjustedDropIndex)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setSaveError(msg)
-      toast.warning(`Failed to reorder slides: ${msg}`)
+    const rcm = getRcm()
+    if (!rcm) return
+    const updated = await rcm(() => reorderSlides(course!._id, ids))
+    if (!updated) {
+      toast.error(`Failed to reorder slides: ${getSaveError()}`)
+      return
     }
+    setCourse(updated)
+    setCurrentSlideIndex(adjustedDropIndex)
   }
 
   function handleDragEnd() {
@@ -195,7 +190,7 @@ export function SlideList() {
             isDragging={dragIndex === index}
             isDropTarget={dropIndex === index && dragIndex !== index}
             canDelete={canDelete}
-            isProcessing={isProcessing}
+            isBusy={isSaving}
             onClick={() => { if (!saveError) setCurrentSlideIndex(index) }}
             onDoubleClick={() => startEditing(slide)}
             onDuplicate={() => handleDuplicate(slide)}
@@ -211,9 +206,9 @@ export function SlideList() {
         ))}
       </div>
       <button
-        style={{ ...styles.addButton, opacity: isAdding ? 0.6 : 1 }}
+        style={{ ...styles.addButton, opacity: isSaving ? 0.6 : 1 }}
         onClick={handleAddSlide}
-        disabled={isAdding}
+        disabled={isSaving}
         title="Add blank slide"
       >
         + Add Slide
@@ -236,7 +231,7 @@ interface SlideItemProps {
   isDragging: boolean
   isDropTarget: boolean
   canDelete: boolean
-  isProcessing: boolean
+  isBusy: boolean
   onClick: () => void
   onDoubleClick: () => void
   onDuplicate: () => void
@@ -259,7 +254,7 @@ function SlideItem({
   isDragging,
   isDropTarget,
   canDelete,
-  isProcessing,
+  isBusy,
   onClick,
   onDoubleClick,
   onDuplicate,
@@ -339,18 +334,18 @@ function SlideItem({
       {(hovered || isActive) && !isEditing && (
         <div style={styles.actions}>
           <button
-            style={{ ...styles.actionBtn, ...(isProcessing ? styles.actionBtnDisabled : {}) }}
+            style={{ ...styles.actionBtn, ...(isBusy ? styles.actionBtnDisabled : {}) }}
             onClick={e => { e.stopPropagation(); onDuplicate() }}
             title="Duplicate slide"
-            disabled={isProcessing}
+            disabled={isBusy}
           >
             ⧉
           </button>
           <button
-            style={{ ...styles.actionBtn, ...(!canDelete || isProcessing ? styles.actionBtnDisabled : {}) }}
+            style={{ ...styles.actionBtn, ...(!canDelete || isBusy ? styles.actionBtnDisabled : {}) }}
             onClick={e => { e.stopPropagation(); onDelete() }}
             title={canDelete ? 'Delete slide' : 'Cannot delete last slide'}
-            disabled={!canDelete || isProcessing}
+            disabled={!canDelete || isBusy}
           >
             ✕
           </button>

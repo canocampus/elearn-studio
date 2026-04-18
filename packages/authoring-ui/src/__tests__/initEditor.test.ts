@@ -957,3 +957,78 @@ describe('T650.3 — hasPendingChanges reflects autosave timer state', () => {
     expect(hasPendingChanges()).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// TD-007 — requestCourseMutation closure binds performCourseMutation to Zustand
+//
+// The closure is constructed inside initEditor() and returned alongside
+// requestSave. It wires:
+//   - setIsSaving(true)/setSaveError(null) on onStart
+//   - setIsSaving(false) + (bumpCacheVersion IF opts.bumpCache !== false) on onSuccess
+//   - setIsSaving(false)/setSaveError(msg) on onError
+// These tests verify the wiring against mock Zustand setters.
+// ---------------------------------------------------------------------------
+
+describe('TD-007 — requestCourseMutation closure wires Zustand state and cache bump', () => {
+  let eventCapture: ReturnType<typeof makeEventCapture>
+  let fakeEditor: Editor
+  let setIsSaving: ReturnType<typeof vi.fn>
+  let setSaveError: ReturnType<typeof vi.fn>
+  let bumpCacheVersion: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    eventCapture = makeEventCapture()
+    fakeEditor = makeMockFakeEditor(eventCapture)
+    vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+    setIsSaving = vi.fn()
+    setSaveError = vi.fn()
+    bumpCacheVersion = vi.fn()
+    vi.mocked(useEditorStore.getState).mockReturnValue({
+      setIsSaving,
+      setSaveError,
+      setEditorContext: vi.fn(),
+      bumpCacheVersion,
+      courseId: 'c1',
+      slideId: 's1',
+      cacheVersion: 0,
+    } as unknown as ReturnType<typeof useEditorStore.getState>)
+  })
+
+  it('TD-007.1: success path → setIsSaving(true), then bumpCacheVersion + setIsSaving(false); setSaveError(null) at start', async () => {
+    const { requestCourseMutation } = initEditor(defaultOpts())
+
+    const result = await requestCourseMutation(async () => ({ _id: 'c1', slides: [] }))
+
+    expect(result).toEqual({ _id: 'c1', slides: [] })
+    // Start
+    expect(setIsSaving).toHaveBeenNthCalledWith(1, true)
+    expect(setSaveError).toHaveBeenCalledWith(null)
+    // Success
+    expect(bumpCacheVersion).toHaveBeenCalledTimes(1)
+    expect(setIsSaving).toHaveBeenNthCalledWith(2, false)
+  })
+
+  it('TD-007.2: { bumpCache: false } success path → does NOT call bumpCacheVersion', async () => {
+    const { requestCourseMutation } = initEditor(defaultOpts())
+
+    await requestCourseMutation(async () => ({ ok: true }), { bumpCache: false })
+
+    expect(bumpCacheVersion).not.toHaveBeenCalled()
+    // isSaving still flips false
+    expect(setIsSaving).toHaveBeenNthCalledWith(2, false)
+  })
+
+  it('TD-007.3: error path → setSaveError(msg) + setIsSaving(false); no bumpCacheVersion; returns undefined', async () => {
+    const { requestCourseMutation } = initEditor(defaultOpts())
+
+    const result = await requestCourseMutation(async () => {
+      throw new Error('backend 500')
+    })
+
+    expect(result).toBeUndefined()
+    expect(setSaveError).toHaveBeenCalledWith('backend 500')
+    expect(setIsSaving).toHaveBeenNthCalledWith(2, false)
+    expect(bumpCacheVersion).not.toHaveBeenCalled()
+  })
+})

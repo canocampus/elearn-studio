@@ -12,6 +12,7 @@ import { performSave, registerStorageManager, type StorageContextProvider } from
 import { registerBlocks } from './registerBlocks'
 import { useEditorStore } from '../store/editorStore'
 import { setClipboard, getClipboard } from './clipboard'
+import { performCourseMutation } from '../lib/courseMutation'
 
 const AUTOSAVE_DEBOUNCE_MS = 2000
 
@@ -44,6 +45,10 @@ export function initEditor(opts: InitEditorOptions): {
   cleanup: () => void
   hasPendingChanges: () => boolean
   requestSave: (opts?: { timeoutMs?: number }) => Promise<void>
+  requestCourseMutation: <R>(
+    apiCall: () => Promise<R>,
+    opts?: { bumpCache?: boolean },
+  ) => Promise<R | undefined>
 } {
   const editor = grapesjs.init({
     container: opts.container,
@@ -446,6 +451,30 @@ export function initEditor(opts: InitEditorOptions): {
     })
   }
 
+  // TD-007 — Single course-meta mutation entry point. Wires performCourseMutation
+  // into Zustand UI state so all REST calls (addSlide/deleteSlide/updateCourse/
+  // reorderSlides/renameSlide/duplicateSlide) share one save-indicator surface and
+  // invalidate the storageManager cache on success.
+  //
+  // Default `bumpCache: true` is the invariant: any mutation that changes course
+  // state requires the in-memory cache to refresh. The `{ bumpCache: false }`
+  // escape hatch is kept for future callers that may mutate metadata the cache
+  // does not mirror — no current site uses it. See decisions/2026-04-18-course-mutation.md.
+  const requestCourseMutation = async <R>(
+    apiCall: () => Promise<R>,
+    opts: { bumpCache?: boolean } = {},
+  ): Promise<R | undefined> => {
+    const { setIsSaving, setSaveError, bumpCacheVersion } = useEditorStore.getState()
+    return performCourseMutation(apiCall, {
+      onStart: () => { setIsSaving(true); setSaveError(null) },
+      onSuccess: () => {
+        if (opts.bumpCache !== false) bumpCacheVersion()
+        setIsSaving(false)
+      },
+      onError: (msg) => { setIsSaving(false); setSaveError(msg) },
+    })
+  }
+
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null
   const triggerAutosave = () => {
     if (getEditorLoading()) return
@@ -497,5 +526,5 @@ export function initEditor(opts: InitEditorOptions): {
     unsubscribeCacheInvalidate()
   }
 
-  return { editor, cleanup, hasPendingChanges, requestSave }
+  return { editor, cleanup, hasPendingChanges, requestSave, requestCourseMutation }
 }

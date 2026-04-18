@@ -32,29 +32,25 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
   const currentSlideIndex = useEditorStore(s => s.currentSlideIndex)
   const setCurrentSlideIndex = useEditorStore(s => s.setCurrentSlideIndex)
   const isSaving = useEditorStore(s => s.isSaving)
-  const setIsSaving = useEditorStore(s => s.setIsSaving)
   const saveError = useEditorStore(s => s.saveError)
-  const setSaveError = useEditorStore(s => s.setSaveError)
   const setShowNewCourseDialog = useEditorStore(s => s.setShowNewCourseDialog)
 
   const currentSlide = course?.slides[currentSlideIndex]
 
+  // TD-007 — All course-meta mutations below route through requestCourseMutation,
+  // which centralises setIsSaving / setSaveError / bumpCacheVersion. Callers own
+  // only the post-success side effects (setCourse + operation-specific state).
   async function handleNewSlide() {
     if (!course) return
-    setIsSaving(true)
-    setSaveError(null)
-    try {
-      const updated = await addSlide(course._id, nextSlideTitle(course.slides))
-      useEditorStore.getState().bumpCacheVersion()
-      setCourse(updated)
-      setCurrentSlideIndex(updated.slides.length - 1)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setSaveError(msg)
-      toast.error(`Failed to add slide: ${msg}`)
-    } finally {
-      setIsSaving(false)
+    const rcm = useEditorStore.getState().requestCourseMutation
+    if (!rcm) return
+    const updated = await rcm(() => addSlide(course._id, nextSlideTitle(course.slides)))
+    if (!updated) {
+      toast.error(`Failed to add slide: ${useEditorStore.getState().saveError ?? 'unknown error'}`)
+      return
     }
+    setCourse(updated)
+    setCurrentSlideIndex(updated.slides.length - 1)
   }
 
   function handleSaveAsTemplate() {
@@ -86,39 +82,29 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
       return
     }
     if (!confirm(`Delete "${currentSlide.title}"?`)) return
-    setIsSaving(true)
-    setSaveError(null)
-    try {
-      const updated = await deleteSlide(course._id, currentSlide.id)
-      useEditorStore.getState().bumpCacheVersion()
-      setCourse(updated)
-      const newIndex = Math.min(currentSlideIndex, updated.slides.length - 1)
-      setCurrentSlideIndex(newIndex)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setSaveError(msg)
-      toast.error(`Failed to delete slide: ${msg}`)
-    } finally {
-      setIsSaving(false)
+    const rcm = useEditorStore.getState().requestCourseMutation
+    if (!rcm) return
+    const updated = await rcm(() => deleteSlide(course._id, currentSlide.id))
+    if (!updated) {
+      toast.error(`Failed to delete slide: ${useEditorStore.getState().saveError ?? 'unknown error'}`)
+      return
     }
+    setCourse(updated)
+    const newIndex = Math.min(currentSlideIndex, updated.slides.length - 1)
+    setCurrentSlideIndex(newIndex)
   }
 
   async function handleSaveSettings(updated: CourseSettings) {
     if (!course) return
     setShowSettings(false)
-    setIsSaving(true)
-    setSaveError(null)
-    try {
-      const saved = await updateCourse(course._id, { settings: updated })
-      useEditorStore.getState().bumpCacheVersion()
-      setCourse(saved)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setSaveError(msg)
-      toast.error(`Failed to save settings: ${msg}`)
-    } finally {
-      setIsSaving(false)
+    const rcm = useEditorStore.getState().requestCourseMutation
+    if (!rcm) return
+    const saved = await rcm(() => updateCourse(course._id, { settings: updated }))
+    if (!saved) {
+      toast.error(`Failed to save settings: ${useEditorStore.getState().saveError ?? 'unknown error'}`)
+      return
     }
+    setCourse(saved)
   }
 
   return (

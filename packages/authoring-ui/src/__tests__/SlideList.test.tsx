@@ -13,6 +13,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { SlideList } from '../components/sidebar/SlideList'
 import { ToastProvider } from '../components/ui/Toast'
 import { useEditorStore } from '../store/editorStore'
+import { performCourseMutation } from '../lib/courseMutation'
 import type { CourseDoc } from '../types/course'
 
 // ---------------------------------------------------------------------------
@@ -63,8 +64,34 @@ function makeCourse(slides: ReturnType<typeof makeSlide>[]): CourseDoc {
   }
 }
 
+// TD-007 — SlideList now routes every REST mutation through
+// useEditorStore.getState().requestCourseMutation. In production that closure is
+// wired by initEditor(); in tests we install a closure that mirrors the real
+// wiring (setIsSaving / setSaveError / bumpCacheVersion) on top of the real
+// performCourseMutation primitive.
+function makeTestRequestCourseMutation() {
+  return async <R,>(
+    apiCall: () => Promise<R>,
+    opts: { bumpCache?: boolean } = {},
+  ): Promise<R | undefined> => {
+    const { setIsSaving, setSaveError, bumpCacheVersion } = useEditorStore.getState()
+    return performCourseMutation(apiCall, {
+      onStart: () => { setIsSaving(true); setSaveError(null) },
+      onSuccess: () => {
+        if (opts.bumpCache !== false) bumpCacheVersion()
+        setIsSaving(false)
+      },
+      onError: (msg) => { setIsSaving(false); setSaveError(msg) },
+    })
+  }
+}
+
 function setupStore(course: CourseDoc | null, currentSlideIndex = 0) {
-  useEditorStore.setState({ course, currentSlideIndex })
+  useEditorStore.setState({
+    course,
+    currentSlideIndex,
+    requestCourseMutation: makeTestRequestCourseMutation(),
+  })
 }
 
 function renderSlideList() {
@@ -78,8 +105,14 @@ function renderSlideList() {
 describe('SlideList', () => {
   afterEach(() => {
     vi.clearAllMocks()
-    // Reset store to clean state
-    useEditorStore.setState({ course: null, currentSlideIndex: 0 })
+    // Reset store to clean state — keep the rcm closure wired so later tests get it too.
+    useEditorStore.setState({
+      course: null,
+      currentSlideIndex: 0,
+      saveError: null,
+      isSaving: false,
+      requestCourseMutation: makeTestRequestCourseMutation(),
+    })
   })
 
   // -------------------------------------------------------------------------

@@ -17,6 +17,7 @@ import { SlideList } from '../../components/sidebar/SlideList'
 import { QuestionPropertiesPanel } from '../../components/sidebar/QuestionPropertiesPanel'
 import { ToastProvider } from '../../components/ui/Toast'
 import { useEditorStore } from '../../store/editorStore'
+import { performCourseMutation } from '../../lib/courseMutation'
 import type { CourseDoc } from '../../types/course'
 import type { Editor } from 'grapesjs'
 import {
@@ -80,6 +81,30 @@ function makeMockEditor(selected: ReturnType<typeof makeMockComponent> | null) {
 
 // ─── Store reset ──────────────────────────────────────────────────────────────
 
+// TD-007 — SlideList now routes every REST mutation through
+// useEditorStore.getState().requestCourseMutation. Tests install a closure
+// that mirrors the real initEditor wiring on top of performCourseMutation.
+function makeTestRequestCourseMutation() {
+  return async <R,>(
+    apiCall: () => Promise<R>,
+    opts: { bumpCache?: boolean } = {},
+  ): Promise<R | undefined> => {
+    const { setIsSaving, setSaveError, bumpCacheVersion } = useEditorStore.getState()
+    return performCourseMutation(apiCall, {
+      onStart: () => { setIsSaving(true); setSaveError(null) },
+      onSuccess: () => {
+        if (opts.bumpCache !== false) bumpCacheVersion()
+        setIsSaving(false)
+      },
+      onError: (msg) => { setIsSaving(false); setSaveError(msg) },
+    })
+  }
+}
+
+beforeEach(() => {
+  useEditorStore.setState({ requestCourseMutation: makeTestRequestCourseMutation() })
+})
+
 afterEach(() => {
   vi.clearAllMocks()
   useEditorStore.setState({
@@ -87,6 +112,7 @@ afterEach(() => {
     currentSlideIndex: 0,
     editor: null,
     selectedComponentType: null,
+    requestCourseMutation: makeTestRequestCourseMutation(),
   })
 })
 
