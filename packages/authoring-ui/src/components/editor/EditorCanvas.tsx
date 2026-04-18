@@ -143,6 +143,15 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       cleanup()
       editor.destroy()
       editorRef.current = null
+      // TD-009 lifecycle correction: the StrictMode guard in Effect 2 keys off
+      // lastLoadContextRef. When Effect 1 destroys the editor (StrictMode
+      // cleanup OR course switch), that ref must be cleared too — otherwise the
+      // next Effect 2 run sees a stale "already loaded slide X" entry from the
+      // now-destroyed editor instance, skips editor.load() on the FRESH editor,
+      // and the canvas stays empty until the user navigates to another slide.
+      lastLoadContextRef.current = null
+      lastLoadPromiseRef.current = null
+      prevContextRef.current = null
       setEditor(null)
       useEditorStore.getState().setRequestSave(null)
     }

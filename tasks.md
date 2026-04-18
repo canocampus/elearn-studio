@@ -389,6 +389,7 @@ Unified all 8 course-meta call sites (`TopToolbar.tsx` ×3 + `SlideList.tsx` ×5
 - [x] TD-009.2b — Implement autosave-during-load guard (`initEditor.ts`).
 - [x] TD-009.2c — Implement StrictMode concurrent-load guard (`EditorCanvas.tsx`).
 - [x] TD-009.2d — Imperative `data-editor-ready="false"` flip in `EditorCanvas.tsx` to eliminate stale-ready race on slide switch.
+- [x] TD-009.2e — Lifecycle correction: clear `lastLoadContextRef` + `lastLoadPromiseRef` + `prevContextRef` in Effect 1 cleanup. Without this the StrictMode guard mis-fires after Effect 1 destroys+recreates the editor — the FRESH editor is skipped by a stale ref entry and the canvas stays empty until the user navigates to another slide (regressed 9 reload-dependent E2E tests; post-fix: 43/43 pass across question-widget + persistence + widget-persistence suites).
 - [x] TD-009.3 — Unit tests (`initEditor.test.ts`) + E2E regression guard (`widget-persistence-across-slides.spec.ts`).
 - [x] TD-009.4 — Full test suite green (769/769 authoring-ui, 265/265 runtime-player, 2/2 E2E persistence guard); docs-screenshots campaign re-verified; `tsc -b` exit 0.
 
