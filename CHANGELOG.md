@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.58] — 2026-04-18 — TD-004 micro-polish: ESLint warnings reduced + defaultValue stability contract tests
+
+### Changed
+- **[TD-004 polish] Moved `ELearnComponent` narrowing inside each `useEffect` in `useComponentProperty.ts`** — previously `const comp = component as ELearnComponent | null` lived at function-body scope so that `useComponentProperty`'s effect, its `useState` initializer, and its `update()` writer could share the narrowing. When TD-004 first landed, that layout caused the `react-hooks/exhaustive-deps` rule to flag `comp` as a missing dependency in **both** effects (on top of the historical `defaultValue` / `readValue` warnings). Since `comp` is identity-equivalent to `component` at runtime (the cast is type-only), the narrowing was re-declared inside each effect — outer scope narrowing was kept only where still used (`useState` initializer, `update()` writer, and `useExtendedProperty.readValue` / `update`). Effect body is now: `if (!component) return; const comp = component as ELearnComponent; …` — `comp` is no longer a closure reference of the effect. Result: **warnings on `useComponentProperty.ts` reduced from 4 to 2** (only `defaultValue` on line 82 and `readValue` on line 159 remain — the historical pre-TD-004 set).
+
+### Fixed
+- **[TD-004 polish] `eslint-disable-next-line react-hooks/exhaustive-deps` comments refined to document the contract explicitly** — both blocks now state: `defaultValue` (and `readValue` in the extended-property hook) are fallback-only constants for the panel lifetime; adding them to deps would re-subscribe the Backbone listener on every render of the panel (keystroke-level churn with zero benefit) since the change handler reads the live value via `comp.get(key)` / `readValue()` — never a captured closure of those values.
+
+### Added
+- **[TD-004 polish] 2 regression tests documenting the `defaultValue` stability contract** (`packages/authoring-ui/src/__tests__/hooks/useComponentProperty.test.ts`):
+  - `useComponentProperty — defaultValue stability contract (TD-004)` — rerenders the hook with a different `defaultValue` after mount and asserts (a) the emitted value remains the one from the GrapesJS model (`comp.get(key)`) and (b) `comp.listenerCount('change:content')` does not change (no `off`+`on` churn).
+  - `useExtendedProperty — defaultValue stability contract (TD-004)` — symmetric contract for the extended-property variant with the `change:extendedProperties` listener count assertion.
+  - Both tests use the existing `makeComponent()` mock and the `renderHook`/`rerender` pattern already used by 38 sibling tests. Suite: 38 → **40/40 pass**. Full authoring-ui suite: 731 → **733/733 pass**.
+
+### Notes
+- **[TD-004 polish] Why `defaultValue` / `readValue` remain excluded from the deps array**: both are semantically stable for a given panel (the panel always passes the same literal like `''`, `0`, or `DEFAULT_EXTENDED_PROPS`). The change handler NEVER captures them in a stale closure — it always re-reads the live model via `comp.get(key)` / `readValue()`. Including them would trigger `off`+`on` on every render of the panel (and every keystroke-driven render on controlled inputs), causing excess Backbone event churn with zero semantic benefit.
+- **[TD-004 polish] Verification**: `npx eslint useComponentProperty.ts` → 2 warnings (0 errors); `npx tsc --noEmit` → exit 0; `pnpm --filter @elearn-studio/authoring-ui test` → 733/733 pass across 30 test files; `pnpm -r lint` → 0 errors across the full monorepo. Zero runtime behaviour change — purely a warning reduction and contract-documenting test addition.
+- **[TD-004 polish] Commit**: `ea86279`.
+
+---
+
 ## [0.5.57] — 2026-04-18 — TD-003: T642 isolation confirmed + T643 runtime forEach guards
 
 ### Fixed
