@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.61] — 2026-04-18 — TD-006: `_isEditorLoading` audit confirms native events insufficient (closed; no code change)
+
+### Added
+- **[TD-006] Permanent regression test** (`packages/authoring-ui/src/__tests__/editor/grapesEventOrder.test.ts`) — 5 structural assertions against the bundled `grapes.mjs` of the currently-installed `grapesjs@0.21.13`:
+  - source loads (sanity, >10 KB)
+  - `EditorModel.prototype.load` (line 61352) `await`s `this.Storage.load(options)` BEFORE calling `this.loadData(result)` — the keystone ordering
+  - `StorageManager.prototype.onEnd` references `endLoad` for type `'load'`
+  - `StorageEvents.endLoad === 'storage:end:load'` (event name pinned)
+  - regex regression-guard `yield.*?Storage\.load[\s\S]*?loadData\(result\)` — fails loud if a future grapesjs inverts the order
+  - Runs in 17 ms (no editor init). Live `grapesjs.init()` was tried first but hangs in vitest jsdom (grapesjs uses iframe canvases / DOM measurement APIs jsdom does not implement); static inspection of the bundle is empirically equivalent for the question "does Storage.load yield before loadData runs?".
+- **[TD-006] ADR** (`decisions/2026-04-18-editor-loading-flag.md`) — extends the prior 2026-04-17 T646.5 ADR with audit results against `grapesjs@0.21.13`. Documents the exact line numbers and source snippets from `grapes.mjs` for `EditorModel.prototype.load` and `StorageManager.prototype.onEnd`. Records the reopen criteria: "the structural regression test fails".
+- **[TD-006] Self-review** (`docs/issues/issues-TD-006.md`) — autonomous; documents the audit method, evidence, what was implemented, what was NOT changed, and the reopen criteria. 0 CRITICAL/HIGH/MEDIUM/LOW.
+
+### Notes
+- **[TD-006] Closed as "Native events timing insufficient"** (Scenario B per the original ticket text). `EditorModel.prototype.load` (`grapes.mjs:61352`) `await`s `this.Storage.load(options)` THEN calls `this.loadData(result)` synchronously. `StorageManager.prototype.onEnd` (`grapes.mjs:42110`) fires `storage:end:load` inside `Storage.load()` — before its promise resolves. So the timeline of `editor.load()` is: `storage:start:load` → custom storage resolves → `storage:end:load` → `EditorModel.load` awakens → `loadData(result)` → cascade of `component:add × N`. Using `storage:end:load` to clear the gate would lift it three steps before the `component:add` cascade arrives.
+- **[TD-006] Zero production-code change**: `_isEditorLoading` flag, `setEditorLoading`/`getEditorLoading` accessors, `EditorCanvas.tsx` set/clear sites around `editor.load()`, `triggerAutosave` reading `getEditorLoading()` — all unchanged. Only added: 1 ADR + 1 audit test file + 1 issues doc.
+- **[TD-006] Verification**: `npx tsc -b` exit 0; new audit file 5/5 pass in 17 ms; full authoring-ui suite 750 → **755/755 pass** across 33 files; `pnpm -r lint` 0 errors (2 historical TD-004 warnings unchanged); `_isEditorLoading` references unchanged in 5 files (production + tests + audit doc).
+- **[TD-006] Backlog status**: with TD-006 closed, the entire Phase 10 audit tech-debt set (TD-001 through TD-007) is resolved. No active backlog items remain.
+
+---
+
 ## [0.5.60] — 2026-04-18 — TD-005: `useExtendedProperty` shallow-merge contract + dev-only lost-key detector
 
 ### Added
