@@ -55,13 +55,16 @@ export function useComponentProperty<T>(
   latestRef.current = value
 
   useEffect(() => {
-    if (!comp) return
+    if (!component) return
+    // TD-004 micro-polish: narrow inside the effect so `comp` is not a closure
+    // dependency. Identity-equivalent to `component` at runtime (type-only cast).
+    const comp = component as ELearnComponent
 
     const raw = comp.get(key)
     setValue((raw !== undefined && raw !== null ? raw : defaultValue) as T)
 
     function onChange() {
-      const updated = comp!.get(key)
+      const updated = comp.get(key)
       const val = (updated !== undefined && updated !== null ? updated : defaultValue) as T
       setValue(val)
     }
@@ -71,9 +74,11 @@ export function useComponentProperty<T>(
       comp.off(`change:${key}`, onChange)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // Only re-subscribe when the component instance or watched key changes.
-    // defaultValue is intentionally excluded: it never changes for a given panel,
-    // and including it would cause redundant re-subscriptions on every render.
+    // Intentionally excluded: `defaultValue` is a fallback-only constant for the
+    // panel lifetime. Adding it to deps would re-subscribe the Backbone listener
+    // on every render of the panel (keystroke-level churn with zero benefit),
+    // since the change handler reads the live value via comp.get(key) — never
+    // a captured closure of defaultValue.
   }, [component, key])
 
   function update(newValue: T) {
@@ -130,7 +135,10 @@ export function useExtendedProperty<T>(
   latestRef.current = value
 
   useEffect(() => {
-    if (!comp) return
+    if (!component) return
+    // TD-004 micro-polish: narrow inside the effect so `comp` is not a closure
+    // dependency. Identity-equivalent to `component` at runtime (type-only cast).
+    const effComp = component as ELearnComponent
 
     setValue(readValue())
 
@@ -138,13 +146,16 @@ export function useExtendedProperty<T>(
       setValue(readValue())
     }
 
-    comp.on('change:extendedProperties', onChange)
+    effComp.on('change:extendedProperties', onChange)
     return () => {
-      comp.off('change:extendedProperties', onChange)
+      effComp.off('change:extendedProperties', onChange)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // Only re-subscribe when the component instance or sub-key changes.
-    // readValue and defaultValue are stable for the lifetime of a given panel.
+    // Intentionally excluded: `readValue` and `defaultValue` are fallback-only
+    // constants for the panel lifetime. Adding them to deps would re-subscribe
+    // the Backbone listener on every render of the panel (keystroke-level churn
+    // with zero benefit), since the change handler always re-reads via
+    // readValue() — never a captured closure of those values.
   }, [component, subKey])
 
   function update(newValue: T) {

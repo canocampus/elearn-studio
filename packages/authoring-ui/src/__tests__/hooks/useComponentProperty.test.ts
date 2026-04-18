@@ -655,3 +655,53 @@ describe('useComponentProperty — T649.5 getLatest() after external comp.set()'
     expect(result.current[2]().options[0].id).toBe('a')
   })
 })
+
+// ── TD-004 micro-polish: defaultValue stability contract ──────────────────────
+//
+// These tests document the intentional exclusion of `defaultValue` / `readValue`
+// from the useEffect deps array in both hooks. The contract: `defaultValue` is
+// treated as a fallback-only constant for the panel lifetime — if a caller
+// rerenders with a different `defaultValue`, the hook MUST continue using the
+// live model value and MUST NOT re-subscribe the Backbone listener.
+
+describe('useComponentProperty — defaultValue stability contract (TD-004)', () => {
+  it('rerendering with a different defaultValue does not alter value or trigger resubscription', () => {
+    const comp = makeComponent({ content: 'hello' })
+    const { result, rerender } = renderHook(
+      ({ dv }) => useComponentProperty(comp as never, 'content', dv),
+      { initialProps: { dv: 'A' } },
+    )
+
+    expect(result.current[0]).toBe('hello')
+    const listenersBefore = comp.listenerCount('change:content')
+    expect(listenersBefore).toBe(1)
+
+    rerender({ dv: 'B' })
+
+    // Model value wins — defaultValue is fallback-only
+    expect(result.current[0]).toBe('hello')
+    // Listener NOT re-registered — same count, no off+on churn
+    expect(comp.listenerCount('change:content')).toBe(listenersBefore)
+  })
+})
+
+describe('useExtendedProperty — defaultValue stability contract (TD-004)', () => {
+  it('rerendering with a different defaultValue does not alter value or trigger resubscription', () => {
+    const comp = makeComponent({ extendedProperties: { color: '#ff0000' } })
+    const { result, rerender } = renderHook(
+      ({ dv }) => useExtendedProperty(comp as never, 'color', dv),
+      { initialProps: { dv: '#000000' } },
+    )
+
+    expect(result.current[0]).toBe('#ff0000')
+    const listenersBefore = comp.listenerCount('change:extendedProperties')
+    expect(listenersBefore).toBe(1)
+
+    rerender({ dv: '#ffffff' })
+
+    // Sub-key value from model wins — defaultValue is fallback-only
+    expect(result.current[0]).toBe('#ff0000')
+    // Listener NOT re-registered
+    expect(comp.listenerCount('change:extendedProperties')).toBe(listenersBefore)
+  })
+})
