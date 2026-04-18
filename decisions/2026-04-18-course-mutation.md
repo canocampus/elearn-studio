@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-18
 **Task:** TD-007
-**Status:** Proposed
+**Status:** Accepted (delivered v0.5.59 — commits `769a12a` refactor + `4cd6bb8` null-window fix)
 **Author:** self (Phase 10 tech-debt)
 **Supersedes/Extends:** [`2026-04-17-request-save.md`](./2026-04-17-request-save.md) (T651)
 
@@ -217,23 +217,28 @@ Rejected. Overengineered for 8 sites; introduces runtime dependencies that the c
 
 ## Selected Design — Option B
 
-### File layout
+### File layout (as delivered)
 
 ```
 packages/authoring-ui/src/
 ├── lib/
 │   └── courseMutation.ts         # NEW — Layer 1: pure performCourseMutation
-├── editor/
-│   └── initEditor.ts             # MODIFIED — Layer 2: requestCourseMutation closure + setRequestCourseMutation
 ├── store/
-│   └── editorStore.ts            # MODIFIED — add requestCourseMutation + setRequestCourseMutation fields
+│   └── editorStore.ts            # MODIFIED — Layer 2 closure lives here as a plain store action
 ├── components/
 │   ├── layout/TopToolbar.tsx     # MODIFIED — migrate 3 sites
 │   └── sidebar/SlideList.tsx     # MODIFIED — migrate 5 sites, remove local isAdding/isProcessing flags
 └── __tests__/
-    ├── lib/courseMutation.test.ts    # NEW
-    └── components/...                # existing tests continue to pass
+    ├── lib/courseMutation.test.ts            # NEW — 8 tests for Layer 1 primitive
+    ├── store/requestCourseMutation.test.ts   # NEW — 5 tests for the store action
+    └── components/...                        # existing tests continue to pass
 ```
+
+**Post-delivery correction (v0.5.59, commit `4cd6bb8`):** The original draft placed Layer 2 inside `initEditor.ts` (mirroring T651 exactly, with a nullable store field + `setRequestCourseMutation` setter + EditorCanvas Effect 1 registration). That mirror proved incorrect because `requestCourseMutation` has **no editor dependency** — it only uses Zustand setters (`setIsSaving` / `setSaveError` / `bumpCacheVersion`). Coupling it to the editor lifecycle created a null window between app mount and Effect 1 run, during which the 8 caller sites (with their `if (!rcm) return` guard) would silently no-op. The CI E2E fixture `editorPage.addSlide()` clicks the Add Slide button immediately after page load — inside that null window — and timed out waiting for the new slide to appear. Run `24601830271` was cancelled at 27 min after dozens of tests failed at 30 s × 3 retries each.
+
+**Correction:** move the Layer 2 closure into `editorStore.ts` as a plain always-available store action. `requestCourseMutation` is now non-nullable and available from the first render. The 8 caller guards (`if (!rcm) return`) are removed, `EditorCanvas Effect 1` wiring is removed, `initEditor.ts` no longer returns `requestCourseMutation`. Layer 1 (`lib/courseMutation.ts`) and ADR design otherwise unchanged.
+
+**Guardrail learned:** mirroring T651's file layout was the wrong heuristic. T651's Layer 2 belongs in `initEditor.ts` because `performSave(editor, …)` requires the editor. Layer-2 placement should be driven by the Layer 1 primitive's dependencies, not by symmetric appearance.
 
 ### Layer 1 — `lib/courseMutation.ts`
 
@@ -273,16 +278,17 @@ export async function performCourseMutation<R>(
 }
 ```
 
-### Layer 2 — closure in `initEditor.ts`
+### Layer 2 — plain store action in `editorStore.ts` (final form)
 
-Added alongside the existing `requestSave` construction; stored in the editor store via a new `setRequestCourseMutation` action:
+Defined inline in the Zustand store as a regular action (not a closure returned from `initEditor`, not a nullable field). Always available from the first render.
 
 ```typescript
-const requestCourseMutation = async <R>(
+// In editorStore.ts — always-available, never null
+requestCourseMutation: async <R>(
   apiCall: () => Promise<R>,
   opts: { bumpCache?: boolean } = {},
 ): Promise<R | undefined> => {
-  const { setIsSaving, setSaveError, bumpCacheVersion } = useEditorStore.getState()
+  const { setIsSaving, setSaveError, bumpCacheVersion } = get()
   return performCourseMutation(apiCall, {
     onStart: () => { setIsSaving(true); setSaveError(null) },
     onSuccess: () => {
@@ -291,35 +297,36 @@ const requestCourseMutation = async <R>(
     },
     onError: (msg) => { setIsSaving(false); setSaveError(msg) },
   })
-}
-
-useEditorStore.getState().setRequestCourseMutation(requestCourseMutation)
+},
 ```
 
 Default `bumpCache: true` — the invariant. Only opt out via `{ bumpCache: false }` at the rare call site that mutates course metadata which the storage cache does NOT mirror (today: zero such sites — escape hatch kept for future-proofing).
 
-### Layer 3 — Zustand store fields
+### Layer 3 — Zustand store type (final form)
 
 ```typescript
-// Added to editorStore.ts alongside requestSave / setRequestSave
+// Non-nullable in the state interface because the action is always present.
 requestCourseMutation:
-  (<R>(apiCall: () => Promise<R>, opts?: { bumpCache?: boolean }) => Promise<R | undefined>)
-  | null
-setRequestCourseMutation: (fn: EditorState['requestCourseMutation']) => void
+  <R>(apiCall: () => Promise<R>, opts?: { bumpCache?: boolean }) => Promise<R | undefined>
 ```
 
-### Call-site migration pattern
+No `setRequestCourseMutation` setter, no EditorCanvas wiring, no cleanup on unmount — the action is plain state defined once in `create<EditorState>()({ ... })`.
 
-Every migrated handler follows this shape (proven over all 8 sites in the prototype):
+### Call-site migration pattern (final form)
+
+Every migrated handler follows this shape (proven over all 8 sites after the null-window fix):
 
 ```typescript
 async function handleX() {
   if (!course) return  // unchanged precondition check
-  const rcm = useEditorStore.getState().requestCourseMutation
-  if (!rcm) return     // defensive: editor not initialised yet
 
-  const updated = await rcm(() => courseApi.xxx(course._id, args))
-  if (!updated) return  // helper already surfaced error via setSaveError + toast is handled below
+  const updated = await useEditorStore.getState().requestCourseMutation(
+    () => courseApi.xxx(course._id, args),
+  )
+  if (!updated) {
+    toast.error(`Failed to X: ${useEditorStore.getState().saveError ?? 'unknown error'}`)
+    return
+  }
 
   // Operation-specific post-success side effects:
   setCourse(updated)
@@ -327,6 +334,8 @@ async function handleX() {
   /* any other per-op state reset */
 }
 ```
+
+No `if (!rcm) return` guard — the action is always callable. One inline lookup via `useEditorStore.getState().requestCourseMutation(...)`.
 
 Toast remains at each call site because the message ("Failed to add slide" vs "Failed to rename slide") is operation-specific. Toast level is **standardised to `error`** — #5/#6/#7/#8 upgraded from `warning` to `error` to match TopToolbar and match the severity `SaveErrorBanner` already surfaces globally.
 
@@ -361,11 +370,13 @@ Call sites #7 (`commitRename`) and #8 (`handleDrop`) get the cache-version bump 
    - `performCourseMutation` works with no hooks object (all optional)
    - Order guarantee: `onStart` fires BEFORE `apiCall` is awaited
    - Order guarantee: `onSuccess` / `onError` fires AFTER `apiCall` settles
-2. `initEditor.test.ts` (existing file, +3 tests):
-   - `requestCourseMutation` closure calls `setIsSaving(true)` then `false`
-   - `requestCourseMutation` calls `bumpCacheVersion` on success by default
-   - `requestCourseMutation({ bumpCache: false })` skips `bumpCacheVersion`
-3. Existing `TopToolbar.test.tsx` / `SlideList.test.tsx` (if present) — verify no regressions; update to the new DOM assertions where they query for `isAdding`/`isProcessing` state.
+2. `store/requestCourseMutation.test.ts` (new, 5 tests against the live store):
+   - success path transitions `isSaving: false → true → false` and bumps `cacheVersion`
+   - `{ bumpCache: false }` success path leaves `cacheVersion` unchanged
+   - error path populates `saveError`, leaves `cacheVersion` unchanged, returns `undefined`
+   - **regression guard**: `requestCourseMutation` is always a function (never null) — this is the test that would have caught the null-window bug had it existed before the refactor
+   - non-Error throws are narrowed via `String(err)`
+3. `SlideList.test.tsx` / `sidebar/SidebarPanels.test.tsx` — no mock-closure installation needed; tests exercise the live store action against mocked `courseApi`.
 
 ## Risks & rollback
 

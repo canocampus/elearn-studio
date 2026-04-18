@@ -1,8 +1,10 @@
 # Self-Review — TD-007: Unify course meta-operations save path
 
-**Status:** RESOLVED
+**Status:** RESOLVED (CI green, both commits merged)
 **Date:** 2026-04-18
 **Version:** v0.5.59
+**Commits:** `769a12a` (refactor + 8-site migration) + `4cd6bb8` (null-window fix after CI E2E regression)
+**CI:** run `24602663078` — 17m 08s, all 27 steps green
 **ADR:** [`decisions/2026-04-18-course-mutation.md`](../../decisions/2026-04-18-course-mutation.md)
 **Extends:** T651 (slide-widget save unification)
 
@@ -48,9 +50,55 @@ Scope: 8 call sites across `TopToolbar.tsx` (3) and `SlideList.tsx` (5). Every s
 
 **Grep check.** `grep -rn "isAdding\|isProcessing" packages/authoring-ui/src/` returns 0 matches.
 
+## Post-mortem — null-window regression caught by CI E2E (`769a12a` → `4cd6bb8`)
+
+### What happened
+
+The first push (`769a12a`) placed the Layer 2 closure inside `initEditor.ts`, registered it in the store via `setRequestCourseMutation(requestCourseMutation)` inside `EditorCanvas` Effect 1, and nulled it on cleanup. Pattern mirrored T651's `requestSave` exactly.
+
+CI run `24601830271` **cancelled at 27 min** (vs 17 min historical baseline). Lint, unit/integration, build, coverage, Playwright install, servers-up: all green. The failure was concentrated in the E2E step: dozens of tests timed out at 30 s × 3 retries each, cascading until GitHub Actions killed the step.
+
+### Root cause
+
+The 8 call sites in `TopToolbar.tsx` / `SlideList.tsx` carried an `if (!rcm) return` defensive guard because the store field was typed `((apiCall, opts?) => Promise<R | undefined>) | null`. Between app mount and `EditorCanvas` Effect 1 running, the field was `null` — a **null window** during which any button click silently no-op'd.
+
+The E2E fixture `editorPage.addSlide()` in `T608.2.beforeEach` (and similar patterns across the spec suite) clicked the Add Slide button immediately on page load — inside that null window. The handler returned without calling `addSlide()`. The test then waited 30 s for a new slide to appear, retried twice, and reported three failures per test. Snowball across specs → 27 min → GH Actions timeout.
+
+### Fix (commit `4cd6bb8`)
+
+Move `requestCourseMutation` from an editor-scoped closure to a **plain always-available store action**:
+
+- Layer 2 now lives directly inside `editorStore.ts`'s `create<EditorState>()({ ... })` as a regular action body. It references `get()` for the setters (`setIsSaving`, `setSaveError`, `bumpCacheVersion`) — none of which require the editor.
+- Store field type is non-nullable: `requestCourseMutation: <R>(apiCall, opts?) => Promise<R | undefined>`. No `setRequestCourseMutation` setter, no EditorCanvas wiring, no cleanup on unmount.
+- `initEditor.ts` no longer imports `performCourseMutation` and no longer returns `requestCourseMutation`.
+- All 8 call sites drop the `if (!rcm) return` guard. One call reduces from 4 lines of setup to 1: `const updated = await useEditorStore.getState().requestCourseMutation(() => courseApi.xxx(...))`.
+
+### Why the mirror-T651 heuristic was wrong
+
+T651's Layer 2 (`requestSave`) must live in `initEditor.ts` because `performSave(editor, …)` needs the GrapesJS editor. TD-007's Layer 2 (`requestCourseMutation`) does NOT need the editor — only Zustand setters. **Placement should follow the Layer 1 primitive's dependencies, not symmetric file layout.**
+
+The ADR's original draft treated "mirror T651" as a design goal rather than a consequence; the mistake was using layout-similarity as a heuristic without re-checking the dependency graph.
+
+### Regression-proofing
+
+`store/requestCourseMutation.test.ts` now includes this explicit guard:
+
+```typescript
+it('is always available immediately (no null window)', () => {
+  // Regression guard: the original TD-007 design had a null window between
+  // app mount and EditorCanvas Effect 1 registering the closure. That caused
+  // silent no-ops in TopToolbar / SlideList click handlers. The store action
+  // fixes this by being plain state, not a lifecycle-bound closure.
+  const rcm = useEditorStore.getState().requestCourseMutation
+  expect(typeof rcm).toBe('function')
+})
+```
+
+A future refactor that re-introduces nullability will fail this test at development time, before it reaches CI E2E.
+
 ## Design decisions
 
-1. **Layer separation mirrors T651.** Layer 1 (`lib/courseMutation.ts`) is pure — no Zustand, no React. Layer 2 (closure in `initEditor.ts`) wires Zustand setters. Layer 3 (`editorStore.requestCourseMutation` field + setter) exposes the closure. Symmetric with T651's `performSave` / `requestSave` split.
+1. **Layer separation adapted from T651 — not mirrored.** Layer 1 (`lib/courseMutation.ts`) is pure — no Zustand, no React. Layer 2 lives in `editorStore.ts` directly (not in `initEditor.ts`) because it has no editor dependency. Layer 3 is a non-nullable store action field. The adapter-not-mirror choice is documented in the post-mortem above; mirror-by-shape caused the E2E regression.
 2. **`setCourse(updated)` stays at the caller, NOT inside the helper.** Forgetting `setCourse` produces an immediately-visible bug (UI stale after mutation) — code review or manual test catches it instantly. Forgetting `bumpCacheVersion` was invisible until a cache hit (the bug D-02 just fixed) — hence THAT one lives inside the helper. Asymmetric by design, matching the observability asymmetry.
 3. **`return result | undefined` instead of `throw`.** Callers use `if (!updated) { toast.error(...); return }` which is strictly more readable than `try/catch` and eliminates forgotten error paths. Re-throwing would invite the same drift TD-007 is eliminating.
 4. **Toast remains caller-owned** even though the unified surface is tempting. Each operation has its own message (`"Failed to add slide"` vs `"Failed to rename slide"`). Pushing toast into the helper would require operation labels at call sites, which is the same shape of boilerplate with none of the flexibility (e.g., suppressing toast for background retries).
@@ -61,11 +109,13 @@ Scope: 8 call sites across `TopToolbar.tsx` (3) and `SlideList.tsx` (5). Every s
 | File | Scope | Tests |
 |---|---|---|
 | `src/__tests__/lib/courseMutation.test.ts` (new) | Layer 1 pure primitive | 8 |
-| `src/__tests__/initEditor.test.ts` (new describe) | Layer 2 closure | 3 |
-| `src/__tests__/SlideList.test.tsx` (test helper) | Migrated SlideList sites | 23 (unchanged, now via rcm mock) |
-| `src/__tests__/sidebar/SidebarPanels.test.tsx` (test helper) | T607 SlideList integration | 24 (unchanged, now via rcm mock) |
+| `src/__tests__/store/requestCourseMutation.test.ts` (new, post-fix) | Layer 2 store action — success / `bumpCache:false` / error / null-window guard / non-Error narrowing | 5 |
+| `src/__tests__/SlideList.test.tsx` | Migrated SlideList sites — no mock closure needed (live store action) | 23 (unchanged) |
+| `src/__tests__/sidebar/SidebarPanels.test.tsx` | T607 SlideList integration — no mock closure needed | 24 (unchanged) |
 
-Total authoring-ui suite: 733 → **744/744 pass**.
+Total authoring-ui suite: 733 → **746/746 pass** (32 files).
+
+CI artefact: run `24602663078` completed in 17m 08s with all 27 steps green, confirming the fix in production-like environment (full E2E on chromium).
 
 Deliberate non-additions:
 - No separate cache-invalidation test for D-02 — the `bumpCache: true` default is covered by TD-007.1 and any future consumer omitting it trips the closure assertions.
@@ -76,10 +126,11 @@ Deliberate non-additions:
 | Check | Result |
 |---|---|
 | `grep -rn "isAdding\|isProcessing"` | 0 matches |
-| `grep -rn "bumpCacheVersion"` | Only in `store/editorStore.ts` (definition), `editor/initEditor.ts` (Layer 2 closure), test mocks, and comments in callers |
+| `grep -rn "bumpCacheVersion"` | Only in `store/editorStore.ts` (definition + Layer 2 action body), test files, and comments in callers — zero direct call-site invocations |
 | `npx tsc --noEmit` | EXIT=0 |
-| `pnpm --filter @elearn-studio/authoring-ui test` | 744/744 pass (31 files) |
+| `pnpm --filter @elearn-studio/authoring-ui test` | **746/746 pass (32 files)** |
 | `pnpm -r lint` | 0 errors, 2 info-warnings (TD-004 historical, unchanged) |
+| CI run `24602663078` | **success** in 17m 08s, all 27 steps green (including full E2E) |
 
 ## Out of scope (deliberate)
 
