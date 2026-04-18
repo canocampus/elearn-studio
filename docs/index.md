@@ -17,16 +17,26 @@ For course authors and instructional designers:
 
 | Section | Description |
 |---|---|
-| [Getting Started](user-guide/01-getting-started.md) | First course walkthrough, interface tour |
-| [Editor Overview](user-guide/02-editor-overview.md) | GrapesJS canvas, panels, slide navigation |
-| [Working with Slides](user-guide/03-working-with-slides.md) | Add, duplicate, delete, reorder, templates |
-| [Widgets](user-guide/04-widgets.md) | All widget types: text, image, button, shape, media player, audio narration, progress bar, volume control, nav controls |
-| [Questions](user-guide/05-questions.md) | MC, True/False, Fill-in-Blank, Match, Drag, Arrange, Hotspot |
-| [Actions Editor](user-guide/06-actions-editor.md) | 13 action types, events, variables, conditions, shared sequences |
-| [Screenshot Simulations](user-guide/07-screenshot-simulations.md) | Recorder workflow, hotspot editor, 3 play modes |
-| [Phaser Simulations](user-guide/08-phaser-simulations.md) | Process flows, interactive diagrams, gamified quizzes |
-| [Publishing](user-guide/09-publishing.md) | SCORM export, suspend data indicator, Moodle import |
-| [Course History](user-guide/10-course-history.md) | Version history, restore, comparison |
+| [Welcome](user-guide/01-welcome.md) | Screen tour, auto-save, terminology |
+| [Getting Started](user-guide/02-getting-started.md) | Sign in, first course, 5-minute path |
+| [Slides](user-guide/03-slides.md) | Add, rename, reorder, duplicate, delete |
+| [Basic Blocks](user-guide/04-blocks-basic.md) | Text, Image, Button, Rectangle |
+| [Navigation Blocks](user-guide/05-blocks-navigation.md) | Nav Buttons, Done Button, Progress Bar |
+| [Media Blocks](user-guide/06-blocks-media.md) | Media Player, Audio Narration, Volume Control |
+| [Assessment Blocks](user-guide/07-blocks-assessment.md) | Quiz Score, Score Field |
+| [Questions](user-guide/08-blocks-questions.md) | Multiple Choice, True / False, Fill in the Blank |
+| [Actions Editor](user-guide/09-actions-editor.md) | Course logic overview — "When X → do Y" |
+| [Triggers & Actions Reference](user-guide/10-actions-triggers-reference.md) | Every trigger (9) and every action (15) |
+| [Expressions, Recipes & Shared Sequences](user-guide/11-actions-expressions-recipes.md) | DSL, 5 ready-to-copy patterns, macros |
+| [Simulations Overview](user-guide/12-simulations-overview.md) | Software Walkthrough vs Interactive Scenario |
+| [Software Walkthrough](user-guide/13-software-walkthrough.md) | Screenshot-based guided practice |
+| [Interactive Scenario](user-guide/14-interactive-scenario.md) | 5 Phaser scenario types with complete JSON examples |
+| [Preview](user-guide/15-preview.md) | Popup preview, permissions, error recovery |
+| [Publish as SCORM](user-guide/16-publish-scorm.md) | Format decision guide + LMS upload |
+| [Worked Example](user-guide/17-worked-example.md) | Build a 5-slide course end to end |
+| [Troubleshooting](user-guide/18-troubleshooting.md) | 10 symptoms with cause + fix |
+| [QA & Developer Guide](user-guide/19-qa-developer-guide.md) | E2E suite, CI, writing specs (technical) |
+| [Glossary](user-guide/20-glossary.md) | ~30 terms in plain language |
 
 → **[User Guide index](user-guide/index.md)**
 

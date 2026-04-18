@@ -61,7 +61,7 @@ The platform that hosts and tracks e-learning courses. eLearn Studio targets SCO
 ## P
 
 **Phaser Simulation**
-An advanced simulation widget powered by Phaser.js 3. Subtypes include `process-flow`, `physics-demo`, `gamified-quiz`, `concept-animator`, and `interactive-diagram`. The Phaser bundle is lazy-loaded and only included in SCORM packages when the course contains at least one Phaser widget. See [Phaser Simulations Guide](user-guide/08-phaser-simulations.md).
+An advanced simulation widget powered by Phaser.js 3. Subtypes include `process-flow`, `physics-demo`, `gamified-quiz`, `concept-animator`, and `interactive-diagram`. The Phaser bundle is lazy-loaded and only included in SCORM packages when the course contains at least one Phaser widget. See [Interactive Scenario](user-guide/14-interactive-scenario.md).
 
 **Progress Bar**
 A widget type (`progress-bar`) that displays a horizontal bar showing how far a learner has progressed through the course. Configured via `extendedProperties.color` (hex), `.height` (px, 4–40), and `.showPercent` (boolean). At runtime, the Runtime Player tracks `visitedSlides` and calls `updateProgressBars()` on every slide navigation to update the fill width. Progress is persisted in `suspend_data` (schema v:2) so the bar survives a SCORM resume. Placed in the **Navigation** block category.
