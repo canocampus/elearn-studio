@@ -44,6 +44,8 @@ export function PropsEmptyState({ selectedType }: PropsEmptyStateProps) {
   return (
     <div
       data-testid="props-empty-state"
+      role="status"
+      aria-live="polite"
       style={{
         padding: 16,
         color: '#6c7086',
