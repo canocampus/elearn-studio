@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] — 2026-04-19 — Mermaid syntax fix for PyCharm + docs-skill rule bake-in
+
+### Fixed
+- **[docs/dev-guide §09] Two diagrams failed to render in PyCharm's Markdown preview** (`docs/developer-guide/09-authoring-ui-architecture.md`). Two distinct causes. (1) `;` inside sequence-diagram message labels — Mermaid treats `;` as a statement separator, so `A->>B: foo(); bar()` is parsed as statement #1 `A->>B: foo()` + a bare `bar()` token that the parser tries to continue into the next line looking for an arrow, producing `Expecting 'SOLID_OPEN_ARROW' ... got 'NEWLINE'`. Fixed by replacing `;` with `,` in 6 message labels on lines 191, 197, 213, 232, 332, 345. (2) Subgraph titles and node labels containing `—` (em-dash), `·` (middle dot), or `→` (arrow) were unquoted — PyCharm's parser rejects these with `ALIAS or CLOSE_SQUARE expected`. Fixed by wrapping 12 affected labels in double quotes (7 subgraph titles + 5 node labels: `TOP`, `TT`, `SL`, 7 panels inside `has[]` subgraph + `Q`/`B`/`MP`/`AN`/`PB`/`VC`/`PH`). Additionally replaced 4 `&lpar;`/`&rpar;` HTML entities (inside the "Source-of-truth split" and "Props tab empty-state router" diagrams) with literal parens inside double-quoted labels — older renderers emit the entities as raw text instead of decoding them. Sequence-diagram message text and `Note over` / `Note right of` labels are free-form until end-of-line, so em-dashes there stay unquoted.
+
+### Changed
+- **[elearn-docs-technical SKILL.md]** — new "Renderer compatibility" subsection under "Mermaid Diagram Rules" documenting the three failure modes (`;` separator, HTML entities, unquoted special-character labels) with exact parser-error messages and fix patterns. Three new items appended to "Checklist Before Finishing Any Technical Doc" (`No ; inside sequence-diagram labels`, `No HTML entities in labels`, `Labels with ( ) , : ? — · → wrapped in double quotes`) so future PRs catch these before committing.
+
+### Notes
+- **Versioning**: no user-visible change, no production code touched — docs-only maintenance. No version bump.
+- **Verification**: PyCharm Markdown preview now renders all 7 diagrams in §09 without parse errors (confirmed via the in-editor diagnostic). Grep confirms no residual `;` or `&lpar;`/`&rpar;` inside ```` ```mermaid ```` fences; all em-dashes in graph node/subgraph labels are now inside `["..."]`. GitHub preview parity preserved — the quoted-label syntax is supported in every mermaid version that already handles `:::class`.
+- **Commit**: `e8c15c5`.
+
+---
+
+## [Unreleased] — 2026-04-19 — Developer-guide §09: authoring-ui architecture
+
+### Added
+- **[docs/dev-guide §09] New page `09-authoring-ui-architecture.md`** — 522 lines covering the internal architecture of `packages/authoring-ui`: stack table, package map, UI composition, GrapesJS instance lifecycle (Effect 1 + Effect 2 + autosave + cleanup with the 4 race-fix pins), Zustand-vs-Backbone source-of-truth split with the canonical `useComponentProperty` pattern, unified-persistence sequence (`requestSave` + `performSave` Layer 1/2 split + 5 caller sites) with the parallel `requestCourseMutation` mini-diagram for course-meta ops, Zustand stores table, hooks table, preview `postMessage` handshake, Props empty-state router (TD-010), key-files table. 7 Mermaid diagrams total, all verified against current source of `EditorCanvas.tsx`, `initEditor.ts`, `storageManager.ts`, `useComponentProperty.ts`, `editorStore.ts`, `AppLayout.tsx`, `propsEmptyState.tsx`.
+
+### Changed
+- **[docs/dev-guide] Cross-links wired** — `developer-guide/index.md` + `developer-guide.md` index row added; `01-architecture.md` gets a pointer after the "GrapesJS Storage Integration" subsection; `08-persistence-flow.md` header hand-off to §09 Unified persistence for the React-side flow (to avoid duplicating the server-side pipeline).
+
+### Notes
+- **Versioning**: no user-visible change, no production code touched — docs-only. No version bump.
+- **Verification**: 20/20 cited file paths exist; 0 MinIO references; 0 absolute URLs (all relative); all diagrams use Mermaid (no SVG, no ASCII art per the elearn-docs-technical skill).
+- **Commit**: `398bb38`.
+
+---
+
 ## [Unreleased] — 2026-04-19 — Backlog cleanup: close TD-010.5 + T651.5
 
 ### Added
