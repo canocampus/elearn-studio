@@ -109,6 +109,13 @@ Use Mermaid for ALL diagrams — never external images, never ASCII art.
 - Use `classDef` to color-code by layer: frontend (blue), backend (green), storage (orange), infrastructure (grey)
 - Always test that the diagram renders before finalizing
 
+**Renderer compatibility — required for PyCharm's Markdown preview (the strictest renderer in the toolchain):**
+- **Never put `;` inside a sequence-diagram message label.** Mermaid treats `;` as a statement separator, so `A->>B: foo(); bar()` breaks the parser with an `Expecting SOLID_OPEN_ARROW … got NEWLINE` error. Use `,` for chained calls, or split into two message lines.
+- **Never use HTML entities** (`&lpar;`, `&rpar;`, `&#40;`, `&amp;`, …) inside node labels or edge labels. Older renderers emit them as literal text. Use the actual character inside a quoted label instead.
+- **Quote any label that contains** `(` `)` `,` `:` `?` `#` `'` `—` (em-dash) `·` (middle dot) `→` (arrow) or a leading digit. Square-bracket nodes (`N["label (x)"]`), decision diamonds (`D{"ready?"}`), subgraph titles (`subgraph id["Title — hint"]`), and edge labels all accept double-quoted strings. Leave simple alphanumeric labels unquoted.
+- Sequence-diagram message text and `Note over` / `Note right of` labels are free-form until end-of-line — em-dashes, commas, and parentheses are fine there. The `;` rule still applies.
+- Before committing any doc with mermaid, verify rendering in **both** GitHub's preview and PyCharm's Markdown preview. PyCharm catches things GitHub silently accepts.
+
 **Example pattern for architecture diagrams:**
 ```mermaid
 graph LR
@@ -209,6 +216,9 @@ interface CreateCourseRequest {
 
 - [ ] All commands are copy-pasteable (no placeholders left unreplaced)
 - [ ] All Mermaid diagrams render without errors
+- [ ] No `;` inside sequence-diagram message labels (use `,` instead)
+- [ ] No HTML entities (`&lpar;`, `&rpar;`, `&#40;`, …) in mermaid labels
+- [ ] Labels containing `(`, `)`, `,`, `:`, `?`, `—`, `·`, `→` are wrapped in double quotes
 - [ ] Port numbers match the reference table above
 - [ ] No MinIO references anywhere
 - [ ] Links to other docs use relative paths, not absolute URLs

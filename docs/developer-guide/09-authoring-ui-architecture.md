@@ -122,20 +122,20 @@ graph TD
   MAIN[main.tsx]:::shell
   APP[App.tsx]:::shell
   LAYOUT[AppLayout]:::shell
-  TOP[TopToolbar<br/>Save · Publish · Preview · Debug]:::shell
+  TOP["TopToolbar<br/>Save · Publish · Preview · Debug"]:::shell
 
-  subgraph left_sidebar[Left sidebar — 240px]
+  subgraph left_sidebar["Left sidebar — 240px"]
     LT1[leftTab: slides]:::panel
     LT2[leftTab: blocks]:::panel
     SL[SlideList]:::panel
     BM[BlockManagerPanel<br/>gjs-block-manager container]:::panel
   end
 
-  subgraph center[Center — flex]
+  subgraph center["Center — flex"]
     EC[EditorCanvas<br/>GrapesJS iframe]:::canvas
   end
 
-  subgraph right_sidebar[Right sidebar — 240px]
+  subgraph right_sidebar["Right sidebar — 240px"]
     RT1[rightTab: layers]:::panel
     RT2[rightTab: styles]:::panel
     RT3[rightTab: properties]:::panel
@@ -188,13 +188,13 @@ sequenceDiagram
   IE->>GJS: on('block:drag:stop' → addStyle({left, top}))
   IE->>GJS: on('component:update' → triggerAutosave)
   IE-->>RC: {editor, cleanup, hasPendingChanges, requestSave}
-  RC->>ES: setEditor(editor); setRequestSave(requestSave)
+  RC->>ES: setEditor(editor), setRequestSave(requestSave)
   RC->>GJS: on('component:selected' → setSelectedComponentType, setRightTab)
   RC->>GJS: window.addEventListener('beforeunload', onBeforeUnload)
 
   Note over RC: Effect 2 — runs on [courseId, slideId]
   alt StrictMode twin invocation<br/>same (courseId, slideId) already in-flight
-    RC->>RC: await lastLoadPromiseRef; setIsReady(true); return
+    RC->>RC: await lastLoadPromiseRef, setIsReady(true), return
   else Genuine change
     RC->>RC: setIsReady(false)<br/>containerRef.setAttribute('data-editor-ready','false')
     opt shouldSaveBeforeSwitch
@@ -210,7 +210,7 @@ sequenceDiagram
     Note over IE: triggerAutosave early-return while _isEditorLoading === true
     GJS-->>RC: load() promise resolves
     RC->>IE: setEditorLoading(false)
-    RC->>RC: setIsReady(true); data-editor-ready='true'
+    RC->>RC: setIsReady(true), data-editor-ready='true'
   end
 
   Note over RC: Autosave loop (steady state)
@@ -229,7 +229,7 @@ sequenceDiagram
   RC->>IE: cleanup() — clearTimeout(autosaveTimer) +<br/>removeEventListener('dragstart') + unsubscribeCacheInvalidate
   RC->>GJS: editor.destroy()
   RC->>RC: lastLoadContextRef.current = null (TD-009 lifecycle correction)
-  RC->>ES: setEditor(null); setRequestSave(null)
+  RC->>ES: setEditor(null), setRequestSave(null)
 ```
 
 Four races captured in this sequence, all pinned by regression tests:
@@ -250,14 +250,14 @@ graph LR
   classDef backbone fill:#10B981,color:#fff
   classDef react fill:#3B82F6,color:#fff
 
-  subgraph Backbone[GrapesJS Backbone — canvas truth]
+  subgraph Backbone["GrapesJS Backbone — canvas truth"]
     CT[Component tree + attributes]:::backbone
-    TYPE[component.get&lpar;'type'&rpar;]:::backbone
-    EP[component.get&lpar;'extendedProperties'&rpar;]:::backbone
-    STYLE[component.getStyle&lpar;&rpar;]:::backbone
+    TYPE["component.get('type')"]:::backbone
+    EP["component.get('extendedProperties')"]:::backbone
+    STYLE["component.getStyle()"]:::backbone
   end
 
-  subgraph Zustand[editorStore — UI truth]
+  subgraph Zustand["editorStore — UI truth"]
     SCT[selectedComponentType]:::react
     RT[rightTab]:::react
     IS[isSaving / saveError]:::react
@@ -329,7 +329,7 @@ sequenceDiagram
   Note right of CALLER: 1. triggerAutosave (initEditor.ts)<br/>debounce 2s + guards<br/>2. saveAndLoad (EditorCanvas.tsx)<br/>pre-nav, timeout 5s<br/>3. SaveErrorBanner retry<br/>4. useActionsSave<br/>5. SimulationEditor.handleSave
 
   ES->>PS: performSave(editor, {onStart, onSuccess, onError, timeoutMs})
-  PS->>ES: onStart() → setIsSaving(true); setSaveError(null)
+  PS->>ES: onStart() → setIsSaving(true), setSaveError(null)
   PS->>GJS: editor.store() (optionally Promise.race timeout)
   GJS->>SM: storageManager.store()
   SM->>API: PATCH payload {widgets, thumbnail}
@@ -342,7 +342,7 @@ sequenceDiagram
     API-->>SM: 4xx / 5xx
     SM-->>GJS: throw
     GJS-->>PS: throw
-    PS->>ES: onError(msg) → setIsSaving(false); setSaveError(msg)
+    PS->>ES: onError(msg) → setIsSaving(false), setSaveError(msg)
     PS-->>CALLER: throw (caller may catch)
   end
 ```
@@ -355,8 +355,8 @@ graph LR
   classDef store fill:#F59E0B,color:#fff
   classDef api fill:#10B981,color:#fff
 
-  TT[TopToolbar · 3 sites]:::caller
-  SL[SlideList · 5 sites]:::caller
+  TT["TopToolbar · 3 sites"]:::caller
+  SL["SlideList · 5 sites"]:::caller
   RCM[editorStore.requestCourseMutation]:::store
   PCM[performCourseMutation]:::store
   CA[courseApi.*]:::api
@@ -462,19 +462,19 @@ graph TD
   classDef empty fill:#64748B,color:#fff
 
   IN[selectedComponentType<br/>from editorStore]:::decision
-  CHECK{hasCustomPropsPanel&lpar;type&rpar;?}:::decision
+  CHECK{"hasCustomPropsPanel(type)?"}:::decision
 
-  subgraph has[Custom panel — 11 families]
-    Q[question-mc / tf / fill → QuestionPropertiesPanel]:::panel
-    B[button / done-button / nav-buttons → ButtonPropertiesPanel]:::panel
-    MP[media-player → MediaPlayerPropertiesPanel]:::panel
-    AN[audio-narration → AudioNarrationPropertiesPanel]:::panel
-    PB[progress-bar → ProgressBarPropertiesPanel]:::panel
-    VC[volume-control → VolumeControlPropertiesPanel]:::panel
-    PH[phaser-sim → PhaserSimPropertiesPanel]:::panel
+  subgraph has["Custom panel — 11 families"]
+    Q["question-mc / tf / fill → QuestionPropertiesPanel"]:::panel
+    B["button / done-button / nav-buttons → ButtonPropertiesPanel"]:::panel
+    MP["media-player → MediaPlayerPropertiesPanel"]:::panel
+    AN["audio-narration → AudioNarrationPropertiesPanel"]:::panel
+    PB["progress-bar → ProgressBarPropertiesPanel"]:::panel
+    VC["volume-control → VolumeControlPropertiesPanel"]:::panel
+    PH["phaser-sim → PhaserSimPropertiesPanel"]:::panel
   end
 
-  subgraph none[No custom panel — 6 families + null]
+  subgraph none["No custom panel — 6 families + null"]
     E1["PropsEmptyState<br/>(nothing selected)<br/>'Select a widget on the canvas…'"]:::empty
     E2["PropsEmptyState<br/>(text / image / rectangle /<br/>score-quiz / score-field / screenshot-sim)<br/>'…use the Styles tab to change its appearance.'"]:::empty
   end
