@@ -11,5 +11,7 @@
 | Observability | [developer-guide/05-observability.md](developer-guide/05-observability.md) |
 | Contributing | [developer-guide/06-contributing.md](developer-guide/06-contributing.md) |
 | Authentication internals | [developer-guide/07-authentication.md](developer-guide/07-authentication.md) |
+| Persistence flow | [developer-guide/08-persistence-flow.md](developer-guide/08-persistence-flow.md) |
+| Authoring UI architecture | [developer-guide/09-authoring-ui-architecture.md](developer-guide/09-authoring-ui-architecture.md) |
 
 **Start here:** [developer-guide/index.md](developer-guide/index.md)

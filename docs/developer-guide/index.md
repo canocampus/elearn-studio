@@ -16,6 +16,7 @@ Technical reference for contributors and developers extending eLearn Studio.
 | [06 — Contributing](./06-contributing.md) | Branch naming, commit format, PR checklist, OpenAPI regeneration |
 | [07 — Authentication](./07-authentication.md) | JWT access tokens, refresh tokens, Bearer injection, 401 handling, E2E auth setup |
 | [08 — Persistence Flow](./08-persistence-flow.md) | GrapesJS edit → debounce → store() → PATCH API → cache update → slide-switch cache hit |
+| [09 — Authoring UI Architecture](./09-authoring-ui-architecture.md) | Inside `packages/authoring-ui`: canvas lifecycle, Zustand vs Backbone, unified persistence, hooks, preview handshake, Props router |
 
 ---
 

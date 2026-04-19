@@ -263,6 +263,8 @@ flowchart LR
 
 The Storage Manager in `packages/authoring-ui/src/editor/storageManager.ts` intercepts every GrapesJS save and converts the component tree to the Widget schema before sending to the API. Raw HTML is never persisted. All type definitions come from the centralized `@elearn-studio/shared-types` package.
 
+For the internal structure of the `authoring-ui` package — EditorCanvas lifecycle, Zustand stores, Backbone subscription hooks, unified-save routing, Props empty-state router, and the preview `postMessage` handshake — see [09 — Authoring UI Architecture](./09-authoring-ui-architecture.md).
+
 ---
 
 ## GrapesJS Storage Integration

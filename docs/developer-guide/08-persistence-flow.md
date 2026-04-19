@@ -2,6 +2,8 @@
 
 How a user edit in GrapesJS travels from canvas interaction to the API and back — and how the in-memory cache prevents redundant round-trips on slide switches.
 
+> This document covers the server-side pipeline. The React-side unified-save routing (`requestSave` + `requestCourseMutation`, 5 save-call sites, Layer 1 / Layer 2 split) is in [09 — Authoring UI Architecture §Unified persistence](./09-authoring-ui-architecture.md#unified-persistence).
+
 ---
 
 ## Overview
