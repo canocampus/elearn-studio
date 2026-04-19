@@ -35,12 +35,10 @@
 import { test, expect } from '../fixtures/auth'
 import {
   addBlockById,
-  addCallouts,
   capture,
   captureElement,
   captureFullPage,
   ensureWidgetIsCentered,
-  removeCallouts,
   selectById,
   SCREENSHOTS_DIR,
 } from '../utils/screenshot'
