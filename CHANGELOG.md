@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] — 2026-04-19 — Backlog cleanup: close TD-010.5 + T651.5
+
+### Added
+- **[TD-010.5] `PropsTabRouting.test.tsx` — exhaustive regression guard for the "only one Props panel visible" invariant** (`packages/authoring-ui/src/__tests__/layout/PropsTabRouting.test.tsx`, 101 tests). Two layers: (1) pins the `return null` contract for the 5 custom panels that were not previously pinned (Button / MediaPlayer / AudioNarration / ProgressBar / VolumeControl) — each asserts `container.firstChild === null` for every non-matching type in the 17-widget grid, matching the pre-existing Question (`SidebarPanels.test.tsx`) and PhaserSim (`PhaserSimPropertiesPanel.test.tsx`) coverage; (2) an AppLayout-mirror `PropsTabFragment` renders the real Props-tab ternary for each of the 17 types + null and asserts exactly 1 `[data-testid="props-empty-state"]` for the 6 Styles-tab types + null, 0 for the 11 custom-panel types. Closes the visual-QA gap that remained open at the time TD-010 shipped — the 2026-04-19 live-browser Playwright-MCP pass only covered 2 of 17 states; the deterministic test covers all 17 permanently.
+
+### Changed
+- **[T651.5] Marked closed retroactively** (`tasks.md`): suite run (1533/1533) and CI green (run `24582182042`, 17m02s) were recorded in T651.4 + T1000.E2E at the time of the T651 push, but the T651.5 check was never ticked.
+- **[TD-010.5] Marked closed** (`tasks.md`, `WORKING_CONTEXT.md`, `docs/issues/issues-TD-010.md`): the visual-QA item is now closed via the test file above plus the pre-existing 2026-04-19 live-browser pass. `issues-TD-010.md` verification matrix updated to show 870/870 (763 → 870 across the full TD-010 lifecycle).
+
+### Notes
+- **Versioning**: no user-visible change, no production code touched — this is a test + documentation entry only. No version bump.
+- **Verification**: authoring-ui vitest 769 → **870/870** (+101); `npx tsc --noEmit` exit 0. No E2E suites run because no production code changed.
+
+---
+
 ## [0.5.64] — 2026-04-19 — TD-011: `registerQuestionBlocks` moved to top-level dispatcher
 
 ### Fixed

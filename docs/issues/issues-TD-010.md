@@ -86,6 +86,15 @@ The new unit-test file needed to import `hasCustomPropsPanel` and `<PropsEmptySt
 
 The 7 panel test suites that previously asserted the fallback text now assert `container.firstChild === null` when the panel does not apply.
 
+### Unit — `packages/authoring-ui/src/__tests__/layout/PropsTabRouting.test.tsx` (101 tests, added 2026-04-19 for TD-010.5)
+
+Pins the exhaustive "only one panel visible" invariant for every widget family in the 17-type grid. Two layers:
+
+1. **Null-return contract for the 5 previously-unpinned panels** (Button / MediaPlayer / AudioNarration / ProgressBar / VolumeControl): each asserts `container.firstChild === null` for every non-matching type plus the `null` selection. `Question` and `PhaserSim` were already pinned elsewhere.
+2. **AppLayout Props-tab integration** — mirrors the ternary in `AppLayout.tsx` lines 249–276 as an inline `PropsTabFragment` (importing the real 5 panels + `PropsEmptyState` + `hasCustomPropsPanel`) and iterates all 17 types + null. Assertions: exactly 1 `[data-testid="props-empty-state"]` for the 6 Styles-tab types + null, 0 for the 11 custom-panel types, zero leakage of panel testids when routing to the empty-state branch.
+
+The fragment technique (instead of importing `AppLayout.tsx` directly) keeps Konva / SimulationEditor out of the module graph — same rationale that motivated extracting `propsEmptyState.tsx` in TD-010.2.
+
 ## TD-009 interaction (discovered during verification)
 
 Moving `selectedComponentType` into AppLayout added re-renders that widened a pre-existing async window in `EditorCanvas`, turning a latent race into a deterministic failure of `widget-persistence-across-slides.spec.ts`. That is the race #3 documented in `issues-TD-009.md` (imperative `data-editor-ready="false"` flip). The fix ships in the same commit (`d3361d6`) so the persistence guard stays green under the new AppLayout behaviour.
@@ -95,10 +104,11 @@ Moving `selectedComponentType` into AppLayout added re-renders that widened a pr
 | Check | Result |
 |---|---|
 | `npx tsc -b` | exit 0 |
-| authoring-ui vitest | 763 → **769/769** across 34 files (+1 file, +6 tests) |
+| authoring-ui vitest | 763 → **870/870** across 35 files (+2 files, +107 tests total across TD-010 lifecycle: +6 at TD-010.2, +101 at TD-010.5 close 2026-04-19) |
 | runtime-player vitest | **265/265** (unchanged) |
 | E2E `widget-persistence-across-slides` | 2/2 pass |
 | E2E `docs-screenshots` | still green |
+| Live browser QA (Playwright MCP, 2026-04-19) | 2-state pass: 1 empty-state with nothing selected; 0 empty-states + 1 button panel with Button selected |
 
 ## CRITICAL / HIGH / MEDIUM / LOW
 
