@@ -19,7 +19,7 @@
     "jsdom": "^29.0.1",
     "rollup": "^4.18.0",
     "tslib": "^2.6.3",
-    "typescript": "^5.4.5",
+    "typescript": "^6.0.3",
     "vitest": "^1.6.0"
   }
 }
