@@ -74,8 +74,8 @@ test.describe('T608.2 — AppLayout right sidebar tab switching', () => {
   test('clicking Props tab makes it selected', async ({ editorPage }) => {
     await editorPage.propsTab.click()
     await expect(editorPage.propsTab).toHaveAttribute('aria-selected', 'true')
-    // QuestionPropertiesPanel renders its empty-state hint
-    await expect(editorPage.page.getByText(/Select a question widget/i)).toBeVisible({ timeout: 10_000 })
+    // TD-010: Props tab renders the centralised empty-state when no widget is selected
+    await expect(editorPage.page.getByTestId('props-empty-state')).toBeVisible({ timeout: 10_000 })
   })
 
   test('clicking Anim tab makes it selected', async ({ editorPage }) => {
@@ -167,7 +167,8 @@ test.describe('T608.5 — QuestionPropertiesPanel synced to GrapesJS selection',
 
   test('Props panel shows empty state before any widget is selected', async ({ editorPage }) => {
     await editorPage.propsTab.click()
-    await expect(editorPage.page.getByText(/Select a question widget/i)).toBeVisible({ timeout: 10_000 })
+    // TD-010: centralised empty-state replaces per-panel "Select a question widget" copy
+    await expect(editorPage.page.getByTestId('props-empty-state')).toBeVisible({ timeout: 10_000 })
   })
 
   test('adding MC widget via editor API and selecting it shows MC form in Props panel', async ({ editorPage }) => {
@@ -204,8 +205,8 @@ test.describe('T608.5 — QuestionPropertiesPanel synced to GrapesJS selection',
     })
     await editorPage.page.waitForTimeout(500)
 
-    // After deselection, Props panel reverts to "Select a question widget"
-    await expect(editorPage.page.getByText(/Select a question widget/i)).toBeVisible({ timeout: 10_000 })
+    // TD-010: after deselection, Props tab falls back to the centralised empty-state
+    await expect(editorPage.page.getByTestId('props-empty-state')).toBeVisible({ timeout: 10_000 })
   })
 })
 

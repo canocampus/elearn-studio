@@ -117,3 +117,34 @@ Moving `selectedComponentType` into AppLayout added re-renders that widened a pr
 ---
 
 **Reopen criteria:** a new PropertiesPanel is added that renders its own empty-state fallback instead of delegating to the centralised component; or `PropsEmptyState.test.tsx` fails.
+
+---
+
+## Follow-up TD-010.6 — E2E locators lag (2026-04-23)
+
+**Symptom:** CI on master `c1792f9` stayed red in `Lint · Test · Build → Run E2E tests` after the lint fix landed. Three tests in `e2e/tests/authoring-ui-layer.spec.ts` failed with `element(s) not found` on `getByText(/Select a question widget/i)`, both on the initial run and on Playwright's 2 retries:
+
+- `T608.2 — AppLayout right sidebar tab switching › clicking Props tab makes it selected` (line 78)
+- `T608.5 — QuestionPropertiesPanel synced to GrapesJS selection › Props panel shows empty state before any widget is selected` (line 170)
+- `T608.5 — QuestionPropertiesPanel synced to GrapesJS selection › switching away from MC widget to no selection returns to empty state` (line 208)
+
+**Root cause — test-only lag, no production regression:** TD-010 (v0.5.63, 2026-04-18) removed the per-panel `"Select a X widget to edit its properties."` divs and replaced them with a single centralised `<PropsEmptyState>` rendering `"Select a widget on the canvas to edit its properties."` (no "question"). The unit tests had been migrated at TD-010.3 to use `data-testid="props-empty-state"`, but the 3 E2E assertions still used the pre-TD-010 substring — the Playwright suite only ran in CI the next time master was pushed, surfacing the lag two blocks later at `c1792f9`.
+
+Structurally this is the same lag pattern we saw in `SidebarPanels.test.tsx` at TD-010.3: UI copy moved under a testid, so any locator that went through the copy (instead of the testid) became a tripwire for the next cosmetic change. Playwright was chosen *because* the unit tests had already been updated — if we had migrated the E2E at the same time the TD-010 unit tests were migrated, `c1792f9` CI would have been green on the first try.
+
+**Fix (1 file, 3 assertions):**
+```diff
+- await expect(page.getByText(/Select a question widget/i)).toBeVisible({ timeout: 10_000 })
++ await expect(page.getByTestId('props-empty-state')).toBeVisible({ timeout: 10_000 })
+```
+
+Applied in all 3 failing tests in `e2e/tests/authoring-ui-layer.spec.ts`. Zero production code change.
+
+**Why testid, not copy:** `data-testid="props-empty-state"` is the public contract already pinned by `PropsEmptyState.test.tsx` (6 tests), `PropsTabRouting.test.tsx` (101 tests), and the 2026-04-19 live-browser QA pass (`qa-01-initial.png`). Using it from E2E means the whole test stack (unit + integration + E2E + live-browser) now asserts the same observable, so future copy edits will never again cascade into test-only red.
+
+**Side fix bundled with the same commit:** `e2e/package.json` adds the `docs:screenshots` script (`playwright test tests/docs-screenshots.spec.ts --headed`) so the screenshot campaign has a canonical entry point matching the one already in `authoring-ui/package.json`.
+
+**Verification:** push triggers the same CI workflow that was red on `c1792f9`. Expected: Lint green (already green on `c1792f9`), E2E green (3 T608.x failures resolved). CodeQL and Dependabot orthogonal.
+
+**CRITICAL / HIGH / MEDIUM / LOW:** 0 open.
+

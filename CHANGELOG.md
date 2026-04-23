@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] — 2026-04-23 — E2E alignment for TD-010 centralised PropsEmptyState (TD-010.6)
+
+### Fixed
+- **[BUG-CI-c1792f9] Three E2E tests in `authoring-ui-layer.spec.ts` still asserted pre-TD-010 copy** (`e2e/tests/authoring-ui-layer.spec.ts`). After TD-010 (v0.5.63, 2026-04-18) replaced 6 per-panel `"Select a X widget to edit its properties."` divs with a single centralised `<PropsEmptyState>` rendering `"Select a widget on the canvas to edit its properties."` under `data-testid="props-empty-state"`, the unit tests were migrated at TD-010.3 to the testid — but the E2E at T608.2 (clicking Props tab) and T608.5 (Props panel empty-state before selection; empty-state after deselection) still used `getByText(/Select a question widget/i)`, a substring that no longer exists anywhere in the rendered DOM. Because the Playwright suite only runs in CI, the lag stayed latent across 4 commits (d3361d6 → c1792f9) and surfaced on master once the `addCallouts`/`removeCallouts` lint fix landed. Replaced the 3 text locators with `getByTestId('props-empty-state')` — same contract already pinned by `PropsEmptyState.test.tsx` (6 tests), `PropsTabRouting.test.tsx` (101 tests), and the 2026-04-19 Playwright-MCP live-browser QA pass (`qa-01-initial.png`), so the whole test stack (unit + integration + E2E + live-browser) now asserts the same observable. Zero production code change — the UI already renders the testid-marked node. Fix: `fix(e2e): align T608.x with centralised PropsEmptyState (TD-010.6)`.
+
+### Added
+- **[e2e/package.json] `docs:screenshots` script** — `playwright test tests/docs-screenshots.spec.ts --headed`, mirrors the entry point already present in `authoring-ui/package.json`. Gives the screenshot-campaign spec a canonical invocation path instead of the ad-hoc `pnpm playwright test tests/docs-screenshots.spec.ts --headed` that has drifted across docs over time.
+
+### Notes
+- **Versioning**: E2E test fix + package.json script — no user-visible change, no production code touched. No version bump (stays at v0.5.64).
+- **Verification path**: CI on push should go from red (3 × T608.x `element(s) not found` with 2 retries each) to green. CodeQL and Dependabot orthogonal and already green on the preceding commits.
+- **Structural lesson**: when UI copy moves under a `data-testid`, every locator that goes through the copy (unit, integration, E2E) needs to migrate in the same PR or risk surfacing as a CI tripwire two blocks later. TD-010.3 migrated the unit tests; the E2E catch-up landed here because Playwright was only re-triggered by the unrelated `c1792f9` lint fix.
+
+---
+
 ## [Unreleased] — 2026-04-19 — Mermaid syntax fix for PyCharm + docs-skill rule bake-in
 
 ### Fixed
