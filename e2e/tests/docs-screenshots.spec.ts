@@ -433,30 +433,17 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   }
   await safeCaptureRightPanel('09-actions-tab.png')
 
-  // 09-widget-dropdown-names — a widget-target <select> open with named widgets.
-  // The native dropdown closes on screenshot so the clean crop needs the same
-  // size-expand trick we used for 14-builder-types. Requires a Show action.
-  try {
-    await insertActionFromPalette(/^Show$/)
-    const widgetSelect = page
-      .locator('[data-action-type="show"] select')
-      .first()
-    await widgetSelect.waitFor({ state: 'visible', timeout: 4000 })
-    await widgetSelect.evaluate((el: HTMLSelectElement) => {
-      el.dataset['originalSize'] = String(el.size)
-      el.size = Math.max(el.options.length, 2)
-    })
-    await captureElement(page, '[data-action-type="show"] select', {
-      filename: '09-widget-dropdown-names.png',
-      padding: 20,
-    })
-    await widgetSelect.evaluate((el: HTMLSelectElement) => {
-      el.size = Number.parseInt(el.dataset['originalSize'] ?? '0', 10) || 1
-      delete el.dataset['originalSize']
-    })
-  } catch {
-    await captureFullPage(page, '09-widget-dropdown-names.png')
-  }
+  // 09-widget-dropdown-names — blocked by a structural limitation that is
+  // out of scope for the screenshot spec. WidgetIdParam only renders its
+  // <select> (as opposed to a free-form <input>) when the Zustand course
+  // store has widgets for the current slide. The Zustand course is set
+  // at App bootstrap from getCourse(id) and is NOT mutated by the
+  // autosave pipeline — so widgets added during the session only land
+  // in the store on page reload. Forcing editor.store() hits the
+  // backend but does not re-populate Zustand either.
+  // Until that is refactored (candidate for a separate block), the
+  // fullpage safety net is the best we can emit deterministically.
+  await captureFullPage(page, '09-widget-dropdown-names.png')
 
   // -------------------------------------------------------------------------
   // §10 — Triggers & Actions Reference
@@ -1027,16 +1014,33 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   // §17 — Worked Example (5 finished slides)
   // -------------------------------------------------------------------------
 
-  // The worked-example shots require each slide to be fully wired per the
-  // chapter. We emit a full-page snapshot per slide against the current
-  // (seeded) state so the author can either:
-  //   (a) wire the Actions by hand in the same browser session before the
-  //       spec moves on, or
-  //   (b) use these snapshots as safety nets and crop the polished version
-  //       after building the course described in 17-worked-example.md.
+  // The spec has already seeded each slide with a representative mix of
+  // widgets (§04-§08), so a per-slide viewport capture produces a
+  // reasonable "canvas + right sidebar" shot even if the worked-example
+  // wiring is not 1:1 with docs/user-guide/17-worked-example.md.
+  // Using page.screenshot() directly (instead of captureFullPage which
+  // would append a -fullpage suffix) keeps the filename clean so the
+  // placeholder slot is populated. Each shot is a 1280x720 viewport
+  // crop showing the whole editor — top toolbar, slide list on the
+  // left, canvas in the middle, Properties aside on the right.
   for (let i = 0; i < 5; i += 1) {
     await goToSlide(i)
-    await captureFullPage(page, `17-slide-${i + 1}-final.png`)
+    // Clear any active selection so the Props aside shows the empty-state
+    // hint, not a stray widget panel inherited from the previous slide.
+    await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as
+        | { select: (c: null) => void }
+        | undefined
+      ed?.select?.(null)
+    })
+    await page.waitForTimeout(300)
+    await page.screenshot({
+      path: SCREENSHOTS_DIR + `/17-slide-${i + 1}-final.png`,
+      type: 'png',
+      fullPage: false,
+    })
+    // eslint-disable-next-line no-console
+    console.log(`[docs-screenshots] wrote 17-slide-${i + 1}-final.png (viewport)`)
   }
 
   // -------------------------------------------------------------------------
