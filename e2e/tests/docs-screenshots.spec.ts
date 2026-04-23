@@ -4,12 +4,24 @@
  * Generates PNGs referenced by `<!-- screenshot: ... -->` placeholders in
  * `docs/user-guide/*.md`. This is an AUTHORING UTILITY, not a regression test.
  *
+ * ## Canonical reference
+ *
+ * See `docs/developer-guide/10-docs-screenshots-playbook.md` for:
+ *   - Prerequisites (dev stack, Moodle docker, Playwright browsers)
+ *   - Every non-obvious technique used below (T-1…T-12) with the reason
+ *   - Deferred placeholders and why they are not scripted
+ *   - Commit/review checklist before pushing regenerated PNGs
+ *
+ * Anyone modifying this spec MUST read that playbook first. Each workaround
+ * here exists because a naive approach failed during the original campaign —
+ * preserve the workaround or update both the spec AND the playbook together.
+ *
  * ## How to run
  *
- *     pnpm -C e2e test tests/docs-screenshots.spec.ts --headed
+ *     pnpm --filter @elearn-studio/e2e docs:screenshots
  *
- * The `--headed` flag is recommended so you can see which captures are
- * landing correctly. Images are written to
+ * The `--headed` flag is set by the npm script so the author can see which
+ * captures land correctly. Images are written to
  * `docs/user-guide/assets/screenshots/`.
  *
  * ## Scope — 54 placeholders catalogued

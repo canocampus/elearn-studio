@@ -13,5 +13,6 @@
 | Authentication internals | [developer-guide/07-authentication.md](developer-guide/07-authentication.md) |
 | Persistence flow | [developer-guide/08-persistence-flow.md](developer-guide/08-persistence-flow.md) |
 | Authoring UI architecture | [developer-guide/09-authoring-ui-architecture.md](developer-guide/09-authoring-ui-architecture.md) |
+| Docs screenshots playbook | [developer-guide/10-docs-screenshots-playbook.md](developer-guide/10-docs-screenshots-playbook.md) |
 
 **Start here:** [developer-guide/index.md](developer-guide/index.md)

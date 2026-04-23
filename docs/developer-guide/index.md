@@ -17,6 +17,7 @@ Technical reference for contributors and developers extending eLearn Studio.
 | [07 — Authentication](./07-authentication.md) | JWT access tokens, refresh tokens, Bearer injection, 401 handling, E2E auth setup |
 | [08 — Persistence Flow](./08-persistence-flow.md) | GrapesJS edit → debounce → store() → PATCH API → cache update → slide-switch cache hit |
 | [09 — Authoring UI Architecture](./09-authoring-ui-architecture.md) | Inside `packages/authoring-ui`: canvas lifecycle, Zustand vs Backbone, unified persistence, hooks, preview handshake, Props router |
+| [10 — Docs Screenshots Playbook](./10-docs-screenshots-playbook.md) | How to regenerate User Manual v2 screenshots: prerequisites, techniques (tall-panel capture, native `<select>` size-expand, clean-filename bypass, widget-re-locate, Moodle context), deferred placeholders |
 
 ---
 
