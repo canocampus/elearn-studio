@@ -702,18 +702,144 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     await captureFullPage(page, '14-builder-types.png')
   }
 
-  // 14-processflow-builder.png — keep simType=process-flow (default) and
-  // capture the Props panel. No JSON paste yet; crop from the snapshot.
-  await captureWidgetProps('14-processflow-builder.png', 'phaser-sim-properties-panel')
+  // Tall-panel capture helper: the Phaser sim Props panel can exceed the
+  // viewport when a builder populates nodes / hotspots / questions, so we
+  // expand the viewport and use page.screenshot({ fullPage: true, clip })
+  // — same trick as §10's action rows. The CSS overrides neutralise the
+  // flex-shrink + overflow that would otherwise clip the panel.
+  async function captureTallWidgetProps(
+    filename: string,
+    panelTestId: string,
+  ): Promise<void> {
+    const originalVp = page.viewportSize()!
+    await page.setViewportSize({ width: originalVp.width, height: 3000 })
+    const style = await page.addStyleTag({
+      content: `[data-testid="${panelTestId}"] {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+        flex: 0 0 auto !important;
+      }
+      aside[aria-label="Properties"] {
+        overflow: visible !important;
+        max-height: none !important;
+      }`,
+    })
+    try {
+      const panel = page.locator(`[data-testid="${panelTestId}"]`).first()
+      await panel.waitFor({ state: 'visible', timeout: 5000 })
+      await panel.scrollIntoViewIfNeeded()
+      const box = await panel.boundingBox()
+      if (!box) throw new Error(`captureTallWidgetProps(${filename}): no bbox`)
+      await page.screenshot({
+        path: SCREENSHOTS_DIR + '/' + filename,
+        type: 'png',
+        fullPage: true,
+        clip: box,
+      })
+      // eslint-disable-next-line no-console
+      console.log(`[docs-screenshots] wrote ${filename} (element)`)
+    } catch {
+      await captureFullPage(page, filename)
+    } finally {
+      await style.evaluate((el: Node) => {
+        if (el instanceof Element) el.remove()
+      })
+      await page.setViewportSize(originalVp)
+    }
+  }
 
-  // 14-diagram-builder.png — needs simType=diagram with background + hotspots.
-  // 14-quiz-builder.png — needs simType=quiz with timer/lives/combo.
-  // 14-json-example.png — Scene Definition field with JSON pasted.
-  // All three require UI state this script cannot seed reliably; emit
-  // full-page safety nets so the author can crop from a known shot.
-  await captureFullPage(page, '14-diagram-builder.png')
-  await captureFullPage(page, '14-quiz-builder.png')
-  await captureFullPage(page, '14-json-example.png')
+  // Helper: commit a JSON string to the Scene Definition textarea. The
+  // panel listens to onBlur to parse and persist sceneDef, so blur must
+  // fire before the new shape is reflected in the builder UI.
+  async function pasteSceneDef(json: string): Promise<void> {
+    const textarea = page
+      .locator('[data-testid="phaser-sim-properties-panel"] textarea')
+      .first()
+    await textarea.waitFor({ state: 'visible', timeout: 3000 })
+    await textarea.fill(json)
+    await textarea.blur()
+    // Let the panel re-parse sceneDef and the builder sub-sections re-render.
+    await page.waitForTimeout(400)
+  }
+
+  // 14-processflow-builder.png — simType=process-flow (default). Panel
+  // empty of nodes; the shot shows the builder skeleton (Nodes/Edges/
+  // Steps sections + Scene Definition textarea).
+  await captureTallWidgetProps('14-processflow-builder.png', 'phaser-sim-properties-panel')
+
+  const simTypeSelect = page.locator(simTypeSelector)
+
+  // 14-diagram-builder.png — simType=interactive-diagram + a JSON seed so
+  // the Background Image URL is populated and 4 hotspots render.
+  try {
+    await simTypeSelect.selectOption('interactive-diagram', { timeout: 5000 })
+    await page.waitForTimeout(300)
+    await pasteSceneDef(JSON.stringify({
+      simType: 'interactive-diagram',
+      backgroundImageUrl: 'https://storage.example.com/assets/diagram.png',
+      hotspots: [
+        { id: 'h1', x: 100, y: 100, width: 60, height: 60, label: 'Zona A', correct: true },
+        { id: 'h2', x: 220, y: 100, width: 60, height: 60, label: 'Zona B', correct: false },
+        { id: 'h3', x: 340, y: 100, width: 60, height: 60, label: 'Zona C', correct: false },
+        { id: 'h4', x: 460, y: 100, width: 60, height: 60, label: 'Zona D', correct: false },
+      ],
+    }, null, 2))
+    await captureTallWidgetProps('14-diagram-builder.png', 'phaser-sim-properties-panel')
+  } catch {
+    await captureFullPage(page, '14-diagram-builder.png')
+  }
+
+  // 14-quiz-builder.png — simType=gamified-quiz + a JSON seed with timer,
+  // lives, combo and three questions.
+  try {
+    await simTypeSelect.selectOption('gamified-quiz', { timeout: 5000 })
+    await page.waitForTimeout(300)
+    await pasteSceneDef(JSON.stringify({
+      simType: 'gamified-quiz',
+      timerSeconds: 60,
+      lives: 3,
+      comboMultiplier: 1.5,
+      questions: [
+        { id: 'q1', text: '¿Cuál es 2+2?', options: ['3', '4', '5'], correctIndex: 1, points: 10 },
+        { id: 'q2', text: '¿Qué significa HTML?', options: ['Lenguaje de marcado', 'Hoja de estilo', 'Un script'], correctIndex: 0, points: 10 },
+        { id: 'q3', text: 'Capital de Francia', options: ['Londres', 'Madrid', 'París'], correctIndex: 2, points: 10 },
+      ],
+    }, null, 2))
+    await captureTallWidgetProps('14-quiz-builder.png', 'phaser-sim-properties-panel')
+  } catch {
+    await captureFullPage(page, '14-quiz-builder.png')
+  }
+
+  // 14-json-example.png — simType back to process-flow with a realistic
+  // 3-nodes / 2-edges / 2-steps scene pasted into Scene Definition. The
+  // tall capture covers both the populated builder sections AND the JSON
+  // textarea at the bottom of the panel so the reader sees the full
+  // Scene-Definition → builders correspondence.
+  try {
+    await simTypeSelect.selectOption('process-flow', { timeout: 5000 })
+    await page.waitForTimeout(300)
+    await pasteSceneDef(JSON.stringify({
+      simType: 'process-flow',
+      nodes: [
+        { id: 'start', x: 100, y: 200, label: 'Ticket creado', type: 'start' },
+        { id: 'triage', x: 300, y: 200, label: 'Triage L1', type: 'step' },
+        { id: 'resolve', x: 500, y: 200, label: 'Resolver', type: 'decision' },
+      ],
+      edges: [
+        { from: 'start', to: 'triage' },
+        { from: 'triage', to: 'resolve' },
+      ],
+      interactionMode: 'practice',
+      steps: [
+        { nodeId: 'triage', instruction: '¿Qué haces primero?', correctAction: 'click' },
+        { nodeId: 'resolve', instruction: '¿Lo resuelves o escalas?', correctAction: 'click' },
+      ],
+    }, null, 2))
+    await captureTallWidgetProps('14-json-example.png', 'phaser-sim-properties-panel')
+  } catch {
+    await captureFullPage(page, '14-json-example.png')
+  }
 
   // -------------------------------------------------------------------------
   // §15 — Preview + §16 — Publish SCORM (top-toolbar crops)
