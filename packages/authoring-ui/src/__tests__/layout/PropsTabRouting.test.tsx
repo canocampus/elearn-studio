@@ -32,6 +32,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import type { Editor } from 'grapesjs'
 import { useEditorStore } from '../../store/editorStore'
+import { NameField } from '../../components/sidebar/NameField'
 import { ButtonPropertiesPanel } from '../../components/sidebar/ButtonPropertiesPanel'
 import { MediaPlayerPropertiesPanel } from '../../components/sidebar/MediaPlayerPropertiesPanel'
 import { AudioNarrationPropertiesPanel } from '../../components/sidebar/AudioNarrationPropertiesPanel'
@@ -187,6 +188,8 @@ function PropsTabFragment() {
   const propsHasCustomPanel = hasCustomPropsPanel(selectedComponentType)
   return (
     <div data-testid="props-tab">
+      {/* TD-013.3 mirror: NameField renders above the routing. */}
+      <NameField />
       {propsHasCustomPanel ? (
         <>
           <ButtonPropertiesPanel />
@@ -261,4 +264,35 @@ describe('TD-010.5 — Props-tab shows exactly one node for each widget type', (
       ).toHaveLength(0)
     })
   }
+})
+
+describe('TD-013.3 — NameField renders for every widget type', () => {
+  // The `name` property exists for every widget in the data model (BaseWidget.name,
+  // TD-008 Bug #4) and is the canonical label the Actions Editor's widget-target
+  // dropdown uses. NameField must therefore be visible whenever any widget is
+  // selected — regardless of whether that widget has a dedicated PropertiesPanel
+  // (button, question, …) or is styled via the Styles tab (text, image, rectangle,
+  // score-*, screenshot-sim). The field is the single place an author sets this
+  // property from the UI.
+  for (const type of ALL_WIDGET_TYPES) {
+    it(`renders [data-testid="widget-name-field"] when type='${type}' is selected`, () => {
+      useEditorStore.setState({ editor: makeMockEditor(), selectedComponentType: type })
+      const { container } = render(<PropsTabFragment />)
+      const nameField = container.querySelector('[data-testid="widget-name-field"]')
+      expect(nameField).not.toBeNull()
+      expect(container.querySelector('[data-testid="widget-name-input"]')).not.toBeNull()
+    })
+  }
+
+  it('does NOT render when no widget is selected', () => {
+    useEditorStore.setState({ editor: makeMockEditor(), selectedComponentType: null })
+    const { container } = render(<PropsTabFragment />)
+    expect(container.querySelector('[data-testid="widget-name-field"]')).toBeNull()
+  })
+
+  it('does NOT render when the editor is null', () => {
+    useEditorStore.setState({ editor: null, selectedComponentType: 'button' })
+    const { container } = render(<PropsTabFragment />)
+    expect(container.querySelector('[data-testid="widget-name-field"]')).toBeNull()
+  })
 })

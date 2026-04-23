@@ -84,9 +84,15 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
       styleManagerContainer: `#${STYLE_MANAGER_ID}`,
       onReady: (ed) => {
         setEditor(ed)
-        // Expose editor for Playwright E2E tests (dev build and E2E mode)
+        // Expose editor + Zustand store for Playwright E2E tests (dev build and E2E mode).
+        // The store handle is used by the docs-screenshots campaign to force-sync
+        // Zustand's course.slides[i].widgets with the current GrapesJS state —
+        // WidgetIdParam reads from Zustand and would otherwise show bare IDs
+        // instead of names until a full page reload repopulates the store
+        // from getCourse(id). TD-013.4 playbook T-15.
         if (import.meta.env.DEV || import.meta.env.VITE_E2E_MODE === 'true') {
-          ;(window as unknown as Record<string, unknown>).__elearn_editor = ed
+          window.__elearn_editor = ed
+          window.__elearn_store = useEditorStore
         }
         // NOTE: Do NOT call ed.load() here — Effect 2 handles all loads
         // (initial mount and slide switches). Calling load() twice causes a

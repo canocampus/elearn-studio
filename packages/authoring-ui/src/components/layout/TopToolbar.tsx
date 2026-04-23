@@ -123,7 +123,7 @@ export function TopToolbar({ onPreview, onPublish, publishing = false, onToggleI
         onCancel={() => setShowSaveTemplate(false)}
       />
     )}
-    <div style={styles.toolbar}>
+    <div data-testid="top-toolbar" style={styles.toolbar}>
       <span style={styles.logo}>eLearn Studio</span>
       <span style={styles.separator} />
       <span style={styles.courseTitle}>{course?.title ?? '—'}</span>

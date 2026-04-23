@@ -24,6 +24,7 @@ import { SlideList } from '../sidebar/SlideList'
 import { BlockManagerPanel } from '../sidebar/BlockManagerPanel'
 import { LayerManagerPanel } from '../sidebar/LayerManagerPanel'
 import { StyleManagerPanel } from '../sidebar/StyleManagerPanel'
+import { NameField } from '../sidebar/NameField'
 import { QuestionPropertiesPanel } from '../sidebar/QuestionPropertiesPanel'
 import { PhaserSimPropertiesPanel } from '../sidebar/PhaserSimPropertiesPanel'
 import { ButtonPropertiesPanel } from '../sidebar/ButtonPropertiesPanel'
@@ -247,6 +248,12 @@ function AppLayoutInner({ courseId }: AppLayoutProps) {
             </PanelErrorBoundary>
           </div>
           <div style={{ display: rightTab === 'properties' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
+            {/* TD-013.3: Name field at the top of the Props tab — always
+                visible when a widget is selected, independent of whether the
+                widget has a dedicated panel below. */}
+            <PanelErrorBoundary name="NameField">
+              <NameField />
+            </PanelErrorBoundary>
             {propsHasCustomPanel ? (
               <>
                 <PanelErrorBoundary name="QuestionPropertiesPanel">

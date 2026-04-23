@@ -6,11 +6,11 @@ eLearn Studio is an authoring tool for creating interactive e-learning courses. 
 
 ## Your screen at a glance
 
-When you open a course, the editor has **four main areas**.
+When you open a course, the editor has **four main areas**. The right sidebar exposes **five tabs** that switch the panel underneath.
 
-<!-- screenshot: 01-full-ui-annotated.png (1x, <600KB, full-screen capture of the editor with a sample course loaded; numbered callouts 1-4 overlaid; dark theme) -->
-![The four main areas of the eLearn Studio editor](assets/screenshots/01-full-ui-annotated.png)
-*The editor's four main areas. (1) Top toolbar; (2) Left sidebar; (3) Canvas; (4) Right sidebar.*
+<!-- screenshot: 01-full-ui-annotated.png (1x, <600KB, full-screen capture of the editor with a sample course loaded; numbered callouts 1-9 overlaid — 1-4 mark the four main areas, 5-9 mark the five right-sidebar tabs; dark theme) -->
+![The four main areas and five right-sidebar tabs of the eLearn Studio editor](assets/screenshots/01-full-ui-annotated.png)
+*The editor's four main areas plus the right sidebar's five tabs. Main areas: (1) Top toolbar; (2) Left sidebar; (3) Canvas; (4) Right sidebar. Right-sidebar tabs: (5) Layers; (6) Styles; (7) Props; (8) Actions; (9) Anim.*
 
 ### 1. Top toolbar
 

@@ -79,8 +79,25 @@ export interface E2EEditor {
   BlockManager: E2EBlockManager
 }
 
+/**
+ * Zustand store bind API exposed alongside `__elearn_editor` (see
+ * EditorCanvas.tsx onReady). Used by TD-013.4 to force-sync the Zustand
+ * `course.slides[i].widgets` array without a page reload — specifically
+ * so WidgetIdParam renders its named-option `<select>` branch for the
+ * dropdown-names screenshot. The shape intentionally mirrors the one
+ * declared in `packages/authoring-ui/src/types/globals.d.ts` — both are
+ * deliberately loose (`unknown`) so this file stays free of Zustand
+ * deep-type imports. Callers narrow at the use site.
+ */
+export interface E2EStoreBind {
+  getState(): unknown
+  setState(partial: unknown): void
+  subscribe(listener: () => void): () => void
+}
+
 declare global {
   interface Window {
     __elearn_editor?: E2EEditor
+    __elearn_store?: E2EStoreBind
   }
 }

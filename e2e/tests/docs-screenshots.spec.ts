@@ -39,18 +39,20 @@
  * ## Expected output
  *
  * After a successful run, the folder should contain:
- *   - ~30 final PNGs ready to embed in the manual
- *   - ~15 `*-fullpage.png` safety-net images waiting for a manual crop
- *   - a handful of true TODO_MANUAL items (external LMS UI, etc.)
+ *   - 55/55 final PNGs corresponding to every placeholder in the manual
+ *   - `-fullpage.png` safety nets for captures whose primary path failed
+ *     (defensive — if present, see the playbook to diagnose the regression)
  */
 
 import { test, expect } from '../fixtures/auth'
 import {
   addBlockById,
+  addCallouts,
   capture,
   captureElement,
   captureFullPage,
   ensureWidgetIsCentered,
+  removeCallouts,
   selectById,
   SCREENSHOTS_DIR,
 } from '../utils/screenshot'
@@ -190,24 +192,71 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   await editorPage.readySignal().waitFor({ state: 'attached', timeout: 15_000 })
 
   // -------------------------------------------------------------------------
-  // §01 — Welcome
+  // §01 — Welcome (T-13 callouts overlay, TD-013.1)
   // -------------------------------------------------------------------------
 
-  // 01-full-ui-annotated — full-screen with callouts for the 4 main areas.
-  // We take the clean full-page shot; annotating in Playwright across iframes
-  // is brittle, so numbered callouts are added by the image-editor in post.
-  await capture(page, { filename: '01-full-ui-annotated.png', fullPage: true })
-  // TODO_MANUAL note: overlay callouts (1) top toolbar, (2) left sidebar,
-  // (3) canvas, (4) right sidebar in your image editor before committing.
+  // 01-full-ui-annotated — full-screen with 9 numbered callouts overlaid in
+  // the DOM via addCallouts() (a fixed-position absolute layer above the UI).
+  // Callouts removed in finally so downstream captures stay clean.
+  //   (1) top toolbar
+  //   (2) left sidebar (slide navigation)
+  //   (3) canvas area (GrapesJS iframe host)
+  //   (4) right sidebar container (Properties aside)
+  //   (5) Layers tab   (6) Styles tab   (7) Props tab
+  //   (8) Actions tab  (9) Anim tab
+  //
+  // Tabs targeted via the `role="tablist" aria-label="Right panel tabs"`
+  // container's :nth-child — no production testid needed for those. Top
+  // toolbar uses the [data-testid="top-toolbar"] added to TopToolbar.tsx.
+  try {
+    // Make sure the right sidebar shows the default Layers tab so the
+    // tablist is laid out in its baseline form (all 5 tabs visible).
+    await editorPage.layersTab.click().catch(() => undefined)
+    await page.waitForTimeout(200)
+    await addCallouts(page, [
+      // Toolbar — default centre overlaps the "+ New Course" button; offset
+      // into the gap between the course title and the first button.
+      { number: 1, selector: '[data-testid="top-toolbar"]', offset: { x: 400, y: 24 } },
+      { number: 2, selector: 'aside[aria-label="Slide navigation"]' },
+      { number: 3, selector: 'main' },
+      { number: 4, selector: 'aside[aria-label="Properties"]' },
+      { number: 5, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(1)' },
+      { number: 6, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(2)' },
+      { number: 7, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(3)' },
+      { number: 8, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(4)' },
+      { number: 9, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(5)' },
+    ])
+    await page.waitForTimeout(150) // let the overlay paint
+    await capture(page, { filename: '01-full-ui-annotated.png', fullPage: true })
+  } finally {
+    await removeCallouts(page)
+  }
 
   // -------------------------------------------------------------------------
-  // §02 — Getting Started
+  // §02 — Getting Started (T-14 dashboard dialog, TD-013.2)
   // -------------------------------------------------------------------------
 
-  // 02-create-course — TODO_MANUAL: the "New Course" dialog is reached from
-  // the course list / top toolbar before entering the editor. Capture
-  // manually by clicking New Course on the home screen.
-  // (Leaving this one to a human keeps the spec free of login-screen setup.)
+  // 02-create-course — the New Course dialog is opened from the top toolbar's
+  // "New Course" button (NOT to be confused with the "+ New Slide" button).
+  // The dialog renders a title input + a grid of 5 templates (Blank, Linear
+  // Course, Software Tutorial, Process Training, Assessment Only). We crop
+  // the modal via its aria-label so the capture is insensitive to the
+  // background editor's state.
+  try {
+    await page.getByRole('button', { name: 'New Course', exact: true }).click({ timeout: 5000 })
+    const newCourseDialog = page.locator('[role="dialog"][aria-label="New Course"]')
+    await newCourseDialog.waitFor({ state: 'visible', timeout: 5000 })
+    await page.waitForTimeout(200) // let the template grid render
+    await captureElement(page, '[role="dialog"][aria-label="New Course"]', {
+      filename: '02-create-course.png',
+      padding: 20,
+    })
+    // Cancel so the editor state stays identical to pre-click.
+    await newCourseDialog.getByRole('button', { name: 'Cancel' }).click({ timeout: 5000 })
+    await newCourseDialog.waitFor({ state: 'hidden', timeout: 5000 })
+  } catch {
+    await captureFullPage(page, '02-create-course.png')
+  }
 
   // 02-first-slide — empty editor view (use slide 5 which is still empty).
   await goToSlide(4)
@@ -400,33 +449,53 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   await ensureWidgetIsCentered(page, hintButtonId)
   await selectById(page, hintButtonId)
 
-  // 09-widget-name-field — Props Name field filled with "HintButton".
-  // (We already set StartBtn; rename via the trait for this specific shot.)
+  // 09-widget-name-field — TD-013.3. The NameField (added 2026-04-23) sits at
+  // the top of the Props tab and edits the `name` trait for any selected
+  // widget. Switch to Props, ensure the field is mounted, capture it cropped.
   await editorPage.propsTab.click().catch(() => undefined)
-  // 09-widget-name-field — Name trait input lives inside the Props panel
-  // when a button widget is selected. Fall back to a fullpage safety net if
-  // the input is not present on this build.
-  await captureElement(page, 'input[name="name"]', {
-    filename: '09-widget-name-field.png',
-    padding: 20,
-    timeout: 3000,
-  }).catch(async () => {
+  try {
+    // HintButton is already selected from earlier in §09; the field should be
+    // present. Fill it explicitly so the captured screenshot shows the
+    // meaningful value (matches the placeholder description).
+    const nameInput = page.locator('[data-testid="widget-name-input"]')
+    await nameInput.waitFor({ state: 'visible', timeout: 5000 })
+    await nameInput.fill('HintButton')
+    await page.waitForTimeout(150)
+    await captureElement(page, '[data-testid="widget-name-field"]', {
+      filename: '09-widget-name-field.png',
+      padding: 12,
+    })
+  } catch {
     await captureFullPage(page, '09-widget-name-field.png')
-  })
+  }
 
   // Open the Actions tab and seed a Click event so the palette renders.
   await editorPage.actionsTab.click()
 
   // Open "+ Event" → Click. Guard around the menu click because availableEvents
   // is empty once the event is already added (second run on the same widget).
+  //
+  // Detection of "Click already exists": EventSelector does NOT use
+  // `role="tab"` — each event is a `<div role="group" aria-label="Click">`
+  // containing a toggle `<button>` (see EventSelector.tsx lines 33–45).
+  // An earlier version of this helper queried `role="tab"` which ALWAYS
+  // returned 0 hits, so the second invocation re-opened the `+ Event` menu,
+  // failed to find a "Click" menuitem (already added → not in
+  // availableEvents), and left the menu open — overlaying the widget-target
+  // `<select>` and polluting the 09-widget-dropdown-names screenshot clip.
   async function ensureClickEvent(): Promise<void> {
-    const eventList = page.getByRole('tab', { name: /^Click$/i })
-    if (await eventList.count() > 0) return
+    const clickGroup = page.getByRole('group', { name: /^Click$/i })
+    if (await clickGroup.count() > 0) return
     try {
       await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 5000 })
       await page.getByRole('menuitem', { name: /^Click$/i }).click({ timeout: 5000 })
     } catch {
       /* best effort — palette visibility check is what matters */
+      // Close any still-open +Event menu so downstream captures aren't
+      // covered by the overlay.
+      if (await page.locator('[role="menu"]').count() > 0) {
+        await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 1500 }).catch(() => undefined)
+      }
     }
   }
   await ensureClickEvent()
@@ -447,17 +516,115 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   }
   await safeCaptureRightPanel('09-actions-tab.png')
 
-  // 09-widget-dropdown-names — blocked by a structural limitation that is
-  // out of scope for the screenshot spec. WidgetIdParam only renders its
-  // <select> (as opposed to a free-form <input>) when the Zustand course
-  // store has widgets for the current slide. The Zustand course is set
-  // at App bootstrap from getCourse(id) and is NOT mutated by the
-  // autosave pipeline — so widgets added during the session only land
-  // in the store on page reload. Forcing editor.store() hits the
-  // backend but does not re-populate Zustand either.
-  // Until that is refactored (candidate for a separate block), the
-  // fullpage safety net is the best we can emit deterministically.
-  await captureFullPage(page, '09-widget-dropdown-names.png')
+  // 09-widget-dropdown-names — TD-013.4 (T-15: Zustand direct-sync).
+  //
+  // WidgetIdParam renders a <select> of widget names (vs a free-form <input>)
+  // only when the Zustand course store has widgets for the current slide.
+  // Zustand is populated at App bootstrap from getCourse(id) and is NOT
+  // mutated by the autosave pipeline — widgets added during the session
+  // land in the store only on page reload. A reload-based workaround was
+  // tried first but the GrapesJS → course round-trip subtly strips the
+  // `name` trait for unpersisted widgets, so the <select> rendered bare
+  // ids (itllc, ioj4v…) instead of author-assigned names.
+  //
+  // Pivot: authoring-ui exposes `window.__elearn_store` (DEV/E2E only, see
+  // EditorCanvas.tsx onReady). We read the live GrapesJS component tree
+  // (whose `name` traits are already up-to-date — that's where the
+  // NameField wrote them), derive the minimal BaseWidget-shaped entries
+  // needed by WidgetIdParam, and force-sync Zustand via setState. No
+  // reload, no persistence round-trip — the `name` goes straight from the
+  // Backbone model where the user (or this spec) just wrote it into the
+  // in-memory course.slides[i].widgets array the selector reads.
+  try {
+    // 1. Read GrapesJS component tree and build the Widget-shaped array.
+    //    WidgetIdParam only reads `id` and `name` off each widget (see
+    //    ActionItemEditor.tsx WidgetIdParam lines 182–196). We still
+    //    populate `type`, `bounds`, `layer` so the shape is valid for
+    //    any future selector that reads them — future-proofing at zero
+    //    marginal cost since we already walk the tree.
+    const syncResult = await page.evaluate(() => {
+      const ed = window.__elearn_editor as
+        | { getWrapper(): { components(): { map<R>(fn: (c: unknown, i: number) => R): R[] } } }
+        | undefined
+      const store = window.__elearn_store
+      if (!ed || !store) return { ok: false as const, reason: 'editor or store not exposed' }
+
+      type StoreShape = {
+        course: {
+          id: string
+          slides: Array<{ id: string; title: string; widgets: unknown[] }>
+        } | null
+        currentSlideIndex: number
+      }
+      const s = store.getState() as StoreShape
+      if (!s.course) return { ok: false as const, reason: 'course is null' }
+
+      type Comp = {
+        getId(): string
+        get(k: string): unknown
+      }
+      const widgets = ed.getWrapper().components().map((c, idx) => {
+        const comp = c as Comp
+        return {
+          id: comp.getId(),
+          type: (comp.get('type') as string | undefined) ?? 'unknown',
+          name: (comp.get('name') as string | undefined) ?? '',
+          bounds: { x: 0, y: 0, width: 0, height: 0 },
+          layer: idx,
+        }
+      })
+
+      const slides = s.course.slides.map((sl, i) =>
+        i === s.currentSlideIndex ? { ...sl, widgets } : sl,
+      )
+      store.setState({ course: { ...s.course, slides } })
+      return { ok: true as const, count: widgets.length, names: widgets.map((w) => w.name) }
+    })
+    // eslint-disable-next-line no-console
+    console.log('[09-dropdown] Zustand sync:', syncResult)
+    if (!syncResult.ok) throw new Error(`sync failed: ${syncResult.reason}`)
+    await page.waitForTimeout(200) // let WidgetIdParam re-render
+
+    // 2. Ensure the Actions tab is open with a Click event + Show action.
+    //    HintButton is still selected from earlier in §09, and the Click
+    //    event + Navigate action were seeded just above. Adding Show gives
+    //    us a row whose WidgetIdParam triggers the <select> branch now that
+    //    Zustand has widgets.
+    await editorPage.actionsTab.click()
+    await ensureClickEvent()
+    await insertActionFromPalette(/^Show$/)
+    await page.waitForTimeout(400) // let React commit the new action row
+
+    // 3. Locate the widget-target <select> inside the Show action row.
+    const showRow = page.locator('[data-action-type="show"]').first()
+    await showRow.waitFor({ state: 'visible', timeout: 5000 })
+    const widgetSelect = showRow.locator('select').first()
+    await widgetSelect.waitFor({ state: 'visible', timeout: 5000 })
+
+    // 4. Apply T-3 (native <select> size-expand) so every option is visible
+    //    inline as a listbox instead of collapsed with the popup closed.
+    await widgetSelect.evaluate((el: HTMLSelectElement) => {
+      el.dataset['originalSize'] = String(el.size)
+      el.size = Math.max(el.options.length, 2)
+    })
+    await page.waitForTimeout(150) // let the browser re-lay out the listbox
+
+    await captureElement(page, '[data-action-type="show"] select', {
+      filename: '09-widget-dropdown-names.png',
+      padding: 20,
+    })
+
+    // 5. Restore the original size so the rest of the campaign sees the
+    //    normal dropdown rendering.
+    await widgetSelect.evaluate((el: HTMLSelectElement) => {
+      el.size = Number.parseInt(el.dataset['originalSize'] ?? '0', 10) || 1
+      delete el.dataset['originalSize']
+    })
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] 09-widget-dropdown-names try failed:', (err as Error)?.message ?? err)
+    await captureFullPage(page, '09-widget-dropdown-names.png')
+  }
 
   // -------------------------------------------------------------------------
   // §10 — Triggers & Actions Reference
