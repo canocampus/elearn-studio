@@ -63,7 +63,7 @@ export function ActionsPanel() {
 
       {/* Action palette — only shown when an event is selected */}
       {selectedEvent && (
-        <div style={styles.paletteArea}>
+        <div style={styles.paletteArea} data-testid="action-palette-area">
           <div style={styles.paletteHeader}>Add Action</div>
           <ActionPalette />
         </div>

@@ -150,7 +150,7 @@ function ActionRow({
   onChange,
 }: ActionRowProps) {
   return (
-    <div style={styles.row} data-testid="action-item">
+    <div style={styles.row} data-testid="action-item" data-action-type={action.type}>
       {/* Reorder controls */}
       <div style={styles.orderBtns}>
         <button

@@ -400,75 +400,212 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     await captureFullPage(page, '09-widget-name-field.png')
   })
 
-  // Open the Actions tab; add trigger click + Navigate → Next slide.
+  // Open the Actions tab and seed a Click event so the palette renders.
   await editorPage.actionsTab.click()
-  // Best-effort wiring: EventSelector + ActionItemEditor controls vary by
-  // build. If any click misses, the downstream captureFullPage() still
-  // produces a usable snapshot.
-  try {
-    await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 5000 })
-    await page.getByRole('menuitem', { name: /^Click$/i }).click({ timeout: 5000 })
-    await page.getByRole('button', { name: /Add action/i }).click({ timeout: 5000 })
-    await page.getByRole('button', { name: /Navigate$/i }).click({ timeout: 5000 }).catch(() => undefined)
-  } catch {
-    /* best effort — spec continues */
+
+  // Open "+ Event" → Click. Guard around the menu click because availableEvents
+  // is empty once the event is already added (second run on the same widget).
+  async function ensureClickEvent(): Promise<void> {
+    const eventList = page.getByRole('tab', { name: /^Click$/i })
+    if (await eventList.count() > 0) return
+    try {
+      await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 5000 })
+      await page.getByRole('menuitem', { name: /^Click$/i }).click({ timeout: 5000 })
+    } catch {
+      /* best effort — palette visibility check is what matters */
+    }
+  }
+  await ensureClickEvent()
+
+  // 09-actions-tab.png — right sidebar with the Actions tab active. A first
+  // action row helps the shot look populated; the palette ships visible.
+  // Insert Navigate once via click on the palette's Navigate button.
+  async function insertActionFromPalette(label: RegExp): Promise<void> {
+    const palette = page.locator('[data-testid="action-palette"]')
+    await palette.waitFor({ state: 'visible', timeout: 5000 })
+    await palette.getByRole('button', { name: label }).first().click({ timeout: 4000 })
   }
 
+  try {
+    await insertActionFromPalette(/^Navigate$/)
+  } catch {
+    /* best effort — downstream captureFullPage still emits something */
+  }
   await safeCaptureRightPanel('09-actions-tab.png')
 
-  // 09-widget-dropdown-names — a Show-action row with the <select> open.
-  // Native <select> popups close on screenshot in Chromium, so we try to
-  // add a Show action and then emit a full-page safety net the author can
-  // crop by hand to show the target-widget dropdown filled with names.
+  // 09-widget-dropdown-names — a widget-target <select> open with named widgets.
+  // The native dropdown closes on screenshot so the clean crop needs the same
+  // size-expand trick we used for 14-builder-types. Requires a Show action.
   try {
-    await page
-      .getByRole('button', { name: /Add action/i })
-      .click({ timeout: 4000 })
-    await page
-      .getByRole('button', { name: /^Show$/i })
-      .click({ timeout: 4000 })
-      .catch(() => undefined)
+    await insertActionFromPalette(/^Show$/)
+    const widgetSelect = page
+      .locator('[data-action-type="show"] select')
+      .first()
+    await widgetSelect.waitFor({ state: 'visible', timeout: 4000 })
+    await widgetSelect.evaluate((el: HTMLSelectElement) => {
+      el.dataset['originalSize'] = String(el.size)
+      el.size = Math.max(el.options.length, 2)
+    })
+    await captureElement(page, '[data-action-type="show"] select', {
+      filename: '09-widget-dropdown-names.png',
+      padding: 20,
+    })
+    await widgetSelect.evaluate((el: HTMLSelectElement) => {
+      el.size = Number.parseInt(el.dataset['originalSize'] ?? '0', 10) || 1
+      delete el.dataset['originalSize']
+    })
   } catch {
-    /* best effort */
+    await captureFullPage(page, '09-widget-dropdown-names.png')
   }
-  await captureFullPage(page, '09-widget-dropdown-names.png')
 
   // -------------------------------------------------------------------------
   // §10 — Triggers & Actions Reference
   // -------------------------------------------------------------------------
 
-  // 10-event-selector.png — Actions tab with "+ Event" menu open.
+  // 10-event-selector.png — Actions tab with "+ Event" menu open. After
+  // capturing, toggle the menu OFF by re-clicking the "+ Event" button so
+  // downstream action-row captures are not occluded by the overlay.
+  const addEventButton = page.getByRole('button', { name: /\+ *Event/i })
   try {
-    await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 5000 })
+    await addEventButton.click({ timeout: 5000 })
     await captureElement(page, '[role="menu"]', {
       filename: '10-event-selector.png',
       padding: 10,
     })
-    await page.keyboard.press('Escape')
   } catch {
-    // Emit a safety-net so the author can reproduce the menu and crop by hand.
     await captureFullPage(page, '10-event-selector.png')
+  } finally {
+    // Guarantee the menu is closed — try the toggle first, then a safety
+    // click on the sidebar background.
+    if (await page.locator('[role="menu"]').count() > 0) {
+      await addEventButton.click({ timeout: 1500 }).catch(() => undefined)
+    }
+    if (await page.locator('[role="menu"]').count() > 0) {
+      await page.locator(RIGHT_SIDEBAR).click({
+        position: { x: 10, y: 10 },
+        timeout: 1500,
+      }).catch(() => undefined)
+    }
   }
 
-  // 10-action-palette.png — action picker expanded. Open it and take a
-  // full-page safety net; the picker scrolls, so a manual crop from the
-  // snapshot is more reliable than chasing a bounding box.
+  // 10-action-palette.png — the full palette with all 15 actions grouped.
+  // Three constraints compound: overflow:auto on the container, flex-shrink
+  // from the ActionsPanel flex column, AND viewport height capping the
+  // visible area. Neutralise all three for the capture window: CSS lifts
+  // the first two, a temporary viewport resize lifts the third. Every
+  // tall-element capture in this block (palette + the 3 rows) reuses the
+  // taller viewport, reverting at the end.
+  const originalViewport = page.viewportSize()!
+  await page.setViewportSize({ width: originalViewport.width, height: 3000 })
+
+  const paletteStyle = await page.addStyleTag({
+    content: `[data-testid="action-palette"],
+    [data-testid="action-palette-area"] {
+      overflow: visible !important;
+      max-height: none !important;
+      height: auto !important;
+      flex: 0 0 auto !important;
+    }
+    [data-testid="actions-panel"],
+    aside[aria-label="Properties"] {
+      overflow: visible !important;
+      max-height: none !important;
+    }`,
+  })
   try {
-    await page
-      .getByRole('button', { name: /Add action/i })
-      .click({ timeout: 4000 })
+    const palette = page.locator('[data-testid="action-palette"]').first()
+    await palette.waitFor({ state: 'visible', timeout: 5000 })
+    await palette.scrollIntoViewIfNeeded()
+    const box = await palette.boundingBox()
+    if (!box) throw new Error('no bbox for action-palette')
+    const p = 12
+    await page.screenshot({
+      path: SCREENSHOTS_DIR + '/10-action-palette.png',
+      type: 'png',
+      fullPage: true,
+      clip: {
+        x: Math.max(0, Math.round(box.x - p)),
+        y: Math.max(0, Math.round(box.y - p)),
+        width: Math.round(box.width + 2 * p),
+        height: Math.round(box.height + 2 * p),
+      },
+    })
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] wrote 10-action-palette.png (element)')
   } catch {
-    /* best effort */
+    await captureFullPage(page, '10-action-palette.png')
+  } finally {
+    await paletteStyle.evaluate((el: Node) => {
+      if (el instanceof Element) el.remove()
+    })
   }
-  await captureFullPage(page, '10-action-palette.png')
 
-  // 10-action-navigate / setvariable / ifelse — a Navigate row was already
-  // inserted under §09. Emit a single full-page snapshot that contains the
-  // Actions tab in its current state; the manual crop derives all three
-  // close-ups from one reproducible shot.
-  await captureFullPage(page, '10-action-navigate.png')
-  await captureFullPage(page, '10-action-setvariable.png')
-  await captureFullPage(page, '10-action-ifelse.png')
+  // 10-action-navigate / setvariable / ifelse — insert each action (if not
+  // already present) and capture the specific row by its data-action-type.
+  async function ensureRow(label: RegExp, type: string): Promise<void> {
+    const row = page.locator(`[data-action-type="${type}"]`)
+    if (await row.count() > 0) return
+    await insertActionFromPalette(label)
+    await row.first().waitFor({ state: 'visible', timeout: 4000 })
+  }
+
+  async function captureRow(filename: string, type: string): Promise<void> {
+    // An action row can exceed viewport height (the `condition` row hosts
+    // two nested ActionPalettes). Plain loc.screenshot() captures only what
+    // fits in the viewport AND Playwright scrolls the sidebar before the
+    // capture, so the clip ends up on the wrong region.
+    // Workaround: read the bbox AFTER scrollIntoView, then screenshot the
+    // full page with an explicit clip — Playwright renders the document at
+    // its natural height so any clip beyond the viewport is honoured.
+    const selector = `[data-action-type="${type}"]`
+    try {
+      const loc = page.locator(selector).first()
+      await loc.waitFor({ state: 'visible', timeout: 4000 })
+      await loc.scrollIntoViewIfNeeded()
+      const box = await loc.boundingBox()
+      if (!box) throw new Error(`captureRow(${filename}): no bbox`)
+      await page.screenshot({
+        path: SCREENSHOTS_DIR + '/' + filename,
+        type: 'png',
+        fullPage: true,
+        clip: box,
+      })
+      // eslint-disable-next-line no-console
+      console.log(`[docs-screenshots] wrote ${filename} (element)`)
+    } catch {
+      await captureFullPage(page, filename)
+    }
+  }
+
+  try {
+    await ensureRow(/^Navigate$/, 'navigate')
+    await captureRow('10-action-navigate.png', 'navigate')
+
+    await ensureRow(/^Set Variable$/, 'set-variable')
+    await captureRow('10-action-setvariable.png', 'set-variable')
+
+    await ensureRow(/^If \/ Else$/, 'condition')
+
+    // Seed one nested action per branch so the shot shows structure, not
+    // two empty palettes. The condition row embeds two ActionPalette
+    // instances (Then first, Else second) — insert Show into each.
+    const conditionRow = page.locator('[data-action-type="condition"]').first()
+    const nestedPalettes = conditionRow.locator('[data-testid="action-palette"]')
+    // The first nested palette is Then; after insertion the second becomes
+    // Else's (Then palette repositions below its new child but the order
+    // of the nested palettes within the condition row is preserved).
+    await nestedPalettes.nth(0).getByRole('button', { name: /^Show$/ })
+      .click({ timeout: 4000 }).catch(() => undefined)
+    await nestedPalettes.nth(1).getByRole('button', { name: /^Hide$/ })
+      .click({ timeout: 4000 }).catch(() => undefined)
+
+    await captureRow('10-action-ifelse.png', 'condition')
+  } catch {
+    // Fall through: each captureRow has its own per-file fallback.
+  } finally {
+    // Restore viewport for subsequent captures (§11+ assume 720 height).
+    await page.setViewportSize(originalViewport)
+  }
 
   // -------------------------------------------------------------------------
   // §11 — Expressions, Recipes & Shared Sequences

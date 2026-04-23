@@ -38,7 +38,7 @@ export function ActionPalette({ allowedCategories, onInsert }: ActionPaletteProp
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} data-testid="action-palette">
       {categories.map((cat) => (
         <div key={cat} style={styles.category}>
           <div style={styles.categoryLabel}>{cat}</div>
