@@ -934,16 +934,40 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   }
 
   // 15-popup-rendered.png — preview popup lives in a separate BrowserContext
-  // window. Try to open it, screenshot its page, and close; fall back to a
-  // full-page shot of the editor (which shows the Preview button state).
+  // window served from /preview.html. The handshake is:
+  //   1. opener window.open('/preview.html')
+  //   2. popup sends 'elearn-preview-ready' via postMessage
+  //   3. opener replies 'elearn-preview-data' with the course JSON
+  //   4. ELearnPlayer.init(course, slideIndex) renders widgets into #player
+  // Instead of a blind waitForTimeout, wait until at least one widget has
+  // rendered inside #player — a reliable signal that the handshake and the
+  // hydration both completed. Use popup.screenshot() directly so the
+  // filename stays `15-popup-rendered.png` (captureFullPage always appends
+  // a `-fullpage.png` safety-net suffix).
   try {
+    // Go to slide 0 first so the preview opens on a populated slide
+    // (slide 1 "Intro" has IntroTitle + StartBtn from §04).
+    await goToSlide(0)
     const [popup] = await Promise.all([
       page.waitForEvent('popup', { timeout: 8000 }),
-      page.getByRole('button', { name: /Preview/i }).click({ timeout: 4000 }),
+      page.getByRole('button', { name: /^Preview$/i }).click({ timeout: 4000 }),
     ])
     await popup.waitForLoadState('domcontentloaded', { timeout: 10_000 })
-    await popup.waitForTimeout(1500) // let the player hydrate the first slide
-    await captureFullPage(popup, '15-popup-rendered.png')
+    // Wait for any widget to render inside the player root. 15s budget
+    // gives the handshake + hydration plenty of margin in slow CI runs.
+    await popup.locator('#player .el-widget').first().waitFor({
+      state: 'attached',
+      timeout: 15_000,
+    })
+    // A small settling delay lets style layout complete before the shot.
+    await popup.waitForTimeout(200)
+    await popup.screenshot({
+      path: SCREENSHOTS_DIR + '/15-popup-rendered.png',
+      type: 'png',
+      fullPage: true,
+    })
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] wrote 15-popup-rendered.png (popup)')
     await popup.close().catch(() => undefined)
   } catch {
     /* Popup blocked or handshake failed — leave a safety net from the editor. */
