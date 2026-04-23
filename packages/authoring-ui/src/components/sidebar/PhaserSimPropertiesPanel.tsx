@@ -237,6 +237,7 @@ function PhaserSimPropertiesPanelInner({ selected, openPreview }: InnerProps) {
         <label htmlFor="phaser-sim-type" style={LABEL_STYLE}>Type</label>
         <select
           id="phaser-sim-type"
+          data-testid="phaser-sim-type-select"
           value={ep.simType}
           onChange={e => handleSimTypeChange(e.target.value as PhaserSimExtendedProps['simType'])}
           style={FIELD_STYLE}

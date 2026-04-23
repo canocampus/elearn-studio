@@ -537,18 +537,33 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     padding: 0,
   })
 
-  // 14-builder-types.png — Sim Type dropdown. Native <select> popups close
-  // on screenshot, so we try to open it and emit a full-page safety net.
+  // 14-builder-types.png — Sim Type dropdown with all 5 options visible.
+  // Native <select> popups close on screenshot. Trick: temporarily set
+  // `size` attribute to the option count — the browser renders a listbox
+  // instead of a dropdown, all options visible inline, and locator.screenshot()
+  // can crop it deterministically. Revert after so the panel returns to its
+  // normal dropdown rendering.
+  const simTypeSelector = '[data-testid="phaser-sim-type-select"]'
   try {
-    await page
-      .locator('select:near(:text("Sim Type"))')
-      .first()
-      .click({ timeout: 5000 })
+    const simTypeSelect = page.locator(simTypeSelector)
+    await simTypeSelect.waitFor({ state: 'visible', timeout: 5000 })
+    await simTypeSelect.evaluate((el: HTMLSelectElement) => {
+      el.dataset['originalSize'] = String(el.size)
+      el.size = el.options.length
+    })
+    await captureElement(page, simTypeSelector, {
+      filename: '14-builder-types.png',
+      padding: 20,
+    })
+    await simTypeSelect.evaluate((el: HTMLSelectElement) => {
+      el.size = Number.parseInt(el.dataset['originalSize'] ?? '0', 10) || 1
+      delete el.dataset['originalSize']
+    })
   } catch {
-    /* best effort */
+    // If the select is not reachable for any reason, emit the safety net so
+    // the author can still crop from a fullpage snapshot.
+    await captureFullPage(page, '14-builder-types.png')
   }
-  await captureFullPage(page, '14-builder-types.png')
-  await page.keyboard.press('Escape').catch(() => undefined)
 
   // 14-processflow-builder.png — keep simType=process-flow (default) and
   // capture the Props panel. No JSON paste yet; crop from the snapshot.
