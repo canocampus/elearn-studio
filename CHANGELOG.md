@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.65] — 2026-04-23 — TD-012: typed `window.__elearn_editor` boundary + docs-screenshots playbook
+
+### Refactored
+- **[TD-012] 109 TypeScript errors in `e2e/` → 0** via a typed `Window` augmentation. New `e2e/types/elearn-window.d.ts` declares `__elearn_editor?: E2EEditor` with a minimal typed surface covering only the subset of grapesjs's `Editor` methods the specs actually invoke (`addComponents`, `select`, `getSelected`, `getWrapper`, `getComponents`, `runCommand`, `store`, `BlockManager`) plus typed `E2EComponent` / `E2EComponents` / `E2EWrapper`. Every `(window as unknown as Record<string, unknown>).__elearn_editor as { … }` escape-hatch double cast across 17 specs + 2 utils + 1 POM collapsed to `window.__elearn_editor` — the same "narrow once at a boundary, never scattered" discipline TD-004 (v0.5.56) codified on the production side. `grep 'as unknown as' / 'Record<string, unknown>'` across `e2e/` → 0 matches.
+- **[TD-012] `EditorPage.ts:36` — `private readonly page: Page` → `readonly page: Page`** (standard Playwright POM pattern). Eliminates ~35 `TS2341 Property 'page' is private` errors in specs that accessed `editorPage.page` for `waitForResponse`, `evaluate`, `waitForTimeout`, `reload`, etc. No runtime change.
+- **[TD-012] `preview-handshake.spec.ts` — spec-local `__previewSpy` / `__openerSpy` declared inline** via `declare global { interface Window { … } }` at the top of the file instead of `(window as unknown as { __previewSpy?: … }).__previewSpy`. Keeps the test-harness globals out of the cross-spec ambient surface.
+
+### Fixed
+- **[TD-012] `docs-screenshots.spec.ts:138` — `TS2339 Property 'remove' does not exist on type 'Node'`** fixed by propagating the `instanceof Element` guard already used at lines 526 and 794. `Node.remove()` does not exist; `Element.remove()` does. Runtime element is always an `HTMLStyleElement` — pure TS narrow, no behavioural change.
+
+### Added
+- **[TD-012] `docs/developer-guide/10-docs-screenshots-playbook.md`** — canonical reference for regenerating User Manual v2 screenshots. 12 non-obvious techniques (T-1…T-12) used in `docs-screenshots.spec.ts` with the failing naive approach, the fix, and the affected manual section. Covers: defensive fallback per capture, tall-panel capture via viewport resize + CSS neutralisation, native `<select>` size-expand trick, `ensureWidgetIsCentered` after every `addBlockById`, re-locate widgets after slide switches (GrapesJS regenerates IDs), `editor.select(null)` before slide captures, clean-filename bypass for `page.screenshot`/`popup.screenshot`, `pasteSceneDef` + `selectOption` sequencing for §14 builders, event-menu toggle close, Moodle context in §16, category-by-index crops, `ensureClickEvent` guard. Also tabulates the 6 deferred placeholders (02-create-course, 09-widget-name-field, 09-widget-dropdown-names, 13-overview, 13-hotspot-editor, 01-full-ui-annotated) with the structural reason each is not scripted. Cross-linked from `docs/developer-guide/index.md` + `docs/developer-guide.md`; spec header updated to point at the playbook first.
+- **[TD-012] `docs/issues/issues-TD-012.md`** — self-review with error inventory (70 × TS2352 `as unknown as Record<string, unknown>`, 35 × TS2341 `private page`, 1 × TS2339 `Node.remove`), design decision rationale (minimal typed interface vs importing grapesjs), deliberate non-scope (CI integration follow-up, 6 deferred placeholders, tsconfig.base extraction).
+
+### Notes
+- **[TD-012] Structural lesson** — the e2e package was outside the TD-004 sweep because its CI path does not trip TS errors. Playwright uses its own transformer to parse specs, and `pnpm -r lint` / `pnpm -r test` skip the e2e typecheck. Any future type-safety sweep must add `pnpm --filter e2e exec tsc --noEmit` to its grep; production being clean does not imply e2e is clean. Follow-up `I-01` in `issues-TD-012.md` tracks a proposed CI step to enforce the invariant.
+- **[TD-012] Verification** — `npx tsc --noEmit` in `e2e/` → exit 0 (was 109 errors); `authoring-ui-layer.spec.ts` 22/22 pass in 1m 42s (no runtime regression); 17 specs + 2 utils + 1 POM + 1 new `.d.ts` touched. Commits: `b55d139` (playbook), `43ed28e` (typing refactor).
+
+---
+
 ## [Unreleased] — 2026-04-23 — E2E alignment for TD-010 centralised PropsEmptyState (TD-010.6)
 
 ### Fixed

@@ -462,3 +462,36 @@ if (!editor || !selectedComponentType || !isButtonWidgetType(selectedComponentTy
 - [x] TD-011.2 — `npx tsc -b` exit 0 + authoring-ui vitest 769/769 pass (unchanged).
 - [x] TD-011.3 — Existing E2E `question-widget.spec.ts` 30/30 pass against running dev stack (ports 3000/3001).
 - [x] TD-011.4 — Commit + push (`3fbb519`); docs closure in `CHANGELOG.md` v0.5.64 + `WORKING_CONTEXT.md`.
+
+---
+
+### [x] TD-012 — e2e/: typed `window.__elearn_editor` boundary + docs-screenshots playbook ✅ DONE (2026-04-23)
+
+**Problem:** 109 pre-existing TypeScript errors in the `e2e/` package, never surfaced before because `pnpm --filter e2e test` does not run `tsc --noEmit` as part of its loop (Playwright parses the specs with its own transform). Two root-cause patterns, both the exact escape hatches TD-004 erradicated on the production side:
+
+1. **`(window as unknown as Record<string, unknown>).__elearn_editor as { … }`** — scattered across 20 specs + utils + POM. The double-cast + inline narrow pattern repeated ~70 times. TD-004 replaced the production equivalent (`as GjsComponent` / `as unknown as Component`) with `ELearnComponent` narrowed **once** at a boundary. Mirror here.
+2. **`EditorPage.ts` declared `private readonly page: Page`** but 10 specs reached for `editorPage.page` directly (for `waitForResponse`, `evaluate`, `waitForTimeout`, etc.), triggering TS2341 on every site.
+
+**Fix:**
+
+- New `e2e/types/elearn-window.d.ts` — ambient `Window` augmentation declaring `__elearn_editor?: E2EEditor` with a minimal typed surface (`addComponents`, `select`, `getSelected`, `getWrapper`, `getComponents`, `runCommand`, `store`, `BlockManager` + typed `E2EComponent` / `E2EComponents` / `E2EWrapper`). Pulling `grapesjs` as a devDep here would add ~400 kB of type definitions for test-only typing; the minimal interface keeps the surface aligned with real usage and documents what the specs actually invoke.
+- `EditorPage.ts:36` — `private readonly page` → `readonly page` (standard Playwright POM pattern).
+- Every `(window as unknown as Record<string, unknown>).__elearn_editor as { … }` collapsed to `window.__elearn_editor` across 17 specs + 2 utils.
+- `preview-handshake.spec.ts` — spec-local `__previewSpy` / `__openerSpy` declared inline via `declare global { interface Window { … } }` at the top of the file (kept out of the cross-spec ambient surface).
+- `docs-screenshots.spec.ts:138` — `TS2339` on `Node.remove()` fixed by propagating the `instanceof Element` guard already used at lines 526 and 794.
+
+**Documentation paired with the refactor (B.2):** new `docs/developer-guide/10-docs-screenshots-playbook.md` — 12 techniques (T-1…T-12) used in `docs-screenshots.spec.ts` with the failing naive approach, the fix, and the affected manual section; 6 deferred placeholders with their structural reason; pre-commit checklist. Prevents technique rediscovery when the campaign is regenerated (which will happen many times as the UI evolves).
+
+**Verification:** `npx tsc --noEmit` in `e2e/` → exit 0 (was 109 errors) · `grep 'as unknown as' / 'Record<string, unknown>'` in `e2e/` → 0 matches · `authoring-ui-layer.spec.ts` → **22/22 pass** (no runtime regression).
+
+**Structural lesson:** the e2e package was outside the TD-004 sweep because its CI path doesn't trip TS errors — `playwright test` uses its own transformer and `pnpm -r lint` / `pnpm -r test` skip the e2e typecheck. Any future type-safety sweep must add `pnpm --filter e2e exec tsc --noEmit` to its grep — production being clean does not imply e2e is clean.
+
+**Subtasks:**
+- [x] TD-012.1 — Create `e2e/types/elearn-window.d.ts` with minimal `E2EEditor` / `E2EComponent` / `E2EComponents` / `E2EWrapper` typed surface covering every method observed in specs.
+- [x] TD-012.2 — `EditorPage.ts`: make `page` public (remove `private`).
+- [x] TD-012.3 — Replace every `(window as … Record<string, unknown>).__elearn_editor as { … }` with `window.__elearn_editor` across all specs + utils + POM.
+- [x] TD-012.4 — `preview-handshake.spec.ts` spec-local spies declared inline via `declare global`.
+- [x] TD-012.5 — Fix `docs-screenshots.spec.ts:138` (`Node.remove()` type error) with `instanceof Element` guard.
+- [x] TD-012.6 — New `docs/developer-guide/10-docs-screenshots-playbook.md` with T-1…T-12 technique catalogue + deferred-placeholder table + cross-links from `developer-guide/index.md` + `developer-guide.md`.
+- [x] TD-012.7 — `npx tsc --noEmit` in `e2e/` exit 0; `authoring-ui-layer.spec.ts` 22/22 pass.
+- [x] TD-012.8 — Commit + push (`b55d139` playbook, `43ed28e` typing refactor); docs closure in `CHANGELOG.md` v0.5.65 + `WORKING_CONTEXT.md` + `docs/issues/issues-TD-012.md`.
