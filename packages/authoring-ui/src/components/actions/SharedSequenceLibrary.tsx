@@ -40,7 +40,7 @@ export function SharedSequenceLibrary() {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} data-testid="shared-sequence-library">
       <div style={styles.header}>Shared Sequences</div>
 
       {sharedSequences.length === 0 && (

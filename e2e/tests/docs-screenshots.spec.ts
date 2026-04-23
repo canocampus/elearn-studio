@@ -611,24 +611,86 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   // §11 — Expressions, Recipes & Shared Sequences
   // -------------------------------------------------------------------------
 
-  // 11-recipe-attempts.png — questionIncorrect tab on a question block with
-  // Set Variable + If → Show nested. Best-effort: select an existing MC
-  // question and emit a full-page snapshot with the Actions tab open so
-  // the recipe layout can be cropped by hand from a known state.
+  // 11-recipe-attempts.png — questionIncorrect event on an MC question with
+  // Set Variable + If/Else → Show nested in the Then branch.
   try {
-    await selectById(page, mcId)
+    // Navigate to the slide hosting the MC question and re-locate it by
+    // data-widget attribute. The id captured at §08 (mcId) is invalid now:
+    // GrapesJS regenerates component ids on reload, and we have switched
+    // slides multiple times between §08 and here.
+    await goToSlide(3)
+    // Scan the editor tree for a question-mc component by its data-widget
+    // attribute (set by registerQuestionBlocks). If the slide lost the
+    // widget to autosave flakiness, fall through to adding a fresh one.
+    let mcIdFresh = await page.evaluate(() => {
+      const ed = (window as Record<string, unknown>).__elearn_editor as {
+        getWrapper: () => {
+          find: (s: string) => Array<{ getId: () => string }>
+          components: () => Array<{ get: (k: string) => unknown; getId: () => string }>
+        }
+      } | undefined
+      if (!ed) return undefined
+      const byAttr = ed.getWrapper().find('[data-widget="question-mc"]')[0]?.getId()
+      if (byAttr) return byAttr
+      // Fallback: walk top-level components looking for type==='question-mc'
+      const comps = ed.getWrapper().components()
+      for (const c of comps) {
+        if (c.get('type') === 'question-mc') return c.getId()
+      }
+      return undefined
+    })
+    if (!mcIdFresh) {
+      // Seed an MC question so the recipe has a valid target.
+      mcIdFresh = await addBlockById(page, 'question-mc', 'RecipeTarget')
+      await ensureWidgetIsCentered(page, mcIdFresh)
+    }
+    await selectById(page, mcIdFresh)
     await editorPage.actionsTab.click()
-  } catch {
-    /* best effort */
-  }
-  await captureFullPage(page, '11-recipe-attempts.png')
 
-  // 11-shared-sequences-library.png — the Shared Sequence Library entry
-  // point varies by build (toolbar button or inside Actions panel). Emit
-  // a full-page safety net from the current Actions state; if the library
-  // panel is not reachable via automation yet, the final crop is done by
-  // hand after opening it once.
-  await captureFullPage(page, '11-shared-sequences-library.png')
+    // Open +Event → Question Incorrect.
+    await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 5000 })
+    await page.getByRole('menuitem', { name: /Question Incorrect/i })
+      .click({ timeout: 5000 })
+
+    // Insert Set Variable + Condition + nested Show in Then.
+    const insertFromPalette = async (label: RegExp): Promise<void> => {
+      const palette = page.locator('[data-testid="action-palette"]')
+      await palette.waitFor({ state: 'visible', timeout: 5000 })
+      await palette.getByRole('button', { name: label }).first()
+        .click({ timeout: 4000 })
+    }
+    await insertFromPalette(/^Set Variable$/)
+    await insertFromPalette(/^If \/ Else$/)
+
+    // Nested Show in Then (first nested palette within the condition row).
+    const conditionRow = page.locator('[data-action-type="condition"]').first()
+    await conditionRow
+      .locator('[data-testid="action-palette"]').nth(0)
+      .getByRole('button', { name: /^Show$/ }).first()
+      .click({ timeout: 4000 }).catch(() => undefined)
+
+    await captureTallWidgetProps('11-recipe-attempts.png', 'actions-panel')
+  } catch {
+    await captureFullPage(page, '11-recipe-attempts.png')
+  }
+
+  // 11-shared-sequences-library.png — the Shared Sequence Library lives at
+  // the bottom of the Actions panel. Seed two named sequences so the shot
+  // shows a non-empty library (matches the placeholder: "Shared Sequence
+  // Library panel with at least two named sequences").
+  try {
+    const library = page.locator('[data-testid="shared-sequence-library"]')
+    await library.scrollIntoViewIfNeeded()
+    const nameInput = library.locator('input[placeholder*="sequence name"]')
+    await nameInput.fill('onboarding-intro')
+    await library.getByRole('button', { name: /\+ *Add/i }).click({ timeout: 4000 })
+    await nameInput.fill('closing-summary')
+    await library.getByRole('button', { name: /\+ *Add/i }).click({ timeout: 4000 })
+
+    await captureTallWidgetProps('11-shared-sequences-library.png', 'shared-sequence-library')
+  } catch {
+    await captureFullPage(page, '11-shared-sequences-library.png')
+  }
 
   // -------------------------------------------------------------------------
   // §12 — Simulations Overview
