@@ -28,17 +28,6 @@ test.describe('T636 — cross-slide copy/paste', () => {
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
-  type GjsEditor = {
-    getComponents: () => {
-      length: number
-      first: () => { getStyle: (prop: string) => string } | null
-      at: (index: number) => { getStyle: (prop: string) => string } | null
-      add: (def: unknown) => unknown
-    }
-    getSelected: () => { toJSON: () => unknown; getStyle: () => unknown } | null
-    runCommand: (cmd: string) => void
-  }
-
   /**
    * Read the left/top style (px values) of the LAST component in the canvas.
    * GrapesJS appends on add(), so the pasted widget is always the last one —
@@ -46,7 +35,7 @@ test.describe('T636 — cross-slide copy/paste', () => {
    */
   async function getLastComponentPosition(page: import('@playwright/test').Page) {
     return page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as GjsEditor | undefined
+      const ed = window.__elearn_editor
       if (!ed) return null
       const comps = ed.getComponents()
       if (!comps.length) return null
@@ -62,7 +51,7 @@ test.describe('T636 — cross-slide copy/paste', () => {
   /** Count components in the current slide canvas. */
   async function getComponentCount(page: import('@playwright/test').Page): Promise<number> {
     return page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as GjsEditor | undefined
+      const ed = window.__elearn_editor
       return ed?.getComponents().length ?? 0
     })
   }
@@ -70,7 +59,7 @@ test.describe('T636 — cross-slide copy/paste', () => {
   /** Invoke elearn:copy via the GrapesJS command API (bypasses keyboard focus). */
   async function runCopy(page: import('@playwright/test').Page): Promise<void> {
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as GjsEditor | undefined
+      const ed = window.__elearn_editor
       ed?.runCommand('elearn:copy')
     })
   }
@@ -78,7 +67,7 @@ test.describe('T636 — cross-slide copy/paste', () => {
   /** Invoke elearn:paste via the GrapesJS command API (bypasses keyboard focus). */
   async function runPaste(page: import('@playwright/test').Page): Promise<void> {
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as GjsEditor | undefined
+      const ed = window.__elearn_editor
       ed?.runCommand('elearn:paste')
     })
   }

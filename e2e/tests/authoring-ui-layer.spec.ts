@@ -198,9 +198,7 @@ test.describe('T608.5 — QuestionPropertiesPanel synced to GrapesJS selection',
 
     // Deselect via GrapesJS API
     await editorPage.page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        select: (c: null) => void
-      } | undefined
+      const ed = window.__elearn_editor
       ed?.select(null)
     })
     await editorPage.page.waitForTimeout(500)

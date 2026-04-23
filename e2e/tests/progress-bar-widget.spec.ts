@@ -79,9 +79,7 @@ test.describe('T608 — Course Progress Bar widget', () => {
     await colorText.fill('#e11d48')
 
     const extProps = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('extendedProperties')
     })
     expect((extProps as { color?: string })?.color).toBe('#e11d48')
@@ -102,9 +100,7 @@ test.describe('T608 — Course Progress Bar widget', () => {
     await checkbox.uncheck()
 
     const extProps = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('extendedProperties')
     })
     expect((extProps as { showPercent?: boolean })?.showPercent).toBe(false)
@@ -189,10 +185,8 @@ test.describe('T608 — Course Progress Bar widget', () => {
     await expect(widget).toBeVisible({ timeout: 15_000 })
 
     await page.evaluate(() => {
-      const ed = (window as unknown as Record<string, unknown>).__elearn_editor as {
-        getComponents: () => { first: () => unknown }
-        select: (c: unknown) => void
-      }
+      const ed = window.__elearn_editor
+      if (!ed) return
       const first = ed.getComponents().first()
       if (first) ed.select(first)
     })
@@ -205,9 +199,7 @@ test.describe('T608 — Course Progress Bar widget', () => {
 
     // 5. Read extendedProperties from the reloaded GrapesJS model
     const extProps = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('extendedProperties')
     })
 

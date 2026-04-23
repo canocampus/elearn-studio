@@ -30,9 +30,7 @@ test.describe('T633 — Button background image regression', () => {
 
     // Read the initial position styles from the GrapesJS model.
     const initialStyle = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { getStyle: () => Record<string, string>; addStyle: (s: Record<string, string>) => void } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const s = sel.getStyle()
@@ -43,9 +41,7 @@ test.describe('T633 — Button background image regression', () => {
     // Simulate what the fixed openBackgroundImagePicker does: addStyle() with all 4 properties.
     // (addStyle merges; setStyle would have replaced left/top/width/height — the old bug)
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { getStyle: () => Record<string, string>; addStyle: (s: Record<string, string>) => void } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return
       sel.addStyle({
@@ -59,9 +55,7 @@ test.describe('T633 — Button background image regression', () => {
 
     // Read styles after addStyle.
     const afterStyle = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { getStyle: () => Record<string, string> } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       return sel.getStyle()

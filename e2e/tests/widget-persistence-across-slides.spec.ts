@@ -53,16 +53,14 @@ test('TD-009 reproducer: button survives rapid slide switch', async ({
   await editorPage.readySignal().waitFor({ state: 'attached', timeout: 15_000 })
 
   const buttonId = await page.evaluate(() => {
-    const ed = (window as unknown as {
-      __elearn_editor?: {
-        addComponents: (defs: object[]) => unknown
-      }
-    }).__elearn_editor
+    const ed = window.__elearn_editor
     if (!ed) throw new Error('__elearn_editor not exposed (need DEV build)')
     const added = ed.addComponents([
       { type: 'button', attributes: { name: 'PersistMe' } },
-    ]) as Array<{ getId: () => string }>
-    return added[0].getId()
+    ])
+    const first = Array.isArray(added) ? added[0] : added
+    if (!first) throw new Error('addComponents returned no component')
+    return first.getId()
   })
 
   // Rapidly switch to slide 2 (no artificial wait — mimics a fast human).
@@ -75,12 +73,7 @@ test('TD-009 reproducer: button survives rapid slide switch', async ({
 
   // Inspect the live GrapesJS components list and the find-by-id lookup.
   const diagnostics = await page.evaluate((id) => {
-    const ed = (window as unknown as {
-      __elearn_editor?: {
-        getComponents: () => { toArray: () => Array<{ getId: () => string; get: (k: string) => unknown }> }
-        getWrapper: () => { find: (q: string) => Array<unknown> }
-      }
-    }).__elearn_editor
+    const ed = window.__elearn_editor
     if (!ed) return { error: '__elearn_editor missing' }
     const all = ed.getComponents().toArray()
     const byFind = ed.getWrapper().find('#' + id).length
@@ -128,16 +121,14 @@ test('TD-009 multi-hop: widgets added on slide 1 survive round-trip through 5 sl
 
   // Add a named widget on slide 1 and capture its id.
   const widgetId = await page.evaluate(() => {
-    const ed = (window as unknown as {
-      __elearn_editor?: {
-        addComponents: (defs: object[]) => unknown
-      }
-    }).__elearn_editor
+    const ed = window.__elearn_editor
     if (!ed) throw new Error('__elearn_editor not exposed (need DEV build)')
     const added = ed.addComponents([
       { type: 'button', attributes: { name: 'MultiHopSurvivor' } },
-    ]) as Array<{ getId: () => string }>
-    return added[0].getId()
+    ])
+    const first = Array.isArray(added) ? added[0] : added
+    if (!first) throw new Error('addComponents returned no component')
+    return first.getId()
   })
 
   // Hop through slides 2, 3, 4, 5 with no artificial waits.
@@ -155,12 +146,7 @@ test('TD-009 multi-hop: widgets added on slide 1 survive round-trip through 5 sl
     .waitFor({ state: 'attached', timeout: 15_000 })
 
   const diagnostics = await page.evaluate((id) => {
-    const ed = (window as unknown as {
-      __elearn_editor?: {
-        getComponents: () => { toArray: () => Array<{ getId: () => string; get: (k: string) => unknown }> }
-        getWrapper: () => { find: (q: string) => Array<unknown> }
-      }
-    }).__elearn_editor
+    const ed = window.__elearn_editor
     if (!ed) return { error: '__elearn_editor missing' }
     return {
       count: ed.getComponents().toArray().length,

@@ -33,7 +33,7 @@ export class EditorPage {
   readonly publishCloseButton: Locator
   readonly publishStatusBox: Locator
 
-  constructor(private readonly page: Page) {
+  constructor(readonly page: Page) {
     // TopToolbar buttons
     this.addSlideButton = page.getByTitle('Add slide')
     this.publishScormButton = page.getByRole('button', { name: /Publish SCORM/i })
@@ -67,14 +67,12 @@ export class EditorPage {
   async addComponentViaEditor(type: string): Promise<void> {
     // Wait for the editor to be exposed on window (set in EditorCanvas.tsx onReady)
     await this.page.waitForFunction(
-      () => !!(window as Record<string, unknown>).__elearn_editor,
+      () => !!window.__elearn_editor,
       { timeout: 15_000 },
     )
     await this.page.evaluate((componentType: string) => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        addComponents: (c: object[]) => unknown
-        select: (c: unknown) => void
-      }
+      const ed = window.__elearn_editor
+      if (!ed) throw new Error('__elearn_editor not exposed (need DEV build)')
       const added = ed.addComponents([{ type: componentType }])
       const comp = Array.isArray(added) ? added[0] : added
       if (comp) ed.select(comp)
@@ -182,19 +180,14 @@ export class EditorPage {
 
     // Ensure the editor is ready before manipulating it programmatically.
     await this.page.waitForFunction(
-      () => !!(window as Record<string, unknown>).__elearn_editor,
+      () => !!window.__elearn_editor,
       { timeout: 15_000 },
     )
 
     await this.page.evaluate(
       ({ label, x, y }) => {
-        type GjsComp = { addStyle: (s: Record<string, string>) => void }
-        type GjsEditor = {
-          BlockManager: { getAll: () => Array<{ get: (k: string) => unknown }> }
-          addComponents: (c: object[]) => unknown
-          select: (c: unknown) => void
-        }
-        const ed = (window as Record<string, unknown>).__elearn_editor as GjsEditor
+        const ed = window.__elearn_editor
+        if (!ed) throw new Error('__elearn_editor not exposed (need DEV build)')
 
         // Resolve component type from block label via BlockManager.
         const blocks = ed.BlockManager.getAll()
@@ -215,7 +208,7 @@ export class EditorPage {
         const comp = Array.isArray(added) ? added[0] : added
         if (comp) {
           // Merge the target position into the existing styles (addStyle merges, not replaces).
-          (comp as GjsComp).addStyle({ left: `${x}px`, top: `${y}px` })
+          comp.addStyle({ left: `${x}px`, top: `${y}px` })
           ed.select(comp)
         }
       },

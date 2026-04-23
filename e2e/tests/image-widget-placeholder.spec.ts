@@ -66,9 +66,7 @@ test.describe('T605 — Image Widget Placeholder Hint', () => {
 
     // Set a src via the GrapesJS API (simulates user selecting from AM)
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { set: (k: string, v: string) => void } | null
-      } | undefined
+      const ed = window.__elearn_editor
       ed?.getSelected()?.set('src', 'https://example.com/test-image.png')
     })
     await editorPage.page.waitForTimeout(800)

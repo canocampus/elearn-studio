@@ -17,14 +17,10 @@ import { test, expect } from '../fixtures'
 // All tests share a longer timeout — autosave debounce is 2 s.
 test.setTimeout(60_000)
 
-type GjsEditor = {
-  getComponents: () => { length: number }
-}
-
 /** Count top-level components in the current slide canvas. */
 async function getComponentCount(page: import('@playwright/test').Page): Promise<number> {
   return page.evaluate(() => {
-    const ed = (window as Record<string, unknown>).__elearn_editor as GjsEditor | undefined
+    const ed = window.__elearn_editor
     return ed?.getComponents().length ?? 0
   })
 }

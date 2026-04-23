@@ -140,14 +140,12 @@ test.describe('Action Sequence Editor: Panel with widget selected (GAP-02)', () 
 
     // Re-select the existing button widget via JS bridge (selects without adding)
     await page.waitForFunction(
-      () => !!(window as unknown as Record<string, unknown>).__elearn_editor,
+      () => !!window.__elearn_editor,
       { timeout: 15_000 },
     )
     await page.evaluate(() => {
-      const ed = (window as unknown as Record<string, unknown>).__elearn_editor as {
-        getComponents: () => { first: () => unknown }
-        select: (c: unknown) => void
-      }
+      const ed = window.__elearn_editor
+      if (!ed) return
       const first = ed.getComponents().first()
       if (first) ed.select(first)
     })

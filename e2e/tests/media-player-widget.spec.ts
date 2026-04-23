@@ -79,9 +79,7 @@ test.describe('T604 — Media Player Properties Panel', () => {
 
     // Verify the component model was updated via the editor API
     const modelSrc = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('src')
     })
     expect(modelSrc).toBe('https://example.com/test-video.mp4')
@@ -109,9 +107,7 @@ test.describe('T604 — Media Player Properties Panel', () => {
 
     // Verify model updated
     const modelType = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('mediaType')
     })
     expect(modelType).toBe('audio')
@@ -136,9 +132,7 @@ test.describe('T604 — Media Player Properties Panel', () => {
     await autoplayCheckbox.check()
 
     const extProps = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('extendedProperties')
     })
     expect((extProps as { autoplay?: boolean })?.autoplay).toBe(true)

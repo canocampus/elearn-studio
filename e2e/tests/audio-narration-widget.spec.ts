@@ -74,9 +74,7 @@ test.describe('T607 — Audio Narration Properties Panel', () => {
 
     // Verify the component model was updated via the editor API
     const modelSrc = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('src')
     })
     expect(modelSrc).toBe('https://example.com/narration.mp3')
@@ -100,9 +98,7 @@ test.describe('T607 — Audio Narration Properties Panel', () => {
     await autoplayCheckbox.check()
 
     const extProps = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('extendedProperties')
     })
     expect((extProps as { autoplay?: boolean })?.autoplay).toBe(true)
@@ -119,9 +115,7 @@ test.describe('T607 — Audio Narration Properties Panel', () => {
     await page.waitForTimeout(300)
 
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { set: (k: string, v: unknown) => void } | null
-      } | undefined
+      const ed = window.__elearn_editor
       ed?.getSelected()?.set('src', 'https://example.com/narration.mp3')
     })
     await page.waitForTimeout(300)
@@ -145,9 +139,7 @@ test.describe('T607 — Audio Narration Properties Panel', () => {
 
     // 5. src must survive the round-trip — regression test for WIDGETS_WITH_SRC_TRAIT fix
     const srcAfterReload = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getComponents: () => { models: Array<{ get: (k: string) => unknown; get type(): string }> }
-      } | undefined
+      const ed = window.__elearn_editor
       const models = ed?.getComponents().models ?? []
       const audio = models.find((m) => (m.get('type') as string) === 'audio-narration')
       return audio?.get('src')

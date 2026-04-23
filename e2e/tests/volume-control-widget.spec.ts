@@ -74,9 +74,7 @@ test.describe('T609 — Global Volume Control widget', () => {
     await numberInput.fill('60')
 
     const extProps = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('extendedProperties')
     })
     expect((extProps as { defaultVolume?: number })?.defaultVolume).toBe(60)
@@ -97,9 +95,7 @@ test.describe('T609 — Global Volume Control widget', () => {
     await checkbox.uncheck()
 
     const extProps = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      } | undefined
+      const ed = window.__elearn_editor
       return ed?.getSelected()?.get('extendedProperties')
     })
     expect((extProps as { showMute?: boolean })?.showMute).toBe(false)

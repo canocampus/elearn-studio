@@ -44,9 +44,7 @@ test.describe('T638 — Score widgets: style and trait changes', () => {
 
     // Simulate Style Manager changing font-size (GrapesJS updates el CSS rule; children inherit)
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { getStyle: () => Record<string, string>; setStyle: (s: Record<string, string>) => void } | null
-      } | undefined
+      const ed = window.__elearn_editor
       const selected = ed?.getSelected()
       if (!selected) throw new Error('No component selected')
       selected.setStyle({ ...selected.getStyle(), 'font-size': '40px' })
@@ -75,9 +73,7 @@ test.describe('T638 — Score widgets: style and trait changes', () => {
     )
 
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { getStyle: () => Record<string, string>; setStyle: (s: Record<string, string>) => void } | null
-      } | undefined
+      const ed = window.__elearn_editor
       const selected = ed?.getSelected()
       if (!selected) throw new Error('No component selected')
       selected.setStyle({ ...selected.getStyle(), 'font-size': '36px' })
@@ -102,10 +98,8 @@ test.describe('T638 — Score widgets: style and trait changes', () => {
 
     // Re-select via JS bridge (reliable in parallel mode)
     await page.evaluate(() => {
-      const ed = (window as unknown as Record<string, unknown>).__elearn_editor as {
-        getComponents: () => { first: () => unknown }
-        select: (c: unknown) => void
-      }
+      const ed = window.__elearn_editor
+      if (!ed) return
       const first = ed.getComponents().first()
       if (first) ed.select(first)
     })
@@ -130,9 +124,7 @@ test.describe('T638 — Score widgets: style and trait changes', () => {
 
     // Change quizTitle trait via model attributes (fires change:attributes → onRender)
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { addAttributes: (attrs: Record<string, string>) => void } | null
-      } | undefined
+      const ed = window.__elearn_editor
       const selected = ed?.getSelected()
       if (!selected) throw new Error('No component selected')
       selected.addAttributes({ quizTitle: 'Puntaje del Quiz' })
@@ -156,9 +148,7 @@ test.describe('T638 — Score widgets: style and trait changes', () => {
 
     // Simulate Style Manager change
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { getStyle: () => Record<string, string>; setStyle: (s: Record<string, string>) => void } | null
-      } | undefined
+      const ed = window.__elearn_editor
       const selected = ed?.getSelected()
       if (!selected) throw new Error('No component selected')
       selected.setStyle({ ...selected.getStyle(), 'font-size': '18px' })
@@ -182,9 +172,7 @@ test.describe('T638 — Score widgets: style and trait changes', () => {
 
     // Change scorePrefix trait via model attributes
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { addAttributes: (attrs: Record<string, string>) => void } | null
-      } | undefined
+      const ed = window.__elearn_editor
       const selected = ed?.getSelected()
       if (!selected) throw new Error('No component selected')
       selected.addAttributes({ scorePrefix: 'Resultado: ' })

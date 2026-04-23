@@ -36,6 +36,16 @@ type PopupSpyState = {
   signalsSent: Array<{ origin: string; data: unknown }>
 }
 
+// Spec-local Window augmentation — these spies are only installed and read by
+// this file. Declared here (not in e2e/types/elearn-window.d.ts) so they do
+// not pollute the global test surface.
+declare global {
+  interface Window {
+    __previewSpy?: PopupSpyState
+    __openerSpy?: OpenerSpyState
+  }
+}
+
 /**
  * Install a `postMessage` spy in every page of the context BEFORE any scripts
  * run. Needed because preview.html's inline script executes immediately — we
@@ -44,18 +54,18 @@ type PopupSpyState = {
  */
 async function installPopupSpy(page: Page): Promise<void> {
   await page.context().addInitScript(() => {
-    const w = window as unknown as { __previewSpy?: PopupSpyState }
-    if (w.__previewSpy) return
-    w.__previewSpy = { messages: [], signalsSent: [] }
+    if (window.__previewSpy) return
+    window.__previewSpy = { messages: [], signalsSent: [] }
+    const spy = window.__previewSpy
 
     window.addEventListener('message', (e: MessageEvent) => {
       try {
-        w.__previewSpy!.messages.push({
+        spy.messages.push({
           origin: e.origin,
           data: JSON.parse(JSON.stringify(e.data)),
         })
       } catch {
-        w.__previewSpy!.messages.push({ origin: e.origin, data: String(e.data) })
+        spy.messages.push({ origin: e.origin, data: String(e.data) })
       }
     })
 
@@ -73,12 +83,12 @@ async function installPopupSpy(page: Page): Promise<void> {
             if (prop === 'postMessage') {
               return (data: unknown, targetOrigin: string) => {
                 try {
-                  w.__previewSpy!.signalsSent.push({
+                  spy.signalsSent.push({
                     origin: targetOrigin,
                     data: JSON.parse(JSON.stringify(data)),
                   })
                 } catch {
-                  w.__previewSpy!.signalsSent.push({
+                  spy.signalsSent.push({
                     origin: targetOrigin,
                     data: String(data),
                   })
@@ -97,17 +107,17 @@ async function installPopupSpy(page: Page): Promise<void> {
 /** Install an opener-side 'message' listener that records every inbound event. */
 async function installOpenerSpy(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const w = window as unknown as { __openerSpy?: OpenerSpyState }
-    if (w.__openerSpy) return
-    w.__openerSpy = { messages: [] }
+    if (window.__openerSpy) return
+    window.__openerSpy = { messages: [] }
+    const spy = window.__openerSpy
     window.addEventListener('message', (e: MessageEvent) => {
       try {
-        w.__openerSpy!.messages.push({
+        spy.messages.push({
           origin: e.origin,
           data: JSON.parse(JSON.stringify(e.data)),
         })
       } catch {
-        w.__openerSpy!.messages.push({ origin: e.origin, data: String(e.data) })
+        spy.messages.push({ origin: e.origin, data: String(e.data) })
       }
     })
   })
@@ -152,10 +162,7 @@ test.describe('T641 preview-popup postMessage handshake @integration', () => {
     // 5. Wait for the handshake to complete. preview.html retries the ready
     //    signal for ~1s, then onData must arrive, then init() must run.
     await popup.waitForFunction(
-      () => {
-        const w = window as unknown as { __previewSpy?: PopupSpyState }
-        return (w.__previewSpy?.messages.length ?? 0) > 0
-      },
+      () => (window.__previewSpy?.messages.length ?? 0) > 0,
       undefined,
       { timeout: 5_000 },
     )
@@ -163,8 +170,7 @@ test.describe('T641 preview-popup postMessage handshake @integration', () => {
     // 6. Popup must have received exactly one 'elearn-preview-data' message
     //    carrying a real course with slides.
     const popupState = await popup.evaluate(() => {
-      const w = window as unknown as { __previewSpy?: PopupSpyState }
-      return w.__previewSpy ?? { messages: [], signalsSent: [] }
+      return window.__previewSpy ?? { messages: [], signalsSent: [] }
     })
 
     const dataMessages = popupState.messages.filter(
@@ -191,8 +197,7 @@ test.describe('T641 preview-popup postMessage handshake @integration', () => {
     // 8. Opener must have received the ready signal — guards against a
     //    regression where the listener is registered after window.open().
     const openerState = await page.evaluate(() => {
-      const w = window as unknown as { __openerSpy?: OpenerSpyState }
-      return w.__openerSpy ?? { messages: [] }
+      return window.__openerSpy ?? { messages: [] }
     })
     const readyReceived = openerState.messages.find(m => m.data === 'elearn-preview-ready')
     expect(readyReceived, 'opener must receive elearn-preview-ready').toBeTruthy()

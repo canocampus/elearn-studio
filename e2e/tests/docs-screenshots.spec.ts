@@ -135,7 +135,9 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     } catch {
       await captureFullPage(page, filename)
     } finally {
-      await style.evaluate((el) => el.remove())
+      await style.evaluate((el: Node) => {
+        if (el instanceof Element) el.remove()
+      })
     }
   }
 
@@ -622,12 +624,7 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     // attribute (set by registerQuestionBlocks). If the slide lost the
     // widget to autosave flakiness, fall through to adding a fresh one.
     let mcIdFresh = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getWrapper: () => {
-          find: (s: string) => Array<{ getId: () => string }>
-          components: () => Array<{ get: (k: string) => unknown; getId: () => string }>
-        }
-      } | undefined
+      const ed = window.__elearn_editor
       if (!ed) return undefined
       const byAttr = ed.getWrapper().find('[data-widget="question-mc"]')[0]?.getId()
       if (byAttr) return byAttr
@@ -1040,10 +1037,8 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     // Clear any active selection so the Props aside shows the empty-state
     // hint, not a stray widget panel inherited from the previous slide.
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as
-        | { select: (c: null) => void }
-        | undefined
-      ed?.select?.(null)
+      const ed = window.__elearn_editor
+      ed?.select(null)
     })
     await page.waitForTimeout(300)
     await page.screenshot({

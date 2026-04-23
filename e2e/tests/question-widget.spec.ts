@@ -269,9 +269,7 @@ test.describe('Question Widget: Props Panel Editing (T601.2 / T601.3 / T601.4)',
 
     // Verify the model reflects the change via window.__elearn_editor
     const correctText = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const ep = sel.get('extendedProperties') as { options: Array<{ text: string; isCorrect: boolean }> }
@@ -761,9 +759,7 @@ test.describe('Question Widget: TF correct answer persistence across reload (T63
 
     // Confirm model reflects the change before saving.
     const correctBeforeSave = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const ep = sel.get('extendedProperties') as { correctAnswer: boolean }
@@ -796,9 +792,7 @@ test.describe('Question Widget: TF correct answer persistence across reload (T63
 
     // correctAnswer must still be false after reload.
     const correctAfterReload = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const ep = sel.get('extendedProperties') as { correctAnswer: boolean }
@@ -845,9 +839,7 @@ test.describe('Question Widget: Fill accepted answer persistence across reload (
 
     // Confirm model reflects the change before saving.
     const answersBeforeSave = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const ep = sel.get('extendedProperties') as { answers: string[] }
@@ -883,9 +875,7 @@ test.describe('Question Widget: Fill accepted answer persistence across reload (
 
     // First accepted answer must still be the sentinel after reload.
     const answersAfterReload = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const ep = sel.get('extendedProperties') as { answers: string[] }
@@ -933,9 +923,7 @@ test.describe('Question Widget: Correct answer persistence across reload (T631.6
 
     // Confirm the model reflects the change before saving.
     const correctTextBeforeSave = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const ep = sel.get('extendedProperties') as { options: Array<{ text: string; isCorrect: boolean }> }
@@ -971,9 +959,7 @@ test.describe('Question Widget: Correct answer persistence across reload (T631.6
 
     // Option B must still be the correct answer after reload.
     const correctTextAfterReload = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const ep = sel.get('extendedProperties') as { options: Array<{ text: string; isCorrect: boolean }> }
@@ -1027,9 +1013,7 @@ test.describe('Question Widget: getLatest() stale-closure regression — text th
 
     // Verify both are present in the model before autosave.
     const beforeSave = await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        getSelected: () => { get: (k: string) => unknown } | null
-      }
+      const ed = window.__elearn_editor
       const sel = ed?.getSelected()
       if (!sel) return null
       const ep = sel.get('extendedProperties') as {

@@ -266,17 +266,12 @@ export async function addBlockById(
 ): Promise<string> {
   const id = await page.evaluate(
     ({ type, name }) => {
-      const ed = (window as unknown as {
-        __elearn_editor?: {
-          addComponents: (defs: object[]) => unknown
-          select: (c: unknown) => void
-        }
-      }).__elearn_editor
+      const ed = window.__elearn_editor
       if (!ed) throw new Error('__elearn_editor not exposed (need DEV build)')
       const added = ed.addComponents([
         name ? { type, attributes: { name } } : { type },
-      ]) as Array<{ getId: () => string; set: (k: string, v: unknown) => void }>
-      const c = Array.isArray(added) ? added[0] : undefined
+      ])
+      const c = Array.isArray(added) ? added[0] : added
       if (!c) throw new Error(`addComponents returned no component for ${type}`)
       if (name) c.set('name', name)
       ed.select(c)
@@ -284,7 +279,7 @@ export async function addBlockById(
     },
     { type, name },
   )
-  return id as string
+  return id
 }
 
 /**
@@ -307,15 +302,7 @@ export async function ensureWidgetIsCentered(
 ): Promise<void> {
   await page.evaluate(
     ({ id, x, y }) => {
-      const ed = (window as unknown as {
-        __elearn_editor?: {
-          getWrapper: () => {
-            find: (q: string) => Array<{
-              addStyle: (s: Record<string, string>) => void
-            }>
-          }
-        }
-      }).__elearn_editor
+      const ed = window.__elearn_editor
       if (!ed) throw new Error('__elearn_editor not exposed (need DEV build)')
       const comp = ed.getWrapper().find('#' + id)[0]
       if (!comp) throw new Error(`no component with id ${id}`)
@@ -337,12 +324,7 @@ export async function ensureWidgetIsCentered(
  */
 export async function selectById(page: Page, id: string): Promise<void> {
   await page.evaluate((cid) => {
-    const ed = (window as unknown as {
-      __elearn_editor?: {
-        getWrapper: () => { find: (q: string) => Array<unknown> }
-        select: (c: unknown) => void
-      }
-    }).__elearn_editor
+    const ed = window.__elearn_editor
     if (!ed) throw new Error('__elearn_editor not exposed')
     const match = ed.getWrapper().find('#' + cid)[0]
     if (!match) throw new Error(`no component with id ${cid}`)

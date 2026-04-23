@@ -263,11 +263,8 @@ test.describe('State Persistence', () => {
     // Select the widget then delete it via GrapesJS command.
     await editorPage.canvasComponent('[data-gjs-type="rectangle"]').click()
     await page.evaluate(() => {
-      const ed = (window as Record<string, unknown>).__elearn_editor as {
-        runCommand: (cmd: string) => void
-        getSelected: () => unknown
-      }
-      if (ed?.getSelected()) ed.runCommand('core:component-delete')
+      const ed = window.__elearn_editor
+      if (ed && ed.getSelected()) ed.runCommand('core:component-delete')
     })
 
     // Must receive the PATCH — fails (not times-out-and-passes) if component:remove
