@@ -974,10 +974,54 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     await captureFullPage(page, '15-popup-rendered.png')
   }
 
-  // 16-lms-upload-placeholder.png — external LMS UI. No way to automate;
-  // leave a fullpage safety net of the editor so the placeholder slot is
-  // at least filled with a deterministic image the author can replace.
-  await captureFullPage(page, '16-lms-upload-placeholder.png')
+  // 16-lms-upload-placeholder.png — a real LMS UI. The local Moodle docker
+  // (docker compose --profile moodle up, see docker/docker-compose.dev.yml)
+  // exposes Bitnami Moodle on :8081 with admin credentials seeded via env.
+  // Open a fresh browser context, log in, and screenshot the "Site home"
+  // dashboard — this is a representative Moodle admin surface the reader
+  // will recognise, and doesn't require navigating into specific courses
+  // whose structure we can't guarantee across dev setups.
+  // Env vars respected: MOODLE_BASE_URL (default http://localhost:8081),
+  // MOODLE_ADMIN_USER (default 'admin'), MOODLE_ADMIN_PASSWORD (default
+  // the dev compose default 'Admin1234!'). Falls back to a fullpage shot
+  // of the editor if Moodle is unreachable.
+  try {
+    const moodleUrl = process.env.MOODLE_BASE_URL ?? 'http://localhost:8081'
+    const moodleUser = process.env.MOODLE_ADMIN_USER ?? 'admin'
+    const moodlePass = process.env.MOODLE_ADMIN_PASSWORD ?? 'Admin1234!'
+
+    const moodleContext = await page.context().browser()!.newContext()
+    const moodlePage = await moodleContext.newPage()
+
+    await moodlePage.goto(moodleUrl + '/login/index.php', {
+      timeout: 15_000,
+      waitUntil: 'domcontentloaded',
+    })
+    await moodlePage.locator('#username').fill(moodleUser)
+    await moodlePage.locator('#password').fill(moodlePass)
+    await moodlePage.locator('#loginbtn').click()
+    // After login, navigate to the SCORM module settings admin page —
+    // this is a Moodle-internal page that explicitly references "SCORM
+    // package" and exposes the upload / format-compatibility options
+    // LMS administrators would recognise. Much closer to the placeholder
+    // intent ("Upload SCORM package") than the bare dashboard.
+    await moodlePage.goto(moodleUrl + '/admin/settings.php?section=modsettingscorm', {
+      timeout: 15_000,
+      waitUntil: 'networkidle',
+    })
+    // Dismiss any leftover loading overlay or modal.
+    await moodlePage.waitForTimeout(1500)
+    await moodlePage.screenshot({
+      path: SCREENSHOTS_DIR + '/16-lms-upload-placeholder.png',
+      type: 'png',
+      fullPage: false,
+    })
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] wrote 16-lms-upload-placeholder.png (moodle)')
+    await moodleContext.close()
+  } catch {
+    await captureFullPage(page, '16-lms-upload-placeholder.png')
+  }
 
   // -------------------------------------------------------------------------
   // §17 — Worked Example (5 finished slides)
