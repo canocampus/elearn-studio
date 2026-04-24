@@ -21,32 +21,7 @@ Proceeding without explicit confirmation is a protocol violation.
 ---
 ## 🔍 Pre-Commit Self-Verification Checklist
 
-Before proposing changes to GrapesJS+React integration files, verify the following:
-
-### [ ] Resource Management
-- [ ] Do all added listeners have their corresponding `removeEventListener`?
-- [ ] Are the timers (`setTimeout`/`setInterval`) canceled on cleanup?
-- [ ] Is the GrapesJS instance explicitly destroyed on unmount?
-
-### [ ] Unidirectional Data Flow
-- [ ] Do UI changes in GrapesJS update the React/Zustan state before saving?
-- [ ] Does the save function read from the React state, not directly from `editor.store()`?
-- [ ] Is the debounce mechanism respected for persistence operations?
-
-### [ ] Subscriptions and Re-renders
-- [ ] Do GrapesJS component property reads use subscriptions with cleanup?
-- [ ] Are load/error states (`isSaving`, `saveError`) updated on all save paths?
-- [ ] Are components re-rendered when Backbone model properties change?
-
-### [ ] Type Safety and Errors
-- [ ] Are `editor.store()` errors propagated to the UI state (error banner)?
-- [ ] Is `editor.getSelected()` validated as not null before operating?
-- [ ] Are uninitialized or loading editor cases handled correctly?
-
-### ✅ GrapesJS Block Validation Pre-Commit
-- [ ] Does each defined block have `content` as a valid HTML string or a `render` function that returns a DOM element?
-- [ ] Do custom blocks have `attributes` and `category` defined to appear in the correct panel?
-- [ ] Has the block been tested in isolation (without React) to rule out pure GrapesJS errors?
+The agent must validate changes against the patterns defined in .claude/skills/grapesjs-react-lifecycle/SKILL.md. The automatic pre-edit hook will report any deviations in resource cleanup.
 
 ---
 
@@ -233,36 +208,10 @@ pnpm --filter e2e playwright test   # full suite
 
 If the spec fails → fix the regression, do not mark done.
 If the task adds new UI behaviour → add a new E2E test.
-
 ---
-
-## 6. Block Closure — Full Suite + Push + CI
-
-After completing an entire task block (TXX), in this exact order:
-
-**Step 1 — Full test suite**
-```bash
-pnpm test
-```
-All tests must be green. No exceptions. No "pre-existing failures" left unresolved.
-
-**Step 2 — Documentation checklist**
-1. Update `tasks.md` — mark all completed subtasks `[x]`
-2. Update `docs/issues/issues-TXX.md` — all CRITICAL and HIGH resolved
-3. Update `CHANGELOG.md` — version bump + entry
-4. Update `WORKING_CONTEXT.md` — all 5 sections
-5. Run relevant E2E spec — confirm passing
-6. Commit with conventional format
-
-**Step 3 — Push and verify CI (mandatory every block)**
-```bash
-git push origin <branch>
-```
-- Check the Actions tab for the workflow triggered by the push
-- Wait for it to complete
-- **If CI fails: fix before starting the next task block**
-- **Do NOT start the next block with a failing CI**
-
+### 6. Block Closure
+Every task block MUST be closed using the canonical /task-complete command.
+The agent is prohibited from manual closure; follow the interactive script in .claude/commands/task-complete.md to ensure zero-regression, documentation updates, and proper Git flow.
 ---
 
 ## 7. Never Repeat Failed Approaches

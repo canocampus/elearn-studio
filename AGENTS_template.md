@@ -9,6 +9,17 @@
 
 ---
 
+## ⚠️ STOP — READ THIS BEFORE EVERY ACTION
+
+Before doing ANYTHING after completing a subtask:
+1. Have you reported the result to the owner? → If no, STOP and report
+2. Have you received explicit written confirmation? → If no, STOP and wait
+3. Is the confirmation in this chat, not inferred? → If no, STOP and wait
+
+Proceeding without explicit confirmation is a protocol violation.
+
+---
+
 ## 1. Session Start Protocol
 
 Before making any change or proposing any solution, the agent MUST execute these
@@ -174,32 +185,9 @@ If the task adds new UI behaviour → add a new E2E test.
 
 ---
 
-## 6. Block Closure — Full Suite + Push + CI
-
-After completing an entire task block (TXX), in this exact order:
-
-**Step 1 — Full test suite**
-```bash
-pnpm test
-```
-All tests must be green. No exceptions. No "pre-existing failures" left unresolved.
-
-**Step 2 — Documentation checklist**
-1. Update `tasks.md` — mark all completed subtasks `[x]`
-2. Update `docs/issues/issues-TXX.md` — all CRITICAL and HIGH resolved
-3. Update `CHANGELOG.md` — version bump + entry
-4. Update `WORKING_CONTEXT.md` — all 5 sections
-5. Run relevant E2E spec — confirm passing
-6. Commit with conventional format
-
-**Step 3 — Push and verify CI (mandatory every block)**
-```bash
-git push origin <branch>
-```
-- Check the Actions tab for the workflow triggered by the push
-- Wait for it to complete
-- **If CI fails: fix before starting the next task block**
-- **Do NOT start the next block with a failing CI**
+### 6. Block Closure
+Every task block MUST be closed using the canonical /task-complete command.
+The agent is prohibited from manual closure; follow the interactive script in .claude/commands/task-complete.md to ensure zero-regression, documentation updates, and proper Git flow.
 
 ---
 
