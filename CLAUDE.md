@@ -52,11 +52,10 @@ This phase is deferred. Do NOT apply design tokens until explicitly instructed.
 ### GrapesJS & React Architecture
 - **When to use**: Modifying `packages/authoring-ui`, GrapesJS widgets, canvas, or property panels.
 - **Protocol**: You MUST read and adhere to `.claude/skills/grapesjs-react-lifecycle/SKILL.md`.
-- **Pre-edit Hook**: Before any write operation in the editor directory, run a check for `editor.destroy()` and `removeEventListener` cleanup.
 
 ### Hooks
-- **pre-edit**: Before each write (`write_file`) to `packages/authoring-ui/src`, run `.claude/hooks/pre-edit-cleanup-check.sh {{file_path}}` and analyze the warnings before proposing the final code.
-- **pre-investigation**: Automatically triggered before starting any TXX.N "Investigate" task to ensure the architecture graph is updated.
+- **pre-edit**: Before each write (`write_file`) to `packages/authoring-ui/src`, run `node .claude/hooks/pre-edit-cleanup-check.js {{file_path}}` and analyze the warnings before proposing the final code.
+- **pre-investigation**: run `node .claude/hooks/pre-investigation.js` Automatically triggered before starting any TXX.N "Investigate" task to ensure the architecture graph is updated.
 
 ---
 
