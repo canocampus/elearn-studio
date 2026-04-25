@@ -92,7 +92,7 @@ export function RecorderLiveView() {
       return
     }
     try {
-      const simConfig = await importSimulation(course.id, persisted.id)
+      const simConfig = await importSimulation(course._id, persisted.id)
       setConfig(simConfig)
       toast.success(`Simulation imported (${simConfig.steps.length} steps)`)
       reset()

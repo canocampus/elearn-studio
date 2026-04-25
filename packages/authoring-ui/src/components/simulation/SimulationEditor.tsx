@@ -131,7 +131,7 @@ export function SimulationEditor() {
   }
 
   function handleStepKeyDown(e: React.KeyboardEvent, index: number) {
-    if (!e.altKey) return
+    if (!e.altKey || !config) return
     if (e.key === 'ArrowUp' && index > 0) {
       e.preventDefault()
       reorderStep(index, index - 1)

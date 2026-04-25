@@ -58,7 +58,7 @@ export function SessionsPickerDialog({ open, onClose }: SessionsPickerDialogProp
     }
     setImportingId(id)
     try {
-      const simConfig = await importSimulation(course.id, id)
+      const simConfig = await importSimulation(course._id, id)
       setConfig(simConfig)
       toast.success(`Simulation imported (${simConfig.steps.length} steps)`)
       onClose()
