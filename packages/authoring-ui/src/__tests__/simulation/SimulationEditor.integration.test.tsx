@@ -83,7 +83,7 @@ function emptyConfig(): SimConfig {
 }
 
 function stubCourse(): CourseDoc {
-  return { id: 'course-1', title: 't', slides: [] } as unknown as CourseDoc
+  return { _id: 'course-1', title: 't', slides: [] } as unknown as CourseDoc
 }
 
 beforeEach(() => {

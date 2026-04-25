@@ -54,7 +54,7 @@ function makeSummary(over: Partial<SessionSummary> = {}): SessionSummary {
 
 function stubCourse(): CourseDoc {
   return {
-    id: 'course-1',
+    _id: 'course-1',
     title: 'Test course',
     slides: [],
   } as unknown as CourseDoc
