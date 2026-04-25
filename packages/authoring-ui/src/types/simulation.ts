@@ -42,7 +42,6 @@ export interface AuthoredSimStep {
 export type SimMode = 'demo' | 'practice' | 'assessment'
 
 export interface SimConfig {
-  sessionId: string
   mode: SimMode
   passingScore: number
   steps: AuthoredSimStep[]

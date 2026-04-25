@@ -14,5 +14,6 @@
 | Persistence flow | [developer-guide/08-persistence-flow.md](developer-guide/08-persistence-flow.md) |
 | Authoring UI architecture | [developer-guide/09-authoring-ui-architecture.md](developer-guide/09-authoring-ui-architecture.md) |
 | Docs screenshots playbook | [developer-guide/10-docs-screenshots-playbook.md](developer-guide/10-docs-screenshots-playbook.md) |
+| Simulation recorder architecture | [developer-guide/11-simulation-recorder-architecture.md](developer-guide/11-simulation-recorder-architecture.md) |
 
 **Start here:** [developer-guide/index.md](developer-guide/index.md)

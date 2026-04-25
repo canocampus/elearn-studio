@@ -14,6 +14,8 @@ A **simulation** is an interactive activity where the learner practises a task b
 
 A **Software Walkthrough** guides the learner through a real-world software task by replaying screenshots of the application. The learner clicks, hovers, or types where the author has marked a hotspot; the simulation advances one step at a time.
 
+You can build one in three ways: record the steps live from the real application, import a previous recording session, or upload screenshots manually one at a time. All three paths land in the same step list — see [13 — Software Walkthrough](13-software-walkthrough.md) for the details.
+
 **Use it when** you need to teach *"how to do X in this specific tool"* — for example: open a support ticket, complete a form, run a report, follow a safety procedure on a dashboard.
 
 **Keyword:** *guided imitation*. The learner imitates the exact steps of a real task.

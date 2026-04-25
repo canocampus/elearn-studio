@@ -95,9 +95,60 @@ export interface E2EStoreBind {
   subscribe(listener: () => void): () => void
 }
 
+/**
+ * TD-014.29 (F7) — sim editor + recorder stores exposed for E2E only.
+ * Shapes are intentionally narrow to the fields specs actually read so the
+ * ambient declaration doesn't drift with refactors of the store internals.
+ * If a spec needs a new field, widen here at the boundary — do NOT reach in
+ * with `as unknown as` at the call site.
+ */
+interface E2ESimStoreState {
+  config: {
+    mode: 'demo' | 'practice' | 'assessment'
+    passingScore: number
+    steps: Array<{
+      id: string
+      order: number
+      description: string
+      instruction: string
+      screenshotKey: string
+      screenshotUrl: string
+      hotspot: { x: number; y: number; width: number; height: number; tolerance: number }
+      interactionType?: 'click' | 'hover' | 'type'
+      expectedText?: string
+    }>
+  } | null
+  selectedStepIndex: number
+  panelOpen: boolean
+}
+
+interface E2ERecorderStoreState {
+  activeSessionId: string | null
+  recording: boolean
+  captures: unknown[]
+  error: string | null
+  isBusy: boolean
+}
+
+export interface E2ESimStoreBind {
+  getState(): E2ESimStoreState
+  setState(partial: Partial<E2ESimStoreState>): void
+  subscribe(listener: () => void): () => void
+}
+
+export interface E2ERecorderStoreBind {
+  getState(): E2ERecorderStoreState
+  setState(partial: Partial<E2ERecorderStoreState>): void
+  subscribe(listener: () => void): () => void
+}
+
 declare global {
   interface Window {
     __elearn_editor?: E2EEditor
     __elearn_store?: E2EStoreBind
+    /** Sim editor Zustand store — DEV / E2E only (TD-014.29 / F7). */
+    __simStore?: E2ESimStoreBind
+    /** Recorder lifecycle Zustand store — DEV / E2E only (TD-014.29 / F7). */
+    __recorderStore?: E2ERecorderStoreBind
   }
 }

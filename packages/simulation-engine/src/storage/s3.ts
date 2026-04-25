@@ -3,7 +3,10 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
 } from '@aws-sdk/client-s3'
 import { Readable } from 'stream'
 import { config } from '../config'
@@ -83,4 +86,44 @@ export async function listObjects(prefix: string): Promise<string[]> {
 /** Check that the bucket is reachable and credentials are valid. */
 export async function checkStorage(): Promise<void> {
   await getClient().send(new HeadBucketCommand({ Bucket: BUCKET }))
+}
+
+/**
+ * Check whether an object exists. Returns true on success; false on NotFound.
+ * Non-404 errors (network, auth) propagate so the caller can map them correctly
+ * (e.g. 503 vs 404 in HTTP responses).
+ */
+export async function headObject(key: string): Promise<boolean> {
+  try {
+    await getClient().send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }))
+    return true
+  } catch (err: unknown) {
+    const e = err as { name?: string; $metadata?: { httpStatusCode?: number } }
+    if (e?.name === 'NotFound' || e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404) {
+      return false
+    }
+    throw err
+  }
+}
+
+/** Delete a single object by key. */
+export async function deleteObject(key: string): Promise<void> {
+  await getClient().send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
+}
+
+/**
+ * Bulk-delete up to 1000 keys in a single call (S3 / Garage multi-object delete).
+ * Chunks larger lists into 1000-key batches. Empty input is a no-op.
+ */
+export async function deleteObjects(keys: string[]): Promise<void> {
+  if (keys.length === 0) return
+  const client = getClient()
+  const BATCH = 1000
+  for (let i = 0; i < keys.length; i += BATCH) {
+    const chunk = keys.slice(i, i + BATCH)
+    await client.send(new DeleteObjectsCommand({
+      Bucket: BUCKET,
+      Delete: { Objects: chunk.map(Key => ({ Key })), Quiet: true },
+    }))
+  }
 }

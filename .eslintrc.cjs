@@ -24,6 +24,23 @@ module.exports = {
         react: { version: 'detect' },
       },
     },
+    {
+      // Playwright's test/beforeAll/beforeEach API REQUIRES the first argument
+      // to be a destructure pattern (so its fixtures injector can recognise the
+      // shape). When a hook needs no fixtures, the canonical Playwright form is
+      // `async ({}, testInfo) => …` — `no-empty-pattern` flags this as a style
+      // issue but the rule cannot know about Playwright's runtime contract.
+      // Disabling the rule for E2E spec files is a scoped, justified exception
+      // (per AGENTS.md §11.8 lint-suppression policy): the off-toggle is paired
+      // with a documented reason, and confined to the directory where the API
+      // contract makes the empty pattern legitimate. Discovered as a regression
+      // in TD-014.35 → TD-014.27.e: the alternative ('_args' rename) broke
+      // Playwright's runtime validator at suite start.
+      files: ['e2e/**/*.spec.ts'],
+      rules: {
+        'no-empty-pattern': 'off',
+      },
+    },
   ],
   rules: {
     '@typescript-eslint/no-unused-vars': ['error', {

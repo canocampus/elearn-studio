@@ -8,6 +8,10 @@ vi.mock('../storage/s3', () => ({
   getObjectJson:   vi.fn(),
   listObjects:     vi.fn().mockResolvedValue([]),
   checkStorage:    vi.fn().mockResolvedValue(undefined),
+  // TD-014.8b — recorder session deletion
+  headObject:      vi.fn().mockResolvedValue(true),
+  deleteObject:    vi.fn().mockResolvedValue(undefined),
+  deleteObjects:   vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@playwright/test', () => {
@@ -336,5 +340,95 @@ describe('GET /recorder/sessions/:id/screenshot', () => {
     vi.mocked(browser.getLiveScreenshot).mockRejectedValue(new Error('Browser not found for session: xyz'))
     const res = await request(app).get('/recorder/sessions/xyz/screenshot')
     expect(res.status).toBe(404)
+  })
+})
+
+// ── TD-014.8b — DELETE /recorder/sessions/:id ────────────────────────────────
+
+describe('DELETE /recorder/sessions/:id', () => {
+  beforeEach(() => {
+    vi.mocked(s3.headObject).mockReset()
+    vi.mocked(s3.listObjects).mockReset()
+    vi.mocked(s3.deleteObjects).mockReset()
+    vi.mocked(s3.deleteObject).mockReset()
+  })
+
+  it('returns 204 on successful deletion of session + screenshots', async () => {
+    vi.mocked(s3.headObject).mockResolvedValue(true)
+    vi.mocked(s3.listObjects).mockResolvedValue([
+      'recordings/abc-123/session.json',
+      'recordings/abc-123/screenshots/step-0001.png',
+      'recordings/abc-123/screenshots/step-0002.png',
+      'recordings/abc-123/screenshots/step-0003.png',
+    ])
+    vi.mocked(s3.deleteObjects).mockResolvedValue(undefined)
+
+    const res = await request(app).delete('/recorder/sessions/abc-123')
+
+    expect(res.status).toBe(204)
+    expect(res.body).toEqual({})
+    expect(vi.mocked(s3.headObject)).toHaveBeenCalledWith('recordings/abc-123/session.json')
+    expect(vi.mocked(s3.listObjects)).toHaveBeenCalledWith('recordings/abc-123/')
+    expect(vi.mocked(s3.deleteObjects)).toHaveBeenCalledTimes(1)
+    const deletedKeys = vi.mocked(s3.deleteObjects).mock.calls[0][0] as string[]
+    expect(deletedKeys).toHaveLength(4)
+    expect(deletedKeys).toContain('recordings/abc-123/session.json')
+    expect(deletedKeys).toContain('recordings/abc-123/screenshots/step-0001.png')
+  })
+
+  it('returns 204 when only session.json exists (no screenshots)', async () => {
+    vi.mocked(s3.headObject).mockResolvedValue(true)
+    vi.mocked(s3.listObjects).mockResolvedValue(['recordings/solo/session.json'])
+    vi.mocked(s3.deleteObjects).mockResolvedValue(undefined)
+
+    const res = await request(app).delete('/recorder/sessions/solo')
+
+    expect(res.status).toBe(204)
+    expect(vi.mocked(s3.deleteObjects)).toHaveBeenCalledWith(['recordings/solo/session.json'])
+  })
+
+  it('returns 404 when session.json does not exist', async () => {
+    vi.mocked(s3.headObject).mockResolvedValue(false)
+
+    const res = await request(app).delete('/recorder/sessions/missing')
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toMatch(/not found/i)
+    expect(vi.mocked(s3.listObjects)).not.toHaveBeenCalled()
+    expect(vi.mocked(s3.deleteObjects)).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when sessionId contains invalid characters (path traversal)', async () => {
+    const res = await request(app).delete('/recorder/sessions/..%2Fevil')
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/sessionId/i)
+    expect(vi.mocked(s3.headObject)).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for sessionId with disallowed chars (caught by format check)', async () => {
+    // Underscore is not in the alphanumeric/hyphen regex — rejected by validateSessionId.
+    const res = await request(app).delete('/recorder/sessions/abc_xyz')
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/sessionId/i)
+  })
+
+  it('returns 500 when bulk delete fails', async () => {
+    vi.mocked(s3.headObject).mockResolvedValue(true)
+    vi.mocked(s3.listObjects).mockResolvedValue(['recordings/abc/session.json'])
+    vi.mocked(s3.deleteObjects).mockRejectedValue(new Error('S3 AccessDenied'))
+
+    const res = await request(app).delete('/recorder/sessions/abc')
+
+    expect(res.status).toBe(500)
+    expect(res.body.error).toMatch(/delete/i)
+  })
+
+  it('returns 503 when storage network is unreachable during existence check', async () => {
+    const netErr = Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' })
+    vi.mocked(s3.headObject).mockRejectedValue(netErr)
+
+    const res = await request(app).delete('/recorder/sessions/abc')
+
+    expect(res.status).toBe(503)
   })
 })

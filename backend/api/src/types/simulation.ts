@@ -36,6 +36,11 @@ export interface SimHotspot {
   tolerance: number
 }
 
+/** T202 / TD-014.33: Interaction type for a simulation step. Must stay in
+ *  lockstep with `packages/authoring-ui/src/types/simulation.ts` — the
+ *  backend-to-frontend contract relies on identical union members. */
+export type SimInteractionType = 'click' | 'hover' | 'type'
+
 export interface AuthoredSimStep {
   id: string
   order: number
@@ -49,12 +54,20 @@ export interface AuthoredSimStep {
   screenshotKey: string
   screenshotUrl: string
   hotspot: SimHotspot
+  /** T202: How the learner interacts with this step (default: 'click').
+   *  The backend always emits 'click' on import because the recorder only
+   *  captures click events; the author can change it to 'hover' or 'type'
+   *  in the StepForm. */
+  interactionType: SimInteractionType
+  /** T202: Required text for 'type' interaction steps.
+   *  Never populated on import (the recorder produces no typing steps);
+   *  authors set it manually after switching `interactionType` to 'type'. */
+  expectedText?: string
 }
 
 export type SimMode = 'demo' | 'practice' | 'assessment'
 
 export interface SimConfig {
-  sessionId: string
   mode: SimMode
   passingScore: number
   steps: AuthoredSimStep[]

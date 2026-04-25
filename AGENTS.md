@@ -110,6 +110,88 @@ These subtasks require owner approval before executing any tool or making any ch
 1. State which files and commits you intend to review
 2. STOP — wait for owner confirmation to proceed
 3. Run the code-reviewer tool only after explicit approval
+---
+
+## 2.2. Solution Proposal Protocol
+
+When proposing a fix or solution to a problem (lint error, failing test, design 
+question, refactor opportunity, bug report), the agent must order alternatives 
+by **structural correctness first, diff size second**.
+
+**Required ordering of presented options:**
+
+1. **Root-cause solution** — addresses the underlying contract, design, or 
+   architectural issue, even if it requires more code, more tests, or touches 
+   more files.
+2. **Pragmatic mitigations** — smaller-diff alternatives that paper over the 
+   symptom without addressing the cause. These may be presented as additional 
+   options, but never as the recommended one.
+3. **Hybrid / scoped versions** — when the root-cause solution is too large for 
+   the current sprint, a hybrid that captures part of the structural fix while 
+   deferring the rest, with the deferred work documented as an explicit 
+   follow-up task.
+
+**Rules:**
+
+- The agent does NOT default to "smallest diff" as the recommended option. 
+  Smallest diff wins only when it IS the structurally correct solution.
+- When unsure which option is "more correct", surface the ambiguity to the 
+  owner — do not silently pick minimal scope.
+- When generating alternatives, produce at least three structurally distinct 
+  options spanning different points on the design space (not three variants of 
+  the same approach with different naming). If only two genuinely distinct 
+  options exist, say so explicitly and explain why a third was considered and 
+  rejected.
+- Disabling rules, silencing errors, suppressing warnings, or modifying tests 
+  to match broken behaviour are NEVER root-cause solutions. They belong in 
+  category (2) and require the explicit justification described in Rule 8 
+  (Lint Suppression Policy).
+
+**Anti-patterns to avoid:**
+
+- Proposing a single option without considering alternatives.
+- Presenting alternatives ordered by diff size (smallest first).
+- Recommending the smallest-diff option without explicit reasoning that it is 
+  also the structurally correct one.
+- Treating "minimal change to make the symptom go away" as equivalent to 
+  "solving the problem".
+
+### 2.2.1. Operating Modes — Executor vs Advisor
+
+The agent operates in two distinct modes depending on the request. Misidentifying 
+the mode produces the most common protocol violations: executing when the owner 
+expected analysis, or analysing when the owner expected execution.
+
+**Executor mode** — triggered by requests like "implement TXX.N", "apply the 
+fix described in the ADR", "run the tests", "make the change we agreed on".
+- The decision is already made; the agent's job is faithful execution.
+- Surface deviations from the spec as questions, not as alternatives to 
+  reconsider.
+- Minimal-diff bias is appropriate here — the goal is to do exactly what 
+  was decided, no more.
+
+**Advisor mode** — triggered by requests like "how should we approach X", 
+"what are the alternatives", "write an ADR for Y", "audit Z", "should we 
+do A or B".
+- The decision is open; the agent's job is to map the design space for the 
+  owner.
+- The agent does NOT recommend by default unless explicitly asked. Recommending 
+  pre-empts the owner's authority over the decision.
+- When asked to recommend, the agent does so AFTER laying out the full space, 
+  marks the recommendation as "agent's reading" not "the answer", and explicitly 
+  states what would change the recommendation.
+- Minimal-diff bias is INAPPROPRIATE here — the goal is faithful exposition 
+  of trade-offs, not converging on a single answer.
+
+**When the mode is ambiguous:** the agent asks the owner which mode applies 
+before proceeding. Defaulting silently to Executor mode in an Advisor situation 
+is a protocol violation — it strips the owner of the decision they were about 
+to make.
+
+**The owner's role in Advisor mode is collaborative discovery, not approval 
+of a pre-decided answer.** The agent's success metric is "did the owner have 
+the information they needed to decide well", not "did my recommendation get 
+accepted".
 
 ---
 
@@ -344,7 +426,14 @@ it TWICE → offset = +iframeRect.left (93px in this project).
 7. **GrapesJS open-source only** — Use the `grapesjs` npm package (MIT license).
    Do NOT use GrapesJS Studio SDK (enterprise/paid product).
 
-8. **Phaser MIT license** — Phaser 3 is MIT. Do not use Phaser Nano or any paid variants.
+8. **Lint suppression policy** - Before suppressing a lint rule (eslint-disable-*, @ts-ignore, 
+   @ts-expect-error, biome-ignore, etc.) on a specific line, file, or globally: first attempt a refactor that 
+   satisfies the rule using existing codebase conventions. Suppression is allowed only when (a) the rule is a
+   documented false positive against a framework idiom, AND (b) no rename/refactor that respects the rule exists.
+   When suppressing, the line above must contain the justification: which rule, why the rule is wrong here, 
+   what convention was tried first.okok c
+
+9. **Phaser MIT license** — Phaser 3 is MIT. Do not use Phaser Nano or any paid variants.
 
 ### 11.1 GrapesJS + React Hook Rules
 

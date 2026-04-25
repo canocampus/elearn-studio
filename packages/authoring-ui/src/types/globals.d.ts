@@ -37,6 +37,18 @@ declare global {
     __elearn_editor?: unknown
     /** Zustand store bind API — DEV / E2E only. */
     __elearn_store?: ElearnStoreBind
+    /**
+     * Sim editor Zustand store — DEV / E2E only (TD-014.29 / F7).
+     * Used by `simulation-editor.spec.ts` to read hotspot bounds, step
+     * content, and config post-reload.
+     */
+    __simStore?: ElearnStoreBind
+    /**
+     * Recorder lifecycle Zustand store — DEV / E2E only (TD-014.29 / F7).
+     * Used by `simulation-recorder.spec.ts` to read `activeSessionId` for
+     * cleanup via `DELETE /recorder/sessions/:id`.
+     */
+    __recorderStore?: ElearnStoreBind
   }
 }
 

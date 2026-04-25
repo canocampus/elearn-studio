@@ -7,6 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.66] — 2026-04-26 — TD-014: Screenshot Simulation Recorder UI + audit-externo phase A + style consistency
+
+### Added — Authoring surface for Software Walkthrough (TD-014.2 → TD-014.13)
+
+- **`+ Add step` button** in `SimulationEditor` (footer of step list) — closes the deadlock where the §13 manual promised "click Add step" but no UI affordance existed. Backed by `simStore.addStep(overrides?)` which appends an `AuthoredSimStep` with sane defaults + zero-size hotspot sentinel that puts `HotspotCanvas` into draw-mode automatically.
+- **`Upload…` and `Asset Library` buttons** in `StepForm` — wires `uploadAsset`/`resolveAssetUrl` (canonical pattern from `ButtonPropertiesPanel`) for per-step screenshots. Previously `screenshotKey` was unreachable from the UI; new steps would render a blank canvas with no path to fix.
+- **Hotspot draw-mode in `HotspotCanvas`** — `mouseDown → mouseMove → mouseUp` gesture commits a new rectangle when the active step's hotspot is the zero-size sentinel; preserves `tolerance` and `(x,y)` on Clear. `Clear hotspot` button in `StepForm` resets the active step's rectangle.
+- **`Record…` and `Import…` buttons** in `SimulationEditor` header — open the recorder launcher dialog and the persisted-sessions picker, respectively. Disabled while a recording session is active to prevent overlapping launches.
+- **`RecorderLauncherDialog`** — modal with URL + title fields, click-outside + Escape close (gated by `isBusy`), inline error banner, URL length limit (≤2048 chars) per audit F8.
+- **`RecorderLiveView`** — full-screen overlay during active recording: live JPEG preview (500ms polling with rotating cache-buster — see `getLiveScreenshotUrl` docstring for the two independent reasons it's mandatory), capture-step button, and three exit paths per `decisions/2026-04-24-recorder-stop-semantics.md`: **Stop & import** (default success path), **Stop** (preserve in Sessions for later import), **Discard** (confirm → delete from Garage). Esc maps to **Discard** with confirmation.
+- **`SessionsPickerDialog`** — lists persisted recording sessions with status / step count / per-row import button. Reads from `GET /recorder/sessions`. Status pill colour-coded by `'recording' | 'finished' | 'error'`.
+- **`recorderStore` (Zustand)** — owns recorder lifecycle: `activeSessionId`, `recording`, `captures`, `error`, `isBusy`, `start/capture/stop/reset`. No-op guards prevent duplicate backend calls from racing clicks; failed `stop()` keeps `recording: true` so the user can retry without orphaning the session.
+- **`simStore.setConfig(config)`** — replaces the active `SimConfig` after import without re-opening the overlay (preserves `panelOpen` + `editingComponentId`); clamps `selectedStepIndex` to the new step range.
+
+### Added — Backend recorder endpoints (TD-014.8 / TD-014.8a / TD-014.8b)
+
+- **`@elearn-studio/simulation-engine` package**: CORS middleware (`createCorsMiddleware()`) with single-origin allow-list from `SIMULATION_ENGINE_ALLOWED_ORIGIN` (default `http://localhost:3000`); `credentials: false` by design — session IDs flow in JSON body, never cookies. Covered by 7 unit tests.
+- **`DELETE /recorder/sessions/:id`** for E2E cleanup — removes `session.json` and all referenced screenshots from Garage; 404-silent path so already-deleted sessions don't fail the E2E teardown. Internal/admin endpoint; not surfaced in the user-manual UI.
+- **F1 — `interactionType` initialised to `'click'`** on the `RawSimStep → AuthoredSimStep` import mapping in `backend/api/src/routes/simulations.ts` (TD-014.33). Required field on the authoring side; previous behaviour silently relied on test mocks pre-seeding the field.
+
+### Added — E2E coverage (TD-014.22 / TD-014.23 / TD-014.29 → TD-014.38)
+
+- **`e2e/tests/simulation-editor.spec.ts`** — `create → upload → reorder → save → reload → persistence` end-to-end flow including draw-mode hotspot gesture (TD-014.35) and post-reload hotspot persistence assertion (TD-014.31).
+- **`e2e/tests/simulation-recorder.spec.ts`** — `launcher → live view → capture → stop & import` flow gated on `SIMULATION_ENGINE_URL`; cleans up the recording from Garage in the test teardown via the new `DELETE /recorder/sessions/:id` endpoint.
+- **`window.__simStore` and `window.__recorderStore`** exposed in DEV/E2E builds (TD-014.29 / F7) — replaces the fictitious `window.__recorderSessionId` reference that prior CI runs silently fell through, accumulating orphan sessions in Garage.
+- **+22 tests on `RecorderLauncherDialog`** covering URL length boundary (F8), click-outside + Escape gates against `isBusy` (F9 / TD-014.38).
+
+### Added — Documentation (TD-014.25 + reorganisation)
+
+- **`docs/developer-guide/11-simulation-recorder-architecture.md`** — sequence diagram (authoring-ui → backend-api → simulation-engine → Garage), `recorderStore`/`simStore` boundary, data shapes (`SimStep` + naming-asymmetry callout for `RawSimStep` alias used inside `backend/api`, `Session`, `SessionSummary`, `AuthoredSimStep`, `SimConfig` — *without* `sessionId` per TD-014.2b), HTTP surface, lifecycle phases, threading/resource model, configuration env vars, failure modes. Cross-linked from `developer-guide/index.md` + `developer-guide.md`.
+- **`docs/AUDIT_BASELINE_SYMPTOMS.md`** — frozen 2026-04-24 baseline of 30 audit rows / 15 gaps / 2 partials / 4 informational findings that triggered TD-014. Referenced from `tasks.md` TD-014 header.
+- **`docs/user-guide/13-software-walkthrough.md`** — button labels reconciled to ship copy (`+ Add step`, `Upload…`, `Asset Library`, `Record…`, `Import…`, `Save & Close`, `Cancel`); reorder line documents both drag-drop and ↑/↓ buttons + Alt+↑/↓ keyboard fallback (closes audit I-01); new tip on **Record…** + note on **Clear hotspot**; Step fields table extended with **Step screenshot**, **Hotspot tolerance (px)**, **Hotspot**.
+- **`docs/user-guide/12-simulations-overview.md`** — one-liner enumerating the three Software-Walkthrough authoring paths (record / import / manual upload) before the chapter-13 cross-reference.
+- **3 project-wide convention ADRs** in `decisions/`:
+  - `2026-04-25-simulation-style-consistency.md` — 13 sub-decisions of the .24 refactor.
+  - `2026-04-25-button-label-change-convention.md` — widget buttons take label-change; app-chrome buttons use `disabled` overlay only.
+  - `2026-04-25-testid-naming-convention.md` — flat `<scope>-<action>[-<id>]` or `<scope>-<containerType>-<id>`; no hierarchical nesting.
+- **`AGENTS.md` §11.8** — lint-suppression policy: `eslint-disable` only with documented justification, never as a unilateral shortcut to skip a refactor.
+
+### Changed — Style consistency sweep (TD-014.24)
+
+- **`packages/authoring-ui/src/components/simulation/simulationTheme.ts`** — new single-source-of-truth theme module with 5 sections (`colors` 12 semantic tokens, typography, spacing, button composites primary/secondary/success/danger/disabled, surfaces overlayBase/dialog/errorBanner). All five simulation-overlay components migrated to consume it; consensus tokens extracted, layout-specific outliers stay inline with explanatory comments.
+- **Unified copy**: error banner format `'X failed: ${msg}'` across StepForm + RecorderLiveView (`'Could not upload screenshot:'` → `'Upload failed:'`; `'Failed to stop recording:'` → `'Stop failed:'`).
+- **`btnDanger` migrated** from `RecorderLiveView` local styles to `buttons.danger` in the theme (closes commitment in `decisions/2026-04-24-recorder-stop-semantics.md` § Guardrails).
+- **`SessionsPickerDialog` testIDs reconciled** to flat naming: `session-row-${id}` → `sessions-picker-row-${id}`, `session-import-${id}` → `sessions-picker-import-${id}` (per `decisions/2026-04-25-testid-naming-convention.md`).
+- **Label-change removed from app-chrome buttons** (per `decisions/2026-04-25-button-label-change-convention.md`): `Starting…` (RecorderLauncher), `Uploading…` (StepForm), `Loading…` / `Importing…` (SessionsPicker). All revert to fixed labels with `disabled + buttons.disabled` style as the complete state signal.
+
+### Fixed — F1–F11 audit-externo (TD-014.29 → TD-014.38)
+
+- **F5 — Drag-drop E2E assertion was a no-op** (`expect.toContain(expect.stringContaining(''))`). Replaced with real DOM-order + simStore-state assertion (TD-014.30).
+- **F6 — E2E persistence verified only presence** (`toBeVisible` without `toHaveValue`). Now reads instruction values, screenshot keys, and post-drag order through the simStore + StepForm inputs (TD-014.31).
+- **F7 — `__recorderSessionId` referenced fictitious API**. `__recorderStore` / `__simStore` exposed on `window` in DEV/E2E builds (TD-014.29).
+- **F2 — Cancel copy lied about discard semantics**. Three-button exit paths (Stop & import / Stop / Discard) per `decisions/2026-04-24-recorder-stop-semantics.md` (TD-014.34).
+- **F3 — Stale `getLiveScreenshotUrl` docstring** vs `?t=` cache-buster usage in code: docstring now documents the two real reasons the rotating segment is needed (corporate-MITM proxies that ignore `no-store`; React `<img>` only re-fetches on `src`-string change). TD-014.36 owner-picked option B.
+- **F4 — `swagger.ts` schema for `SimConfig.steps` was opaque** (`items: { type: 'object' }`). Added named `AuthoredSimStep` (14 fields) + `SimHotspot` (5 fields) component schemas; `SimConfig.steps.items` now `$ref`s `AuthoredSimStep`. Stale `SimConfig.sessionId` removed from generated client per TD-014.2b. Regenerated `backend/api/openapi.json` + `packages/authoring-ui/src/api/generated.ts` (TD-014.27.d).
+- **F8 — URL length limit** (≤2048 chars) on `POST /recorder/start` + RecorderLauncherDialog (TD-014.37).
+- **F9 — Click-outside + isBusy guards** on RecorderLauncherDialog covered by 3 new tests (TD-014.38).
+- **F10 — E2E draw-mode gesture + hotspot persistence** end-to-end (TD-014.35).
+- **F11 — `handleSave` Toast on error path**; `closePanel()` only on success so a failed save no longer looks identical to a successful one (TD-014.32).
+
+### Fixed — Inherited bugs surfaced during TD-014.27 full-suite verification
+
+- **`registerSimBlock.ts:73` — `model.id` (Backbone-plain, undefined on GrapesJS components) → `model.getId()`**. The wrong identity made `openPanel(config, undefined)` leave `editingComponentId` undefined, which triggered an early-return in `handleSave` and silently kept the overlay open after Save & Close. Pre-existing since the recorder UI was wired up; never surfaced because the unit tests called `openPanel('comp-1')` directly, bypassing `onDblClick`. Caught by the .27 E2E run.
+- **`apiClient.ts:73` — `credentials: 'include'` was hardcoded, ignoring `init.credentials`**. The simulation-engine on :3002 documents `credentials: false` (cookies are not part of its contract — session IDs travel in JSON body); sending `credentials: 'include'` made the browser demand an `Access-Control-Allow-Credentials: true` response that simulation-engine does NOT send by design, surfacing as `TypeError: Failed to fetch` in the launcher dialog. Now respects `init.credentials ?? 'include'`. `recorderApi` exports a `RECORDER_FETCH_INIT = { credentials: 'omit' }` and applies it to all five endpoints.
+- **`packages/phaser-simulations/tsconfig.json` — `__tests__` was in the rollup-typescript build graph**, surfacing a TS narrow-on-callback-assigned-variable warning during `pnpm dev`. Aligned with the authoring-ui pattern: tests excluded from the build's `tsconfig` (vitest still type-checks them via its own pipeline). Companion narrow fix at `PhaserSimWidget.test.ts:150` (`as { widgetId: string } | null` cast restores declared type after closure assignment).
+- **`.eslintrc.cjs` override for `e2e/**/*.spec.ts`** disables `no-empty-pattern` — Playwright's `beforeAll`/`beforeEach` API requires the first argument to be a destructure pattern (`async ({}, testInfo) => …`); the rule cannot know about that runtime contract. Replaces the earlier `_args` rename which lint-passed but broke Playwright's runtime validator. Justified scope-by-scope per AGENTS.md §11.8.
+
+### Fixed — Pre-existing test bugs surfaced by TD-014.27.e
+
+- **`simulation-editor.spec.ts:153` — `find('[data-widget="screenshot-sim"]')` returned nothing** because GrapesJS does not auto-attach `data-widget` to component model attributes. Walks `getWrapper().components()` and filters by `c.get('type')` instead, matching the fallback pattern already in `docs-screenshots.spec.ts:798–802`.
+- **`simulation-recorder.spec.ts:82` — read `activeSessionId` post-Stop&Import** when `handleStopAndImport` had already called `reset()` per its documented contract. Snapshot now happens BEFORE the click.
+
+### Refactored
+
+- **`packages/authoring-ui/src/components/simulation/SimulationEditor.tsx`** — three `'#6c7086'` literals replaced with `colors.textMuted` (R-H1 from TD-014.26 reviewer pass; refactor missed them initially).
+- **`docs/developer-guide/11-simulation-recorder-architecture.md`** — primary type name renamed `RawSimStep` → `SimStep` (8 sites: data-shape interface block + `Session.steps` + sequence-diagram comment ×2 + boundary table ×2 + HTTP table + lifecycle prose ×2). Added explicit "Naming asymmetry" callout: the `RawSimStep` alias only exists in `backend/api/src/types/simulation.ts`; `simulation-engine` and `authoring-ui` both call it `SimStep` (R-M1 from TD-014.26 reviewer pass).
+
+### Verified
+
+- `pnpm -r lint` 0 errors (2 pre-existing TD-004 react-hooks/exhaustive-deps warnings on `useComponentProperty.ts:82,159` unchanged).
+- `npx tsc --noEmit` (authoring-ui + backend) exit 0.
+- `vitest`: authoring-ui **1039/1039**, backend **149/149**, simulation-engine **74/74**, phaser-simulations **125/125**.
+- `playwright test`: **167 passed, 2 skipped, 0 failed** (full suite, including `simulation-editor.spec.ts` + `simulation-recorder.spec.ts`).
+
+### Notes
+
+- `decisions/2026-04-24-recorder-stop-semantics.md` was authored mid-block (TD-014.34) and is referenced from CHANGELOG entry; the ADR was committed in `ea02db4` alongside the two convention ADRs.
+- `RUNTIME_PLAYER_CHANGES.md` (working-tree planning doc) deleted — fix work for the recorder pipeline is captured authoritatively in `tasks.md`, this CHANGELOG entry, and `WORKING_CONTEXT.md`. Standalone planning docs become stale once correlated with closure notes.
+
+---
+
 ## [0.5.65] — 2026-04-23 — TD-012: typed `window.__elearn_editor` boundary + docs-screenshots playbook
 
 ### Refactored

@@ -26,7 +26,6 @@ function makeCbs(): SimPlayerCallbacks & { onComplete: ReturnType<typeof vi.fn>;
 
 function makeConfig(overrides: Partial<SimConfig> = {}): SimConfig {
   return {
-    sessionId: 'sess-test',
     mode: 'practice',
     passingScore: 80,
     steps: [

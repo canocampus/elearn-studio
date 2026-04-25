@@ -154,12 +154,19 @@ simulationsRouter.post(
           screenshotKey: raw.screenshotKey,
           screenshotUrl: `/simulations/screenshot?key=${encodeURIComponent(raw.screenshotKey)}`,
           hotspot,
+          // TD-014.33 (F1): seed the interaction contract. The recorder only
+          // captures click events — 'hover' / 'type' are author-only choices
+          // toggled later via StepForm. Omitting this field before .33 left
+          // the frontend union type violated at runtime (undefined where the
+          // discriminant was expected) and the select default-value match
+          // path in StepForm silently papered over it. `expectedText` stays
+          // absent by design; it only applies to 'type' steps.
+          interactionType: 'click',
         }
       },
     )
 
     const simConfig: SimConfig = {
-      sessionId,
       mode: 'practice',
       passingScore: 80,
       steps,

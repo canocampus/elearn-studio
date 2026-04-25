@@ -68,9 +68,17 @@ export function registerSimBlock(editor: Editor): void {
       events: { dblclick: 'onDblClick' },
 
       onDblClick() {
-        // `this.model` is the GrapesJS component model (Backbone.Model)
-        const model = (this as { model: { id: string; get: (k: string) => unknown } }).model
-        const componentId: string = model.id
+        // `this.model` is the GrapesJS component model (Backbone.Model).
+        // `model.getId()` (NOT `model.id`) returns the GrapesJS-public component
+        // identifier — the same string `editor.getWrapper().find('#<id>')` uses
+        // to look up a component, and the value `c.getId()` returns in helpers
+        // like `addBlockById`. `model.id` is the Backbone-plain Model identity
+        // and is frequently undefined on GrapesJS components, which used to
+        // pass `componentId === undefined` into `openPanel`, leaving
+        // `editingComponentId` undefined and silently breaking the Save & Close
+        // flow at `handleSave` (early-return on missing editingComponentId).
+        const model = (this as { model: { getId: () => string; get: (k: string) => unknown } }).model
+        const componentId: string = model.getId()
         const extProps = model.get('extendedProperties') as { simConfig: SimConfig | null } | undefined
         const existing = extProps?.simConfig ?? null
 
@@ -79,7 +87,6 @@ export function registerSimBlock(editor: Editor): void {
         } else {
           // No config yet — open with an empty scaffold
           const emptyConfig: SimConfig = {
-            sessionId: '',
             mode: 'practice',
             passingScore: 80,
             steps: [],

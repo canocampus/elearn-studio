@@ -23,19 +23,21 @@ The **Software Walkthrough** (also labelled **Screenshot Sim** in the Blocks tab
 1. Drag **Screenshot Sim** from the **Blocks** tab onto your slide.
 2. Resize and position the block where you want the simulation to appear at runtime.
 3. **Double-click** the block. The Software Walkthrough editor opens full-screen.
-4. The editor shows three columns: the **step list**, the **screenshot canvas** with hotspot overlay, and the **step form**. Above them, the header shows the Mode selector, the Passing Score input, and the **Save & Close** button.
+4. The editor shows three columns: the **step list**, the **screenshot canvas** with hotspot overlay, and the **step form**. Above them, the header shows the Mode selector, the Passing Score input, and four buttons: **Record…** (capture steps live from a real application), **Import…** (open a previous recording session), **Save & Close**, and **Cancel**.
 
 ### Adding steps
 
-Each step is one screen the learner sees. You add steps either by recording them from a real application or by uploading screenshots manually and filling in the fields.
+Each step is one screen the learner sees. You add steps in one of three ways: record them live from a real application, import a previous recording, or upload screenshots manually one at a time.
 
-1. With the editor open, click **Add step** (or the equivalent button in your editor).
-2. Upload the screenshot for this step, or pick one from the Asset Library.
+1. With the editor open, click **+ Add step** at the bottom of the step list.
+2. In the right panel's **Step screenshot** field, click **Upload…** to pick an image from your computer, or **Asset Library** to pick one already in the course.
 3. The screenshot appears in the centre canvas.
 4. Edit the step's fields in the right panel — see [Step fields](#step-fields) below.
 5. Save the step.
 
-Repeat for every step of the task. Steps run in the order shown in the left column — drag them up or down to reorder.
+Repeat for every step of the task. Steps run in the order shown in the left column — drag them up or down to reorder, or use the ↑ ↓ buttons on each step (keyboard: focus a step and press Alt+↑ / Alt+↓).
+
+> 💡 **Tip:** To capture many steps quickly from a real tool, click **Record…** in the header and follow the recorder. Each click in the recorded application becomes one step in the walkthrough, with the screenshot pre-filled. You can then edit instructions, hints, and hotspots step by step.
 
 ---
 
@@ -50,9 +52,11 @@ A **hotspot** is the region of the screenshot the learner has to interact with. 
 1. Select the step in the step list.
 2. In the centre canvas, drag a rectangle over the area on the screenshot the learner must interact with.
 3. Adjust the rectangle's size by dragging its corner handles. Leave a small margin around the target so the hotspot is forgiving.
-4. In the step form, choose the **interaction type**: *Click*, *Hover*, or *Type*.
-5. If the interaction is *Type*, fill in the **Expected text** (the string the learner must type to succeed).
+4. In the step form, choose the **Interaction type**: *Click*, *Hover*, or *Type text*.
+5. If the interaction is *Type text*, fill in the **Expected text** (the string the learner must type to succeed).
 6. Save the step.
+
+> ℹ️ **Note:** If you need to redo a hotspot, click the **Clear hotspot** button in the step form. The rectangle resets and you can drag a new one on the screenshot.
 
 > 💡 **Tip:** A hotspot should be slightly larger than the visible target. A button that looks like 30 × 20 px is often easier to hit as a 40 × 30 px hotspot. This respects the **tolerance** the simulation allows.
 
@@ -64,15 +68,18 @@ Every step has a common set of fields you configure in the right panel.
 
 | Field | What it does | Notes |
 |---|---|---|
-| **Description** | Internal description of the step. Not shown to the learner. | Auto-filled when the step is recorded; editable. |
+| **Step screenshot** | The image the learner sees for this step. | Set with the **Upload…** or **Asset Library** buttons above the field. |
+| **Description** | Internal description of the step. Not shown to the learner. | Auto-generated when the step is recorded or uploaded; edit to customise. |
 | **Instruction** | The text shown to the learner, telling them what to do. | Short and specific — e.g. *"Click the New Ticket button."* |
 | **Hint** | Shown after the learner's first wrong attempt, in Practice mode. | Keep it supportive, not sarcastic. |
 | **Correct feedback** | Shown after a correct action. | Short confirmation — *"Good. Now…"* |
 | **Incorrect feedback** | Shown after a wrong action (in Assessment mode) or after the last allowed attempt. | Explain *why* the answer was wrong. |
-| **Interaction type** | Click / Hover / Type. | Determines what the learner must do on the hotspot. |
-| **Expected text** | For Type interactions: the literal text the learner must type. | Only visible when Interaction = *Type*. |
-| **Demo delay** | How long (in milliseconds) the step is shown in Demo mode before auto-advancing. | Typical values: 2 000–5 000 ms. |
+| **Demo delay (ms)** | How long (in milliseconds) the step is shown in Demo mode before auto-advancing. | Typical values: 2 000–5 000 ms. |
 | **Max attempts** | How many tries the learner has before the step is marked wrong. `-1` = unlimited. | Use a finite number in Assessment mode. |
+| **Hotspot tolerance (px)** | How many pixels of slack the hotspot allows around its edges. | Higher tolerance = more forgiving click target. |
+| **Hotspot** | The target rectangle drawn on the screenshot. | The **Clear hotspot** button resets it so you can redraw. |
+| **Interaction type** | Click / Hover / Type text. | Determines what the learner must do on the hotspot. |
+| **Expected text** | For *Type text* interactions: the literal text the learner must type. | Only visible when Interaction type = *Type text*. |
 
 ---
 

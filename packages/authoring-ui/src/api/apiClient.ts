@@ -38,6 +38,17 @@ async function attemptRefresh(): Promise<string | null> {
 
 // ── Core request function ─────────────────────────────────────────────────
 
+/**
+ * Resolve a request path to a full URL.
+ *
+ * TD-014.8: recorder calls go to a different origin (:3002) than the main API
+ * (:3001), so callers may pass an absolute URL. Relative paths still get
+ * `VITE_API_URL` prepended for the primary-API case.
+ */
+function resolveUrl(path: string): string {
+  return /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const { accessToken, setAuth, clearAuth } = useAuthStore.getState()
 
@@ -55,10 +66,18 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     headers['Content-Type'] = 'application/json'
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const url = resolveUrl(path)
+  // Default to `credentials: 'include'` for the elearn backend (cookie-based
+  // refresh-token handshake); allow callers to override (recorderApi calls
+  // the simulation-engine on :3002 which intentionally rejects cookies — see
+  // `simulation-engine/src/middleware/cors.ts`. Sending `credentials: 'include'`
+  // there triggers a browser CORS preflight that demands an
+  // `Access-Control-Allow-Credentials: true` response header simulation-engine
+  // does NOT send by design, surfacing as `TypeError: Failed to fetch`).
+  const res = await fetch(url, {
     ...init,
     headers,
-    credentials: 'include',
+    credentials: init.credentials ?? 'include',
   })
 
   if (res.status !== 401) return res
@@ -91,7 +110,7 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
 
   // Retry original request with new token
   const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` }
-  return fetch(`${API_BASE}${path}`, {
+  return fetch(url, {
     ...init,
     headers: retryHeaders,
     credentials: 'include',
@@ -106,8 +125,11 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   try {
     res = await apiFetch(path, init)
   } catch (networkErr) {
+    // Absolute URLs (recorder, other origins) render the origin in `path`
+    // already — don't repeat API_BASE in the hint for those cases.
+    const hint = /^https?:\/\//i.test(path) ? '' : ` (is the backend running at ${API_BASE}?)`
     throw new Error(
-      `API ${method} ${path} — network error (is the backend running at ${API_BASE}?): ${networkErr}`,
+      `API ${method} ${path} — network error${hint}: ${networkErr}`,
     )
   }
   if (!res.ok) {

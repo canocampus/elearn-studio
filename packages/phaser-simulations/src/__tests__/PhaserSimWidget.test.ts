@@ -147,7 +147,9 @@ describe('PhaserSimWidget', () => {
       simCompleteCallback?.()
 
       window.removeEventListener('elearn:widgetScore', listener)
-      expect(receivedDetail?.widgetId).toBe('w-quiz-99')
+      // TS narrows `receivedDetail` to `null` because flow analysis cannot
+      // see the listener-closure assignment; cast restores the declared type.
+      expect((receivedDetail as { widgetId: string } | null)?.widgetId).toBe('w-quiz-99')
     })
 
     it('injects error UI into container when Phaser.Game constructor throws', async () => {

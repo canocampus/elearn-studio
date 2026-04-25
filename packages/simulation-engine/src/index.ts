@@ -5,10 +5,14 @@ import { checkStorage } from './storage/s3'
 import { recorderRouter } from './routes/recorder'
 import { activeBrowserCount, stopAllRecordings } from './recorder/browser'
 import { activeCount as activeSessionCount } from './recorder/sessions'
+import { createCorsMiddleware } from './middleware/cors'
 
 validateConfig()
 
 const app = express()
+// TD-014.8a: CORS must run BEFORE body parsing so preflight (OPTIONS) responses
+// don't attempt to parse an absent JSON body.
+app.use(createCorsMiddleware())
 // H-02: limit request body size to prevent large payload abuse
 app.use(express.json({ limit: '100kb' }))
 

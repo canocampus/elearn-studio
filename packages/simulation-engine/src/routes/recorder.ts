@@ -8,7 +8,7 @@ import {
   getLiveScreenshot,
   activeBrowserCount,
 } from '../recorder/browser'
-import { getObjectJson, putObject, listObjects } from '../storage/s3'
+import { getObjectJson, putObject, listObjects, headObject, deleteObjects } from '../storage/s3'
 import type { Session, SessionSummary } from '../recorder/types'
 
 export const recorderRouter: ExpressRouter = Router()
@@ -279,6 +279,60 @@ recorderRouter.get('/sessions/:id', async (req: Request, res: Response) => {
       console.error('[recorder] get session failed:', id, err)
       res.status(500).json({ error: 'Failed to retrieve session' })
     }
+  }
+})
+
+/**
+ * DELETE /recorder/sessions/:id — remove a persisted session + all its screenshots.
+ *
+ * TD-014.8b (audit R-04): primary use case is E2E test cleanup (TD-014.23) so
+ * the recordings bucket does not accumulate orphan sessions across CI runs.
+ * Not surfaced in the user-manual UI; internal admin/test endpoint only.
+ *
+ * Flow: validate id → HeadObject(session.json) → 404 if absent → ListObjects
+ * under `recordings/{id}/` → bulk DeleteObjects → 204 No Content.
+ */
+recorderRouter.delete('/sessions/:id', async (req: Request, res: Response) => {
+  const id = req.params.id as string
+
+  const sessionIdError = validateSessionId(id)
+  if (sessionIdError) {
+    res.status(400).json({ error: sessionIdError })
+    return
+  }
+
+  const sessionKey = `recordings/${id}/session.json`
+  let exists: boolean
+  try {
+    exists = await headObject(sessionKey)
+  } catch (err: unknown) {
+    if (isNetworkError(err)) {
+      console.error('[recorder] storage network error checking session:', id, err)
+      res.status(503).json({ error: 'Storage unavailable' })
+      return
+    }
+    console.error('[recorder] head session failed:', id, err)
+    res.status(500).json({ error: 'Failed to check session' })
+    return
+  }
+
+  if (!exists) {
+    res.status(404).json({ error: `Session not found: ${id}` })
+    return
+  }
+
+  try {
+    const keys = await listObjects(`recordings/${id}/`)
+    await deleteObjects(keys)
+    res.status(204).end()
+  } catch (err: unknown) {
+    if (isNetworkError(err)) {
+      console.error('[recorder] storage network error deleting session:', id, err)
+      res.status(503).json({ error: 'Storage unavailable' })
+      return
+    }
+    console.error('[recorder] delete session failed:', id, err)
+    res.status(500).json({ error: 'Failed to delete session' })
   }
 })
 

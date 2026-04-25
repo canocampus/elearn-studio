@@ -136,7 +136,6 @@ describe('POST /courses/:id/simulations/import', () => {
     expect(res.body.success).toBe(true)
 
     const config = res.body.data
-    expect(config.sessionId).toBe('sess-abc')
     expect(config.mode).toBe('practice')
     expect(config.passingScore).toBe(80)
     expect(config.steps).toHaveLength(3)
@@ -163,6 +162,32 @@ describe('POST /courses/:id/simulations/import', () => {
     // Step 2: unknown → generic description
     const s2 = config.steps[2]
     expect(s2.description).toBe('Step 3')
+  })
+
+  // TD-014.33 (F1): interactionType must be seeded on every imported step.
+  // Pre-.33 the backend omitted the field; the frontend mock fixture lied by
+  // pre-seeding it, which is exactly the "mocks that mask a real contract"
+  // anti-pattern called out in ~/.claude/rules/common/ai-regression.md.
+  // This test is the contract. `expectedText` stays undefined because the
+  // recorder cannot produce 'type' steps — authors toggle that manually.
+  it('seeds interactionType="click" on every imported step (no expectedText)', async () => {
+    mockGetObject.mockResolvedValue({
+      stream: streamFromString(JSON.stringify(SAMPLE_SESSION)),
+      contentType: 'application/json',
+      contentLength: undefined,
+    })
+
+    const res = await request(app)
+      .post('/courses/course-1/simulations/import')
+      .set(auth)
+      .send({ sessionId: 'sess-abc' })
+
+    expect(res.status).toBe(200)
+    const config = res.body.data
+    for (const step of config.steps) {
+      expect(step.interactionType).toBe('click')
+      expect(step.expectedText).toBeUndefined()
+    }
   })
 
   it('returns 500 on unexpected storage error', async () => {

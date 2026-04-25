@@ -18,6 +18,7 @@ Technical reference for contributors and developers extending eLearn Studio.
 | [08 — Persistence Flow](./08-persistence-flow.md) | GrapesJS edit → debounce → store() → PATCH API → cache update → slide-switch cache hit |
 | [09 — Authoring UI Architecture](./09-authoring-ui-architecture.md) | Inside `packages/authoring-ui`: canvas lifecycle, Zustand vs Backbone, unified persistence, hooks, preview handshake, Props router |
 | [10 — Docs Screenshots Playbook](./10-docs-screenshots-playbook.md) | How to regenerate User Manual v2 screenshots: prerequisites, techniques (tall-panel capture, native `<select>` size-expand, clean-filename bypass, widget-re-locate, Moodle context), deferred placeholders |
+| [11 — Simulation Recorder Architecture](./11-simulation-recorder-architecture.md) | Simulation Recorder pipeline: topology (authoring-ui → backend api → simulation-engine → Garage), end-to-end sequence diagram, `recorderStore` vs `simStore` boundary, data shapes (RawSimStep / Session / SessionSummary / AuthoredSimStep / SimConfig), HTTP surface, lifecycle (start/capture/stop/import/save), threading and configuration |
 
 ---
 

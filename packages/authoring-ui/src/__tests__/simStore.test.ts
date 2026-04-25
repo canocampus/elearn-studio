@@ -8,7 +8,6 @@ import type { SimConfig } from '../types/simulation'
 
 function makeConfig(stepCount: number): SimConfig {
   return {
-    sessionId: 'sess-test',
     mode: 'practice',
     passingScore: 80,
     steps: Array.from({ length: stepCount }, (_, i) => ({
@@ -163,5 +162,140 @@ describe('simStore', () => {
     useSimStore.getState().openPanel(makeConfig(1), 'comp-1')
     useSimStore.getState().updatePassingScore(70)
     expect(useSimStore.getState().config!.passingScore).toBe(70)
+  })
+
+  // ── addStep (TD-014.2) ─────────────────────────────────────────────────────
+
+  describe('addStep (TD-014.2)', () => {
+    it('appends a step with default values when no overrides given', () => {
+      useSimStore.getState().openPanel(makeConfig(0), 'comp-1')
+      useSimStore.getState().addStep()
+
+      const steps = useSimStore.getState().config!.steps
+      expect(steps).toHaveLength(1)
+
+      const [step] = steps
+      expect(step.id).toMatch(/^step-[a-f0-9]{8}$/)
+      expect(step.order).toBe(0)
+      expect(step.description).toBe('')
+      expect(step.instruction).toBe('')
+      expect(step.hint).toBe('')
+      expect(step.correctFeedback).toBe('')
+      expect(step.incorrectFeedback).toBe('')
+      expect(step.demoDelay).toBe(3000)
+      expect(step.maxAttempts).toBe(-1)
+      expect(step.screenshotKey).toBe('')
+      expect(step.screenshotUrl).toBe('')
+      // Zero-size hotspot sentinel → HotspotCanvas enters draw-mode
+      expect(step.hotspot).toEqual({ x: 0, y: 0, width: 0, height: 0, tolerance: 12 })
+    })
+
+    it('sets order to the current steps length (appends to end)', () => {
+      useSimStore.getState().openPanel(makeConfig(3), 'comp-1')
+      useSimStore.getState().addStep()
+
+      const steps = useSimStore.getState().config!.steps
+      expect(steps).toHaveLength(4)
+      expect(steps[3].order).toBe(3)
+    })
+
+    it('sets selectedStepIndex to the index of the new step', () => {
+      useSimStore.getState().openPanel(makeConfig(2), 'comp-1')
+      useSimStore.getState().selectStep(0)
+      useSimStore.getState().addStep()
+
+      expect(useSimStore.getState().selectedStepIndex).toBe(2)
+    })
+
+    it('overrides take precedence over defaults (shallow merge)', () => {
+      useSimStore.getState().openPanel(makeConfig(0), 'comp-1')
+      useSimStore.getState().addStep({
+        description: 'Custom description',
+        instruction: 'Click here',
+        demoDelay: 500,
+      })
+
+      const [step] = useSimStore.getState().config!.steps
+      expect(step.description).toBe('Custom description')
+      expect(step.instruction).toBe('Click here')
+      expect(step.demoDelay).toBe(500)
+      // Un-overridden defaults preserved
+      expect(step.maxAttempts).toBe(-1)
+      expect(step.hotspot).toEqual({ x: 0, y: 0, width: 0, height: 0, tolerance: 12 })
+    })
+
+    it('does nothing when config is null', () => {
+      // beforeEach already sets config: null
+      useSimStore.getState().addStep()
+      expect(useSimStore.getState().config).toBeNull()
+    })
+
+    it('is immutable — does not mutate the previous steps array', () => {
+      const config = makeConfig(2)
+      useSimStore.getState().openPanel(config, 'comp-1')
+      const originalStepsRef = config.steps
+      const originalLength = originalStepsRef.length
+
+      useSimStore.getState().addStep()
+
+      expect(originalStepsRef).toHaveLength(originalLength)
+      expect(useSimStore.getState().config!.steps).not.toBe(originalStepsRef)
+    })
+
+    it('produces unique step ids across successive calls', () => {
+      useSimStore.getState().openPanel(makeConfig(0), 'comp-1')
+      useSimStore.getState().addStep()
+      useSimStore.getState().addStep()
+      useSimStore.getState().addStep()
+
+      const ids = useSimStore.getState().config!.steps.map(s => s.id)
+      expect(new Set(ids).size).toBe(3)
+    })
+  })
+
+  // ── setConfig (TD-014.2) ───────────────────────────────────────────────────
+
+  describe('setConfig (TD-014.2)', () => {
+    it('replaces the config entirely', () => {
+      useSimStore.getState().openPanel(makeConfig(2), 'comp-1')
+      const next = makeConfig(5)
+      useSimStore.getState().setConfig(next)
+
+      expect(useSimStore.getState().config).toBe(next)
+    })
+
+    it('preserves panelOpen and editingComponentId', () => {
+      useSimStore.getState().openPanel(makeConfig(2), 'comp-42')
+      useSimStore.getState().setConfig(makeConfig(3))
+
+      const state = useSimStore.getState()
+      expect(state.panelOpen).toBe(true)
+      expect(state.editingComponentId).toBe('comp-42')
+    })
+
+    it('clamps selectedStepIndex when the new config has fewer steps', () => {
+      useSimStore.getState().openPanel(makeConfig(5), 'comp-1')
+      useSimStore.getState().selectStep(4)
+      useSimStore.getState().setConfig(makeConfig(2))
+
+      // max valid index in a 2-step config is 1
+      expect(useSimStore.getState().selectedStepIndex).toBe(1)
+    })
+
+    it('resets selectedStepIndex to 0 when the new config has no steps', () => {
+      useSimStore.getState().openPanel(makeConfig(3), 'comp-1')
+      useSimStore.getState().selectStep(2)
+      useSimStore.getState().setConfig(makeConfig(0))
+
+      expect(useSimStore.getState().selectedStepIndex).toBe(0)
+    })
+
+    it('keeps selectedStepIndex when the new config has enough steps', () => {
+      useSimStore.getState().openPanel(makeConfig(5), 'comp-1')
+      useSimStore.getState().selectStep(2)
+      useSimStore.getState().setConfig(makeConfig(10))
+
+      expect(useSimStore.getState().selectedStepIndex).toBe(2)
+    })
   })
 })

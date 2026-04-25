@@ -5,6 +5,12 @@
 export const config = {
   port: parseInt(process.env.PORT ?? '3002', 10),
 
+  // TD-014.8a: CORS allow-origin for browser → :3002 recorder calls.
+  // Single origin only (the authoring-ui dev server). No wildcards in prod.
+  http: {
+    allowedOrigin: process.env.SIMULATION_ENGINE_ALLOWED_ORIGIN ?? 'http://localhost:3000',
+  },
+
   garage: {
     endpoint:  process.env.GARAGE_ENDPOINT  ?? 'localhost',
     port:      process.env.GARAGE_PORT      ?? '3900',
