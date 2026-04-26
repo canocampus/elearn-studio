@@ -17,7 +17,7 @@
     "verify:install": "pnpm install --frozen-lockfile",
     "verify:lint": "pnpm lint",
     "verify:types": "pnpm --filter @elearn-studio/shared-types run build",
-    "verify:test": "pnpm --filter '!@elearn-studio/e2e' -r run test",
+    "verify:test": "pnpm -r --filter='./packages/*' --filter='./backend/*' run test",
     "verify:gen": "pnpm --filter @elearn-studio/authoring-ui run gen:api-client",
     "verify:build": "cross-env VITE_API_URL=http://localhost:3001 VITE_E2E_MODE=true pnpm -r run build",
     "verify:ci": "pnpm verify:install && pnpm verify:lint && pnpm verify:types && pnpm verify:test && pnpm verify:gen && pnpm verify:build",
