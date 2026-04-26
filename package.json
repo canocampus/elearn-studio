@@ -13,11 +13,20 @@
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-path .gitignore"
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-path .gitignore",
+    "verify:install": "pnpm install --frozen-lockfile",
+    "verify:lint": "pnpm lint",
+    "verify:types": "pnpm --filter @elearn-studio/shared-types run build",
+    "verify:test": "pnpm --filter '!@elearn-studio/e2e' -r run test",
+    "verify:gen": "pnpm --filter @elearn-studio/authoring-ui run gen:api-client",
+    "verify:build": "cross-env VITE_API_URL=http://localhost:3001 VITE_E2E_MODE=true pnpm -r run build",
+    "verify:ci": "pnpm verify:install && pnpm verify:lint && pnpm verify:types && pnpm verify:test && pnpm verify:gen && pnpm verify:build",
+    "verify:ci:debug": "node scripts/verify-ci-debug.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.10.0",
     "@typescript-eslint/parser": "^7.10.0",
+    "cross-env": "^7.0.3",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.0",

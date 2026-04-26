@@ -13,6 +13,9 @@ coverage/
 *.tsbuildinfo
 backend/api/openapi.json
 packages/authoring-ui/src/api/generated.ts
+.gemini/
+graphify-out/
+
 
 # Debug / scratch files (not part of source)
 *.php

@@ -23,6 +23,8 @@ Proceeding without explicit confirmation is a protocol violation.
 
 The agent must validate changes against the patterns defined in .claude/skills/grapesjs-react-lifecycle/SKILL.md. The automatic pre-edit hook will report any deviations in resource cleanup.
 
+**Verification commands MUST mirror CI** — `tsc -b` is incremental and skips cached-passed files; `tsc --noEmit` likewise. A green local `tsc -b` is NOT sufficient to claim "verified". The canonical pre-push command is `pnpm verify:ci` (defined in root `package.json`); use `pnpm verify:ci:debug` for diagnostic mode (`--fail-soft`, `--quick`, `--only`, `--from`, `--help`). See **§4.1 — Local vs CI environment parity** for the full asymmetry table and rationale. Skipping §4.1 produces false-greens that fail in CI's build phase (root cause of the TD-014 closure CI red on 2026-04-26).
+
 ---
 
 ## 1. Session Start Protocol
@@ -114,6 +116,19 @@ These subtasks require owner approval before executing any tool or making any ch
 
 ## 2.2. Solution Proposal Protocol
 
+Agent and owner are a team covering each other's blind spots: the owner 
+brings project trajectory, prior decisions, and business context; the 
+agent brings structural alternatives, missing investigation depth, and 
+options the owner may not have framed. The protocols in this section 
+channel the agent's contribution in the right direction; they do NOT 
+suppress it. A response that follows the rules to the letter but adds 
+no substance — empty observations, procedural ceremony, frame-respect 
+as cover for laziness, three weak alternatives where two genuine ones 
+exist — violates the purpose even when it passes the literal filter. 
+The owner retains final authority over important decisions; the agent 
+never pre-empts that authority but is expected to contribute 
+substantively, not merely procedurally.
+
 When proposing a fix or solution to a problem (lint error, failing test, design 
 question, refactor opportunity, bug report), the agent must order alternatives 
 by **structural correctness first, diff size second**.
@@ -123,18 +138,26 @@ by **structural correctness first, diff size second**.
 1. **Root-cause solution** — addresses the underlying contract, design, or 
    architectural issue, even if it requires more code, more tests, or touches 
    more files.
-2. **Pragmatic mitigations** — smaller-diff alternatives that paper over the 
-   symptom without addressing the cause. These may be presented as additional 
-   options, but never as the recommended one.
-3. **Hybrid / scoped versions** — when the root-cause solution is too large for 
+2. **Hybrid / scoped versions** — when the root-cause solution is too large for 
    the current sprint, a hybrid that captures part of the structural fix while 
    deferring the rest, with the deferred work documented as an explicit 
    follow-up task.
+3. **Pragmatic mitigations** — smaller-diff alternatives that paper over the 
+   symptom without addressing the cause. These may be presented as additional 
+   options. They are NEVER the default recommendation. They MAY become the 
+   recommended option only if and when the owner has explicitly stated a 
+   constraint (time, scope, risk tolerance) that overrides structural 
+   correctness; the constraint must be cited verbatim as the justification in 
+   the recommendation.
 
 **Rules:**
 
 - The agent does NOT default to "smallest diff" as the recommended option. 
   Smallest diff wins only when it IS the structurally correct solution.
+- **Sufficiency over maximality:** structural correctness is the minimum 
+  sufficient set of changes addressing the root cause; it is not the maximal 
+  refactor that the cause might motivate. Related cleanup that does not block 
+  the fix should be surfaced as a follow-up task, not bundled.
 - When unsure which option is "more correct", surface the ambiguity to the 
   owner — do not silently pick minimal scope.
 - When generating alternatives, produce at least three structurally distinct 
@@ -144,7 +167,7 @@ by **structural correctness first, diff size second**.
   rejected.
 - Disabling rules, silencing errors, suppressing warnings, or modifying tests 
   to match broken behaviour are NEVER root-cause solutions. They belong in 
-  category (2) and require the explicit justification described in Rule 8 
+  category (3) and require the explicit justification described in Rule 8 
   (Lint Suppression Policy).
 
 **Anti-patterns to avoid:**
@@ -169,29 +192,83 @@ fix described in the ADR", "run the tests", "make the change we agreed on".
   reconsider.
 - Minimal-diff bias is appropriate here — the goal is to do exactly what 
   was decided, no more.
+- **Sub-decisions during execution** (method vs function, hook vs utility, 
+  naming, file placement, etc.): apply existing repo conventions silently. 
+  Escalate only when (a) two conventions contradict, (b) no convention 
+  exists for the case, or (c) the existing convention conflicts with 
+  structural correctness for the concrete case (per §2.2). The third 
+  escape hatch prevents silent application of convention from undermining 
+  §2.2's structural-correctness-first rule.
 
 **Advisor mode** — triggered by requests like "how should we approach X", 
 "what are the alternatives", "write an ADR for Y", "audit Z", "should we 
 do A or B".
 - The decision is open; the agent's job is to map the design space for the 
   owner.
+- **When the owner asks "A or B" and a third option C may exist,** answer 
+  the binary question first within its own frame, then surface C separately 
+  as a follow-up: "Within your A vs B question: [answer]. As a separate 
+  observation, option C also exists — happy to develop if relevant". The 
+  purpose is bidirectional blind-spot coverage: the agent surfaces options 
+  the owner may not have seen, just as the owner brings context (project 
+  trajectory, future complications) the agent may not have. Silence on C 
+  under cover of "frame respect" defaults to the same min-diff bias §2.2 
+  exists to prevent.
 - The agent does NOT recommend by default unless explicitly asked. Recommending 
   pre-empts the owner's authority over the decision.
-- When asked to recommend, the agent does so AFTER laying out the full space, 
-  marks the recommendation as "agent's reading" not "the answer", and explicitly 
-  states what would change the recommendation.
+- Any phrasing that conveys preference for one option over others — explicit 
+  ("recomiendo X") or implicit ("mi sugerencia", "yo empezaría", "lo lógico 
+  sería", "tiene más sentido") — counts as a recommendation and is subject 
+  to the same rules.
+- When asked to recommend, the agent does so AFTER laying out the full space 
+  and marks the recommendation as "agent's reading" not "the answer". The 
+  falsifiability clause — explicitly stating what would change the 
+  recommendation — is mandatory when the recommendation is decision-in-play 
+  (the owner is about to act on it), and optional when the recommendation 
+  is exploratory (the owner is gathering context rather than steering action).
 - Minimal-diff bias is INAPPROPRIATE here — the goal is faithful exposition 
   of trade-offs, not converging on a single answer.
 
-**When the mode is ambiguous:** the agent asks the owner which mode applies 
-before proceeding. Defaulting silently to Executor mode in an Advisor situation 
-is a protocol violation — it strips the owner of the decision they were about 
-to make.
+**Mode persistence across turns:** the agent does NOT carry mode from a 
+previous turn into the current one. Each turn re-evaluates which mode 
+applies based on the content of that turn. If a session begins in Advisor 
+and the next message asks for execution, the agent switches to Executor 
+for that turn — the prior Advisor framing does not bind subsequent turns.
+
+**Mode ambiguity and in-flight Advisor concerns:** when the request mode is 
+ambiguous, the agent asks the owner which mode applies before proceeding — 
+defaulting silently to Executor mode in an Advisor situation is a protocol 
+violation. Likewise, when an Advisor concern emerges during Executor work 
+(something the investigation gate of §2.2.2 did not catch, or surfaces only 
+at execution time), the agent halts the Executor action, surfaces the concern, 
+and waits for owner direction before resuming. Both cases share the same 
+principle: the agent does not silently override the owner's decision-space — 
+at the start of the request (mode ambiguity) or in flight (Advisor concern). 
+Deferring in-flight concerns to a post-action note is the in-flight equivalent 
+of silently picking minimal scope.
 
 **The owner's role in Advisor mode is collaborative discovery, not approval 
 of a pre-decided answer.** The agent's success metric is "did the owner have 
 the information they needed to decide well", not "did my recommendation get 
 accepted".
+
+### 2.2.2. Investigation Gate Before Executor Action
+
+Before any Executor action — including in pure Executor requests — the agent 
+must demonstrate investigation proportional to the scope of the change: 
+reading affected dependencies, re-reading existing tests that touch the area, 
+reproducing the problem if applicable. The agent does NOT self-declare 
+"ready to execute" until this gate has been passed.
+
+If investigation reveals any concern — about the approach, about assumptions 
+in the spec, about side effects — those concerns block and surface as 
+Advisor questions before any action is taken.
+
+**Why this exists:** the most common protocol violation observed in this 
+project is acting with insufficient investigation. Tests fail or owner 
+iteration reveals the change required deeper analysis. The investigation 
+gate makes "I have looked enough to act safely" an explicit, demonstrable 
+claim, not a default assumption.
 
 ---
 
@@ -257,6 +334,57 @@ grep -r "ComponentName\|functionName\|'module-name'" \
 - Never comment out or delete a test unless the functionality it covers has been
   explicitly removed
 - Never mark a task done until all related tests pass
+
+### 4.1 Local vs CI environment parity (read before claiming "verified")
+
+**Why this section exists.** TD-014 closure (commit `c151f27`, 2026-04-26) shipped to CI with `npx tsc -b` exit 0 locally and was rejected by CI in the **build** phase with 3 TypeScript errors (`course.id` vs `course._id` ×2, plus a `config` null narrowing miss). The local "green" reading was a false negative — the local commands did not mirror the CI commands. To prevent recurrence, the agent MUST understand the asymmetries below before reporting verification as complete.
+
+**Canonical CI pipeline** (`.github/workflows/ci.yml`, ordered):
+
+```
+1. pnpm install --frozen-lockfile          ← strict; lockfile drift → fail
+2. pnpm lint                               ← root script, all packages
+3. pnpm --filter @elearn-studio/shared-types run build
+4. pnpm --filter '!@elearn-studio/e2e' -r run test
+5. pnpm --filter @elearn-studio/api run gen:openapi   (if-present)
+6. pnpm --filter @elearn-studio/authoring-ui run gen:api-client
+7. pnpm -r run build                       ← per-package: tsc -b && vite build
+8. pnpm --filter @elearn-studio/e2e run test  (against built artefacts)
+```
+
+**The 8 environment asymmetries that produce false-greens locally:**
+
+| # | Asymmetry | Local symptom | CI behaviour | How to mirror locally |
+|---|---|---|---|---|
+| 1 | **`tsc -b` is incremental** — uses `.tsbuildinfo` cache; skips files marked up-to-date | Recently-edited file passes; previously-passed files with new dependency-graph type errors are SKIPPED | Fresh checkout → no `.tsbuildinfo` → every file is re-typechecked from scratch | `pnpm --filter <pkg> exec tsc -b --force` OR delete `**/.tsbuildinfo` before running |
+| 2 | **`pnpm -r run build` is the full gate, not `tsc -b`** — root `pnpm build` runs `tsc -b && vite build` per package; vite invokes a SECOND tsc/esbuild pass | A typecheck-only `tsc -b` exit 0 misses errors caught by the build pipeline (project-references vs. emit-mode discrepancies) | Build runs both; emit-mode catches stricter narrowing failures (e.g. nullable-config in callbacks declared after the early-return guard) | `pnpm -r run build` — same command CI runs. Treat any other typecheck as preliminary. |
+| 3 | **`gen:api-client` runs PRE-build on CI** — regenerates `generated.ts` from the live OpenAPI spec | Local working tree may have a stale `generated.ts` from a previous regen; types may not match what the backend currently emits | CI always uses freshly-regenerated types — drift surfaces immediately as type errors in consumers | `pnpm --filter @elearn-studio/authoring-ui run gen:api-client` before building |
+| 4 | **Linux file-system case-sensitivity** | `import './Foo'` matching `./foo.ts` works on Windows/macOS (case-insensitive FS) | Linux runners are case-sensitive — case-mismatch import → MODULE_NOT_FOUND | When in doubt, verify exact case of every new file name vs every import. WSL or Linux container is the only true mirror. |
+| 5 | **`pnpm install --frozen-lockfile`** — strict | Local edits to `pnpm-lock.yaml` (or implicit drift from `pnpm install`) silently work | CI rejects any divergence between the lockfile and the package.json files | `pnpm install --frozen-lockfile` locally before commit; do not rely on `pnpm install` |
+| 6 | **shared-types built BEFORE tests** — explicit step | Locally we may have stale `packages/shared-types/dist` from old code; consumers see old types | CI builds shared-types first → tests + downstream packages see the latest types | `pnpm --filter @elearn-studio/shared-types run build` before running unit tests if you've touched shared-types |
+| 7 | **CI test scope EXCLUDES e2e**, then runs e2e separately | `pnpm test` at root may include e2e and either fail (no infra) or be skipped | CI explicitly: `pnpm --filter '!@elearn-studio/e2e' -r run test`, then later: `pnpm --filter e2e run test` against built+running services | Mirror the split exactly when verifying, OR run `pnpm -r run test --filter '!e2e'` and `pnpm --filter e2e run test` separately |
+| 8 | **Vite build-time env vars** — CI runs `pnpm -r run build` with `VITE_API_URL=http://localhost:3001` + `VITE_E2E_MODE=true` injected into env; vite bakes these into the static bundle | Local build without those env vars produces a bundle with different runtime behaviour than CI's — the bundle compiles but ships baked-in defaults that diverge from CI | CI sets the env vars at build-step level; bundle ships with CI-baked values | Already wrapped in `pnpm verify:build` (`cross-env VITE_API_URL=... VITE_E2E_MODE=true pnpm -r run build`) — invoked automatically by `pnpm verify:ci` |
+
+**Mandatory local pre-push command:**
+
+```bash
+pnpm verify:ci                  # canonical: chains all verification steps
+pnpm verify:ci:debug            # diagnostic wrapper: --fail-soft, --quick, --only, --from
+pnpm verify:ci:debug --help     # full flag reference
+```
+
+The pipeline is defined in root `package.json` (scripts `verify:install` ... `verify:build`); **that file is the single source of truth** for what `verify:ci` runs. The wrapper `scripts/verify-ci-debug.mjs` invokes those scripts; it does NOT redefine the pipeline. To inspect or modify the canonical sequence, edit `package.json` — this section does not duplicate the command list, so it cannot drift from `package.json` over time.
+
+A `tsc -b` (or `tsc --noEmit`) exit 0 alone is **not** sufficient evidence to claim "tsc clean across all packages". Use `pnpm verify:ci` exit 0 as the floor. The pre-push checklist line in §0 (`Pre-Commit Self-Verification`) is the binding gate.
+
+**Windows-specific noise that is NOT a real failure:**
+- `error during build: ... esbuild-...: Access is denied` after vite reports `transformed N modules` — Windows file-lock on temp file cleanup; build artefacts are produced; CI on Linux is unaffected. Re-run on a fresh shell or move on if `dist/` was created.
+- CRLF vs LF line endings — gitattributes normalise on commit; not a CI failure source by themselves.
+
+**When CI surfaces an error that local did not:**
+1. Do NOT immediately patch and push — first **reproduce locally** by mirroring the exact CI command for that step (use `pnpm verify:ci:debug --only=<step>` to run a single step in isolation).
+2. Confirm the patch fixes the local repro.
+3. Update this section if the asymmetry is novel — future agents must inherit the lesson.
 
 **High-risk files and their related tests — always check these pairs:**
 
@@ -431,7 +559,7 @@ it TWICE → offset = +iframeRect.left (93px in this project).
    satisfies the rule using existing codebase conventions. Suppression is allowed only when (a) the rule is a
    documented false positive against a framework idiom, AND (b) no rename/refactor that respects the rule exists.
    When suppressing, the line above must contain the justification: which rule, why the rule is wrong here, 
-   what convention was tried first.okok c
+   what convention was tried first.
 
 9. **Phaser MIT license** — Phaser 3 is MIT. Do not use Phaser Nano or any paid variants.
 
