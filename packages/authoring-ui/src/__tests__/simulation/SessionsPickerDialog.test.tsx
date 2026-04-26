@@ -13,6 +13,7 @@ import { useEditorStore } from '../../store/editorStore'
 import { useSimStore } from '../../store/simStore'
 import type { SessionSummary } from '../../types/recorder'
 import type { CourseDoc } from '../../types/course'
+import { unsafeCast } from '@elearn-studio/shared-types'
 
 const { mockListSessions, mockImportSimulation } = vi.hoisted(() => ({
   mockListSessions: vi.fn(),
@@ -53,11 +54,14 @@ function makeSummary(over: Partial<SessionSummary> = {}): SessionSummary {
 }
 
 function stubCourse(): CourseDoc {
-  return {
-    _id: 'course-1',
-    title: 'Test course',
-    slides: [],
-  } as unknown as CourseDoc
+  return unsafeCast<CourseDoc>(
+    {
+      _id: 'course-1',
+      title: 'Test course',
+      slides: [],
+    },
+    'test stub for SessionsPickerDialog — only _id/title/slides are read by the SUT',
+  )
 }
 
 beforeEach(() => {

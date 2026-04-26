@@ -12,6 +12,7 @@ import {
 } from '../utils/validateSequence'
 import { detectCycles } from '../utils/cycleDetection'
 import type { ActionSequence, SharedActionSequence } from '../types/actions'
+import { unsafeCast } from '@elearn-studio/shared-types'
 
 const WIDGET_IDS = ['widget-1', 'widget-2']
 const SHARED_NAMES = [{ name: 'myMacro', actions: [] as never[] }]
@@ -318,7 +319,10 @@ describe('validateAllSequences — cycle warnings (T201)', () => {
 describe('T643.2 — Bug B regression: optional chaining guards against undefined arrays', () => {
   it('does not throw when sequence.actions is undefined (old document)', () => {
     // Old MongoDB documents saved before actions was required may have actions: undefined.
-    const seq = { event: 'click' } as unknown as ActionSequence // actions field missing
+    const seq = unsafeCast<ActionSequence>(
+      { event: 'click' },
+      'T643.2 regression: actions field missing in old MongoDB documents (pre-required schema)',
+    )
     expect(() =>
       validateSequence(seq, { widgetIds: [], sharedSequenceNames: [] }),
     ).not.toThrow()

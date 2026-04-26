@@ -25,6 +25,7 @@ import { useEditorStore } from '../../store/editorStore'
 import { useRecorderStore } from '../../store/recorderStore'
 import type { SimConfig } from '../../types/simulation'
 import type { CourseDoc } from '../../types/course'
+import { unsafeCast } from '@elearn-studio/shared-types'
 
 // ── Mocks — Konva (jsdom has no canvas module) ───────────────────────────────
 vi.mock('react-konva', () => ({
@@ -83,7 +84,10 @@ function emptyConfig(): SimConfig {
 }
 
 function stubCourse(): CourseDoc {
-  return { _id: 'course-1', title: 't', slides: [] } as unknown as CourseDoc
+  return unsafeCast<CourseDoc>(
+    { _id: 'course-1', title: 't', slides: [] },
+    'test stub for SimulationEditor.integration — only _id/title/slides are read by the SUT',
+  )
 }
 
 beforeEach(() => {

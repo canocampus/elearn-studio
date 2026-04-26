@@ -1,0 +1,11 @@
+{
+  "name": "eslint-plugin-elearn-local",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Internal ESLint plugin for eLearn Studio. Rules live alongside this package.json so pnpm workspaces can register the plugin via a symlink in node_modules; ESLint resolves it as `elearn-local` (the `eslint-plugin-` prefix is dropped). Not published.",
+  "main": "index.cjs",
+  "files": [
+    "index.cjs",
+    "no-unsafe-domain-cast.cjs"
+  ]
+}

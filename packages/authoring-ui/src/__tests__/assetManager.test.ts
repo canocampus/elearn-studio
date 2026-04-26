@@ -15,6 +15,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { unsafeCoerce } from '@elearn-studio/shared-types'
 
 type CustomFetchFn = (url: string, options: Record<string, unknown>) => Promise<string>
 
@@ -90,7 +91,7 @@ describe('customFetch — REGRESSION: return type must be a JSON string', () => 
       .mockRejectedValueOnce(new Error('presigned skip'))
 
     const cfg = buildAssetManagerConfig()
-    const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
+    const result = await (unsafeCoerce<CustomFetchFn>(cfg.customFetch, 'narrowing GrapesJS opaque customFetch to test-asserted signature'))('/assets', {})
 
     // CRITICAL: GrapesJS calls JSON.parse(result), then target.add(json.data)
     // If this is not a string, json.data is undefined and upload silently fails.
@@ -103,7 +104,7 @@ describe('customFetch — REGRESSION: return type must be a JSON string', () => 
       .mockRejectedValueOnce(new Error('presigned skip'))
 
     const cfg = buildAssetManagerConfig()
-    const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
+    const result = await (unsafeCoerce<CustomFetchFn>(cfg.customFetch, 'narrowing GrapesJS opaque customFetch to test-asserted signature'))('/assets', {})
     const parsed = JSON.parse(result)
 
     // GrapesJS expects json.data to be an array of asset objects
@@ -118,7 +119,7 @@ describe('customFetch — REGRESSION: return type must be a JSON string', () => 
       .mockRejectedValueOnce(new Error('presigned skip'))
 
     const cfg = buildAssetManagerConfig()
-    const result = await (cfg.customFetch as unknown as CustomFetchFn)('/assets', {})
+    const result = await (unsafeCoerce<CustomFetchFn>(cfg.customFetch, 'narrowing GrapesJS opaque customFetch to test-asserted signature'))('/assets', {})
     const parsed = JSON.parse(result)
 
     // data[0] is now { src, name, type } — check the src field maps from backend url.
@@ -144,7 +145,7 @@ describe('customFetch — Bearer token injection', () => {
 
   it('injects Authorization: Bearer header from authStore', async () => {
     const cfg = buildAssetManagerConfig()
-    await (cfg.customFetch as unknown as CustomFetchFn)('/assets', { headers: {} })
+    await (unsafeCoerce<CustomFetchFn>(cfg.customFetch, 'narrowing GrapesJS opaque customFetch to test-asserted signature'))('/assets', { headers: {} })
 
     const calledOptions = fetchMock.mock.calls[0][1] as RequestInit
     const headers = calledOptions.headers as Record<string, string>
@@ -156,7 +157,7 @@ describe('customFetch — Bearer token injection', () => {
     vi.mocked(useAuthStore.getState).mockReturnValueOnce({ accessToken: null } as never)
 
     const cfg = buildAssetManagerConfig()
-    await (cfg.customFetch as unknown as CustomFetchFn)('/assets', { headers: {} })
+    await (unsafeCoerce<CustomFetchFn>(cfg.customFetch, 'narrowing GrapesJS opaque customFetch to test-asserted signature'))('/assets', { headers: {} })
 
     const calledOptions = fetchMock.mock.calls[0][1] as RequestInit
     const headers = calledOptions.headers as Record<string, string>
@@ -179,7 +180,7 @@ describe('customFetch — non-2xx response handling', () => {
 
     const cfg = buildAssetManagerConfig()
     await expect(
-      (cfg.customFetch as unknown as CustomFetchFn)('/assets', {}),
+      (unsafeCoerce<CustomFetchFn>(cfg.customFetch, 'narrowing GrapesJS opaque customFetch to test-asserted signature'))('/assets', {}),
     ).rejects.toBe(errorBody)
   })
 
@@ -193,7 +194,7 @@ describe('customFetch — non-2xx response handling', () => {
 
     const cfg = buildAssetManagerConfig()
     await expect(
-      (cfg.customFetch as unknown as CustomFetchFn)('/assets', {}),
+      (unsafeCoerce<CustomFetchFn>(cfg.customFetch, 'narrowing GrapesJS opaque customFetch to test-asserted signature'))('/assets', {}),
     ).rejects.toBe(errorBody)
   })
 })

@@ -23,6 +23,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useActionsStore } from '../store/actionsStore'
 import { WIDGET_EVENTS, SLIDE_EVENTS } from '../types/actions'
 import type { Action, ActionSequence } from '../types/actions'
+import { unsafeCoerce } from '@elearn-studio/shared-types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -862,7 +863,12 @@ describe('actionsStore — updateNestedAction', () => {
     const condAction = seq?.actions[0] as ReturnType<typeof conditionAction>
     const params = condAction.params as unknown as Record<string, unknown>
     expect(params).toHaveProperty('then')
-    expect((params.then as unknown as Action[])[0]).toBe(newThenAct)
+    expect(
+      unsafeCoerce<Action[]>(
+        params.then,
+        'runtime narrowing: params.then is Action[] at runtime but compile-time Record<string, unknown>',
+      )[0],
+    ).toBe(newThenAct)
   })
 
   it('preserves other nested actions in same branch', () => {

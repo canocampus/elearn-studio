@@ -502,6 +502,7 @@ describe('T701 — buildMCPreviewHTML null/empty guards', () => {
   })
 
   it('T701.3: does not throw when options is null', () => {
+    // eslint-disable-next-line elearn-local/no-unsafe-domain-cast -- intentionally malformed input: testing runtime guard against null options (Partial<MCExtendedProps> would reject null)
     expect(() => buildMCPreviewHTML({ options: null } as unknown as MCExtendedProps)).not.toThrow()
   })
 
@@ -546,6 +547,7 @@ describe('T701 — buildFillPreviewHTML null/empty guards', () => {
   })
 
   it('does not throw when answers is null', () => {
+    // eslint-disable-next-line elearn-local/no-unsafe-domain-cast -- intentionally malformed input: testing runtime guard against null answers (Partial<FillExtendedProps> would reject null)
     expect(() => buildFillPreviewHTML({ answers: null } as unknown as FillExtendedProps)).not.toThrow()
   })
 

@@ -4,3 +4,4 @@ packages:
   - 'backend/*'
   - 'e2e'
   - 'docs'
+  - 'eslint-rules'
