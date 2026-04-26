@@ -378,7 +378,26 @@ The pipeline is defined in root `package.json` (scripts `verify:install` ... `ve
 A `tsc -b` (or `tsc --noEmit`) exit 0 alone is **not** sufficient evidence to claim "tsc clean across all packages". Use `pnpm verify:ci` exit 0 as the floor. The pre-push checklist line in §0 (`Pre-Commit Self-Verification`) is the binding gate.
 
 **Windows-specific noise that is NOT a real failure:**
-- `error during build: ... esbuild-...: Access is denied` after vite reports `transformed N modules` — Windows file-lock on temp file cleanup; build artefacts are produced; CI on Linux is unaffected. Re-run on a fresh shell or move on if `dist/` was created.
+- `[vite:esbuild-transpile] remove ... Access is denied` during `vite build` — Windows locks esbuild's temp files synchronously while esbuild tries to clean them up as part of its normal transform cycle. The error fires within milliseconds of file creation (not from a slow async AV scan finishing late). CI on Linux is unaffected.
+
+  **What does NOT resolve it** (verified 2026-04-26 — save future debugging time):
+  - Pausing Windows Defender via the UI.
+  - Manually deleting lingering `esbuild-*` temp files (~3.5 MB each) before retry. They ARE deletable post-failure, confirming the lock is held only during the build itself, not afterward.
+  - Redirecting `TMPDIR` / `TEMP` / `TMP` env vars to a non-system path. The lock follows the file regardless of location.
+
+  Likely cause is an EDR / IOFilter driver / Defender Tamper Protection layer that real-time-scans regardless of the user-facing AV state.
+
+  **What DOES validate the substance locally without `vite build`:**
+  - `pnpm verify:install`, `verify:lint`, `verify:types`, `verify:test`, `verify:gen` — all run normally.
+  - `pnpm --filter <pkg> exec tsc -b --force` per app package — validates typecheck independent of vite emit; catches the same TS errors `pnpm verify:build` would catch.
+
+  When all of the above pass and only `verify:build` fails with this exact error pattern, the substance has been validated; trust CI Linux for the bundling phase. Do NOT treat `dist/` presence as evidence of success — when this error fires, vite stops mid-output and `dist/` may be incomplete or stale.
+
+  **Future investigation paths (NOT yet attempted):**
+  - `handle.exe` (Sysinternals) to identify the process holding the handle.
+  - `Set-MpPreference -DisableRealtimeMonitoring $true` from an admin PowerShell (requires Tamper Protection off first).
+  - Replace esbuild in vite config — refactor too large to be a casual mitigation.
+
 - CRLF vs LF line endings — gitattributes normalise on commit; not a CI failure source by themselves.
 
 **When CI surfaces an error that local did not:**
