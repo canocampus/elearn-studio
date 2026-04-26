@@ -15,7 +15,6 @@ import type { Editor } from 'grapesjs'
 import { initEditor, setEditorLoading } from '../../editor/initEditor'
 import { useEditorStore } from '../../store/editorStore'
 import { useActionsStore } from '../../store/actionsStore'
-import type { ActionSequence } from '../../types/actions'
 import { isQuestionWidgetType } from '../../types/questions'
 import { isPhaserSimWidgetType } from '../../types/phaserSim'
 import { isButtonWidgetType } from '../sidebar/ButtonPropertiesPanel'
@@ -112,7 +111,7 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
             const slide = useEditorStore.getState().currentSlide()
             if (slide) {
               const widget = slide.widgets.find((w) => w.id === widgetId)
-              useActionsStore.getState().setWidget(widgetId, (widget?.actions ?? []) as unknown as ActionSequence[])
+              useActionsStore.getState().setWidget(widgetId, widget?.actions ?? [])
             }
           }
         })

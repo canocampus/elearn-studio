@@ -8,6 +8,7 @@
 
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import { unsafeCoerce } from '@elearn-studio/shared-types'
 import { type Action, type ActionSequence, type SharedActionSequence, WIDGET_EVENTS, SLIDE_EVENTS } from '../types/actions'
 
 // M4: allowlist of known event names validated at store level
@@ -176,13 +177,22 @@ export const useActionsStore = create<ActionsState>()(devtools((set, get) => ({
       sequences: updateSequence(get().sequences, event, (seq) => {
         const actions = [...seq.actions]
         // Deep-clone the target action before mutating
-        const target = structuredClone(actions[actionIndex]) as unknown as Record<string, unknown>
+        const target = unsafeCoerce<Record<string, unknown>>(
+          structuredClone(actions[actionIndex]),
+          'structuredClone returns unknown shape; we walk it via dynamic keys (then/else/body) below',
+        )
         let cursor = target.params as Record<string, unknown>
         for (const key of path) {
           cursor = cursor[key] as Record<string, unknown>
         }
-        ;(cursor as unknown as Action[])[nestedIndex] = action
-        actions[actionIndex] = target as unknown as Action
+        unsafeCoerce<Action[]>(
+          cursor,
+          'dynamic-key tree walk: cursor is the inner Action[] container at runtime',
+        )[nestedIndex] = action
+        actions[actionIndex] = unsafeCoerce<Action>(
+          target,
+          'finalize tree walk: target is the mutated Action shape (Record<string, unknown> at compile, Action at runtime)',
+        )
         return { ...seq, actions }
       }),
     })

@@ -42,21 +42,17 @@ module.exports = {
       },
     },
     {
-      // Phase 1 of the `as unknown as <DomainType>` cleanup
-      // (decisions/2026-04-26-as-unknown-as-test-stub-cast.md):
-      // enforce `no-unsafe-domain-cast` in test files only. Production-code
-      // casts are addressed in Phase 2 (separate ADR).
+      // Phase 1 + Phase 2 of the `as unknown as <DomainType>` cleanup:
+      //  - Phase 1 (test stubs): decisions/2026-04-26-as-unknown-as-test-stub-cast.md
+      //  - Phase 2 (production): decisions/2026-04-26-as-unknown-as-production-cast.md
       // The rule is type-aware (resolves the cast target's source file to
-      // distinguish "ours" from `node_modules/`); `parserOptions.project: true`
-      // is therefore set in this override only — global type-aware linting
-      // would slow CI without benefit elsewhere.
+      // distinguish "ours" from `node_modules/`); `parserOptions.project` is
+      // therefore set in this override only — global type-aware linting would
+      // slow CI without benefit elsewhere.
       files: [
-        '**/__tests__/**/*.ts',
-        '**/__tests__/**/*.tsx',
-        '**/*.test.ts',
-        '**/*.test.tsx',
-        '**/*.spec.ts',
-        '**/*.spec.tsx',
+        'packages/*/src/**/*.ts',
+        'packages/*/src/**/*.tsx',
+        'backend/*/src/**/*.ts',
       ],
       parserOptions: {
         project: './tsconfig.eslint.json',

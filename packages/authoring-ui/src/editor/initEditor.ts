@@ -7,6 +7,7 @@
 
 import 'grapesjs/dist/css/grapes.min.css'
 import grapesjs, { type Editor } from 'grapesjs'
+import { unsafeCoerce } from '@elearn-studio/shared-types'
 import { buildAssetManagerConfig } from './assetManager'
 import { performSave, registerStorageManager, type StorageContextProvider } from './storageManager'
 import { registerBlocks } from './registerBlocks'
@@ -233,7 +234,10 @@ export function initEditor(opts: InitEditorOptions): {
   // GrapesJS does not guard loadData() against the destroyed state itself.
   // Fix: monkey-patch em.loadData to silently return early when em.destroyed === true.
   type GrapesEditorInternal = { em?: { destroyed?: boolean; loadData?: (data: unknown) => unknown } }
-  const em = (editor as unknown as GrapesEditorInternal).em
+  const em = unsafeCoerce<GrapesEditorInternal>(
+    editor,
+    'reach into GrapesJS internal Backbone model `em` (not in public Editor type) — see T639.8 destroy/load race fix below',
+  ).em
   if (em && typeof em.loadData === 'function') {
     const originalLoadData = em.loadData.bind(em)
     em.loadData = function (data: unknown) {
