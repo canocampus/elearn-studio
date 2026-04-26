@@ -43,7 +43,10 @@
       "PowerShell(pnpm lint *)",
       "PowerShell(Get-Command *)",
       "PowerShell(python -m pip --version 2>&1; python -m pip install --user Pillow 2>&1 | Select-Object -Last 3)",
-      "PowerShell(& \"C:\\\\Users\\\\jose_\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python313\\\\python.exe\" -m pip install --user Pillow 2>&1 | Select-Object -Last 3; & \"C:\\\\Users\\\\jose_\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python313\\\\python.exe\" -c \"from PIL import Image; print\\('PIL', Image.__version__\\)\")"
+      "PowerShell(& \"C:\\\\Users\\\\jose_\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python313\\\\python.exe\" -m pip install --user Pillow 2>&1 | Select-Object -Last 3; & \"C:\\\\Users\\\\jose_\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python313\\\\python.exe\" -c \"from PIL import Image; print\\('PIL', Image.__version__\\)\")",
+      "PowerShell(pnpm *)",
+      "PowerShell(npm install *)",
+      "Read(//c/Users/jose_/AppData/Local/Temp/claude/D--dev-git-elearn-studio/07593184-630a-41c6-bda5-fe53de27148f/tasks/**)"
     ]
   }
 }
