@@ -14,44 +14,12 @@
  */
 
 import { test, expect } from '../fixtures'
-import type { Page } from '@playwright/test'
-import { addBlockById } from '../utils/screenshot'
-import path from 'path'
-
-const FIXTURE_IMG = path.resolve(__dirname, '..', 'fixtures', 'images', 'test.png')
-
-async function triggerDblClick(page: Page, id: string): Promise<void> {
-  await page.evaluate((compId: string) => {
-    const ed = window.__elearn_editor
-    if (!ed) throw new Error('__elearn_editor not exposed')
-    const comp = ed.getWrapper()?.find(`#${compId}`)[0]
-    if (!comp) throw new Error(`component ${compId} not found`)
-    const view = (comp as unknown as { getView?: () => { onDblClick?: () => void } }).getView?.()
-    view?.onDblClick?.()
-  }, id)
-}
-
-async function openSimEditor(page: Page): Promise<string> {
-  const simId = await addBlockById(page, 'screenshot-sim', 'SimUnderTest')
-  await triggerDblClick(page, simId)
-  await expect(page.getByTestId('sim-add-step-btn')).toBeVisible()
-  return simId
-}
-
-async function addAndUploadStep(page: Page, description: string, instruction: string): Promise<void> {
-  await page.getByTestId('sim-add-step-btn').click()
-  // The hidden <input type=file> lives inside StepForm — there is exactly
-  // one of them per rendered StepForm.
-  const fileInput = page.locator('input[type="file"]')
-  await fileInput.setInputFiles(FIXTURE_IMG)
-  // Description input — renders inside the step list row, so filling it gives
-  // the step a stable DOM identity for the TD-014.30 reorder assertion.
-  await page.getByTestId('step-description-input').fill(description)
-  // Instruction textarea — first textarea in the form; verified via simStore
-  // + post-reload read in TD-014.31 (F6).
-  const instructionEl = page.locator('textarea').first()
-  await instructionEl.fill(instruction)
-}
+import {
+  addAndUploadStep,
+  drawHotspotOnSelectedStep,
+  openSimEditor,
+  triggerSimDblClick,
+} from '../utils/simulation'
 
 test.describe('Screenshot Simulation editor — TD-014.22', () => {
   test('create → upload → reorder → save → reload → persistence', async ({ editorPage, page }) => {
@@ -74,38 +42,10 @@ test.describe('Screenshot Simulation editor — TD-014.22', () => {
     // in draw-mode because the seeded hotspot is the zero-size sentinel.
     await page.getByTestId('sim-step-item-0').click()
 
-    // Konva renders its Stage inside a `.konvajs-content` div — no testid
-    // surface; the Konva-owned class is the only stable selector. The sim
-    // editor mounts exactly one Konva stage, so `.first()` is unambiguous.
-    const stage = page.locator('.konvajs-content').first()
-    await stage.waitFor({ state: 'visible' })
-    const stageBox = await stage.boundingBox()
-    if (!stageBox) throw new Error('Konva stage has no bounding box')
-
-    // Drag a rectangle across ~70% × 70% of the stage. HotspotCanvas's
-    // CANVAS_W/H are 640×360 → committed rect is ~448×252 in canvas units,
-    // comfortably above the > 100 / > 50 thresholds; the inset keeps both
-    // corners away from `rectFromPoints`'s clampPoint borders so neither
-    // axis gets squashed.
-    const startX = stageBox.x + 0.15 * stageBox.width
-    const startY = stageBox.y + 0.15 * stageBox.height
-    const endX = stageBox.x + 0.85 * stageBox.width
-    const endY = stageBox.y + 0.85 * stageBox.height
-    await page.mouse.move(startX, startY)
-    await page.mouse.down()
-    await page.mouse.move(endX, endY, { steps: 10 })
-    await page.mouse.up()
-
-    // Immediate assertion — the gesture committed onto step 0. Use ranges,
-    // not exact equality: `rectFromPoints` clamps + rounds, and device
-    // pixel ratio can shift integer values across runners. Poll on width
-    // to absorb any React-commit lag between mouseUp and `updateStep`
-    // landing in the store.
-    await expect.poll(
-      () => page.evaluate(
-        () => window.__simStore?.getState().config?.steps[0].hotspot.width ?? 0,
-      ),
-    ).toBeGreaterThan(100)
+    // Konva drag gesture + commit poll. Helper extracted to
+    // `e2e/utils/simulation.ts` so docs-screenshots reuses the exact same
+    // contract this spec exercises (TD-013.5).
+    await drawHotspotOnSelectedStep(page, 0)
 
     const drawnHotspot = await page.evaluate(
       () => window.__simStore?.getState().config?.steps[0].hotspot ?? null,
@@ -165,7 +105,7 @@ test.describe('Screenshot Simulation editor — TD-014.22', () => {
       return null
     })
     expect(reloadedSimId).toBeTruthy()
-    await triggerDblClick(page, reloadedSimId!)
+    await triggerSimDblClick(page, reloadedSimId!)
 
     await expect(page.getByTestId('sim-add-step-btn')).toBeVisible()
     await expect(page.getByTestId('sim-step-item-0')).toBeVisible()

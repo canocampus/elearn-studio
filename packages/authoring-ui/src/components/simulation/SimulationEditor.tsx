@@ -142,7 +142,7 @@ export function SimulationEditor() {
   }
 
   return (
-    <div style={styles.overlay}>
+    <div data-testid="sim-editor-overlay" style={styles.overlay}>
       {/* Header */}
       <div style={styles.header}>
         <span style={styles.headerTitle}>Simulation Editor — {config.steps.length} steps</span>
@@ -286,7 +286,7 @@ export function SimulationEditor() {
         </div>
 
         {/* ── Canvas ── */}
-        <div style={styles.canvasArea}>
+        <div data-testid="sim-canvas-area" style={styles.canvasArea}>
           {step ? (
             <>
               <div style={styles.instruction}>

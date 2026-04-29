@@ -56,6 +56,11 @@ import {
   selectById,
   SCREENSHOTS_DIR,
 } from '../utils/screenshot'
+import {
+  addAndUploadStep,
+  drawHotspotOnSelectedStep,
+  triggerSimDblClick,
+} from '../utils/simulation'
 
 // This spec is single-worker, serial — the seed course state is carried
 // forward between captures so we do not rebuild everything every shot.
@@ -878,11 +883,56 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     padding: 0,
   })
 
-  // 13-overview.png — full three-column editor overlay AFTER a sample session
-  // is loaded. Requires a recorded session or uploaded screenshots.
-  // 13-hotspot-editor.png — hotspot drawn on a loaded screenshot.
-  // TODO_MANUAL: both need Simulation Editor state that this script cannot
-  // reproduce reliably.
+  // 13-overview.png + 13-hotspot-editor.png — TD-013.5 (2026-04-29). Pure
+  // real-UI flow inheriting the helpers exercised end-to-end by
+  // simulation-editor.spec.ts (TD-014.22 + .35). No store seeding: every
+  // step below is the same path a real author would take.
+  //
+  // Sequence: dblclick swId → overlay opens → +Add step ×2 (each uploads
+  // the canonical fixture image + fills Description + Instruction) → click
+  // step 0 → capture overlay full → draw hotspot via real page.mouse on
+  // the Konva stage → capture canvas area → Cancel to discard the unsaved
+  // sim so subsequent §14 captures start on a clean canvas.
+  try {
+    await triggerSimDblClick(page, swId)
+    await expect(page.getByTestId('sim-add-step-btn')).toBeVisible({ timeout: 5000 })
+    await addAndUploadStep(page, 'Step 1', 'Open the login screen and click Sign in')
+    await addAndUploadStep(page, 'Step 2', 'Enter your password and submit')
+    // After +Add step the freshly-added step is selected; click step 0 so
+    // the overview shot shows step 1 highlighted (matches the user-guide
+    // narrative: "the first step is selected by default").
+    await page.getByTestId('sim-step-item-0').click()
+
+    await captureElement(page, '[data-testid="sim-editor-overlay"]', {
+      filename: '13-overview.png',
+      padding: 0,
+      timeout: 5000,
+    })
+
+    // Hotspot draw on the currently-selected (step 0) — the seeded zero-size
+    // hotspot puts HotspotCanvas in draw mode. The helper polls __simStore
+    // (read-only verification) for the commit landing before returning.
+    await drawHotspotOnSelectedStep(page, 0)
+
+    await captureElement(page, '[data-testid="sim-canvas-area"]', {
+      filename: '13-hotspot-editor.png',
+      padding: 0,
+      timeout: 5000,
+    })
+
+    // Cancel discards the unsaved sim — leaves the widget on the canvas
+    // unchanged, matching the post-`13-block-placeholder` state.
+    await page.getByRole('button', { name: /^Cancel$/ }).click()
+    await expect(page.getByTestId('sim-add-step-btn')).toBeHidden({ timeout: 3000 })
+  } catch (err) {
+    // Defensive — if anything in the overlay flow regresses, emit fullpage
+    // safety nets so the campaign still produces something the author can
+    // crop manually, and surface the error so the next maintainer sees why.
+    // eslint-disable-next-line no-console
+    console.warn('[docs-screenshots] §13 overlay capture failed:', err)
+    await captureFullPage(page, '13-overview.png')
+    await captureFullPage(page, '13-hotspot-editor.png')
+  }
 
   // -------------------------------------------------------------------------
   // §14 — Interactive Scenario
