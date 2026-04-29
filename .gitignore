@@ -1,12 +1,12 @@
-node_modules/
-dist/
 .env
 .env.local
-*.tbk
 .venv/
-docker/volumes/
-*.log
 .DS_Store
+*.log
+
+node_modules/
+dist/
+docker/volumes/
 Thumbs.db
 coverage/
 .nyc_output/
@@ -25,6 +25,7 @@ test.png
 test-results/
 img/
 docs-gestion-tiempo/
+.reports
 
 # E2E auth state (contains tokens — never commit)
 e2e/.auth/
