@@ -40,3 +40,11 @@ rollup.config-*.mjs
 
 # Misc scratch
 docs/issues/external_issues_save.md
+
+# Owner-local work folders (codemaps exports, course piece sandboxes, video assets)
+docs/CODEMAPS/
+piezas-cursos/
+video/
+
+# Claude Code harness scheduled-tasks lock (runtime state, never commit)
+.claude/scheduled_tasks.lock
