@@ -48,3 +48,8 @@ video/
 
 # Claude Code harness scheduled-tasks lock (runtime state, never commit)
 .claude/scheduled_tasks.lock
+# Owner-local operational files (unrelated to elearn-studio — session 2026-07-18)
+install-qwen.bat
+runbook-wazuh-*.md
+# Stray temp blob (suspected pip/AV leftover from the hung Pillow install)
+tmpbhs2hnvk
