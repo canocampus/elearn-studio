@@ -46,10 +46,17 @@ export function useActionsSave() {
 
       if (!widgetId) return
 
-      // Reset stale comparison when switching widgets
+      // TD-015: a widget switch means setWidget() just LOADED the persisted
+      // sequences into the panel — adopt them as the comparison baseline and
+      // stop. Treating the load like an edit (the previous `lastSavedRef =
+      // null` reset) made the subscription re-save whatever was loaded; when
+      // the selection-boundary id bug seeded `[]`, mere selection persisted
+      // an empty array and wiped the widget's saved actions. Loading must
+      // never save; only a subsequent real edit (new sequences array) may.
       if (widgetId !== lastWidgetRef.current) {
         lastWidgetRef.current = widgetId
-        lastSavedRef.current = null
+        lastSavedRef.current = sequences
+        return
       }
 
       if (sequences === lastSavedRef.current) return

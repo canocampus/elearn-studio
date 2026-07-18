@@ -736,7 +736,11 @@ The contract of T024.10 (`Reorder / add / delete steps`) was partially shipped �
 > blockers for the TD-013 screenshot block.
 
 ### TD-015 — Action sequences lost when switching slides (GAP-02 materialised)
-> **Source:** TD-013.5c finding 2 | **Status:** Pending | **Severity:** CRITICAL (author data loss)
+> **Source:** TD-013.5c finding 2 | **Status:** FIX SHIPPED 2026-07-18 (severity downgraded — wipe class closed by design) | **Severity:** was CRITICAL
+
+**Delivered (TDD, RED→GREEN):** (1) `EditorCanvas.tsx` selection boundary resolves the persisted widget id like the storage converter (`attributes.id || getId()`) — a divergent component no longer seeds the actions panel with `[]`. (2) `useActionsSave.ts` load-echo suppression — `setWidget` (loading sequences on selection) adopts the baseline and NEVER triggers a save; only a real edit persists. This closes the entire data-loss class: no seeded `[]` can ever be written back by mere selection, whatever seeds it. (3) Tests: 5 new units (3 reproduced the bug pre-fix) in `EditorCanvas.selection.test.tsx` + `hooks/useActionsSave.test.ts`; new E2E `@regression GAP-02.4` (wire → slide switch → return → re-select → cold reload → actions survive). authoring-ui 1044/1044; E2E action-sequence 9/9 + widget-persistence green.
+
+**Honest residual (documented, not blocking):** GAP-02.4 also passes with the fixes reverted (verified under a hard dev-server restart) — in the standard flow GrapesJS re-adopts `attributes.id` as the model id after slide switches, so the ids do not diverge there. The unit tests construct the divergent state directly and prove the old code wiped on it; the exact §17-campaign loss episode remains un-pinned (revised hypothesis: the slide-4 sequence was wired on `BranchingNav` — Escape did not deselect during the build — and the finals looked at `BranchingNote`; plus no-wait save races. The .5c wire-at-capture restructure already made the campaign deterministic). Reopen only if a real-flow repro of id divergence appears.
 
 Sequences wired through the ActionsEditor were gone after navigating to another
 slide and back: component ids regenerate on slide reload and the sequences

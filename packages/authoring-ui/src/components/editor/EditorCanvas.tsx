@@ -105,8 +105,18 @@ export function EditorCanvas({ courseId, slideId }: EditorCanvasProps) {
             setRightTab('properties')
           }
 
-          // Load widget actions into actionsStore
-          const widgetId: string = component.getId() ?? ''
+          // Load widget actions into actionsStore.
+          //
+          // TD-015: resolve the PERSISTED widget id exactly like the storage
+          // converter does (converters.ts widgetsFromGrapesjs:
+          // `attributes.id || c.getId()`). After a slide reload GrapesJS
+          // assigns a fresh MODEL id while the course doc keys widgets by the
+          // id preserved in the HTML attributes — resolving via getId() alone
+          // missed the lookup, seeded the panel with [], and useActionsSave
+          // persisted that empty array, wiping the widget's saved actions.
+          const attrId = component.getAttributes()['id']
+          const widgetId: string =
+            (typeof attrId === 'string' && attrId) || component.getId() || ''
           if (widgetId) {
             const slide = useEditorStore.getState().currentSlide()
             if (slide) {

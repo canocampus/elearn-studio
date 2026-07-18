@@ -158,4 +158,80 @@ test.describe('Action Sequence Editor: Panel with widget selected (GAP-02)', () 
     // The Navigate action must still be present — proves persistence across reload
     await expect(page.locator('[data-testid="action-item"]').first()).toBeVisible({ timeout: 10_000 })
   })
+
+  test('@regression GAP-02.4 — TD-015: actions survive a slide switch away and back (selection must not wipe them)', async ({ editorPage, page }) => {
+    test.setTimeout(90_000)
+
+    // TD-015 regression. Mid-session slide switches reload the slide via
+    // editor.load(), which regenerates GrapesJS MODEL ids while the persisted
+    // widget id survives only in attributes.id. The selection handler used to
+    // resolve via getId() alone: the course-doc lookup missed, the panel
+    // loaded [], and useActionsSave persisted that empty array — wiping the
+    // widget's saved actions on mere re-selection. (A full page reload —
+    // GAP-02.3 — did NOT catch this: GrapesJS adopts attributes.id as the
+    // model id on cold load, so the ids realign there.)
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    await editorPage.addComponentViaEditor('button')
+    await page.waitForTimeout(300)
+    await page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 10_000 },
+    ).catch(() => page.waitForTimeout(2500))
+
+    // Wire Click → Navigate through the real UI.
+    await editorPage.actionsTab.click()
+    await page.waitForTimeout(300)
+    const patchPromise = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    )
+    await page.getByTitle('Add event').click()
+    await page.waitForTimeout(200)
+    await page.getByRole('menuitem', { name: /click/i }).first().click()
+    await page.waitForTimeout(300)
+    await page.getByRole('button', { name: 'Navigate' }).first().click()
+    await expect(page.locator('[data-testid="action-item"]').first()).toBeVisible({ timeout: 5_000 })
+    await patchPromise.catch(() => page.waitForTimeout(3000))
+
+    // Switch away (slide 0) and back — the slide reload regenerates model ids.
+    await slides.first().click()
+    await editorPage.waitForCanvas()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select the button widget via the JS bridge (selects without adding).
+    await page.waitForFunction(() => !!window.__elearn_editor, { timeout: 15_000 })
+    await page.evaluate(() => {
+      const ed = window.__elearn_editor
+      if (!ed) return
+      const first = ed.getComponents().first()
+      if (first) ed.select(first)
+    })
+    await page.waitForTimeout(500)
+    await editorPage.actionsTab.click()
+
+    // 1) Display contract: the Navigate action is still shown after the switch.
+    await expect(page.locator('[data-testid="action-item"]').first()).toBeVisible({ timeout: 10_000 })
+
+    // 2) Persistence kill-shot: give any (erroneous) selection-triggered save
+    //    time to land, then cold-reload and verify the action SURVIVED in the
+    //    persisted course — pre-fix, the selection above wiped it server-side.
+    await page.waitForTimeout(2500)
+    await page.reload()
+    await editorPage.waitForReloadComplete()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+    await page.waitForFunction(() => !!window.__elearn_editor, { timeout: 15_000 })
+    await page.evaluate(() => {
+      const ed = window.__elearn_editor
+      if (!ed) return
+      const first = ed.getComponents().first()
+      if (first) ed.select(first)
+    })
+    await page.waitForTimeout(500)
+    await editorPage.actionsTab.click()
+    await expect(page.locator('[data-testid="action-item"]').first()).toBeVisible({ timeout: 10_000 })
+  })
 })
