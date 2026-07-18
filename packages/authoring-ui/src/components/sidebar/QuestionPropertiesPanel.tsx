@@ -130,7 +130,7 @@ function ScoringFeedbackForm({
 }: ScoringFeedbackProps) {
   return (
     <>
-      <div style={SECTION_STYLE}>
+      <div style={SECTION_STYLE} data-testid="scoring-section">
         <div style={SECTION_TITLE_STYLE}>Scoring</div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
           <div style={{ flex: 1 }}>

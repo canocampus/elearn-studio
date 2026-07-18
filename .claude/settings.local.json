@@ -47,7 +47,18 @@
       "PowerShell(pnpm *)",
       "PowerShell(npm install *)",
       "Read(//c/Users/jose_/AppData/Local/Temp/claude/D--dev-git-elearn-studio/07593184-630a-41c6-bda5-fe53de27148f/tasks/**)",
-      "mcp__claude_ai_Google_Calendar__create_event"
+      "mcp__claude_ai_Google_Calendar__create_event",
+      "PowerShell(if \\(Test-Path 'node_modules'\\) { \\(Get-ChildItem 'node_modules' -Force | Measure-Object\\).Count } else { 'NO_NODE_MODULES' })",
+      "PowerShell(if \\(Test-Path 'node_modules\\\\.pnpm'\\) { \\(Get-ChildItem 'node_modules\\\\.pnpm' -Directory | Measure-Object\\).Count } else { 'NO_PNPM_STORE' })",
+      "PowerShell(node --version)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(Get-Content '_test.log' | Select-String -Pattern 'Tests\\\\s+\\\\d|Test Files\\\\s+\\\\d|\\\\d+\\\\s+passed' | ForEach-Object { $_.Line.Trim\\(\\) })",
+      "PowerShell($LASTEXITCODE; $log = Get-Content '_test.log'; \\($log | Select-String -Pattern 'ELIFECYCLE|ELIFE_CYCLE|Command failed|exit code [^0]'\\).Count)",
+      "PowerShell(if \\(Test-Path 'backend/api/openapi.json'\\) { \\(Get-Item 'backend/api/openapi.json'\\).Length, \\(Get-Item 'backend/api/openapi.json'\\).LastWriteTime } else { 'NO_OPENAPI_JSON' })",
+      "PowerShell(if \\(Test-Path 'packages/authoring-ui/src/api/generated.ts'\\) { \\(Get-Item 'packages/authoring-ui/src/api/generated.ts'\\).Length, \\(Get-Item 'packages/authoring-ui/src/api/generated.ts'\\).LastWriteTime } else { 'NO_GENERATED_TS' })",
+      "PowerShell(Test-NetConnection *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(if \\(Test-Path 'CHANGELOG.md'\\) { \\(Get-Content 'CHANGELOG.md' | Measure-Object -Line\\).Lines } else { 'NO_CHANGELOG' })"
     ]
   }
 }

@@ -1,0 +1,7 @@
+{
+  "_comment": "Post-processing crop config for scripts/crop-screenshots.py (TD-013.6). Keys starting with '_' are ignored by the tool. Each entry maps <final filename> -> { source: <-fullpage safety net>, crop: {x, y, width, height} [, callouts: [{number, x, y}], padding: N] }. Coordinates are pixels in the source image (1280x720 default-viewport fullpage). The tool only crops when the final file is missing or older than the source (mtime idempotence) — i.e. when the primary testid capture in e2e/tests/docs-screenshots.spec.ts did not produce it. Rect for 08-scoring-section derived 2026-07-17 from the live element bbox (x:1041, y:416, 227x145) minus the 12px padding used by the primary captureElement path, clamped at the 1280px right edge — fallback output is pixel-equivalent to the primary capture (TD-013.5b).",
+  "08-scoring-section.png": {
+    "source": "08-scoring-section-fullpage.png",
+    "crop": { "x": 1029, "y": 404, "width": 251, "height": 169 }
+  }
+}

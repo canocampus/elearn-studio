@@ -2,13 +2,5 @@
   "name": "@elearn-studio/docs",
   "version": "1.0.0",
   "private": true,
-  "description": "eLearn Studio documentation — scripts and assets",
-  "scripts": {
-    "capture": "tsx scripts/capture-screenshots.ts"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.43.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.5.0"
-  }
+  "description": "eLearn Studio documentation — assets and reference material (screenshot tooling lives in e2e/ + scripts/ since TD-013.10)"
 }

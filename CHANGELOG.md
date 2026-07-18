@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.67] — 2026-07-18 — TD-013: User Manual v2 screenshot campaign — 100% automated
+
+### Added
+
+- **§17 worked-example build (TD-013.5c)** — the campaign now creates a real second course ("Capitals of Europe") via the New Course dialog and builds the five slides of `17-worked-example.md` end-to-end: renamed slides, named widgets at explicit coordinates, MC question fully configured through the real Props inputs (4 options, Berlin correct, 100 pts / 2 attempts, feedbacks), and actions wired live through the ActionsEditor palette (Click→Navigate, Enter Slide→Score Quiz + If/Else with populated Else branch, Click→Send to LMS). Finals captured at 1600×900 so the 1024×768 canvas + right sidebar fit unclipped. `02-first-slide.png` is captured at the genuine single-slide moment right after course creation.
+- **Python post-crop pipeline (TD-013.5b/.6)** — `scripts/crop-screenshots.py` (Pillow, mtime-idempotent, exit-non-zero on missing source/invalid config) + `scripts/run-crop.cjs` (cross-platform interpreter launcher probing for Pillow) + `scripts/screenshots-crop.json`; chained as a `docs:screenshots` post-step and standalone via `docs:crop`. Primary path for `08-scoring-section.png` is a new `data-testid="scoring-section"` on `ScoringFeedbackForm` (only production code change in the block — additive).
+- **New e2e util modules (TD-013.9)** — `e2e/utils/worked-example.ts` (build primitives incl. `retryOnDestroyedContext`) and `e2e/utils/actions.ts` (`ensureEvent` + `insertActionFromPalette`, replacing three near-identical spec-local helpers); `PANEL_NEUTRALISE_RULES`/`ASIDE_NEUTRALISE_RULES` constants deduplicate the T-2 CSS previously inlined at three sites.
+- **Backlog TD-015…TD-020** — six findings filed from the worked-example build (owner directive): action-sequence loss on slide switch (CRITICAL, GAP-02 materialised), nav-buttons broken editor render, slide-level actions manual/product mismatch, done-button label edits not reflected, `name`-trait stripping, and the unexplained `select(null)` evaluate context-destruction (Escape workaround + permanent nav/console/pageerror diagnostics shipped in the spec).
+
+### Fixed
+
+- **`captureElement` padding path never scrolled the target into view** (`e2e/utils/screenshot.ts`) — the docstring promised it; below-fold targets produced invalid clips. `scrollIntoViewIfNeeded()` added before the bbox read.
+- **Recomposed defective baseline captures** (present since `473067b`, exonerating the regeneration the owner flagged): §17 finals no longer re-photograph stacked centred scratch widgets on a clipped canvas; `11-recipe-attempts` fills every required action param (no validation banners); `01-full-ui-annotated` callouts 5–9 sit below the tab strip instead of covering the labels (`addCallouts` offset now per-axis optional); `13-block-placeholder` clipped to the visible canvas region; `14-processflow-builder` seeds the 3-node scene its placeholder promises (shared `PROCESS_FLOW_SCENE` const, deduplicated with `14-json-example`).
+
+### Changed
+
+- **Playbook `10-docs-screenshots-playbook.md`** — T-13…T-18 documented; T-6 superseded (Escape deselect); T-12 snippet corrected to the shipped `role="group"` detection; "Deferred placeholders" retired into a "Historical deferrals — now automated" table; run/output sections rewritten for the chained crop step.
+- **Legacy v1 tooling retired (TD-013.10)** — `docs/scripts/capture-screenshots.ts` + `capture-moodle-screenshot.ts` deleted; `docs/package.json` `capture` script and orphaned devDeps removed (lockfile regenerated); `docs/assets/screenshots/` flagged legacy via README; `user-manual-v2-scope.md` capture workflow rewritten for the automated pipeline.
+
+### Verified
+
+- 55/55 manual placeholders emitted fresh by a single chained run; inventory cross-check (zero missing/orphan/stale); visual pass over all 55 (11 by hand + 44 by vision agent) with the 2 defects it surfaced fixed in-block; campaign green 7+ consecutive runs incl. twice post-refactor; e2e `tsc --noEmit` 0; lint 0 errors; authoring-ui vitest 1039/1039; 20 stale `-fullpage` safety nets removed (only `08-scoring-section-fullpage.png` remains, by design).
+
+---
+
 ## [0.5.66] — 2026-04-26 — TD-014: Screenshot Simulation Recorder UI + audit-externo phase A + style consistency
 
 ### Added — Authoring surface for Software Walkthrough (TD-014.2 → TD-014.13)

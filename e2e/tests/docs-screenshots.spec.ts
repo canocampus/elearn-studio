@@ -24,34 +24,35 @@
  * captures land correctly. Images are written to
  * `docs/user-guide/assets/screenshots/`.
  *
- * ## Scope — 54 placeholders catalogued
+ * ## Scope — every placeholder automated (TD-013, closed sections .1–.6)
  *
- * This script automates the straightforward ones (left-sidebar category
- * crops, Props panel crops after selecting a block, simple Actions-tab
- * compositions). For the hard-to-reach states (native <select> popups,
- * Simulation Editor with drawn hotspots, Preview popup from another
- * origin, complex Actions wiring), the script drives the UI as far as
- * it can and then emits a `*-fullpage.png` safety net via
- * `captureFullPage()` so the final crop can be produced manually from a
- * deterministic snapshot — much faster than reproducing the UI state by
- * hand from scratch.
+ * All 55 manual placeholders are produced by this spec: sidebar category
+ * crops, Props-panel crops, Actions-tab compositions, callout overlays
+ * (T-13), the Sim Editor real-UI overlay flow (T-16), and the §17
+ * worked-example course built from scratch (T-18). The chained post-step
+ * `scripts/run-crop.cjs` (T-17) applies deterministic crops for
+ * dual-strategy captures whenever a primary testid path failed.
  *
  * ## Expected output
  *
- * After a successful run, the folder should contain:
+ * After a successful chained run, the folder should contain:
  *   - 55/55 final PNGs corresponding to every placeholder in the manual
- *   - `-fullpage.png` safety nets for captures whose primary path failed
- *     (defensive — if present, see the playbook to diagnose the regression)
+ *   - `08-scoring-section-fullpage.png` — by-design fresh source for the
+ *     T-17 mtime-idempotent crop fallback, captured every run
+ *   - Any OTHER `-fullpage.png` means a primary capture failed that run
+ *     (defensive — see the playbook to diagnose the regression)
  */
 
 import { test, expect } from '../fixtures/auth'
 import {
   addBlockById,
   addCallouts,
+  ASIDE_NEUTRALISE_RULES,
   capture,
   captureElement,
   captureFullPage,
   ensureWidgetIsCentered,
+  PANEL_NEUTRALISE_RULES,
   removeCallouts,
   selectById,
   SCREENSHOTS_DIR,
@@ -61,6 +62,14 @@ import {
   drawHotspotOnSelectedStep,
   triggerSimDblClick,
 } from '../utils/simulation'
+import { ensureEvent, insertActionFromPalette } from '../utils/actions'
+import {
+  EUROPE_MAP_DATA_URI,
+  idByName,
+  placeAt,
+  retryOnDestroyedContext,
+  setTextContent,
+} from '../utils/worked-example'
 
 // This spec is single-worker, serial — the seed course state is carried
 // forward between captures so we do not rebuild everything every shot.
@@ -127,12 +136,7 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     panelTestId: string,
   ): Promise<void> {
     const style = await page.addStyleTag({
-      content: `[data-testid="${panelTestId}"] {
-        overflow: visible !important;
-        height: auto !important;
-        max-height: none !important;
-        flex: 0 0 auto !important;
-      }`,
+      content: `[data-testid="${panelTestId}"] { ${PANEL_NEUTRALISE_RULES} }`,
     })
     try {
       await captureElement(page, `[data-testid="${panelTestId}"]`, {
@@ -225,11 +229,14 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
       { number: 2, selector: 'aside[aria-label="Slide navigation"]' },
       { number: 3, selector: 'main' },
       { number: 4, selector: 'aside[aria-label="Properties"]' },
-      { number: 5, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(1)' },
-      { number: 6, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(2)' },
-      { number: 7, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(3)' },
-      { number: 8, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(4)' },
-      { number: 9, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(5)' },
+      // Tabs 5–9: drop the circle below each tab (y offset past the ~36px tab
+      // height) so it points at the tab without covering its label
+      // (TD-013.5c(d) — centred circles used to sit ON the labels).
+      { number: 5, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(1)', offset: { y: 58 } },
+      { number: 6, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(2)', offset: { y: 58 } },
+      { number: 7, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(3)', offset: { y: 58 } },
+      { number: 8, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(4)', offset: { y: 58 } },
+      { number: 9, selector: '[role="tablist"][aria-label="Right panel tabs"] > button:nth-child(5)', offset: { y: 58 } },
     ])
     await page.waitForTimeout(150) // let the overlay paint
     await capture(page, { filename: '01-full-ui-annotated.png', fullPage: true })
@@ -263,12 +270,11 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     await captureFullPage(page, '02-create-course.png')
   }
 
-  // 02-first-slide — empty editor view (use slide 5 which is still empty).
-  await goToSlide(4)
-  await capture(page, { filename: '02-first-slide.png', fullPage: true })
-
-  // Return to slide 1 for subsequent captures.
-  await goToSlide(0)
+  // 02-first-slide — captured in the §17 worked-example block (TD-013.5c(b)),
+  // right after the "Capitals of Europe" course is created: that is the only
+  // moment the UI genuinely shows a just-created course with a single empty
+  // slide. The previous approach (re-using this scratch course's empty slide
+  // 5) rendered "five slides with Slide 5 selected" — misleading for §02.
 
   // -------------------------------------------------------------------------
   // §03 — Slides
@@ -427,10 +433,25 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   await editorPage.propsTab.click().catch(() => undefined)
   await captureWidgetProps('08-mc-props.png', 'question-properties-panel')
 
-  // Close-up of the Scoring section — author crops from the fullpage snapshot
-  // since the Scoring heading is inside QuestionPropertiesPanel and has no
-  // stable individual selector.
+  // Close-up of the Scoring section — TD-013.5b dual strategy. Primary:
+  // captureElement on `data-testid="scoring-section"` (ScoringFeedbackForm
+  // section root in QuestionPropertiesPanel.tsx). The -fullpage safety net is
+  // captured unconditionally FIRST so scripts/screenshots-crop.json always has
+  // a fresh same-render source for the Python post-crop fallback
+  // (scripts/crop-screenshots.py, TD-013.6) — the tool compares target-vs-source
+  // mtime and only crops when the testid capture below did not produce the file.
   await captureFullPage(page, '08-scoring-section.png')
+  try {
+    await captureElement(page, '[data-testid="scoring-section"]', {
+      filename: '08-scoring-section.png',
+      padding: 12,
+    })
+  } catch {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[docs-screenshots] 08-scoring-section testid capture failed — Python post-crop will produce it from the -fullpage net',
+    )
+  }
 
   const tfId = await addBlockById(page, 'question-tf', 'Q2Statement')
   await ensureWidgetIsCentered(page, tfId)
@@ -477,45 +498,16 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   // Open the Actions tab and seed a Click event so the palette renders.
   await editorPage.actionsTab.click()
 
-  // Open "+ Event" → Click. Guard around the menu click because availableEvents
-  // is empty once the event is already added (second run on the same widget).
-  //
-  // Detection of "Click already exists": EventSelector does NOT use
-  // `role="tab"` — each event is a `<div role="group" aria-label="Click">`
-  // containing a toggle `<button>` (see EventSelector.tsx lines 33–45).
-  // An earlier version of this helper queried `role="tab"` which ALWAYS
-  // returned 0 hits, so the second invocation re-opened the `+ Event` menu,
-  // failed to find a "Click" menuitem (already added → not in
-  // availableEvents), and left the menu open — overlaying the widget-target
-  // `<select>` and polluting the 09-widget-dropdown-names screenshot clip.
-  async function ensureClickEvent(): Promise<void> {
-    const clickGroup = page.getByRole('group', { name: /^Click$/i })
-    if (await clickGroup.count() > 0) return
-    try {
-      await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 5000 })
-      await page.getByRole('menuitem', { name: /^Click$/i }).click({ timeout: 5000 })
-    } catch {
-      /* best effort — palette visibility check is what matters */
-      // Close any still-open +Event menu so downstream captures aren't
-      // covered by the overlay.
-      if (await page.locator('[role="menu"]').count() > 0) {
-        await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 1500 }).catch(() => undefined)
-      }
-    }
-  }
-  await ensureClickEvent()
+  // Open "+ Event" → Click via the shared driver (utils/actions.ts — the
+  // role="group" detection story lives in its docstring + playbook T-12).
+  await ensureEvent(page, /^Click$/i)
 
   // 09-actions-tab.png — right sidebar with the Actions tab active. A first
   // action row helps the shot look populated; the palette ships visible.
   // Insert Navigate once via click on the palette's Navigate button.
-  async function insertActionFromPalette(label: RegExp): Promise<void> {
-    const palette = page.locator('[data-testid="action-palette"]')
-    await palette.waitFor({ state: 'visible', timeout: 5000 })
-    await palette.getByRole('button', { name: label }).first().click({ timeout: 4000 })
-  }
 
   try {
-    await insertActionFromPalette(/^Navigate$/)
+    await insertActionFromPalette(page, /^Navigate$/)
   } catch {
     /* best effort — downstream captureFullPage still emits something */
   }
@@ -596,8 +588,8 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     //    us a row whose WidgetIdParam triggers the <select> branch now that
     //    Zustand has widgets.
     await editorPage.actionsTab.click()
-    await ensureClickEvent()
-    await insertActionFromPalette(/^Show$/)
+    await ensureEvent(page, /^Click$/i)
+    await insertActionFromPalette(page, /^Show$/)
     await page.waitForTimeout(400) // let React commit the new action row
 
     // 3. Locate the widget-target <select> inside the Show action row.
@@ -673,17 +665,9 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
 
   const paletteStyle = await page.addStyleTag({
     content: `[data-testid="action-palette"],
-    [data-testid="action-palette-area"] {
-      overflow: visible !important;
-      max-height: none !important;
-      height: auto !important;
-      flex: 0 0 auto !important;
-    }
+    [data-testid="action-palette-area"] { ${PANEL_NEUTRALISE_RULES} }
     [data-testid="actions-panel"],
-    aside[aria-label="Properties"] {
-      overflow: visible !important;
-      max-height: none !important;
-    }`,
+    aside[aria-label="Properties"] { ${ASIDE_NEUTRALISE_RULES} }`,
   })
   try {
     const palette = page.locator('[data-testid="action-palette"]').first()
@@ -718,7 +702,7 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   async function ensureRow(label: RegExp, type: string): Promise<void> {
     const row = page.locator(`[data-action-type="${type}"]`)
     if (await row.count() > 0) return
-    await insertActionFromPalette(label)
+    await insertActionFromPalette(page, label)
     await row.first().waitFor({ state: 'visible', timeout: 4000 })
   }
 
@@ -821,14 +805,8 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
       .click({ timeout: 5000 })
 
     // Insert Set Variable + Condition + nested Show in Then.
-    const insertFromPalette = async (label: RegExp): Promise<void> => {
-      const palette = page.locator('[data-testid="action-palette"]')
-      await palette.waitFor({ state: 'visible', timeout: 5000 })
-      await palette.getByRole('button', { name: label }).first()
-        .click({ timeout: 4000 })
-    }
-    await insertFromPalette(/^Set Variable$/)
-    await insertFromPalette(/^If \/ Else$/)
+    await insertActionFromPalette(page, /^Set Variable$/)
+    await insertActionFromPalette(page, /^If \/ Else$/)
 
     // Nested Show in Then (first nested palette within the condition row).
     const conditionRow = page.locator('[data-action-type="condition"]').first()
@@ -836,6 +814,22 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
       .locator('[data-testid="action-palette"]').nth(0)
       .getByRole('button', { name: /^Show$/ }).first()
       .click({ timeout: 4000 }).catch(() => undefined)
+
+    // TD-013.5c(c) — fill every required param so the capture shows a
+    // complete recipe instead of "[questionIncorrect] … requires …"
+    // validation warning banners stacked on top of the panel. Placeholders
+    // match ActionItemEditor.tsx; each fill is best-effort so a copy change
+    // degrades the shot (banner returns) rather than aborting the campaign.
+    const svRow = page.locator('[data-action-type="set-variable"]').first()
+    await svRow.locator('input[placeholder="Variable"]')
+      .fill('attempts', { timeout: 3000 }).catch(() => undefined)
+    await svRow.locator('input[placeholder="expr"], input[placeholder="value"]').first()
+      .fill('$attempts + 1', { timeout: 3000 }).catch(() => undefined)
+    await conditionRow.locator('input[placeholder="$var == value"]').first()
+      .fill('$attempts >= 2', { timeout: 3000 }).catch(() => undefined)
+    await conditionRow.locator('input[placeholder="Widget ID"]').first()
+      .fill('HintText', { timeout: 3000 }).catch(() => undefined)
+    await page.waitForTimeout(300) // let the warning banners clear
 
     await captureTallWidgetProps('11-recipe-attempts.png', 'actions-panel')
   } catch {
@@ -874,14 +868,34 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   // -------------------------------------------------------------------------
 
   const swId = await addBlockById(page, 'screenshot-sim', 'SoftwareDemo')
-  await ensureWidgetIsCentered(page, swId)
+  // Place within the VISIBLE canvas area: the 1024px iframe extends under the
+  // right aside, so the default (400,250) position put the widget half-hidden
+  // beneath the sidebar and the element screenshot composited the overlap
+  // (pre-existing baseline defect caught by TD-013.8's visual pass).
+  await ensureWidgetIsCentered(page, swId, 170, 140)
   await selectById(page, swId)
-  // Block placeholder on the canvas — capture the canvas iframe area.
-  await capture(page, {
-    filename: '13-block-placeholder.png',
-    selector: 'iframe.gjs-frame',
-    padding: 0,
-  })
+  // Block placeholder on the canvas — clip to the iframe's visible region
+  // (element bounds intersected with the aside's left edge + viewport).
+  try {
+    const frameBox = await page.locator('iframe.gjs-frame').boundingBox()
+    if (!frameBox) throw new Error('no iframe bbox')
+    const asideBox = await page.locator(RIGHT_SIDEBAR).boundingBox()
+    const vp = page.viewportSize()!
+    const visibleWidth = Math.min(
+      frameBox.width,
+      (asideBox ? asideBox.x : vp.width) - frameBox.x,
+    )
+    const visibleHeight = Math.min(frameBox.height, vp.height - frameBox.y)
+    await page.screenshot({
+      path: SCREENSHOTS_DIR + '/13-block-placeholder.png',
+      type: 'png',
+      clip: { x: frameBox.x, y: frameBox.y, width: visibleWidth, height: visibleHeight },
+    })
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] wrote 13-block-placeholder.png (visible canvas clip)')
+  } catch {
+    await captureFullPage(page, '13-block-placeholder.png')
+  }
 
   // 13-overview.png + 13-hotspot-editor.png — TD-013.5 (2026-04-29). Pure
   // real-UI flow inheriting the helpers exercised end-to-end by
@@ -989,16 +1003,8 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     const originalVp = page.viewportSize()!
     await page.setViewportSize({ width: originalVp.width, height: 3000 })
     const style = await page.addStyleTag({
-      content: `[data-testid="${panelTestId}"] {
-        overflow: visible !important;
-        height: auto !important;
-        max-height: none !important;
-        flex: 0 0 auto !important;
-      }
-      aside[aria-label="Properties"] {
-        overflow: visible !important;
-        max-height: none !important;
-      }`,
+      content: `[data-testid="${panelTestId}"] { ${PANEL_NEUTRALISE_RULES} }
+      aside[aria-label="Properties"] { ${ASIDE_NEUTRALISE_RULES} }`,
     })
     try {
       const panel = page.locator(`[data-testid="${panelTestId}"]`).first()
@@ -1038,9 +1044,34 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
     await page.waitForTimeout(400)
   }
 
-  // 14-processflow-builder.png — simType=process-flow (default). Panel
-  // empty of nodes; the shot shows the builder skeleton (Nodes/Edges/
-  // Steps sections + Scene Definition textarea).
+  // 14-processflow-builder.png — simType=process-flow (default). The manual
+  // placeholder expects the builder populated with "3 nodes and 2 edges
+  // configured, matching the JSON above" (14-interactive-scenario.md:77) —
+  // seed the canonical scene (shared with 14-json-example below). The
+  // previous empty-skeleton capture contradicted the placeholder; caught by
+  // TD-013.8's visual pass.
+  const PROCESS_FLOW_SCENE = {
+    simType: 'process-flow',
+    nodes: [
+      { id: 'start', x: 100, y: 200, label: 'Ticket creado', type: 'start' },
+      { id: 'triage', x: 300, y: 200, label: 'Triage L1', type: 'step' },
+      { id: 'resolve', x: 500, y: 200, label: 'Resolver', type: 'decision' },
+    ],
+    edges: [
+      { from: 'start', to: 'triage' },
+      { from: 'triage', to: 'resolve' },
+    ],
+    interactionMode: 'practice',
+    steps: [
+      { nodeId: 'triage', instruction: '¿Qué haces primero?', correctAction: 'click' },
+      { nodeId: 'resolve', instruction: '¿Lo resuelves o escalas?', correctAction: 'click' },
+    ],
+  }
+  try {
+    await pasteSceneDef(JSON.stringify(PROCESS_FLOW_SCENE, null, 2))
+  } catch {
+    /* builder stays empty — degraded shot, campaign continues */
+  }
   await captureTallWidgetProps('14-processflow-builder.png', 'phaser-sim-properties-panel')
 
   const simTypeSelect = page.locator(simTypeSelector)
@@ -1094,23 +1125,7 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   try {
     await simTypeSelect.selectOption('process-flow', { timeout: 5000 })
     await page.waitForTimeout(300)
-    await pasteSceneDef(JSON.stringify({
-      simType: 'process-flow',
-      nodes: [
-        { id: 'start', x: 100, y: 200, label: 'Ticket creado', type: 'start' },
-        { id: 'triage', x: 300, y: 200, label: 'Triage L1', type: 'step' },
-        { id: 'resolve', x: 500, y: 200, label: 'Resolver', type: 'decision' },
-      ],
-      edges: [
-        { from: 'start', to: 'triage' },
-        { from: 'triage', to: 'resolve' },
-      ],
-      interactionMode: 'practice',
-      steps: [
-        { nodeId: 'triage', instruction: '¿Qué haces primero?', correctAction: 'click' },
-        { nodeId: 'resolve', instruction: '¿Lo resuelves o escalas?', correctAction: 'click' },
-      ],
-    }, null, 2))
+    await pasteSceneDef(JSON.stringify(PROCESS_FLOW_SCENE, null, 2))
     await captureTallWidgetProps('14-json-example.png', 'phaser-sim-properties-panel')
   } catch {
     await captureFullPage(page, '14-json-example.png')
@@ -1237,34 +1252,354 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
   }
 
   // -------------------------------------------------------------------------
-  // §17 — Worked Example (5 finished slides)
+  // §17 — Worked Example (TD-013.5c) + §02 first-slide
   // -------------------------------------------------------------------------
+  //
+  // The scratch course above served §01–§16 as a per-chapter widget
+  // scratchpad — its slides are piles of centred widgets, useless as
+  // "finished course" shots (baseline defect: see the 2026-07-17
+  // investigation in docs/issues/issues-TD-013.md). §17 promises the five
+  // finished slides of docs/user-guide/17-worked-example.md ("Capitals of
+  // Europe"), so this block builds that course for real:
+  //
+  //   1. New Course dialog → "Capitals of Europe" (Blank). 02-first-slide is
+  //      captured HERE — right after creation the slide list genuinely shows
+  //      a single empty slide. globalTeardown deletes every course owned by
+  //      the E2E user, so the extra course needs no bespoke cleanup.
+  //   2. Slides renamed Intro / Theory / Question / Branching / Final.
+  //   3. Widgets placed at explicit per-widget coordinates (no stacked
+  //      centring) and configured via the real Props-panel inputs.
+  //   4. Actions wired through the real ActionsEditor palette.
+  //   5. Finals captured at a widened 1600×900 viewport — at 1280×720 the
+  //      canvas viewport clips the 1024×768 slide's right third.
 
-  // The spec has already seeded each slide with a representative mix of
-  // widgets (§04-§08), so a per-slide viewport capture produces a
-  // reasonable "canvas + right sidebar" shot even if the worked-example
-  // wiring is not 1:1 with docs/user-guide/17-worked-example.md.
-  // Using page.screenshot() directly (instead of captureFullPage which
-  // would append a -fullpage suffix) keeps the filename clean so the
-  // placeholder slot is populated. Each shot is a 1280x720 viewport
-  // crop showing the whole editor — top toolbar, slide list on the
-  // left, canvas in the middle, Properties aside on the right.
-  for (let i = 0; i < 5; i += 1) {
-    await goToSlide(i)
-    // Clear any active selection so the Props aside shows the empty-state
-    // hint, not a stray widget panel inherited from the previous slide.
-    await page.evaluate(() => {
-      const ed = window.__elearn_editor
-      ed?.select(null)
-    })
-    await page.waitForTimeout(300)
-    await page.screenshot({
-      path: SCREENSHOTS_DIR + `/17-slide-${i + 1}-final.png`,
-      type: 'png',
-      fullPage: false,
-    })
+  // §17 build primitives (placeAt, setTextContent, idByName,
+  // retryOnDestroyedContext, EUROPE_MAP_DATA_URI) live in
+  // e2e/utils/worked-example.ts since TD-013.9.
+
+  // Diagnostic: a main-frame navigation mid-campaign is ALWAYS a bug (it
+  // destroys evaluate contexts and resets editor state) — log it with the
+  // destination URL so the culprit is identifiable from the run log.
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) {
+      // eslint-disable-next-line no-console
+      console.log('[docs-screenshots] ⚠ MAIN FRAME NAVIGATED →', frame.url())
+    }
+  })
+  page.on('console', (msg) => {
+    const t = msg.text()
+    if (t.includes('[vite]') || msg.type() === 'error') {
+      // eslint-disable-next-line no-console
+      console.log('[browser]', msg.type(), t)
+    }
+  })
+  page.on('pageerror', (err) => {
     // eslint-disable-next-line no-console
-    console.log(`[docs-screenshots] wrote 17-slide-${i + 1}-final.png (viewport)`)
+    console.log('[browser] pageerror', err.message)
+  })
+
+  try {
+    // -- 1. Fresh course --------------------------------------------------
+    await page.getByRole('button', { name: 'New Course', exact: true }).click({ timeout: 5000 })
+    const newCourseDlg = page.locator('[role="dialog"][aria-label="New Course"]')
+    await newCourseDlg.waitFor({ state: 'visible', timeout: 5000 })
+    await newCourseDlg.locator('#new-course-title').fill('Capitals of Europe')
+    await newCourseDlg.getByRole('button', { name: 'Create Course' }).click({ timeout: 5000 })
+    await newCourseDlg.waitFor({ state: 'hidden', timeout: 15_000 })
+    // The new course loads in-place (App.handleCreateCourse → setCourse).
+    // Confirm the switch via the toolbar title — do NOT wait on the editor
+    // ready signal yet: a Blank course is created with 0 slides and the
+    // canvas does not mount (and never flips data-editor-ready) until the
+    // first slide exists.
+    await page.getByText('Capitals of Europe').first().waitFor({ state: 'visible', timeout: 15_000 })
+    await page.waitForTimeout(400) // toolbar handlers rebind to the new course
+
+    // Normalise to exactly 1 slide ("the first slide is created
+    // automatically" per the manual) before the first-slide shot.
+    await editorPage.slidesTab.click()
+    if ((await slideList.count()) === 0) {
+      await editorPage.addSlide()
+      await expect(slideList).toHaveCount(1, { timeout: 10_000 })
+    }
+    await slideList.first().click()
+    await editorPage.readySignal().waitFor({ state: 'attached', timeout: 20_000 })
+
+    // §02 — genuine "just created" state: 1 slide, empty canvas.
+    await capture(page, { filename: '02-first-slide.png', fullPage: true })
+
+    // -- 2. Five slides, renamed ------------------------------------------
+    while ((await slideList.count()) < 5) {
+      await editorPage.addSlide()
+    }
+    const slideNames = ['Intro', 'Theory', 'Question', 'Branching', 'Final']
+    for (let i = 0; i < 5; i += 1) {
+      try {
+        await slideList.nth(i).dblclick({ timeout: 2000 })
+        await page.keyboard.press('Control+a')
+        await page.keyboard.type(slideNames[i]!)
+        await page.keyboard.press('Enter')
+      } catch {
+        /* rename is cosmetic — default titles are acceptable */
+      }
+    }
+
+    // -- 3. Slide 1 — Intro ------------------------------------------------
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] §17 slide-1 build start')
+    await goToSlide(0)
+    const introTitleId = await placeAt(page, 'text', 'IntroTitle', 112, 180, { width: 800 })
+    await setTextContent(page, introTitleId, 'Capitals of Europe — Quick Quiz', {
+      'font-size': '36px',
+      'font-weight': '700',
+      'text-align': 'center',
+      color: '#1e1e2e',
+    })
+    const introSubId = await placeAt(page, 'text', 'IntroSubtitle', 212, 280, { width: 600 })
+    await setTextContent(page, introSubId, 'Test how well you know the capitals of European countries.', {
+      'font-size': '18px',
+      'text-align': 'center',
+      color: '#6c7086',
+    })
+    const startBtnId17 = await placeAt(page, 'button', 'StartBtn', 452, 500, { width: 120, height: 44 })
+    // Label via the real Props input; content-setter fallback keeps the shot
+    // meaningful if the label copy changes.
+    await retryOnDestroyedContext(page, () => selectById(page, startBtnId17))
+    await editorPage.propsTab.click().catch(() => undefined)
+    try {
+      await page
+        .locator('[data-testid="button-properties-panel"]')
+        .locator('xpath=.//label[normalize-space()="Button Label"]/following-sibling::input[1]')
+        .fill('Start', { timeout: 3000 })
+    } catch {
+      await setTextContent(page, startBtnId17, 'Start', {}).catch(() => undefined)
+    }
+
+    // -- 4. Slide 2 — Theory -----------------------------------------------
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] §17 slide-2 build start')
+    await goToSlide(1)
+    await placeAt(page, 'progress-bar', 'CourseProgress', 112, 30, { width: 800 })
+    const mapId = await placeAt(page, 'image', 'MapImage', 312, 100, { width: 400, height: 260 })
+    await page.evaluate(
+      ({ id, src }) => {
+        const comp = window.__elearn_editor?.getWrapper().find('#' + id)[0]
+        comp?.set('src', src)
+        comp?.addAttributes({ src, alt: 'Map of European countries.' })
+      },
+      { id: mapId, src: EUROPE_MAP_DATA_URI },
+    )
+    const theoryId = await placeAt(page, 'text', 'TheoryText', 212, 400, { width: 600 })
+    await setTextContent(page, 
+      theoryId,
+      'Europe has over 40 independent countries. On the next slide, you will see a question about one of their capitals.',
+      { 'font-size': '18px', 'text-align': 'center', color: '#1e1e2e' },
+    )
+    await placeAt(page, 'nav-buttons', 'TheoryNav', 412, 620)
+
+    // -- 5. Slide 3 — Question ---------------------------------------------
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] §17 slide-3 build start')
+    await goToSlide(2)
+    await placeAt(page, 'progress-bar', 'CourseProgress2', 112, 30, { width: 800 })
+    const mcId17 = await placeAt(page, 'question-mc', 'Q1Capital', 212, 110, { width: 600 })
+    await placeAt(page, 'nav-buttons', 'QuestionNav', 412, 620)
+    await retryOnDestroyedContext(page, () => selectById(page, mcId17))
+    await editorPage.propsTab.click().catch(() => undefined)
+    const qPanel = page.locator('[data-testid="question-properties-panel"]')
+    await qPanel.locator('textarea').first().fill('What is the capital of Germany?')
+    // Options — grow to 4 rows, fill, mark Berlin correct. Row = the div
+    // wrapping [correct-radio, text-input, remove-button].
+    const optionTexts = ['Berlin', 'Munich', 'Frankfurt', 'Hamburg']
+    try {
+      const addOptBtn = qPanel.getByRole('button', { name: /^\+ Add$/ })
+      while ((await qPanel.locator('input[type="radio"]').count()) < 4) {
+        await addOptBtn.click({ timeout: 3000 })
+        await page.waitForTimeout(150)
+      }
+      for (let i = 0; i < 4; i += 1) {
+        await qPanel
+          .locator('input[type="radio"]')
+          .nth(i)
+          .locator('xpath=..')
+          .locator('input[type="text"]')
+          .fill(optionTexts[i]!, { timeout: 3000 })
+        await page.waitForTimeout(100) // sequential updates through getLatest()
+      }
+      await qPanel.locator('input[type="radio"]').first().check({ timeout: 3000 })
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[docs-screenshots] §17 MC options fill degraded:', (err as Error)?.message)
+    }
+    // Scoring 100 pts / 2 attempts + feedbacks (per the worked example).
+    const scoring17 = qPanel.locator('[data-testid="scoring-section"]')
+    await scoring17.locator('input[type="number"]').nth(0).fill('100').catch(() => undefined)
+    await scoring17.locator('input[type="number"]').nth(1).fill('2').catch(() => undefined)
+    const feedback17 = qPanel.locator('xpath=.//div[div[text()="Feedback"]]//input[@type="text"]')
+    await feedback17.nth(0).fill("Correct! Berlin has been Germany's capital since 1990.").catch(() => undefined)
+    await feedback17.nth(1).fill("Not quite. Try again — think of Germany's largest city.").catch(() => undefined)
+
+    // -- 6. Slide 4 — Branching --------------------------------------------
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] §17 slide-4 build start')
+    await goToSlide(3)
+    const noteId = await placeAt(page, 'text', 'BranchingNote', 262, 260, { width: 500 })
+    await setTextContent(page, noteId, "Let's see how you're doing…", {
+      'font-size': '22px',
+      'text-align': 'center',
+      color: '#1e1e2e',
+    })
+    await placeAt(page, 'nav-buttons', 'BranchingNav', 412, 620)
+    // -- 7. Slide 5 — Final ------------------------------------------------
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] §17 slide-5 build start')
+    await goToSlide(4)
+    const finalTitleId = await placeAt(page, 'text', 'FinalTitle', 112, 140, { width: 800 })
+    await setTextContent(page, finalTitleId, 'Well done!', {
+      'font-size': '36px',
+      'font-weight': '700',
+      'text-align': 'center',
+      color: '#1e1e2e',
+    })
+    await placeAt(page, 'score-quiz', 'FinalScore', 362, 280, { width: 300 })
+    const finishBtnId17 = await placeAt(page, 'done-button', 'FinishBtn', 412, 540, {
+      width: 200,
+      height: 48,
+    })
+    await retryOnDestroyedContext(page, () => selectById(page, finishBtnId17))
+    await editorPage.propsTab.click().catch(() => undefined)
+    try {
+      const finishLabelInput = page
+        .locator('[data-testid="button-properties-panel"]')
+        .locator('xpath=.//label[normalize-space()="Button Label"]/following-sibling::input[1]')
+      await finishLabelInput.waitFor({ state: 'visible', timeout: 5000 })
+      await finishLabelInput.fill('Finish course')
+      await finishLabelInput.press('Tab') // commit before the finals slide switches
+      await page.waitForTimeout(600)
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[docs-screenshots] §17 FinishBtn label fill degraded:', (err as Error)?.message)
+    }
+
+    // -- 8. The five finals at 1600×900 ------------------------------------
+    // eslint-disable-next-line no-console
+    console.log('[docs-screenshots] §17 finals capture start')
+    const originalVp17 = page.viewportSize()!
+    await page.setViewportSize({ width: 1600, height: 900 })
+    await page.waitForTimeout(600) // canvas relayout at the wider viewport
+    try {
+      // Per-placeholder sidebar state (17-worked-example.md). Action wiring
+      // happens HERE, immediately before each shot: sequences wired during
+      // the build phase did not survive the intervening slide switches
+      // (component ids regenerate on slide reload and the sequences orphan
+      // — the exact persistence gap the e2e skill tracks as GAP-02), so
+      // each prep wires its slide's actions live on the re-resolved widget.
+      //
+      //   1 → StartBtn + Actions tab: Click → Navigate
+      //   2 → clean canvas, no selection
+      //   3 → Q1Capital + Props tab (scoring/feedback visible, name field set)
+      //   4 → BranchingNote + Actions tab: enterSlide → Score Quiz + If/Else.
+      //       The manual says "on the slide itself (no block selected)" but
+      //       the shipped ActionsPanel requires a selected widget (empty
+      //       state otherwise) — discrepancy filed in issues-TD-013.md.
+      //   5 → FinishBtn + Actions tab: Click → Send to LMS
+      const finalsPrep: Array<() => Promise<void>> = [
+        async () => {
+          const id = await idByName(page, 'StartBtn')
+          if (!id) return
+          await retryOnDestroyedContext(page, () => selectById(page, id))
+          await editorPage.actionsTab.click()
+          await ensureEvent(page, /^Click$/i)
+          await insertActionFromPalette(page, /^Navigate$/).catch(() => undefined)
+        },
+        async () => {
+          await page.keyboard.press('Escape')
+          await page.waitForTimeout(200)
+        },
+        async () => {
+          const id = await idByName(page, 'Q1Capital')
+          if (!id) return
+          await retryOnDestroyedContext(page, () => selectById(page, id))
+          await editorPage.propsTab.click()
+          // The `name` trait is stripped by the save/reload round-trip (the
+          // §09 dropdown block documents the same limitation) — restore it
+          // through the real NameField so the shot matches the manual's
+          // "give every block a clear Name" tip.
+          await page.locator('[data-testid="widget-name-input"]')
+            .fill('Q1Capital', { timeout: 2000 }).catch(() => undefined)
+        },
+        async () => {
+          const id = await idByName(page, 'BranchingNote')
+          if (!id) return
+          await retryOnDestroyedContext(page, () => selectById(page, id))
+          await editorPage.actionsTab.click()
+          await ensureEvent(page, /^Enter Slide$/i)
+          await insertActionFromPalette(page, /^Score Quiz$/).catch(() => undefined)
+          await insertActionFromPalette(page, /^If \/ Else$/).catch(() => undefined)
+          const condRow = page.locator('[data-action-type="condition"]').first()
+          await condRow.locator('input[placeholder="$var == value"]').first()
+            .fill('$score >= 50', { timeout: 3000 }).catch(() => undefined)
+          const nested = condRow.locator('[data-testid="action-palette"]')
+          await nested.nth(0).getByRole('button', { name: /^Navigate$/ })
+            .click({ timeout: 4000 }).catch(() => undefined)
+          await nested.nth(1).getByRole('button', { name: /^Display Message$/ })
+            .click({ timeout: 4000 }).catch(() => undefined)
+          await nested.nth(1).getByRole('button', { name: /^Hide$/ })
+            .click({ timeout: 4000 }).catch(() => undefined)
+          // Nested params — scope by placeholder within the condition row
+          // (nested action rows don't necessarily carry their own
+          // data-action-type wrapper; placeholders are unique inside it).
+          await condRow.locator('input[placeholder="Title (optional)"]').first()
+            .fill('Review needed', { timeout: 3000 }).catch(() => undefined)
+          await condRow.locator('textarea[placeholder="Message text"], input[placeholder="Message text"]').first()
+            .fill('Your score is below 50. Please go back and try the question again.', { timeout: 3000 })
+            .catch(() => undefined)
+          await condRow.locator('input[placeholder="Widget ID"]').first()
+            .fill('BranchingNav', { timeout: 3000 }).catch(() => undefined)
+          await page.waitForTimeout(300) // let the validation banner clear
+          // Scroll the sequence to its head so the shot shows Score Quiz +
+          // the If/Else condition, not the tail. The scrollable element is
+          // an inner overflowY:auto div of ActionsPanel — scrolling the
+          // FIRST action row into view targets it regardless of its markup.
+          await page.locator('[data-action-type="score-quiz"]').first()
+            .scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => undefined)
+        },
+        async () => {
+          const id = await idByName(page, 'FinishBtn')
+          if (!id) return
+          await retryOnDestroyedContext(page, () => selectById(page, id))
+          await editorPage.actionsTab.click()
+          await ensureEvent(page, /^Click$/i)
+          await insertActionFromPalette(page, /^Send to LMS$/).catch(() => undefined)
+        },
+      ]
+      for (let i = 0; i < 5; i += 1) {
+        await goToSlide(i)
+        await finalsPrep[i]!().catch((err: unknown) => {
+          // eslint-disable-next-line no-console
+          console.warn(`[docs-screenshots] §17 finals prep ${i + 1} degraded:`, (err as Error)?.message)
+        })
+        await page.waitForTimeout(400)
+        await page.screenshot({
+          path: SCREENSHOTS_DIR + `/17-slide-${i + 1}-final.png`,
+          type: 'png',
+          fullPage: false,
+        })
+        // eslint-disable-next-line no-console
+        console.log(`[docs-screenshots] wrote 17-slide-${i + 1}-final.png (viewport 1600x900)`)
+      }
+    } finally {
+      await page.setViewportSize(originalVp17)
+    }
+  } catch (err) {
+    // Defensive: if the worked-example build regresses, emit safety nets so
+    // the campaign still produces every placeholder file, and surface the
+    // error for the next maintainer.
+    // eslint-disable-next-line no-console
+    console.warn('[docs-screenshots] §17 worked-example build failed:', err)
+    await captureFullPage(page, '02-first-slide.png')
+    for (let i = 0; i < 5; i += 1) {
+      await captureFullPage(page, `17-slide-${i + 1}-final.png`)
+    }
   }
 
   // -------------------------------------------------------------------------

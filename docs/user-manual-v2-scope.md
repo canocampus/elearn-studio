@@ -92,15 +92,17 @@ docs/user-guide/
 - §2 Getting Started — a single progress shot after the first slide is added.
 - §18 Troubleshooting — screenshots of error banners / failure states alongside the matching symptom.
 
-### Capture workflow (for whoever takes the screenshots)
+### Capture workflow — fully automated since TD-013 (2026-07-18)
 
-1. Seed a course with one instance of each widget placed on its own slide, with realistic content.
-2. For each block, select it, make sure the Props tab is open, take the shot of the **right sidebar only** (crop to the panel).
-3. For canvas screenshots, take the **center canvas + right sidebar** so readers see the widget and its props together.
-4. Save to `docs/user-guide/assets/screenshots/` with the agreed filename.
-5. If a screenshot needs numbered callouts, add them in any image editor (or use a consistent SVG overlay pattern — TBD). Keep the raw file alongside the annotated one for future re-renders.
+All 55 placeholders are produced by the Playwright campaign — no manual capture step remains:
 
-> **Temporary policy while screenshots are being produced:** chapters may be drafted with a placeholder `<!-- screenshot: NN-xxx-props.png — pending capture -->` line where the image will go. The chapter is NOT considered done until every placeholder is replaced by a real image with alt + caption.
+```bash
+pnpm --filter @elearn-studio/e2e docs:screenshots
+```
+
+The campaign seeds the scratch course, builds the §17 "Capitals of Europe" worked example for real, overlays numbered callouts in-DOM (no image editor), and chains the Python post-crop fallback for dual-strategy shots. Techniques, prerequisites and the re-run checklist live in `docs/developer-guide/10-docs-screenshots-playbook.md` — read it before re-running after any UI change.
+
+> Chapters are drafted with `<!-- screenshot: NN-xxx.png (…description…) -->` placeholder comments; the campaign treats each description as the capture contract (TD-013.8 verifies every PNG against it). A chapter is NOT considered done until every placeholder resolves to a real image with alt + caption.
 
 ---
 

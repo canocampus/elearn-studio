@@ -31,6 +31,13 @@ export interface E2EComponent {
   get(key: string): unknown
   set(key: string, value: unknown): void
   getId(): string
+  /**
+   * Content setter — replaces the component's children with the parsed
+   * HTML/text string (Backbone-side `components(content)` overload). Added
+   * for TD-013.5c: the §17 worked-example composition writes text-widget
+   * copy ("Capitals of Europe — Quick Quiz", …) before capturing.
+   */
+  components(content: string): unknown
   /** Backbone-collection-style: getStyle() returns all; getStyle(prop) returns one. */
   getStyle(): Record<string, string>
   getStyle(prop: string): string

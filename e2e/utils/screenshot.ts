@@ -122,6 +122,10 @@ export async function captureElement(
 
   if (opts.padding && opts.padding > 0) {
     // Padding requires switching to page.screenshot so we can inflate the bbox.
+    // Unlike locator.screenshot() below (which scrolls internally), page.screenshot
+    // clips viewport-relative coords — scroll the element into view first so the
+    // bbox is inside the viewport (TD-013.5b; honours the docstring contract).
+    await loc.scrollIntoViewIfNeeded()
     const box = await loc.boundingBox()
     if (!box) throw new Error(`captureElement(${opts.filename}): no bbox`)
     const p = opts.padding
@@ -171,6 +175,23 @@ export async function captureFullPage(
 }
 
 // ---------------------------------------------------------------------------
+// Panel-neutralisation CSS (T-2) — shared rule bodies for the temporary
+// stylesheets that let tall right-sidebar panels lay out at natural height
+// before a capture. Extracted in TD-013.9: the same token strings were
+// inlined at three sites (captureWidgetProps, captureTallWidgetProps, the
+// §10 palette block) — a drift in one silently broke the others.
+//
+// Two tiers on purpose: PANEL rules include `height/flex` resets that are
+// safe on capture targets but would disturb the aside's fixed-width flex
+// layout, so the aside gets only the overflow/max-height pair.
+// ---------------------------------------------------------------------------
+
+export const PANEL_NEUTRALISE_RULES =
+  'overflow: visible !important; height: auto !important; max-height: none !important; flex: 0 0 auto !important;'
+
+export const ASIDE_NEUTRALISE_RULES = 'overflow: visible !important; max-height: none !important;'
+
+// ---------------------------------------------------------------------------
 // Callouts — inject numbered circles over elements for annotated screenshots.
 // ---------------------------------------------------------------------------
 
@@ -181,9 +202,12 @@ export interface CalloutSpec {
   selector: string
   /**
    * Override the circle's position relative to the element's top-left corner.
-   * Defaults to the element's centre.
+   * Each axis is independently optional and defaults to the element's centre
+   * on that axis — e.g. `{ y: 56 }` keeps the circle horizontally centred but
+   * drops it below the element so it points at it without covering its label
+   * (TD-013.5c, §01 tab callouts).
    */
-  offset?: { x: number; y: number }
+  offset?: { x?: number; y?: number }
 }
 
 /**

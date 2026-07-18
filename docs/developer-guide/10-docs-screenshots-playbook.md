@@ -42,18 +42,18 @@ pnpm --filter @elearn-studio/e2e docs:screenshots
 This runs:
 
 ```
-playwright test tests/docs-screenshots.spec.ts --headed
+playwright test tests/docs-screenshots.spec.ts --headed && node ../scripts/run-crop.cjs
 ```
 
-`--headed` is intentional — so the author can see which captures land correctly and catch UI drift early. PNGs land in `docs/user-guide/assets/screenshots/`.
+`--headed` is intentional — so the author can see which captures land correctly and catch UI drift early. **Do not interact with the headed window while the campaign runs** — clicks/closes destroy Playwright evaluation contexts mid-build. PNGs land in `docs/user-guide/assets/screenshots/`. The chained `run-crop.cjs` step is the Python post-crop fallback (T-17); it can also be run standalone via `pnpm --filter @elearn-studio/e2e docs:crop`.
 
-Expected output per run:
+Expected output per run (since TD-013.5c, 2026-07-18):
 
-- **~30 final PNGs** ready to embed in the manual (e.g. `04-text-props.png`, `10-action-palette.png`).
-- **~15 `*-fullpage.png` safety nets** for placeholders that need a manual crop after the run.
-- **A handful of `TODO_MANUAL` placeholders** the spec intentionally does not attempt (see §Deferred below).
+- **55/55 final PNGs** — every placeholder in the manual is automated; no `TODO_MANUAL` remains.
+- **`08-scoring-section-fullpage.png`** — the only *by-design* safety net, captured unconditionally each run as the fresh same-render source for the T-17 mtime-idempotent crop fallback.
+- Any **other** `*-fullpage.png` in the output means a primary capture failed that run — diagnose before committing (see the per-technique notes below).
 
-Single-worker, serial — the seed course state is carried forward across all captures so the spec does not rebuild everything per shot. Test timeout: 10 minutes.
+Single-worker, serial — the seed course state is carried forward across all captures so the spec does not rebuild everything per shot (§17 additionally creates a second course — see T-18). Test timeout: 10 minutes.
 
 ---
 
@@ -154,19 +154,16 @@ if (!mcIdFresh) {
 
 Never cache an ID across a `goToSlide()`.
 
-### T-6 — `editor.select(null)` before slide captures
+### T-6 — Deselect via Escape, NOT `editor.select(null)` evaluate (superseded 2026-07-18)
 
-§17 loops over all 5 slides and shoots "canvas + right sidebar" for each. Without clearing the selection between slides, the Props aside inherits the previous slide's panel state (stale widget selected → wrong panel showing).
+Clean-canvas shots need the selection cleared so the Props aside shows its empty state instead of a stale widget panel. The original technique (`page.evaluate(() => ed?.select(null))`) is **retired**: during the TD-013.5c §17 build that exact evaluate died with `Execution context was destroyed` on every run at the same build point — with instrumentation proving no navigation, no vite reload, no page error, and a surviving page (full evidence in `docs/issues/issues-TD-013.md`; root-cause investigation tracked as TD-020).
 
 ```typescript
-await page.evaluate(() => {
-  const ed = window.__elearn_editor  // typed via T-A augmentation (see §A)
-  ed?.select?.(null)
-})
-await page.waitForTimeout(300)
+await page.keyboard.press('Escape')   // real-UI deselect
+await page.waitForTimeout(200)
 ```
 
-The 300 ms settling delay is deliberate — React's empty-state transition commits after `select(null)` and needs a microtask + layout pass before the shot.
+The remaining §17 evaluates are wrapped in `retryOnDestroyedContext()` as defence in depth. Do not reintroduce evaluate-based deselection until TD-020 explains the destruction.
 
 ### T-7 — Clean-filename bypass for `page.screenshot()` / `popup.screenshot()`
 
@@ -255,33 +252,73 @@ The `EventSelector` hides the `+ Event` button once every event is already added
 
 ```typescript
 async function ensureClickEvent(): Promise<void> {
-  const eventList = page.getByRole('tab', { name: /^Click$/i })
-  if (await eventList.count() > 0) return  // already there, no-op
+  // EventSelector does NOT use role="tab" — each event renders as a
+  // <div role="group" aria-label="Click"> with a toggle <button>
+  // (EventSelector.tsx:33-45). Querying role="tab" always returned 0 hits,
+  // silently re-opening the +Event menu on second runs (fixed in TD-013.4).
+  const clickGroup = page.getByRole('group', { name: /^Click$/i })
+  if (await clickGroup.count() > 0) return  // already there, no-op
   try {
     await page.getByRole('button', { name: /\+ *Event/i }).click({ timeout: 5000 })
     await page.getByRole('menuitem', { name: /^Click$/i }).click({ timeout: 5000 })
-  } catch { /* best effort */ }
+  } catch { /* best effort — close any half-open menu in the catch */ }
 }
 ```
 
-Apply the same pattern any time you add a second event to a widget that may already carry it.
+Apply the same pattern any time you add a second event to a widget that may already carry it. §17's generalised `ensureEvent(label)` follows the same structure for arbitrary events (Click, Question Correct, Enter Slide).
+
+### T-13 — Callouts overlay via `addCallouts()` (§01)
+
+`01-full-ui-annotated.png` needs 9 numbered circles over UI regions. `addCallouts(page, specs)` (in `e2e/utils/screenshot.ts`) injects a `position:fixed` DOM layer above everything (`z-index` max), one 32 px circle per spec, positioned from the target element's `getBoundingClientRect()`. Pair with `removeCallouts()` in `finally` so downstream shots stay clean.
+
+Each spec's `offset` is **per-axis optional** (TD-013.5c): omit an axis to keep the circle centred on it. The five right-panel tab callouts use `offset: { y: 58 }` so the circle drops *below* its tab — pointing at it without covering the label.
+
+### T-14 — New Course dialog + genuine first-slide capture (§02)
+
+- `02-create-course.png`: the dialog opens from the top toolbar's **New Course** button (no dashboard navigation needed). Crop the modal via its `[role="dialog"][aria-label="New Course"]` selector, then **Cancel** so the editor state stays untouched.
+- `02-first-slide.png` is captured inside the §17 block (T-18), right after the worked-example course is created — the only moment the UI genuinely shows a just-created course with a single empty slide. Capturing it from the scratch course's "empty slide 5" rendered a misleading five-slide list (baseline defect, fixed 2026-07-18).
+
+### T-15 — Zustand direct-sync for widget-name dropdowns (§09)
+
+`WidgetIdParam` renders its named-option `<select>` only when the Zustand course store has widgets for the current slide — and Zustand is only repopulated on full page reload (whose save round-trip strips `name` traits; see T-19 caveat in `issues-TD-013.md`). The spec syncs Zustand directly instead: read the live GrapesJS component tree via `window.__elearn_editor`, derive `{id, name, type, bounds, layer}` per widget, and `window.__elearn_store.setState(...)` the current slide's `widgets` array. No reload, no round-trip, names stay authoritative.
+
+### T-16 — Sim Editor overlay captures via pure real-UI flow (§13)
+
+`13-overview.png` + `13-hotspot-editor.png` drive the real authoring surface end-to-end — zero store seeding (owner principle: *"todas las funcionalidades dadas por operativas tienen que poder usarse y reproducirse"*): dblclick the widget → overlay opens → `+ Add step` ×2 with per-step screenshot upload (`input[type=file]` + fixture image) → select step 0 → capture overlay (`sim-editor-overlay` testid) → draw the hotspot with a real `page.mouse` gesture on the Konva stage (0.15/0.85 inset) → capture canvas area (`sim-canvas-area`) → Cancel. `__simStore` is read-only verification (polling the hotspot commit), never a seeding mechanism. Helpers live in `e2e/utils/simulation.ts`, shared with `simulation-editor.spec.ts`.
+
+### T-17 — Python post-crop fallback (`scripts/crop-screenshots.py`)
+
+Dual-strategy captures (currently `08-scoring-section.png`) emit their `-fullpage.png` safety net **unconditionally first**, then attempt the primary testid capture. The chained post-step (`scripts/run-crop.cjs` → `crop-screenshots.py`, config in `scripts/screenshots-crop.json`) then applies **mtime idempotence**: if the final PNG is at least as new as its source, the primary capture won and the entry is skipped; otherwise the tool crops the configured rect (plus optional padding/callouts) from the fresh same-render source. Missing source or invalid config exits non-zero so a chained run fails loudly. `_`-prefixed JSON keys are ignored (comments). The launcher probes interpreters for Pillow (`py -3` → `python` → `python3` on Windows) because a project venv without Pillow may shadow the system Python.
+
+### T-18 — Worked-example course build (§17 + §02)
+
+§17's five finals show the *finished* "Capitals of Europe" course from `17-worked-example.md`, built for real in a **second course** (created via the New Course dialog; `globalTeardown` deletes every course owned by the E2E user, so no bespoke cleanup):
+
+- **A Blank course starts with 0 slides** — wait for the toolbar title to confirm the course switch, `addSlide()` once, and only THEN wait on the editor ready signal (the canvas never mounts, and `data-editor-ready` never appears, while the course has no slides).
+- **Explicit per-widget coordinates** — every `placeAt(type, name, x, y, size?)` passes distinct positions; never rely on `ensureWidgetIsCentered`'s defaults for more than one widget per slide (stacked-centring was the §17 baseline defect).
+- **Action wiring happens in each final's prep, immediately before its shot** — sequences wired during the build phase did NOT survive the intervening slide switches (ids regenerate → sequences orphan; filed as TD-015). Widgets are re-resolved by their persisted `[name]` DOM attribute (`idByName`), since the `name` *trait* is stripped by the round-trip (TD-019).
+- **Nested action params** (inside the If/Else condition row) must be targeted by placeholder *within the condition row* — nested rows don't carry their own `data-action-type` wrapper.
+- **Finals at 1600×900** — at 1280×720 the canvas viewport clips the 1024×768 slide's right third. Resize, wait ~600 ms for relayout, shoot with clean-filename `page.screenshot()` (T-7), restore in `finally`.
+- Known product quirks visible in the shots (filed for triage): nav-buttons renders with a broken Previous button (TD-016); done-button ignores label edits (TD-018); slide-level actions are wired on `BranchingNote` because the ActionsPanel has no no-selection path (TD-017 — the manual currently documents one).
 
 ---
 
-## Deferred placeholders
+## Historical deferrals — now automated
 
-Intentionally NOT captured by the spec. The reason is documented inline; these need human intervention or a separate block.
+Everything in the original "Deferred placeholders" table has been automated. Kept for the paper trail:
 
-| Placeholder | Section | Why deferred |
+| Placeholder | Automated by | Technique |
 |---|---|---|
-| `02-create-course.png` | §02 Getting Started | "New Course" dialog lives in the dashboard (outside the editor). Requires navigating to the course list + capturing the modal — adds login-screen setup cost that outweighs the single-shot benefit. Capture manually. |
-| `09-widget-name-field.png` | §09 Actions Editor | Name trait lives inside GrapesJS traits, not a React Props panel. The spec falls back to a full-page safety net — a UX refactor is the proper fix, not a screenshot trick. |
-| `09-widget-dropdown-names.png` | §09 Actions Editor | `WidgetIdParam` only renders a `<select>` (vs a free-form `<input>`) when the **Zustand** course store has widgets for the current slide. The Zustand course is populated at App bootstrap from `getCourse(id)` and is **not** mutated by the autosave pipeline — widgets added in the session only land in the store on page reload. Forcing `editor.store()` hits the backend but does not re-populate Zustand either. Candidate for a separate refactor block; the spec emits the fullpage safety net. |
-| `13-overview.png` | §13 Software Walkthrough | Requires Simulation Editor state loaded with a recorded session — not reproducible from a clean spec run. |
-| `13-hotspot-editor.png` | §13 Software Walkthrough | Same as above — needs drawn hotspots on an uploaded screenshot. |
-| `01-full-ui-annotated.png` | §01 Welcome | The spec writes a clean full-page shot; numbered callouts (1 top toolbar, 2 left sidebar, 3 canvas, 4 right sidebar) are added in an image editor after the run. Annotating in Playwright across iframes is brittle. |
+| `01-full-ui-annotated.png` | TD-013.1 (+ .5c offset fix) | T-13 |
+| `02-create-course.png` | TD-013.2 | T-14 |
+| `02-first-slide.png` (genuine) | TD-013.5c | T-14 / T-18 |
+| `09-widget-name-field.png` | TD-013.3 (NameField component) | — |
+| `09-widget-dropdown-names.png` | TD-013.4 | T-15 |
+| `13-overview.png` / `13-hotspot-editor.png` | TD-013.5 (unblocked by TD-014) | T-16 |
+| `08-scoring-section.png` (deterministic crop) | TD-013.5b / .6 | T-17 |
+| `17-slide-N-final.png` (real worked example) | TD-013.5c | T-18 |
 
-If you close one of these, add the corresponding capture block to the spec and update this table.
+If a placeholder regresses to needing manual work, re-add a Deferred row AND file the regression.
 
 ---
 
