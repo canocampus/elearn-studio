@@ -13,6 +13,14 @@ import type { BaseWidget, Bounds, WidgetType } from '../types/course'
  */
 export interface GrapesJsComponentDef {
   type: string
+  /**
+   * TD-019: the author-assigned display name, restored onto the component
+   * MODEL (same state addBlockById/NameField produce). Without it the model
+   * reverted to the type default on load, and — because widgetsFromGrapesjs
+   * prefers `c.get('name')` — any save after a reload silently replaced the
+   * author's name in the course document with the type default.
+   */
+  name?: string
   attributes: Record<string, unknown>
   /**
    * Full CSS style for this component.
@@ -280,6 +288,10 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
 
     const def: GrapesJsComponentDef = {
       type: w.type,
+      // TD-019: restore the author name onto the MODEL too (see the field's
+      // docstring). attributes.name stays for the DOM [name] attribute the
+      // E2E id-resolution and the Actions dropdown fall back on.
+      ...(typeof w.name === 'string' && w.name.length > 0 ? { name: w.name } : {}),
       // id preserved so the round-trip produces the same Widget id after load
       attributes,
       style: {

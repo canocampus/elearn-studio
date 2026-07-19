@@ -132,6 +132,24 @@ describe('grapesjsFromWidgets — Widget → GrapesJS definition', () => {
     expect(def.content).toBe('Hello World')
   })
 
+  it('TD-019 regression: restores the author name into the MODEL (def.name), not only the attribute', () => {
+    // Load restored the name only into attributes.name; the model reverted to
+    // the type default ('Button', 'Multiple Choice', ...). Because the save
+    // side prefers c.get('name') — always truthy via the type default — any
+    // save AFTER a reload silently replaced the author's name in the course
+    // document with the type default. Restoring def.name recreates the same
+    // model state a freshly-named widget has.
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'button', name: 'StartBtn' })])
+    expect((def as Record<string, unknown>).name).toBe('StartBtn')
+    expect((def.attributes as Record<string, unknown>).name).toBe('StartBtn')
+  })
+
+  it('TD-019 round-trip: an authored name survives load → save', () => {
+    const [def] = grapesjsFromWidgets([makeWidget({ type: 'button', name: 'StartBtn' })])
+    const [w] = widgetsFromGrapesjs([defToComponent(def)])
+    expect(w.name).toBe('StartBtn')
+  })
+
   it('TD-018 regression: restores content for done-button widgets (edited label survives reload)', () => {
     // The T643.1 positive allowlist (text/button) omitted done-button, so an
     // edited label ("Finish course") saved fine but the reload fell back to

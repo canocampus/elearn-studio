@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.72] — 2026-07-19 — TD-019: author widget names survive slide reloads
+
+### Fixed
+
+- **Author-assigned widget names silently reverted to the type default** ('Button', 'Multiple Choice'…). The loader restored the name only as a DOM attribute; the component model fell back to the type default, which the Name field displayed AND the next save preferred — overwriting the author's name in the course document after any reload. The loader now restores the name onto the model (identical to a freshly-named widget); Name field, Actions-Editor dropdown labels and the save cycle stay consistent. Unit RED→GREEN + E2E `@regression TD-019` (name survives a slide round-trip). One campaign-specific residual (the §17 worked-example capture) is documented in `tasks.md` TD-019 with the probe evidence — every direct authoring flow is verified fixed.
+
+---
+
 ## [0.5.71] — 2026-07-19 — TD-018: done-button label survives slide reloads
 
 ### Fixed

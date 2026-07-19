@@ -158,3 +158,52 @@ test('TD-009 multi-hop: widgets added on slide 1 survive round-trip through 5 sl
   expect((diagnostics as { count: number }).count).toBeGreaterThanOrEqual(1)
   expect((diagnostics as { byFind: number }).byFind).toBe(1)
 })
+
+// ---------------------------------------------------------------------------
+// TD-019 — the author-assigned widget name survives slide switches
+// ---------------------------------------------------------------------------
+
+test.describe('TD-019 — widget name round-trip', () => {
+  test('@regression TD-019 — NameField keeps the author name after switching slides away and back', async ({ editorPage, page }) => {
+    test.setTimeout(60_000)
+
+    // Regression: the loader restored the name only into attributes.name; the
+    // component MODEL reverted to the type default ('Button'), which the
+    // NameField displays AND which the next save preferred over the author's
+    // attribute — silently overwriting widget.name in the course document.
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+
+    await editorPage.addComponentViaEditor('button')
+    await page.waitForTimeout(300)
+    await editorPage.propsTab.click()
+    const nameInput = page.getByTestId('widget-name-input')
+    await expect(nameInput).toBeVisible({ timeout: 5_000 })
+    await nameInput.fill('MyStartBtn')
+    await page.waitForTimeout(300)
+    await page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    ).catch(() => page.waitForTimeout(2500))
+
+    // Round-trip through another slide.
+    await slides.first().click()
+    await editorPage.waitForCanvas()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+
+    // Re-select the button via the JS bridge and check the NameField value.
+    await page.waitForFunction(() => !!window.__elearn_editor, { timeout: 15_000 })
+    await page.evaluate(() => {
+      const ed = window.__elearn_editor
+      if (!ed) return
+      const first = ed.getComponents().first()
+      if (first) ed.select(first)
+    })
+    await page.waitForTimeout(400)
+    await editorPage.propsTab.click()
+    await expect(page.getByTestId('widget-name-input')).toHaveValue('MyStartBtn', { timeout: 5_000 })
+  })
+})

@@ -1520,10 +1520,12 @@ test('Manual v2 screenshot campaign', async ({ editorPage, page }) => {
           if (!id) return
           await retryOnDestroyedContext(page, () => selectById(page, id))
           await editorPage.propsTab.click()
-          // The `name` trait is stripped by the save/reload round-trip (the
-          // §09 dropdown block documents the same limitation) — restore it
-          // through the real NameField so the shot matches the manual's
-          // "give every block a clear Name" tip.
+          // TD-019 fixed name restoration for the standard authoring flow
+          // (unit + E2E + two direct probes green), but THIS capture still
+          // arrived with the type-default name — a §17-campaign-specific
+          // residual (suspected save race across the many build/finals
+          // transitions; evidence in tasks.md TD-019). Keep the real-UI
+          // re-fill as a capture aid until that residual is understood.
           await page.locator('[data-testid="widget-name-input"]')
             .fill('Q1Capital', { timeout: 2000 }).catch(() => undefined)
         },

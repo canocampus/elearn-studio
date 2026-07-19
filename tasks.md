@@ -789,7 +789,11 @@ same flow). Check the label-change convention ADR
 (`decisions/2026-04-25-button-label-change-convention.md`) while fixing.
 
 ### TD-019 — `name` trait stripped by the save/reload round-trip
-> **Source:** TD-013.5c finding 5 (first documented at TD-013.4 §09) | **Status:** Pending | **Severity:** MEDIUM
+> **Source:** TD-013.5c finding 5 (first documented at TD-013.4 §09) | **Status:** ✅ FIX SHIPPED 2026-07-19 (v0.5.72) — one campaign-specific residual documented | **Severity:** was MEDIUM
+
+**Root cause (two-part, the second destructive)**: the loader restored the author name only into `attributes.name` — the component MODEL reverted to the type default ('Button', 'Multiple Choice'…), which (a) the NameField displays (it binds the model), and (b) the save side PREFERS (`c.get('name') ?? attributes.name` — the default is always truthy), so **any save after a reload silently replaced the author's name in the course document with the type default**. The "unnamed widget → type name" semantics are intentional (§09 dropdown); only the author-name restoration was missing. **Fix**: `grapesjsFromWidgets` restores `def.name` (model) alongside `attributes.name` — the same state a freshly-named widget has; the existing save priority becomes correct without changes. **Verification**: unit RED→GREEN in `converters.test.ts` (93/93; suite 1052/1052); E2E `@regression TD-019` in `widget-persistence-across-slides.spec.ts` (NameField keeps the name across a slide round-trip) 3/3; two throwaway probes green, incl. an exact replica of the §17 build sequence (model name survives switch); tsc 0; lint 0.
+
+**Residual (documented, non-blocking)**: the §17 campaign's slide-3 finals capture STILL arrives with the type-default name even post-fix, while every direct reproduction (probe replicating the same placeAt+panel-fill+switch sequence) keeps it — a campaign-context-specific mechanism (suspected save race across the worked-example build/finals transitions) distinct from the fixed defect. The campaign keeps its real-UI NameField re-fill as a capture aid with an honest comment; T-15 (Zustand direct-sync) also stays — its cause is store staleness for in-session widgets, orthogonal to names (the TD-019 backlog note's assumption that both workarounds could retire was half right). Reopen only if a real-flow repro of the residual appears outside the campaign.
 
 Author-assigned widget names survive as the `[name]` DOM attribute but the
 GrapesJS `name` trait (what NameField and WidgetIdParam display) resets to the
