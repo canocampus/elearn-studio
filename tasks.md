@@ -777,7 +777,9 @@ to wire slide-entry logic on a designated widget (the §17 campaign currently
 uses `BranchingNote`). Until decided, the manual and the product disagree.
 
 ### TD-018 — `done-button` label edits do not reflect in the canvas
-> **Source:** TD-013.5c finding 4 | **Status:** Pending | **Severity:** MEDIUM
+> **Source:** TD-013.5c finding 4 | **Status:** ✅ FIX SHIPPED 2026-07-19 (v0.5.71) | **Severity:** was MEDIUM
+
+**Root cause**: the T643.1 positive content-restore allowlist in `converters.ts` (`grapesjsFromWidgets`) included `text` and `button` but omitted `done-button` — the edited label saved correctly into `properties.content` (published courses were fine) but every slide reload rebuilt the component without content, so the type default `'✓ Done'` won in the editor. **Fix**: `done-button` added to the allowlist (safe by symmetry with `button` — plain-text single node, not the multi-element HTML that motivated T643.1; consistent with the label-change convention ADR 2026-04-25). **Verification**: unit RED→GREEN in `converters.test.ts` (91/91; suite 1050/1050); E2E `@regression TD-018` in the dedicated `button-widget.spec.ts` (live canvas reflect + slide-switch round-trip — the exact gap) 2/2; campaign refreshed `17-slide-5-final.png`, which now shows "Finish course" (the campaign's own label fill finally survives); tsc 0; lint 0 errors. Test-authoring note: `dragBlockToCanvas` leaves the Blocks tab active — slide navigation in specs must click the Slides tab first (playbook goToSlide pitfall, hit once during test authoring).
 
 Filling "Button Label" on a done-button through the Props panel (committed
 with Tab/blur) leaves the canvas rendering the default "✓ Done" after the save

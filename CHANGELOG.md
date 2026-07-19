@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.71] — 2026-07-19 — TD-018: done-button label survives slide reloads
+
+### Fixed
+
+- **Editing a Done Button's label reverted to "✓ Done" on every slide reload** in the editor (published courses were unaffected — the label always saved). The T643.1 positive content-restore allowlist omitted `done-button`; it now restores like `button` (plain-text label, safe against the multi-element parse crash T643.1 guarded). Unit RED→GREEN + E2E `@regression TD-018` (live reflect + slide-switch round-trip); the §17 worked-example capture now shows "Finish course" as the manual specifies.
+
+---
+
 ## [0.5.70] — 2026-07-19 — TD-017: slide-event documentation corrected (fossil confirmed)
 
 ### Fixed (documentation)

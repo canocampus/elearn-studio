@@ -132,6 +132,17 @@ describe('grapesjsFromWidgets — Widget → GrapesJS definition', () => {
     expect(def.content).toBe('Hello World')
   })
 
+  it('TD-018 regression: restores content for done-button widgets (edited label survives reload)', () => {
+    // The T643.1 positive allowlist (text/button) omitted done-button, so an
+    // edited label ("Finish course") saved fine but the reload fell back to
+    // the type default ("✓ Done"). Plain-text button labels are safe to
+    // restore — same single-text-node shape as the allowlisted 'button'.
+    const [def] = grapesjsFromWidgets([
+      makeWidget({ type: 'done-button', properties: { content: 'Finish course' } }),
+    ])
+    expect(def.content).toBe('Finish course')
+  })
+
   it('sets src from properties.src for image widgets', () => {
     const [def] = grapesjsFromWidgets([makeWidget({ type: 'image', properties: { src: '/assets/photo.jpg' } })])
     expect(def.src).toBe('/assets/photo.jpg')

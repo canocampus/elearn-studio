@@ -313,7 +313,14 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
     // cause GrapesJS to parse the HTML into child component defs that lack actions:[],
     // crashing with "Cannot read properties of undefined (reading 'forEach')" in
     // loadData (T643.1 fix — positive allowlist replaces the previous unconditional set).
-    if ((w.type === 'text' || w.type === 'button') && typeof props?.content === 'string') {
+    // TD-018: done-button added to the allowlist — its label is a plain-text
+    // single node (same shape as 'button'), safe against the T643.1 multi-
+    // element parse crash. Its omission made edited labels save fine but
+    // silently revert to the type default ('✓ Done') on every slide reload.
+    if (
+      (w.type === 'text' || w.type === 'button' || w.type === 'done-button') &&
+      typeof props?.content === 'string'
+    ) {
       def.content = props.content
     }
 
