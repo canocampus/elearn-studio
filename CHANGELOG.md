@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.74] — 2026-07-20 — TD-014-followup-1: withDisabled helper (backlog to zero)
+
+### Changed
+
+- **Simulation components: spread-with-null disabled-style pattern replaced by an explicit helper** (R-M2 from the TD-014.26 reviewer pass). `withDisabled(base, isDisabled)` in `simulationTheme.ts` overlays `buttons.disabled` when the action is in flight and returns the base otherwise — immutable, unit-tested (overlay / no-op / immutability). All 13 callsites across the 5 simulation components migrated (the ticket originally counted 6; the pattern had spread with the recorder work). No visual or behavioural change — pure readability. With this, the TD backlog reaches zero.
+
+---
+
 ## [0.5.73] — 2026-07-19 — TD-019b: widget names persist in the backend + TD-020 closed
 
 ### Fixed

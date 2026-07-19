@@ -109,12 +109,12 @@ export const gap = {
 } as const
 
 // ── BUTTONS ───────────────────────────────────────────────────────────────
-// Composite button styles. Each variant is a base spec; combine with
-// `buttons.disabled` via spread when the action is in flight.
+// Composite button styles. Each variant is a base spec; overlay the
+// disabled state with `withDisabled` when the action is in flight.
 //
 // Usage:
 //   <button
-//     style={{ ...buttons.primary, ...(busy ? buttons.disabled : null) }}
+//     style={withDisabled(buttons.primary, busy)}
 //     disabled={busy}
 //   >Save & Close</button>
 //
@@ -178,6 +178,15 @@ export const buttons = {
     cursor: 'not-allowed',
   } satisfies CSSProperties,
 } as const
+
+/**
+ * Overlay `buttons.disabled` on a base style when `isDisabled` is true
+ * (TD-014-followup-1 / R-M2 — replaces the spread-with-null pattern at the
+ * callsites). Always returns a new object; the base is never mutated.
+ */
+export function withDisabled(base: CSSProperties, isDisabled: boolean): CSSProperties {
+  return isDisabled ? { ...base, ...buttons.disabled } : { ...base }
+}
 
 // ── SURFACES ──────────────────────────────────────────────────────────────
 // Reusable container patterns that appear in ≥2 files. Surface-specific

@@ -381,7 +381,20 @@ After R-H1 + R-M1 fixes:
 - `grep "color: '#6c7086'" packages/authoring-ui/src/components/simulation/` → 0 hits production-wide; only `simulationTheme.ts:44` retains the literal as the source-of-truth definition (intentional).
 - Architecture doc still type-checks against the source: `SimStep` exists in both `simulation-engine` and `authoring-ui`; `Session.steps: SimStep[]` matches `recorder/types.ts:45`.
 
-### Follow-up ticket — TD-014-followup-1 (out of block)
+### Follow-up ticket — TD-014-followup-1 (out of block) — ✅ CLOSED 2026-07-20
+
+**Closure (v0.5.74):** the helper option was implemented as
+`withDisabled(base, isDisabled)` exported from `simulationTheme.ts`
+(immutable — always returns a new object; overlays `buttons.disabled` only
+when disabled). By closure time the pattern had grown from the 6 callsites
+counted below to **13** across the same 5 components (recorder work reused
+it); all 13 migrated, including the two multi-line object-literal forms
+(`SessionsPickerDialog` Import row, `StepForm` Clear-hotspot) and the
+theme's JSDoc usage example. `StepForm` no longer imports `buttons` at all.
+TDD: 3 RED→GREEN tests in `simulationTheme.test.ts` (overlay, no-op,
+immutability). Post-fix grep: `buttons.disabled : null` → 0 hits in
+components. authoring-ui 1055/1055; tsc 0; lint 0 errors.
+
 
 **MEDIUM | Pattern review: spread-with-null for conditional state styles** — across the 5 simulation components (six callsites), the disabled-state composition uses `{ ...base, ...(condition ? buttons.disabled : null) }`. This is type-safe and works correctly; however, an explicit ternary `condition ? { ...base, ...buttons.disabled } : base` or a small helper `applyDisabled(base, condition)` would make intent clearer at the callsite. Owner to decide whether the cosmetic gain warrants a follow-up PR. Filed for tracking; not blocking TD-014 closure.
 

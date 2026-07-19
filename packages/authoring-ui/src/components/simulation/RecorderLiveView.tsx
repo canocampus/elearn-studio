@@ -31,7 +31,7 @@ import { useToast } from '../ui/Toast'
 import { getLiveScreenshotUrl, deleteSession } from '../../api/recorderApi'
 import { importSimulation } from '../../api/courseApi'
 import {
-  colors, fontSize, fontWeight, radius, gap, buttons, surfaces,
+  colors, fontSize, fontWeight, radius, gap, buttons, surfaces, withDisabled,
 } from './simulationTheme'
 
 const POLL_INTERVAL_MS = 500
@@ -182,7 +182,7 @@ export function RecorderLiveView() {
           <button
             type="button"
             data-testid="recorder-live-discard"
-            style={{ ...buttons.danger, ...(isBusy ? buttons.disabled : null) }}
+            style={withDisabled(buttons.danger, isBusy)}
             onClick={handleDiscard}
             disabled={isBusy}
             title="Discard this recording (permanent)"
@@ -195,7 +195,7 @@ export function RecorderLiveView() {
             data-testid="recorder-live-capture"
             // TD-014.24 dec 4: green button is `buttons.success`, not `btnPrimary`
             // (which is BLUE everywhere else — naming collision resolved at theme).
-            style={{ ...buttons.success, ...(isBusy ? buttons.disabled : null) }}
+            style={withDisabled(buttons.success, isBusy)}
             onClick={handleCapture}
             disabled={isBusy}
             title="Capture step (C)"
@@ -205,7 +205,7 @@ export function RecorderLiveView() {
           <button
             type="button"
             data-testid="recorder-live-preserve"
-            style={{ ...buttons.secondary, ...(isBusy ? buttons.disabled : null) }}
+            style={withDisabled(buttons.secondary, isBusy)}
             onClick={handleStopPreserve}
             disabled={isBusy}
             title="Stop recording; re-import later from Sessions list"
@@ -215,7 +215,7 @@ export function RecorderLiveView() {
           <button
             type="button"
             data-testid="recorder-live-stop"
-            style={{ ...buttons.primary, ...(isBusy ? buttons.disabled : null) }}
+            style={withDisabled(buttons.primary, isBusy)}
             onClick={handleStopAndImport}
             disabled={isBusy}
           >

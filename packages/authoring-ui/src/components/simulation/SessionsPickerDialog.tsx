@@ -15,7 +15,7 @@ import { useSimStore } from '../../store/simStore'
 import { useEditorStore } from '../../store/editorStore'
 import { useToast } from '../ui/Toast'
 import {
-  colors, fontSize, fontWeight, gap, buttons, surfaces,
+  colors, fontSize, fontWeight, gap, buttons, surfaces, withDisabled,
 } from './simulationTheme'
 import type { SessionSummary } from '../../types/recorder'
 
@@ -92,7 +92,7 @@ export function SessionsPickerDialog({ open, onClose }: SessionsPickerDialogProp
               // TD-014.24 dec 11 + `decisions/2026-04-25-button-label-change-convention.md`:
               // app-chrome buttons do NOT take label-change. Disabled-only is the
               // complete state signal.
-              style={{ ...styles.btnSecondary, ...(loading ? buttons.disabled : null) }}
+              style={withDisabled(styles.btnSecondary, loading)}
               onClick={refresh}
               disabled={loading}
             >
@@ -139,10 +139,7 @@ export function SessionsPickerDialog({ open, onClose }: SessionsPickerDialogProp
                 data-testid={`sessions-picker-import-${s.id}`}
                 // TD-014.24 dec 11 + `decisions/2026-04-25-button-label-change-convention.md`:
                 // app-chrome → no label-change; disabled-only is the state signal.
-                style={{
-                  ...styles.btnImport,
-                  ...(importingId === s.id ? buttons.disabled : null),
-                }}
+                style={withDisabled(styles.btnImport, importingId === s.id)}
                 onClick={() => handleImport(s.id)}
                 disabled={importingId === s.id}
               >

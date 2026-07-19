@@ -19,7 +19,7 @@ import { RecorderLauncherDialog } from './RecorderLauncherDialog'
 import { RecorderLiveView } from './RecorderLiveView'
 import { SessionsPickerDialog } from './SessionsPickerDialog'
 import {
-  colors, fontSize, fontWeight, radius, gap, text, buttons, surfaces,
+  colors, fontSize, fontWeight, radius, gap, text, buttons, surfaces, withDisabled,
 } from './simulationTheme'
 import type { SimMode } from '../../types/simulation'
 
@@ -174,7 +174,7 @@ export function SimulationEditor() {
           {/* TD-014.13 — Record… / Import… entry points; disabled during an active recording. */}
           <button
             data-testid="sim-record-btn"
-            style={{ ...styles.btnCancel, ...(recorderRecording ? buttons.disabled : null) }}
+            style={withDisabled(styles.btnCancel, recorderRecording)}
             onClick={() => setRecorderLauncherOpen(true)}
             disabled={recorderRecording}
           >
@@ -182,7 +182,7 @@ export function SimulationEditor() {
           </button>
           <button
             data-testid="sim-import-btn"
-            style={{ ...styles.btnCancel, ...(recorderRecording ? buttons.disabled : null) }}
+            style={withDisabled(styles.btnCancel, recorderRecording)}
             onClick={() => setSessionsPickerOpen(true)}
             disabled={recorderRecording}
           >
@@ -276,7 +276,7 @@ export function SimulationEditor() {
           <div style={styles.stepListFooter}>
             <button
               data-testid="sim-add-step-btn"
-              style={{ ...styles.btnAddStep, ...(isSaving ? buttons.disabled : null) }}
+              style={withDisabled(styles.btnAddStep, isSaving)}
               onClick={handleAddStep}
               disabled={isSaving}
             >

@@ -823,3 +823,18 @@ shipped workarounds were already correct and stand: Escape-key deselect
 safe — the retry runs in the same, live world; rationale in its docstring in
 `e2e/utils/worked-example.ts`). Optional follow-up: file the quirk upstream
 with the CDP evidence.
+
+### TD-014-followup-1 — R-M2: spread-with-null pattern for conditional disabled styles
+> **Source:** TD-014.26 reviewer pass (typescript-reviewer, deferred by owner decision) | **Status:** ✅ CLOSED 2026-07-20 (v0.5.74) | **Severity:** was MEDIUM (cosmetic/readability)
+
+The recipe's helper option implemented: `withDisabled(base, isDisabled)` in
+`simulationTheme.ts` (returns a new object, never mutates; overlays
+`buttons.disabled` only when disabled). All **13 callsites** across the 5
+simulation components migrated (the original ticket counted 6 — the pattern
+had spread with the recorder work), incl. the two multi-line object-literal
+forms and the theme's own JSDoc usage example; `buttons` import dropped where
+it became unused (StepForm). TDD: 3 RED→GREEN unit tests in
+`simulationTheme.test.ts` (overlay, no-op, immutability). Verification:
+`grep 'buttons.disabled : null'` → 0 hits in components; authoring-ui
+1055/1055; tsc -b 0; lint 0 errors. Closure note appended to
+`docs/issues/issues-TD-014.md`. **Backlog a 0.**

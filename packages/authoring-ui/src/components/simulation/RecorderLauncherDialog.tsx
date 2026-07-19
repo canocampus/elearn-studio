@@ -21,7 +21,7 @@ import {
   MAX_RECORDER_TITLE_LENGTH,
 } from '../../lib/urlValidation'
 import {
-  colors, fontSize, fontWeight, radius, gap, text, buttons, surfaces,
+  colors, fontSize, fontWeight, radius, gap, text, buttons, surfaces, withDisabled,
 } from './simulationTheme'
 
 interface RecorderLauncherDialogProps {
@@ -160,7 +160,7 @@ export function RecorderLauncherDialog({ open, onClose, onStarted }: RecorderLau
             // app-chrome buttons do NOT take label-change. Disabled-only is the
             // complete state signal — previously rendered `Starting…` was an
             // accidental label-change drift, removed here.
-            style={{ ...styles.btnStart, ...(isBusy ? buttons.disabled : null) }}
+            style={withDisabled(styles.btnStart, isBusy)}
             disabled={isBusy}
           >
             Start recording

@@ -13,7 +13,7 @@ import { uploadAsset, resolveAssetUrl } from '../../api/courseApi'
 import { useEditorStore } from '../../store/editorStore'
 import { useToast } from '../ui/Toast'
 import { isDrawModeHotspot } from './hotspotDraw'
-import { colors, fontSize, fontWeight, radius, gap, text, buttons } from './simulationTheme'
+import { colors, fontSize, fontWeight, radius, gap, text, withDisabled } from './simulationTheme'
 import type { AuthoredSimStep, SimInteractionType } from '../../types/simulation'
 
 interface StepFormProps {
@@ -86,7 +86,7 @@ export function StepForm({ step, onChange }: StepFormProps) {
             // app-chrome buttons do NOT take label-change. Disabled-only is the
             // complete state signal — previously rendered `Uploading…` was an
             // accidental label-change drift, removed here.
-            style={{ ...styles.screenshotBtn, ...(uploading ? buttons.disabled : null) }}
+            style={withDisabled(styles.screenshotBtn, uploading)}
             onClick={handleUploadClick}
             disabled={uploading}
           >
@@ -95,7 +95,7 @@ export function StepForm({ step, onChange }: StepFormProps) {
           <button
             type="button"
             data-testid="step-asset-library-btn"
-            style={{ ...styles.screenshotBtn, ...((!editor || uploading) ? buttons.disabled : null) }}
+            style={withDisabled(styles.screenshotBtn, (!editor || uploading))}
             onClick={handleAssetLibraryClick}
             disabled={!editor || uploading}
           >
@@ -194,10 +194,7 @@ export function StepForm({ step, onChange }: StepFormProps) {
         <button
           type="button"
           data-testid="step-clear-hotspot-btn"
-          style={{
-            ...styles.screenshotBtn,
-            ...(isDrawModeHotspot(step.hotspot) ? buttons.disabled : null),
-          }}
+          style={withDisabled(styles.screenshotBtn, isDrawModeHotspot(step.hotspot))}
           onClick={handleClearHotspot}
           disabled={isDrawModeHotspot(step.hotspot)}
         >
