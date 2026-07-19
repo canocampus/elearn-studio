@@ -554,6 +554,14 @@ describe('T634 — nav-buttons child label persistence', () => {
     const [def] = grapesjsFromWidgets([widget])
     expect(def.components).toHaveLength(2)
     expect((def.components![0] as Record<string, unknown>).content).toBe('Back')
+    // TD-016b: children must be non-selectable/non-hoverable so a canvas click
+    // anywhere on the widget selects the nav-buttons container (Props target),
+    // and non-draggable so they cannot be pulled out of it.
+    for (const child of def.components! as Array<Record<string, unknown>>) {
+      expect(child.selectable).toBe(false)
+      expect(child.hoverable).toBe(false)
+      expect(child.draggable).toBe(false)
+    }
     expect((def.components![1] as Record<string, unknown>).content).toBe('Forward')
   })
 

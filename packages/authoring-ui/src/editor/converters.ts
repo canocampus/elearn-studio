@@ -48,6 +48,13 @@ export interface NavButtonChildDef {
   content: string
   droppable: boolean
   draggable: boolean
+  /**
+   * TD-016b: composite-widget children are not individually selectable or
+   * hoverable — a canvas click anywhere on the widget must select the
+   * nav-buttons container (the Props panel target), never a child button.
+   */
+  selectable: boolean
+  hoverable: boolean
   actions: []
   elearnActions: []
   // GrapesJS Style Manager PropertyComposite expects an array here
@@ -339,6 +346,10 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
           content: prevLabel,
           droppable: false,
           draggable: false,
+          // TD-016b: keep composite children non-selectable so canvas clicks
+          // always select the nav-buttons container itself.
+          selectable: false,
+          hoverable: false,
           actions: [],
           elearnActions: [],
           properties: [],
@@ -359,6 +370,10 @@ export function grapesjsFromWidgets(widgets: BaseWidget[]): GrapesJsComponentDef
           content: nextLabel,
           droppable: false,
           draggable: false,
+          // TD-016b: keep composite children non-selectable so canvas clicks
+          // always select the nav-buttons container itself.
+          selectable: false,
+          hoverable: false,
           actions: [],
           elearnActions: [],
           properties: [],

@@ -255,12 +255,18 @@ function registerNavButtonsWidget(editor: Editor): void {
           {
             tagName: 'button', content: NAV_BUTTON_DEFAULTS.prevLabel,
             droppable: false, draggable: false,
+            // TD-016b: children are not individually selectable — clicking anywhere
+            // on the widget must select the nav-buttons container (Props panel target).
+            selectable: false, hoverable: false,
             actions: [], elearnActions: [], properties: [], extendedProperties: {},
             style: { padding: '8px 16px', 'margin-right': '8px', background: '#64748b', color: '#fff', border: 'none', 'border-radius': '4px', cursor: 'pointer', 'font-size': '13px' },
           },
           {
             tagName: 'button', content: NAV_BUTTON_DEFAULTS.nextLabel,
             droppable: false, draggable: false,
+            // TD-016b: children are not individually selectable — clicking anywhere
+            // on the widget must select the nav-buttons container (Props panel target).
+            selectable: false, hoverable: false,
             actions: [], elearnActions: [], properties: [], extendedProperties: {},
             style: { padding: '8px 16px', background: '#4f46e5', color: '#fff', border: 'none', 'border-radius': '4px', cursor: 'pointer', 'font-size': '13px' },
           },

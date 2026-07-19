@@ -65,3 +65,30 @@ for that edge.
 - Manual captures: `docs:screenshots` re-run (56 writes, chained crop green) —
   §17 slides now show "← Previous | Next →" side by side.
 - tsc -b 0; lint 0 errors (2 pre-existing TD-004 warnings unchanged).
+
+## Fix-forward (TD-016b, 2026-07-19): CI caught a click-target regression
+
+The first fix turned CI red: `nav-buttons-widget.spec.ts` (T634) failed on
+the two tests that CLICK the widget to select it. With the children now
+flowing normally they occupy the container's centre, so Playwright's
+centre-click landed on a child `<button>` — GrapesJS selected the child
+(type `default`) instead of the container, and the Props panel showed its
+empty state. (Pre-fix this was latent for real users too: clicking directly
+on the visible stacked buttons also selected a child.)
+
+**Fix-forward**: `selectable: false, hoverable: false` on both child defs —
+in the type defaults (`registerBlocks.ts`) AND the T634 load branch
+(`converters.ts`, `NavButtonChildDef` extended). Clicking anywhere on the
+widget now always selects the nav-buttons container — the correct authoring
+semantics for a composite widget.
+
+**Verification**: `nav-buttons-widget.spec.ts` 3/3 (was 1/3);
+`grapesjs-integration.spec.ts` 17/17 incl. the TD-016 regression; unit
+contract pins added in `converters.test.ts` (children selectable/hoverable/
+draggable all false); authoring-ui 1046/1046; tsc 0; lint 0.
+
+**Process note**: the first push ran only the specs my change-map flagged
+(grapesjs-integration + widget-persistence) — `nav-buttons-widget.spec.ts`
+was the dedicated spec for this exact widget and belonged in the local run.
+CI caught it; local E2E scope for widget-behaviour changes should include
+the widget's dedicated spec by name grep, not just the risk-table pairs.
