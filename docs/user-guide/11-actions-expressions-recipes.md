@@ -55,6 +55,8 @@ An expression is usually made of **two values** joined by a **comparison**:
 
 The five patterns below cover the vast majority of what authors need. Every recipe is a **ready-to-copy template**: replace the names in `*emphasis*` with your own block and variable names.
 
+> ℹ️ **Note:** Slide events like **Enter Slide** and **Exit Slide** are always added on a **block** of the slide — select any block, open the **Actions** tab, and add the event there. It runs when the learner arrives at (or leaves) the slide, no matter which block hosts it. The recipes below suggest a natural host block for each pattern, but any block on the same slide works.
+
 ### Recipe 1 — Attempt counter with a limit
 
 **Goal:** let the learner retry a question up to three times, then show a hint.
@@ -63,7 +65,7 @@ The five patterns below cover the vast majority of what authors need. Every reci
 - A Multiple Choice question named *MainQuestion*.
 - A hidden Text block named *HintText* (set it to invisible in the [Layers](20-glossary.md#layers) panel, or by default via *Hide* on `enterSlide`).
 
-**On the slide — trigger `enterSlide`:**
+**On the *MainQuestion* block — add the `Enter Slide` event:**
 1. `Set Variable → attempts = 0` (Literal).
 
 **On the *MainQuestion* block — trigger `questionIncorrect`:**
@@ -107,7 +109,7 @@ The five patterns below cover the vast majority of what authors need. Every reci
 - A *HintBtn* button.
 - Three Text blocks *Hint1*, *Hint2*, *Hint3* — all hidden by default.
 
-**On the slide — trigger `enterSlide`:**
+**On the *HintBtn* block — add the `Enter Slide` event:**
 1. `Set Variable → hintCount = 0`
 2. `Hide → Hint1`
 3. `Hide → Hint2`
@@ -135,7 +137,7 @@ The five patterns below cover the vast majority of what authors need. Every reci
 - A Multiple Choice question *MainQuestion*.
 - A custom button *NextBtn* (separate from built-in Nav Buttons).
 
-**On the slide — trigger `enterSlide`:**
+**On the *MainQuestion* block — add the `Enter Slide` event:**
 1. `Hide → NextBtn`
 
 **On *MainQuestion* — trigger `questionAnswered`:**

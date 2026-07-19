@@ -129,7 +129,7 @@ The course makes a decision: successful learners move straight to the final slid
 
 ### Actions to wire
 
-On **the slide itself** (no block selected) — trigger `enterSlide`:
+Select the ***BranchingNote*** block and add the **Enter Slide** event:
 
 1. `Score Quiz`  *(refreshes the running `$score` variable)*
 2. `If $score >= 50`
@@ -137,6 +137,10 @@ On **the slide itself** (no block selected) — trigger `enterSlide`:
    - `Else` →
      - `Display Message → title: "Review needed", message: "Your score is below 50. Please go back and try the question again."`
      - `Hide → BranchingNav`   *(prevents the learner from advancing via Next)*
+
+> ℹ️ **Note:** Events like **Enter Slide** always live on a block of your choosing — any block on the slide works. They run when the learner arrives at the slide, no matter which block hosts them. Pick a block that makes the logic easy to find later, like the slide's main text.
+
+> 💡 **Tip:** If all you need is "the learner cannot continue until they answer correctly", you don't need this branching at all — turn on **Must answer correctly before advancing** in the question's Scoring section (see [08 — Questions](08-blocks-questions.md)). Use the branching pattern above when you want richer behaviour, like custom messages or jumping to a different slide.
 
 <!-- screenshot: 17-slide-4-final.png (1x, <300KB, full canvas + right sidebar with the Actions panel showing the enterSlide trigger and the If/Else structure with nested actions in both branches; dark theme) -->
 ![Slide 4 — Branching, finished](assets/screenshots/17-slide-4-final.png)

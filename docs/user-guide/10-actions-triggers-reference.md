@@ -10,7 +10,7 @@ This chapter lists every **trigger** (event that starts a sequence) and every **
 
 ## Triggers
 
-Triggers come in two families: **widget triggers** (attached to one block on a slide) and **slide triggers** (attached to the slide itself). You can add any number of triggers to the same block or slide — each one gets its own tab inside the Actions panel, and its own sequence of actions.
+Triggers come in two families: **block triggers** (they fire when something happens to the block that hosts them — a click, a correct answer) and **slide triggers** (they fire when the learner arrives at or leaves the slide). Both kinds are added the same way: select a block, open the **Actions** tab, and add the trigger — slide triggers simply react to the slide's lifecycle instead of the hosting block. You can add any number of triggers to the same block — each one gets its own tab inside the Actions panel, and its own sequence of actions.
 
 ### Widget triggers — 7 events
 

@@ -36,10 +36,10 @@ Don't worry about the details yet — the full reference is in [10 — Triggers 
 
 ## Where the Actions Editor lives
 
-The Actions Editor appears in the **right sidebar** when you select a block on the canvas, or when you want to set up slide-level events.
+The Actions Editor appears in the **right sidebar** when you select a block on the canvas.
 
 - **Block-level actions** — select the block (for example, a button) and open the **Actions** tab on the right.
-- **Slide-level actions** — select nothing on the canvas, open the **Actions** tab, and you'll see the triggers available for the whole slide (**enterSlide**, **exitSlide**).
+- **Slide events** — **Enter Slide** and **Exit Slide** run when the learner arrives at or leaves the slide. Add them like any other event: select a block on the slide (any block works — pick one where the logic is easy to find later), open the **Actions** tab, and add the event. It fires for the slide as a whole, no matter which block hosts it.
 
 ---
 

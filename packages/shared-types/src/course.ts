@@ -12,6 +12,16 @@ export interface Slide {
   title: string
   templateId?: string
   widgets: BaseWidget[]
+  /**
+   * @deprecated FOSSIL FIELD — never wired (TD-017 archaeology, 2026-07-19).
+   * Slide-level sequence storage was the original intent, but the shipped
+   * design (T021.10 EventDispatcher) hosts slide lifecycle events
+   * (enterSlide/exitSlide) on WIDGET sequences instead: the runtime's
+   * fireSlideEvent scans every widget's `actions` for the event, and the
+   * authoring panel attaches sequences to the selected widget. Nothing reads
+   * or writes this field. Kept only to avoid a schema migration; do not start
+   * using it — remove in a future schema-hygiene pass.
+   */
   actions?: ActionSequence[]
   transition?: Record<string, unknown>
   /** Serialized HTML thumbnail for slide list preview (T013.6). */

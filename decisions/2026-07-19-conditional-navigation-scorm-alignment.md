@@ -80,3 +80,24 @@ across all 7 packages.
 - https://scorm.com/scorm-explained/technical-scorm/sequencing/
 - https://scorm.com/scorm-explained/technical-scorm/run-time/run-time-reference/
 - https://scorm.com/scorm-explained/technical-scorm/sequencing/sequencing-definition-structure/
+
+## Addendum (TD-017 closure, 2026-07-19)
+
+Verification confirmed the runtime model end-to-end: `EventDispatcher.
+fireSlideEvent` scans EVERY widget's sequences for `enterSlide`/`exitSlide`
+(designed behaviour, unit-covered since T021 at `actions.test.ts`), and the
+player fires both on slide entry/exit. **Widget-hosted slide events are the
+shipped design** — there is no slide-scope sequence surface anywhere.
+
+Archaeology (owner hypothesis confirmed): `Slide.actions?: ActionSequence[]`
+exists in the schema since the initial commit as the intended slide-level
+storage, but nothing ever read or wrote it — a fossil of a retired approach
+that survived mainly in the manual's structure (§09 described a no-selection
+Actions surface; §10/§11/§17 instructed "on the slide (no block selected)").
+The field now carries a `@deprecated` docstring; the manual has been
+corrected in all four places to the widget-hosted model, and §17 slide 4
+cross-references the TD-021 declarative gate as the simple path.
+
+**TD-017 is closed as a documentation defect, not a product gap.** A
+slide-scope ActionsPanel surface would be net-new storage + save + runtime
+merge duplicating a working capability — build only on real authoring demand.

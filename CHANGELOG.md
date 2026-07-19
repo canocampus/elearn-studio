@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.70] — 2026-07-19 — TD-017: slide-event documentation corrected (fossil confirmed)
+
+### Fixed (documentation)
+
+- **The user manual described a slide-level Actions surface that never existed.** Verification confirmed the shipped model: slide lifecycle events (`Enter Slide`/`Exit Slide`) are hosted on a widget's sequences and the runtime fires them for the whole slide (`EventDispatcher.fireSlideEvent` — designed, unit-covered since T021). Archaeology confirmed the owner's hypothesis: `Slide.actions?` survives in the schema as a fossil of a retired slide-level-storage intent (present since the initial commit, never read nor written) — the v2 manual was written against that intent. Corrected in all four places: §09 (no-selection surface description removed), §10 (trigger families rewritten), §11 (three recipes now name a host block + model note), §17 (slide 4 hosts the branching on *BranchingNote* + tip pointing to the "Must answer correctly" gate as the simple path). `Slide.actions` now carries a `@deprecated` docstring; a slide-scope ActionsPanel is recorded as not-needed in the ADR addendum (reopen only on real authoring demand).
+
+---
+
 ## [0.5.69] — 2026-07-19 — TD-021: correctness-gated navigation (SCORM-aligned) + attempts enforcement
 
 ### Added

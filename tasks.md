@@ -764,7 +764,9 @@ rendered (T634-adjacent). After the fix, re-run `docs:screenshots` — slides
 2/3/4 of §17 pick the corrected render automatically.
 
 ### TD-017 — Slide-level actions: manual §17 documents a path the product does not expose
-> **Source:** TD-013.5c finding 1 | **Status:** Pending | **Severity:** MEDIUM (manual/product coherence)
+> **Source:** TD-013.5c finding 1 | **Status:** ✅ CLOSED 2026-07-19 as a DOCUMENTATION DEFECT (not a product gap) | **Severity:** was MEDIUM
+
+**Verification + archaeology** (full record: ADR `2026-07-19-conditional-navigation-scorm-alignment.md` §Addendum): the runtime executes `enterSlide`/`exitSlide` sequences hosted on ANY widget — `EventDispatcher.fireSlideEvent` scans every widget's sequences by design (docstring explicit; unit-covered since T021; player fires on entry/exit). There is no slide-scope sequence surface anywhere, and the owner's hypothesis was confirmed: `Slide.actions?` survives in the schema as a **fossil field** (present since the initial commit, never read nor written) of a retired slide-level-storage intent — the manual was written against that intent, not the shipped design. **Delivered**: `@deprecated` docstring on `Slide.actions`; manual corrected in all four places (§09 no-selection surface description removed, §10 trigger-families rewritten, §11 three recipes now name a host block + model note, §17 slide-4 hosts the branching on *BranchingNote* + tip pointing to the TD-021 declarative gate); campaign unchanged (its BranchingNote wiring was already the correct pattern). **Slide-scope ActionsPanel surface: closed as not-needed** — would be net-new storage/save/runtime-merge duplicating a working capability; reopen only on real authoring demand.
 
 `17-worked-example.md` §Slide 4 instructs wiring `enterSlide` "on **the slide
 itself** (no block selected)", but the ActionsPanel renders an empty state
