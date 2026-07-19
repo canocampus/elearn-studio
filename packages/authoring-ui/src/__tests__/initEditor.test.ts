@@ -254,6 +254,63 @@ describe('T706 — initEditor component:add position guard', () => {
     expect(component.addStyle).toHaveBeenCalledWith({ position: 'absolute' })
   })
 
+  // ---- TD-016 — composite-widget children must NOT be absolutized ----
+  //
+  // Root cause of the broken nav-buttons editor render: this handler fired for
+  // the widget's two child <button> components too, setting position:absolute
+  // (both stacked at the container origin — Next painted over Previous) and
+  // draggable:true (overriding the type's deliberate draggable:false).
+  // The guard: only components whose parent IS the wrapper (top-level widgets
+  // free-positioned on the slide) get the absolute-layout treatment.
+
+  describe('TD-016 — child components of composite widgets are left untouched', () => {
+    function getHandlerWithWrapper(): {
+      handler: (component: unknown) => void
+      wrapper: object
+    } {
+      const wrapper = { isWrapperSentinel: true }
+      const fakeEditor = makeMockFakeEditor(eventCapture)
+      ;(fakeEditor as unknown as { getWrapper: () => object }).getWrapper = () => wrapper
+      vi.mocked(grapesjs.init).mockReturnValue(fakeEditor)
+      initEditor(defaultOpts())
+      const handlerList = eventCapture.handlers.get('component:add') ?? []
+      if (handlerList.length === 0) throw new Error('component:add handler was not registered')
+      return { handler: (c: unknown) => handlerList.forEach((h) => h(c)), wrapper }
+    }
+
+    it('TD-016.1 regression: a nested child (parent ≠ wrapper) gets NO position/draggable override', () => {
+      const { handler } = getHandlerWithWrapper()
+
+      const navChildButton = {
+        parent: vi.fn().mockReturnValue({ isWrapperSentinel: false }), // nav-buttons container
+        set: vi.fn(),
+        getStyle: vi.fn().mockReturnValue(''),
+        addStyle: vi.fn(),
+      }
+
+      handler(navChildButton)
+
+      expect(navChildButton.set).not.toHaveBeenCalled()
+      expect(navChildButton.addStyle).not.toHaveBeenCalled()
+    })
+
+    it('TD-016.2 control: a top-level widget (parent === wrapper) still gets the absolute-layout treatment', () => {
+      const { handler, wrapper } = getHandlerWithWrapper()
+
+      const topLevelWidget = {
+        parent: vi.fn().mockReturnValue(wrapper),
+        set: vi.fn(),
+        getStyle: vi.fn().mockReturnValue(''),
+        addStyle: vi.fn(),
+      }
+
+      handler(topLevelWidget)
+
+      expect(topLevelWidget.set).toHaveBeenCalledWith({ draggable: true, resizable: true })
+      expect(topLevelWidget.addStyle).toHaveBeenCalledWith({ position: 'absolute' })
+    })
+  })
+
   // ---- initEditor returns the editor ----
 
   it('initEditor() returns the editor object created by grapesjs.init()', () => {

@@ -534,3 +534,63 @@ test.describe('T603 — Button properties panel (BETA-04 regression)', () => {
     await expect(btn).toHaveText('Start Quiz')
   })
 })
+
+// ---------------------------------------------------------------------------
+// TD-016 — composite-widget children keep their type's layout in the editor
+// ---------------------------------------------------------------------------
+
+test.describe('TD-016 — nav-buttons editor render', () => {
+  test('@regression TD-016 — both nav labels visible, children not absolutized, no stacking', async ({ editorPage, page }) => {
+    // Root cause guarded here: the global component:add handler used to set
+    // position:absolute + draggable:true on the widget's two child <button>
+    // components (both on creation and on every slide load). With no left/top
+    // both children anchored at the container origin — "Next →" painted over
+    // "← Previous", which read as a missing label in the editor and in every
+    // §05/§17 manual capture. The handler now skips non-top-level components.
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+    await editorPage.addComponentViaEditor('nav-buttons')
+    await page.waitForTimeout(400)
+
+    const nav = editorPage.canvasFrame().locator('[data-gjs-type="nav-buttons"]').first()
+    await expect(nav).toBeVisible({ timeout: 15_000 })
+    const prev = nav.locator('button').nth(0)
+    const next = nav.locator('button').nth(1)
+    await expect(prev).toHaveText('← Previous')
+    await expect(next).toHaveText('Next →')
+
+    // The children must keep the flex-flow layout their type declares.
+    const childPositions = await nav.evaluate((el) =>
+      Array.from(el.children).map((c) => window.getComputedStyle(c).position),
+    )
+    expect(childPositions).toEqual(['static', 'static'])
+
+    // And must not overlap: Previous ends before Next begins (1px tolerance).
+    const prevBox = await prev.boundingBox()
+    const nextBox = await next.boundingBox()
+    expect(prevBox).not.toBeNull()
+    expect(nextBox).not.toBeNull()
+    expect(prevBox!.x + prevBox!.width).toBeLessThanOrEqual(nextBox!.x + 1)
+
+    // Survives the slide-switch round-trip (the handler also fires on load).
+    const slides = page.locator('[data-testid="slide-item"]')
+    const ourSlideIndex = (await slides.count()) - 1
+    await page.waitForResponse(
+      (resp) => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 10_000 },
+    ).catch(() => page.waitForTimeout(2500))
+    await slides.first().click()
+    await editorPage.waitForCanvas()
+    await slides.nth(ourSlideIndex).click()
+    await editorPage.waitForCanvas()
+    await page.waitForTimeout(500)
+
+    const navReloaded = editorPage.canvasFrame().locator('[data-gjs-type="nav-buttons"]').first()
+    await expect(navReloaded.locator('button').nth(0)).toHaveText('← Previous')
+    await expect(navReloaded.locator('button').nth(1)).toHaveText('Next →')
+    const reloadedPositions = await navReloaded.evaluate((el) =>
+      Array.from(el.children).map((c) => window.getComputedStyle(c).position),
+    )
+    expect(reloadedPositions).toEqual(['static', 'static'])
+  })
+})

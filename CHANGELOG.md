@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.68] — 2026-07-19 — TD-015 + TD-016: action-sequence wipe on selection + nav-buttons editor render
+
+### Fixed
+
+- **TD-015 — Action sequences wiped by mere widget selection** (`EditorCanvas.tsx`, `useActionsSave.ts`). Selecting a widget whose GrapesJS model id diverged from its persisted `attributes.id` seeded the actions panel with `[]`, and the save hook treated that load as an edit — persisting the empty array. Two-part fix: the selection boundary resolves the widget id exactly like the storage converter (`attributes.id || getId()`), and `useActionsSave` adopts loaded sequences as its comparison baseline so loading NEVER saves (only real edits persist — closes the wipe class regardless of what seeds `[]`). 5 unit regressions (3 RED pre-fix) + E2E `@regression GAP-02.4` (wire → slide switch → return → re-select → cold reload → actions survive). Honest residual documented in `tasks.md` TD-015: the standard flow re-aligns ids on slide switch, so GAP-02.4 guards the flow while the unit tests pin the divergent state; severity downgraded from CRITICAL.
+- **TD-016 — nav-buttons rendered broken in the editor canvas** (`initEditor.ts`). The global `component:add` handler absolutized + forced `draggable:true` on EVERY added component — including the widget's two child `<button>`s (re-applied on every loadData). Both children anchored at the container origin: "Next →" painted over "← Previous", reading as a missing label for every author and in every §05/§17 manual capture. The handler now skips non-top-level components (`component.parent?.() !== editor.getWrapper()`); nested children keep the layout and flags their type declares. Unit TD-016.1/.2 (RED→GREEN) + E2E `@regression TD-016` (labels, `static` child positions, bbox no-overlap, slide-switch round-trip). Editor-only defect — published courses were never affected. Full trail: `docs/issues/issues-TD-016.md`.
+
+### Changed
+
+- **§17 manual captures refreshed** by a campaign re-run — the worked-example slides now show "← Previous | Next →" laid out side by side.
+
+### Verified
+
+- authoring-ui **1046/1046** (+7 new regression units across both fixes); E2E action-sequence 9/9, grapesjs-integration + widget-persistence 19/19; chained campaign green (56 writes); `tsc -b` 0 across packages; lint 0 errors.
+
+---
+
 ## [0.5.67] — 2026-07-18 — TD-013: User Manual v2 screenshot campaign — 100% automated
 
 ### Added

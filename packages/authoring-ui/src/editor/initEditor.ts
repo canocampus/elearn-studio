@@ -274,8 +274,21 @@ export function initEditor(opts: InitEditorOptions): {
   // Select default device
   editor.setDevice('slide')
 
-  // T010.11 / T012.6 — Ensure all components are draggable and resizable.
+  // T010.11 / T012.6 — Ensure all TOP-LEVEL widgets are draggable, resizable
+  // and absolutely positioned (the ToolBook free-layout model for the slide).
+  //
+  // TD-016: only components whose parent IS the wrapper get this treatment.
+  // The handler also fires for the CHILDREN of composite widgets (nav-buttons'
+  // two <button> components — both on creation and on every loadData): the
+  // unconditional version absolutized them (no left/top → both stacked at the
+  // container origin, "Next →" painting over "← Previous") and forced
+  // draggable:true, overriding the type's deliberate draggable:false. Nested
+  // children must keep the layout and flags their type definition declares.
+  // `parent?.()` is defensive: a detached component (no parent yet) is treated
+  // as top-level, preserving the pre-TD-016 behaviour for that edge.
   editor.on('component:add', (component) => {
+    const parent = component.parent?.()
+    if (parent && parent !== editor.getWrapper()) return
     component.set({ draggable: true, resizable: true })
     if (component.getStyle('position') !== 'absolute') {
       component.addStyle({ position: 'absolute' })
