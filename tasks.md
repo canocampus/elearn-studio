@@ -568,9 +568,9 @@ if (!editor || !selectedComponentType || !isButtonWidgetType(selectedComponentTy
 
 ---
 
-### [ ] TD-014 — Screenshot Simulation Recorder UI: build missing authoring surface (blocks user-manual §13)
+### [x] TD-014 — Screenshot Simulation Recorder UI: build missing authoring surface — ✅ BLOCK CLOSED (2026-04-26 functional / 2026-05-04 administrative, v0.5.66; header flipped retroactively 2026-07-20 — the .27 close never ticked this line)
 
-> **Source:** TD-013.5 pre-block investigation (2026-04-24) | **Status:** Pending | **Blocks:** TD-013.5, .5b, .6, .7, .8, .9, .10 (documentation paused) | **Target version:** v0.5.66
+> **Source:** TD-013.5 pre-block investigation (2026-04-24) | **Status:** ✅ Closed (see TD-014.27) | **Blocked:** TD-013.5…, .10 (resumed and since closed) | **Shipped:** v0.5.66 (`c151f27` + fix-forwards)
 
 **Baseline of symptoms:** the full pre-fix audit that triggered this block — 30 rows, 15 gaps, 2 partials, 4 informational findings, with the user-observable symptom + technical cause + impact + planned fix per row — is captured in `docs/AUDIT_BASELINE_SYMPTOMS.md` (2026-04-24, frozen snapshot at the moment TD-014 was scoped). Read that file first when revisiting this block to remember **why** each subtask exists. The decisions and the resulting changes are documented in the per-subtask closure notes below; the baseline file is the *origin* document that gives them context.
 
