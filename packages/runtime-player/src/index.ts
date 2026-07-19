@@ -495,7 +495,7 @@ function scormReport(state: PlayerState, status: 'passed' | 'failed' | 'incomple
   const api = state.scormApi
   if (!api) return
 
-  const { questionStates, course } = state
+  const { questionStates } = state
   const results = Array.from(questionStates.values())
   const total = results.length
   let score = 0
