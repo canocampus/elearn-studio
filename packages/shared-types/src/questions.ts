@@ -37,6 +37,14 @@ export interface QuestionScoring {
   attempts: number
   /** When true and navigationMode is linear-strict, learner cannot advance until answered. */
   mandatory?: boolean
+  /**
+   * TD-021: when true and navigationMode is linear-strict, the learner cannot
+   * advance until this question is answered CORRECTLY. Exhausting `attempts`
+   * without success unlocks navigation (the failure is reflected in the
+   * reported score/status) so learners are never trapped. Implies the
+   * answered requirement of `mandatory`.
+   */
+  requireCorrect?: boolean
 }
 
 // ---------------------------------------------------------------------------

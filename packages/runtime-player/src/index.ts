@@ -38,6 +38,8 @@ interface QuestionScoringInfo {
   weight?: number
   attempts?: number
   mandatory?: boolean
+  /** TD-021: gate advancement on CORRECT answer (not merely answered). */
+  requireCorrect?: boolean
 }
 
 // ─── SCORM APIs and adapter ───────────────────────────────────────────────────
@@ -129,6 +131,10 @@ interface QuestionState {
   score: number
   weight: number
   answered: boolean
+  /** TD-021: the evaluator's correctness verdict for the LAST submission. */
+  correct: boolean
+  /** TD-021: submissions consumed — compared against scoring.attempts (-1 = unlimited). */
+  attemptsUsed: number
 }
 
 interface PlayerState {
@@ -499,7 +505,9 @@ function scormReport(state: PlayerState, status: 'passed' | 'failed' | 'incomple
     score = totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) : 0
   }
 
-  const passMark = course.metadata?.masteryScore ?? course.settings?.passingScore ?? state.passMark
+  // TD-021: state.passMark is the single effective threshold (LMS override →
+  // packaged masteryScore/passingScore → init option → 80), resolved in init().
+  const passMark = state.passMark
   const slideIndex = state.currentSlide
 
   if (api.version === '2004') {
@@ -576,7 +584,7 @@ function goToSlide(state: PlayerState, index: number): void {
         state.simCleanup = mountSimPlayer(el, simConfig, {
           onComplete: () => goNext(state),
           onScore: (widgetId, score, weight) => {
-            state.questionStates.set(widgetId, { widgetId, score, weight, answered: true })
+            state.questionStates.set(widgetId, { widgetId, score, weight, answered: true, correct: score >= 1, attemptsUsed: 1 })
             updateScoreDisplays(state)
             scormReport(state, 'incomplete')
           },
@@ -670,7 +678,18 @@ function slideIsComplete(state: PlayerState, slideIndex: number): boolean {
   if (!slide) return true
   for (const widget of slide.widgets) {
     const scoring = (widget.extendedProperties?.scoring as QuestionScoringInfo | undefined)
-    if (scoring?.mandatory) {
+    if (scoring?.requireCorrect) {
+      // TD-021: gate on CORRECTNESS. The learner stays blocked until the
+      // question is answered correctly OR attempts run out — exhaustion
+      // unlocks navigation (no trapped learners; the failure is reflected in
+      // the reported score/status). Legacy suspend payloads may lack the new
+      // fields — `?? false` / `?? 1` keep the gate deterministic there.
+      const qs = state.questionStates.get(widget.id)
+      if (!qs?.answered) return false
+      const allowed = scoring.attempts ?? -1
+      const exhausted = allowed !== -1 && (qs.attemptsUsed ?? 1) >= allowed
+      if (!(qs.correct ?? false) && !exhausted) return false
+    } else if (scoring?.mandatory) {
       const qs = state.questionStates.get(widget.id)
       // Missing entry means unanswered; answered must be explicitly true
       if (!qs?.answered) return false
@@ -726,7 +745,7 @@ function finishCourse(state: PlayerState): void {
   }
 
   const score = calculateCurrentScore(state)
-  const passMark = state.course.metadata?.masteryScore ?? state.course.settings?.passingScore ?? state.passMark
+  const passMark = state.passMark  // TD-021: resolved once in init()
   const passed = score >= passMark
 
   scormReport(state, passed ? 'passed' : 'failed')
@@ -862,12 +881,18 @@ function handleSubmit(state: PlayerState, widgetId: string): void {
     correct = r.correct; score = r.score; feedback = r.feedback
   }
 
-  // Save result
+  // Save result. TD-021: track correctness and consumed attempts so the
+  // navigation gate (slideIsComplete) and the retry logic below can reason
+  // about them.
+  const prior = state.questionStates.get(widgetId)
+  const attemptsUsed = (prior?.attemptsUsed ?? 0) + 1
   state.questionStates.set(widgetId, {
     widgetId,
     score,
     weight,
     answered: true,
+    correct,
+    attemptsUsed,
   })
 
   // Show feedback
@@ -876,9 +901,16 @@ function handleSubmit(state: PlayerState, widgetId: string): void {
     feedbackEl.style.color = correct ? 'green' : 'red'
   }
 
-  // Disable submit after answering
+  // TD-021: attempts are enforced here. Submit stays available after a wrong
+  // answer while attempts remain (scoring.attempts === -1 means unlimited);
+  // it locks after a correct answer or once attempts are exhausted.
+  // Pre-TD-021 the button was hard-disabled after the first submission, which
+  // contradicted both the authoring UI (Attempts field, "-1 = unlimited") and
+  // the default feedback copy ("Incorrect. Try again.").
+  const allowedAttempts = scoring.attempts ?? -1
+  const attemptsExhausted = allowedAttempts !== -1 && attemptsUsed >= allowedAttempts
   const submitBtn = widgetEl.querySelector<HTMLButtonElement>('.el-submit-btn')
-  if (submitBtn) submitBtn.disabled = true
+  if (submitBtn) submitBtn.disabled = correct || attemptsExhausted
 
   updateScoreDisplays(state)
   updateNavButtons(state)
@@ -916,6 +948,8 @@ function attachEvents(state: PlayerState): void {
       score: Math.min(1, Math.max(0, rawScore)),
       weight: passingScore,
       answered: true,
+      correct: rawScore >= 1,
+      attemptsUsed: 1,
     })
     updateScoreDisplays(state)
     updateNavButtons(state)
@@ -1005,13 +1039,28 @@ function init(
   const scormApi = createScormAdapter(window)
   if (scormApi) scormApi.initialize()
 
+  // TD-021: the LMS-provided mastery threshold overrides the packaged
+  // passMark — its prerogative per the standard (cmi.scaled_passing_score is
+  // RO, LMS-initialised from the manifest objective in SCORM 2004;
+  // cmi.student_data.mastery_score from adlcp:masteryscore in 1.2).
+  let lmsPassMark: number | null = null
+  if (scormApi) {
+    if (scormApi.version === '2004') {
+      const raw = parseFloat(scormApi.getValue('cmi.scaled_passing_score'))
+      if (isFinite(raw) && raw >= 0 && raw <= 1) lmsPassMark = raw * 100
+    } else {
+      const raw = parseFloat(scormApi.getValue('cmi.student_data.mastery_score'))
+      if (isFinite(raw) && raw >= 0 && raw <= 100) lmsPassMark = raw
+    }
+  }
+
   const state: PlayerState = {
     course,
     currentSlide: options.startSlide ?? 0,
     questionStates: new Map(),
     scormApi,
     container,
-    passMark: options.passMark ?? 80,
+    passMark: lmsPassMark ?? course.metadata?.masteryScore ?? course.settings?.passingScore ?? options.passMark ?? 80,
     remediationVisited: false,
     simCleanup: null,
     phaserCleanups: [],

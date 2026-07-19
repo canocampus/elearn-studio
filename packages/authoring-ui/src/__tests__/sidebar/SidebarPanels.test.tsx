@@ -268,6 +268,44 @@ describe('T607.5 — QuestionPropertiesPanel: MC form renders question text + op
   })
 })
 
+// ─── TD-021 — requireCorrect checkbox in the Scoring section ─────────────────
+
+describe('TD-021 — Scoring section exposes the require-correct advancement gate', () => {
+  it('renders the require-correct checkbox unchecked by default (MC)', () => {
+    const comp = makeMockComponent('question-mc', MC_DEFAULT_EXTENDED)
+    useEditorStore.setState({ editor: makeMockEditor(comp), selectedComponentType: 'question-mc' })
+    render(<QuestionPropertiesPanel />)
+    const box = screen.getByTestId('require-correct-checkbox') as HTMLInputElement
+    expect(box.checked).toBe(false)
+  })
+
+  it('toggling it persists scoring.requireCorrect without clobbering the rest of scoring', () => {
+    const comp = makeMockComponent('question-mc', { ...MC_DEFAULT_EXTENDED })
+    useEditorStore.setState({ editor: makeMockEditor(comp), selectedComponentType: 'question-mc' })
+    render(<QuestionPropertiesPanel />)
+    fireEvent.click(screen.getByTestId('require-correct-checkbox'))
+    expect(comp.set).toHaveBeenCalledWith(
+      'extendedProperties',
+      expect.objectContaining({
+        scoring: expect.objectContaining({ requireCorrect: true, weight: 100, attempts: -1 }),
+      }),
+    )
+  })
+
+  it('is present for TF and Fill forms too (shared ScoringFeedbackForm)', () => {
+    const tf = makeMockComponent('question-tf', TF_DEFAULT_EXTENDED)
+    useEditorStore.setState({ editor: makeMockEditor(tf), selectedComponentType: 'question-tf' })
+    const { unmount } = render(<QuestionPropertiesPanel />)
+    expect(screen.getByTestId('require-correct-checkbox')).toBeTruthy()
+    unmount()
+
+    const fill = makeMockComponent('question-fill', FILL_DEFAULT_EXTENDED)
+    useEditorStore.setState({ editor: makeMockEditor(fill), selectedComponentType: 'question-fill' })
+    render(<QuestionPropertiesPanel />)
+    expect(screen.getByTestId('require-correct-checkbox')).toBeTruthy()
+  })
+})
+
 describe('T607.6 — QuestionPropertiesPanel: TF form renders True/False radio buttons', () => {
   beforeEach(() => {
     const comp = makeMockComponent('question-tf', TF_DEFAULT_EXTENDED)

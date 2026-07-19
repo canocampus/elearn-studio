@@ -6,7 +6,10 @@
  * On resume, the compressed payload is decompressed and the state is restored.
  *
  * SuspendData schema (v:2):
- *   { v: 2, slide: number, visited: number[], scores: [widgetId, { s: score, w: weight, a: answered }][] }
+ *   { v: 2, slide: number, visited: number[], scores: [widgetId, { s, w, a, c?, t? }][] }
+ *   where s=score, w=weight, a=answered, and (TD-021, optional for backward
+ *   compatibility) c=correct, t=attemptsUsed. Legacy entries without c/t are
+ *   restored with c inferred from a full score (s >= 1) and t = 1 if answered.
  *
  * v:1 payloads (no visited field) are still parsed and restored; visited defaults to [slide].
  */
@@ -19,14 +22,14 @@ interface SuspendPayload {
   slide: number
   /** Slide indices visited this session (v:2+). Absent in v:1 payloads. */
   visited?: number[]
-  scores: Array<[string, { s: number; w: number; a: boolean }]>
+  scores: Array<[string, { s: number; w: number; a: boolean; c?: boolean; t?: number }]>
 }
 
 /** Subset of PlayerState needed for suspend serialisation (avoids circular dep) */
 export interface SuspendableState {
   currentSlide: number
   visitedSlides: Set<number>
-  questionStates: Map<string, { widgetId: string; score: number; weight: number; answered: boolean }>
+  questionStates: Map<string, { widgetId: string; score: number; weight: number; answered: boolean; correct: boolean; attemptsUsed: number }>
 }
 
 /** Maximum length (chars) allowed in cmi.suspend_data by SCORM 1.2 */
@@ -50,7 +53,7 @@ export function serializeSuspend(state: SuspendableState): string | null {
     visited: Array.from(state.visitedSlides),
     scores: Array.from(state.questionStates.values()).map(q => [
       q.widgetId,
-      { s: q.score, w: q.weight, a: q.answered },
+      { s: q.score, w: q.weight, a: q.answered, c: q.correct, t: q.attemptsUsed },
     ]),
   }
   const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(payload))
@@ -185,7 +188,13 @@ export function restoreSuspendData(
     const score   = typeof q.s === 'number' && isFinite(q.s) && q.s >= 0 && q.s <= 1 ? q.s : 0
     const weight  = typeof q.w === 'number' && isFinite(q.w) && q.w > 0 ? q.w : 100
     const answered = q.a === true
-    state.questionStates.set(widgetId, { widgetId, score, weight, answered })
+    // TD-021: legacy payloads (pre-c/t) — infer correctness from a full score
+    // (every evaluator reports 1.0 only for a fully correct answer) and count
+    // one consumed attempt for answered questions so requireCorrect gates
+    // resume deterministically instead of re-trapping already-correct learners.
+    const correct = typeof q.c === 'boolean' ? q.c : score >= 1
+    const attemptsUsed = typeof q.t === 'number' && Number.isInteger(q.t) && q.t >= 0 ? q.t : (answered ? 1 : 0)
+    state.questionStates.set(widgetId, { widgetId, score, weight, answered, correct, attemptsUsed })
   }
 
   return true

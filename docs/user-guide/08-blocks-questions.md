@@ -14,17 +14,18 @@ Questions are how you check what your learners have understood. eLearn Studio ha
 
 Every question has three scoring settings that work the same way regardless of question type. You configure them in the **Scoring** section of the **Props** tab.
 
-<!-- screenshot: 08-scoring-section.png (1x, <300KB, close-up of the Scoring section of any question's Props panel, with weight + attempts + mandatory visible) -->
+<!-- screenshot: 08-scoring-section.png (1x, <300KB, close-up of the Scoring section of any question's Props panel, with weight + attempts + mandatory + must-answer-correctly visible) -->
 ![The Scoring section of a question's Props panel](assets/screenshots/08-scoring-section.png)
-*The Scoring section, shared by all three question types. (1) Points; (2) Attempts; (3) Required checkbox.*
+*The Scoring section, shared by all three question types. (1) Points; (2) Attempts; (3) Required checkbox; (4) Must answer correctly checkbox.*
 
 ### Fields
 
 | Field | Type | Default | Range / Notes |
 |---|---|---|---|
 | Points | Number | 100 | 0–100. How much this question is worth when the course is scored. If you want all questions to contribute equally, give every question the same number of points. |
-| Attempts | Number | −1 | −1 for unlimited; 1 or more for a fixed number of tries. After the last attempt, the question is locked and shows the correct answer. |
+| Attempts | Number | −1 | −1 for unlimited; 1 or more for a fixed number of tries. After a wrong answer, the learner can try again until they run out of attempts. After the last attempt, the question locks. |
 | Required | Toggle | Off | When On, the learner must answer this question before the **Next** button unlocks. Takes effect only when the course's Navigation Mode is set to **Linear Strict**. |
+| Must answer correctly | Toggle | Off | The stricter version of Required: the **Next** button stays locked until the learner answers this question **correctly**. Attempts apply — if the learner runs out of attempts without a correct answer, the course lets them move on and records the miss in their score. Takes effect only in **Linear Strict** mode. |
 
 ### How Points add up
 
@@ -34,7 +35,15 @@ The learner's final score is the sum of **Points** earned across every question 
 
 ### Required questions and navigation
 
-A **Required** question blocks the learner from moving to the next slide until they answer it. This only works in **Linear Strict** navigation mode — you set that in the course settings. In the default **Free** mode, Required has no effect.
+A **Required** question blocks the learner from moving to the next slide until they answer it. **Must answer correctly** goes one step further: the learner has to get the answer right before the course lets them continue — the classic "pass the test to move on" pattern. Both only work in **Linear Strict** navigation mode — you set that in the course settings. In the default **Free** mode, neither has any effect.
+
+With **Must answer correctly**, the **Attempts** setting decides what happens after a wrong answer:
+
+1. While attempts remain, the learner can change their answer and press **Submit** again.
+2. If they answer correctly, the **Next** button unlocks and the question locks.
+3. If they run out of attempts without a correct answer, the **Next** button unlocks anyway — the learner is never stuck — and the missed question simply counts against their final score.
+
+> 💡 **Tip:** Combine **Must answer correctly** with 2 or 3 attempts for formal assessments. With unlimited attempts (−1), learners can keep trying until they get it right — good for practice, but it means everyone eventually passes the question.
 
 > ⚠️ **Important:** A required question that the learner cannot possibly answer (because of a typo, a removed option, or an impossible correct answer) will lock the course. Preview every course with Required questions from start to finish before publishing.
 

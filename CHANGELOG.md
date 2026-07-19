@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.69] — 2026-07-19 — TD-021: correctness-gated navigation (SCORM-aligned) + attempts enforcement
+
+### Added
+
+- **"Must answer correctly before advancing"** (`scoring.requireCorrect`) — the Storm-style gate: in Linear Strict mode the runtime player keeps **Next** locked until the question is answered correctly. Exhausting **Attempts** without success unlocks navigation (learners are never trapped; the miss lands in the reported score). New checkbox in every question's Scoring section. Design arbitrated by the SCORM standard per owner directive — sequencing is inter-SCO only and 1.2 has none, so single-SCO runtimes gate internally (ADR `decisions/2026-07-19-conditional-navigation-scorm-alignment.md`; multi-SCO sequencing recorded as a non-goal).
+- **LMS mastery-threshold override** — the player now honours `cmi.scaled_passing_score` (SCORM 2004) / `cmi.student_data.mastery_score` (1.2) over the packaged passing score, per the standard's read-only mastery channel. Effective threshold resolved once at init (LMS → `metadata.masteryScore` → `settings.passingScore` → 80).
+
+### Fixed
+
+- **Attempts are now enforced in the runtime player** — previously the Submit button hard-disabled after the first answer regardless of the Attempts setting, while the default feedback said "Incorrect. Try again." and the authoring UI promised "-1 = unlimited". Wrong answers now re-enable Submit while attempts remain; correct answers (or exhaustion) lock it.
+
+### Changed
+
+- Suspend/resume payloads (v2) carry per-question correctness + attempts-used, with legacy-payload inference (full score ⇒ correct) so resumed learners are never re-gated on questions they already passed.
+- User guide §08 Scoring section rewritten for the new field and the real attempts behaviour; §08 captures refreshed (crop-fallback rect re-derived).
+
+### Verified
+
+- 13 new runtime behavioural tests + 3 Scoring-panel tests (TDD, RED→GREEN); E2E `@regression TD-021` in question-widget.spec.ts; verify:test green across all 7 packages (authoring-ui 1049, runtime-player 278); E2E question-widget + preview-handshake + scorm-export 47/47; tsc -b 0; lint 0 errors.
+
+---
+
 ## [0.5.68] — 2026-07-19 — TD-015 + TD-016: action-sequence wipe on selection + nav-buttons editor render
 
 ### Fixed

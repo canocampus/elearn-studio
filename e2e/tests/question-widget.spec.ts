@@ -603,6 +603,83 @@ test.describe('T611 — mandatory question navigation gate', () => {
   })
 })
 
+// TD-021 — @regression: require-correct gate blocks Next until the answer is CORRECT.
+// Complements T611.10 (which gates on "answered"): with scoring.requireCorrect a
+// wrong answer keeps Next disabled AND re-enables Submit (attempts enforcement,
+// default -1 = unlimited) until the learner answers correctly.
+test.describe('TD-021 — require-correct navigation gate', () => {
+  test.beforeEach(async ({ editorPage, page }) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') console.error('[BROWSER]', msg.text())
+    })
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression TD-021 — wrong answer keeps Next blocked and Submit retryable; correct answer unlocks', async ({ editorPage, page, context }) => {
+    test.setTimeout(90_000)
+
+    await editorPage.openCourseSettings()
+    await editorPage.setNavigationMode('linear-strict')
+    const settingsPatch = page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    )
+    await editorPage.saveCourseSettings()
+    await settingsPatch.catch(() => null)
+
+    await editorPage.dragBlockToCanvas('Multiple Choice', 300, 200)
+    const mc = editorPage.canvasComponent('[data-gjs-type="question-mc"]')
+    await expect(mc).toBeVisible({ timeout: 15_000 })
+    await editorPage.dragBlockToCanvas('Nav Buttons', 400, 600)
+    await expect(editorPage.canvasComponent('[data-gjs-type="nav-buttons"]')).toBeVisible({ timeout: 10_000 })
+
+    await mc.click()
+    await page.waitForTimeout(300)
+    await editorPage.propsTab.click()
+    const panel = page.locator('[data-testid="question-properties-panel"]')
+    await expect(panel).toBeVisible({ timeout: 10_000 })
+    const requireCorrect = panel.getByTestId('require-correct-checkbox')
+    await expect(requireCorrect).toBeVisible({ timeout: 5_000 })
+    if (!(await requireCorrect.isChecked())) await requireCorrect.click()
+    await page.waitForTimeout(500)
+    await page.waitForResponse(
+      resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+      { timeout: 15_000 },
+    ).catch(() => page.waitForTimeout(1000))
+
+    const [preview] = await Promise.all([
+      context.waitForEvent('page'),
+      editorPage.previewButton.click(),
+    ])
+    await preview.waitForLoadState('networkidle')
+    await preview.waitForSelector('.el-slide', { timeout: 15_000 })
+
+    const nextBtn = preview.locator('[data-nav-next]')
+    await expect(nextBtn).toBeVisible({ timeout: 10_000 })
+    expect(await nextBtn.evaluate((el) => (el as HTMLButtonElement).disabled)).toBe(true)
+
+    // WRONG answer (default MC: index 0 is correct; pick index 1).
+    await preview.locator('input[type="radio"][value="1"]').first().click()
+    const submitBtn = preview.locator('.el-submit-btn').first()
+    await submitBtn.click()
+    await preview.waitForTimeout(400)
+
+    // Gate holds on wrong answer; Submit is retryable (unlimited attempts).
+    expect(await nextBtn.evaluate((el) => (el as HTMLButtonElement).disabled)).toBe(true)
+    expect(await submitBtn.evaluate((el) => (el as HTMLButtonElement).disabled)).toBe(false)
+
+    // CORRECT answer unlocks the gate and locks Submit.
+    await preview.locator('input[type="radio"][value="0"]').first().click()
+    await submitBtn.click()
+    await preview.waitForTimeout(400)
+    expect(await nextBtn.evaluate((el) => (el as HTMLButtonElement).disabled)).toBe(false)
+    expect(await submitBtn.evaluate((el) => (el as HTMLButtonElement).disabled)).toBe(true)
+
+    await preview.close()
+  })
+})
+
 // T620.5 — @regression: optimistic update in useComponentProperty prevents input bounce-back.
 // Without the fix (setValue before comp.set), React would re-render the textarea with the
 // stale Backbone model value, reverting the user's typed characters.

@@ -793,6 +793,13 @@ type default after a slide reload. Root-cause the converter round-trip so names
 persist first-class; then remove the TD-013.4 Zustand direct-sync workaround
 and the TD-013.5c NameField re-fill in the campaign.
 
+### TD-021 — Correctness-gated navigation (SCORM-aligned conditional navigation)
+> **Source:** Owner request 2026-07-19 (Storm-style "cannot advance until test passed") + TD-017 investigation | **Status:** ✅ SHIPPED 2026-07-19 (v0.5.69) | **Severity:** FEATURE (HIGH value)
+
+Standard verdict (primary sources, see ADR `decisions/2026-07-19-conditional-navigation-scorm-alignment.md`): SCORM 2004 sequencing is inter-SCO only — intra-SCO navigation is explicitly the content's responsibility, and SCORM 1.2 has no sequencing at all; our single-SCO architecture must gate internally (as Storyline/iSpring do). Scope: (a) `scoring.requireCorrect` per question (shared-types); (b) runtime `slideIsComplete` gates on correctness, unlocking when attempts are exhausted (reported failed); (c) **attempts enforcement in the player** — currently NOT implemented (submit hard-disabled after first answer while the default feedback says "Try again" and the authoring UI promises attempts; latent product gap folded in); (d) read `cmi.scaled_passing_score` (2004) / `cmi.student_data.mastery_score` (1.2) as LMS override for passMark; (e) authoring checkbox in the Scoring section; (f) TDD: runtime + panel units, E2E gate flow; (g) ADR + user-guide §08 update + CHANGELOG.
+
+**Delivered 2026-07-19 (TDD end-to-end):** runtime 13 new behavioural tests (RED→GREEN) — gate holds on wrong answers, unlocks on correct or on attempts exhaustion, Submit retryable per attempts (-1 unlimited), LMS threshold override with packaged fallback chain resolved once in init(); suspend v2 extended (c/t fields, legacy inference — resumed learners never re-trapped); authoring checkbox `require-correct-checkbox` in ScoringFeedbackForm (+3 panel tests); E2E `@regression TD-021` green first run. **Verification:** verify:test green all 7 packages (authoring 1049, runtime 278); E2E question-widget + preview-handshake + scorm-export 47/47; campaign refreshed §08 captures (both checkboxes visible; crop-fallback rect re-derived 251×220); tsc -b 0; lint 0 errors. ADR `decisions/2026-07-19-conditional-navigation-scorm-alignment.md` records the standard verdict + multi-SCO non-goal. One flake note: a single verify:test run under heavy load saw 2 harness nulls — non-reproducible (×3 clean since); harness hardened with a render sanity gate for diagnosability.
+
 ### TD-020 — Investigate: `editor.select(null)` evaluate dies with "Execution context was destroyed"
 > **Source:** TD-013.5c battle note | **Status:** Pending | **Severity:** LOW (workaround shipped, e2e-infra only)
 

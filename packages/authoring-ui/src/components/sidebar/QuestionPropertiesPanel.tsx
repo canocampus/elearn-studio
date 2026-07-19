@@ -107,11 +107,13 @@ interface ScoringFeedbackProps {
   weight: number
   attempts: number
   mandatory?: boolean
+  requireCorrect?: boolean
   feedbackCorrect: string
   feedbackIncorrect: string
   onWeightChange: (v: number) => void
   onAttemptsChange: (v: number) => void
   onMandatoryChange: (v: boolean) => void
+  onRequireCorrectChange: (v: boolean) => void
   onFeedbackCorrectChange: (v: string) => void
   onFeedbackIncorrectChange: (v: string) => void
 }
@@ -120,11 +122,13 @@ function ScoringFeedbackForm({
   weight,
   attempts,
   mandatory = false,
+  requireCorrect = false,
   feedbackCorrect,
   feedbackIncorrect,
   onWeightChange,
   onAttemptsChange,
   onMandatoryChange,
+  onRequireCorrectChange,
   onFeedbackCorrectChange,
   onFeedbackIncorrectChange,
 }: ScoringFeedbackProps) {
@@ -166,6 +170,16 @@ function ScoringFeedbackForm({
             style={{ accentColor: '#89b4fa' }}
           />
           Required — learner must answer before advancing
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#cdd6f4', cursor: 'pointer', marginTop: 6 }}>
+          <input
+            type="checkbox"
+            checked={requireCorrect}
+            onChange={e => onRequireCorrectChange(e.target.checked)}
+            data-testid="require-correct-checkbox"
+            style={{ accentColor: '#89b4fa' }}
+          />
+          Must answer correctly before advancing (attempts apply; unlocks when they run out)
         </label>
       </div>
       <div style={SECTION_STYLE}>
@@ -297,11 +311,13 @@ function MCPropertiesForm({ component }: { component: Component }) {
         weight={ep.scoring.weight}
         attempts={ep.scoring.attempts}
         mandatory={ep.scoring.mandatory}
+        requireCorrect={ep.scoring.requireCorrect}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
         onWeightChange={w => update({ scoring: { ...getLatest().scoring, weight: w } })}
         onAttemptsChange={a => update({ scoring: { ...getLatest().scoring, attempts: a } })}
         onMandatoryChange={v => update({ scoring: { ...getLatest().scoring, mandatory: v } })}
+        onRequireCorrectChange={v => update({ scoring: { ...getLatest().scoring, requireCorrect: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />
@@ -357,11 +373,13 @@ function TFPropertiesForm({ component }: { component: Component }) {
         weight={ep.scoring.weight}
         attempts={ep.scoring.attempts}
         mandatory={ep.scoring.mandatory}
+        requireCorrect={ep.scoring.requireCorrect}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
         onWeightChange={w => update({ scoring: { ...getLatest().scoring, weight: w } })}
         onAttemptsChange={a => update({ scoring: { ...getLatest().scoring, attempts: a } })}
         onMandatoryChange={v => update({ scoring: { ...getLatest().scoring, mandatory: v } })}
+        onRequireCorrectChange={v => update({ scoring: { ...getLatest().scoring, requireCorrect: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />
@@ -470,11 +488,13 @@ function FillPropertiesForm({ component }: { component: Component }) {
         weight={ep.scoring.weight}
         attempts={ep.scoring.attempts}
         mandatory={ep.scoring.mandatory}
+        requireCorrect={ep.scoring.requireCorrect}
         feedbackCorrect={ep.feedbackCorrect}
         feedbackIncorrect={ep.feedbackIncorrect}
         onWeightChange={w => update({ scoring: { ...getLatest().scoring, weight: w } })}
         onAttemptsChange={a => update({ scoring: { ...getLatest().scoring, attempts: a } })}
         onMandatoryChange={v => update({ scoring: { ...getLatest().scoring, mandatory: v } })}
+        onRequireCorrectChange={v => update({ scoring: { ...getLatest().scoring, requireCorrect: v } })}
         onFeedbackCorrectChange={v => update({ feedbackCorrect: v })}
         onFeedbackIncorrectChange={v => update({ feedbackIncorrect: v })}
       />
