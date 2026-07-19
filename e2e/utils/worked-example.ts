@@ -12,16 +12,18 @@ import type { Page } from '@playwright/test'
 import { addBlockById, ensureWidgetIsCentered } from './screenshot'
 
 /**
- * Retry a page.evaluate-backed step once if the execution context is
- * recycled mid-build. Observed deterministically during the §17 build
- * (~2s after the slide-3→4 edits — the autosave debounce window is the
- * prime suspect): the evaluate throws "Execution context was destroyed"
- * yet the page, URL and editor state demonstrably survive (no
- * framenavigated event, no [vite] reload, no pageerror — see the
- * campaign's diagnostic listeners; safety-net shots taken right after
- * show the built course intact). Root cause tracked as TD-020 in
- * docs/issues/issues-TD-013.md; for an authoring utility a single
- * settle-and-retry is the proportionate defence.
+ * Retry a page.evaluate-backed step once if the driver reports the
+ * execution context destroyed.
+ *
+ * TD-020 SOLVED (2026-07-19, CDP-instrumented repro): the page's main
+ * world is provably NEVER destroyed — a `window.__CTX_TAG` planted before
+ * the dying evaluate is still readable right after it. The error is a
+ * STALE CONTEXT HANDLE inside the Playwright driver, raced by the GrapesJS
+ * canvas-iframe churn (every slide load destroys/recreates the canvas
+ * frame; CDP shows the create/destroy pairs). App exonerated. Retrying is
+ * therefore always safe — the world the retry runs in is the same, live
+ * one. Keep Escape-based deselection where possible (fewer evaluates in
+ * the churn window at all).
  */
 export async function retryOnDestroyedContext<R>(page: Page, fn: () => Promise<R>): Promise<R> {
   try {
@@ -88,9 +90,9 @@ export async function setTextContent(
 /**
  * Re-resolve a widget id by its `name` on the CURRENT slide. Component ids
  * from placeAt go stale after slide switches (GrapesJS regenerates ids when
- * a slide reloads — playbook T-5). The `name` TRAIT is stripped by the save
- * round-trip (TD-019), so the fallback matches the persisted `[name]` DOM
- * attribute.
+ * a slide reloads — playbook T-5). Since TD-019/TD-019b the model `name`
+ * survives the save round-trip end-to-end; the `[name]` DOM-attribute
+ * fallback stays as a belt-and-braces second chance.
  */
 export async function idByName(page: Page, name: string): Promise<string | undefined> {
   return await retryOnDestroyedContext(page, () =>

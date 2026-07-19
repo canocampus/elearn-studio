@@ -789,11 +789,11 @@ same flow). Check the label-change convention ADR
 (`decisions/2026-04-25-button-label-change-convention.md`) while fixing.
 
 ### TD-019 — `name` trait stripped by the save/reload round-trip
-> **Source:** TD-013.5c finding 5 (first documented at TD-013.4 §09) | **Status:** ✅ FIX SHIPPED 2026-07-19 (v0.5.72) — one campaign-specific residual documented | **Severity:** was MEDIUM
+> **Source:** TD-013.5c finding 5 (first documented at TD-013.4 §09) | **Status:** ✅ CLOSED 2026-07-19 (frontend v0.5.72 + backend TD-019b v0.5.73) | **Severity:** was MEDIUM
 
 **Root cause (two-part, the second destructive)**: the loader restored the author name only into `attributes.name` — the component MODEL reverted to the type default ('Button', 'Multiple Choice'…), which (a) the NameField displays (it binds the model), and (b) the save side PREFERS (`c.get('name') ?? attributes.name` — the default is always truthy), so **any save after a reload silently replaced the author's name in the course document with the type default**. The "unnamed widget → type name" semantics are intentional (§09 dropdown); only the author-name restoration was missing. **Fix**: `grapesjsFromWidgets` restores `def.name` (model) alongside `attributes.name` — the same state a freshly-named widget has; the existing save priority becomes correct without changes. **Verification**: unit RED→GREEN in `converters.test.ts` (93/93; suite 1052/1052); E2E `@regression TD-019` in `widget-persistence-across-slides.spec.ts` (NameField keeps the name across a slide round-trip) 3/3; two throwaway probes green, incl. an exact replica of the §17 build sequence (model name survives switch); tsc 0; lint 0.
 
-**Residual (documented, non-blocking)**: the §17 campaign's slide-3 finals capture STILL arrives with the type-default name even post-fix, while every direct reproduction (probe replicating the same placeAt+panel-fill+switch sequence) keeps it — a campaign-context-specific mechanism (suspected save race across the worked-example build/finals transitions) distinct from the fixed defect. The campaign keeps its real-UI NameField re-fill as a capture aid with an honest comment; T-15 (Zustand direct-sync) also stays — its cause is store staleness for in-session widgets, orthogonal to names (the TD-019 backlog note's assumption that both workarounds could retire was half right). Reopen only if a real-flow repro of the residual appears outside the campaign.
+**Residual → RESOLVED as TD-019b (2026-07-19, backend root cause)**: the §17 campaign's slide-3 finals capture still arrived nameless post-frontend-fix while every direct probe kept the name. A CDP-instrumented repro of the second-course build cracked it: the backend `WidgetSchema` (`backend/api/src/models/Course.ts`) **had no `name` field**, so Mongoose strict mode silently dropped it on every save. The probes survived because T042.5's single-slot `courseCache` served their slide loads from local (named) state; the campaign's second-course flow (renames/addSlide → `bumpCacheVersion`) invalidated the cache and forced nameless server GETs — the frontend fix then faithfully restored *nothing*. **Fix**: `name: String` added to `WidgetSchema` (RED→GREEN regression test `courses.test.ts` "widget name survives the save round-trip"; backend 150/150). **Verification**: instrumented repro shows the MC model name = `Q1Capital` at finals; campaign NameField re-fill retired and the full 55-capture run shows `Q1Capital` organically in `17-slide-3-final.png` (visual check). T-15 (Zustand direct-sync) stays — store staleness, orthogonal to names.
 
 Author-assigned widget names survive as the `[name]` DOM attribute but the
 GrapesJS `name` trait (what NameField and WidgetIdParam display) resets to the
@@ -809,11 +809,17 @@ Standard verdict (primary sources, see ADR `decisions/2026-07-19-conditional-nav
 **Delivered 2026-07-19 (TDD end-to-end):** runtime 13 new behavioural tests (RED→GREEN) — gate holds on wrong answers, unlocks on correct or on attempts exhaustion, Submit retryable per attempts (-1 unlimited), LMS threshold override with packaged fallback chain resolved once in init(); suspend v2 extended (c/t fields, legacy inference — resumed learners never re-trapped); authoring checkbox `require-correct-checkbox` in ScoringFeedbackForm (+3 panel tests); E2E `@regression TD-021` green first run. **Verification:** verify:test green all 7 packages (authoring 1049, runtime 278); E2E question-widget + preview-handshake + scorm-export 47/47; campaign refreshed §08 captures (both checkboxes visible; crop-fallback rect re-derived 251×220); tsc -b 0; lint 0 errors. ADR `decisions/2026-07-19-conditional-navigation-scorm-alignment.md` records the standard verdict + multi-SCO non-goal. One flake note: a single verify:test run under heavy load saw 2 harness nulls — non-reproducible (×3 clean since); harness hardened with a render sanity gate for diagnosability.
 
 ### TD-020 — Investigate: `editor.select(null)` evaluate dies with "Execution context was destroyed"
-> **Source:** TD-013.5c battle note | **Status:** Pending | **Severity:** LOW (workaround shipped, e2e-infra only)
+> **Source:** TD-013.5c battle note | **Status:** ✅ CLOSED 2026-07-19 — Playwright driver quirk, app exonerated | **Severity:** was LOW (e2e-infra only)
 
-Deterministic on every campaign run at the same build point, with proof of no
-navigation / no vite reload / no page error and a surviving page (diagnostics
-now permanent in `docs-screenshots.spec.ts`). Escape-key deselect +
-`retryOnDestroyedContext` shipped as workaround. Investigate the GrapesJS
-`select(null)` × autosave-window interaction before reintroducing evaluate-based
-deselection anywhere.
+**Verdict (CDP-instrumented repro, 2026-07-19)**: the page's main world is
+provably **never destroyed** — a `window.__CTX_TAG` planted before the dying
+evaluate is still readable immediately after the error. The failure is a
+**stale execution-context handle inside the Playwright driver**, raced by the
+GrapesJS canvas-iframe churn (each slide load destroys/recreates the canvas
+frame; CDP `Runtime.executionContextCreated/Destroyed` shows the pairs). Not
+an app bug; no GrapesJS `select(null)` × autosave interaction involved. The
+shipped workarounds were already correct and stand: Escape-key deselect
+(fewer evaluates in the churn window) + `retryOnDestroyedContext` (always
+safe — the retry runs in the same, live world; rationale in its docstring in
+`e2e/utils/worked-example.ts`). Optional follow-up: file the quirk upstream
+with the CDP evidence.

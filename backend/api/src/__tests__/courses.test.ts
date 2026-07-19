@@ -261,6 +261,39 @@ describe('POST /courses/:id/slides', () => {
 })
 
 describe('PATCH /courses/:id/slides/:slideId', () => {
+  it('TD-019b regression: widget name survives the save round-trip (WidgetSchema declares it)', async () => {
+    // Root cause of the author-name loss family: WidgetSchema did not declare
+    // `name`, so Mongoose (strict mode) silently dropped it on every save —
+    // any load served from the database came back nameless, and the editor
+    // then re-saved the type default over the author's name.
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'C' })
+    const courseId = created.data._id
+    const { body: slideBody } = await request(app)
+      .post(`/courses/${courseId}/slides`)
+      .set(auth)
+      .send({ title: 'S1' })
+    const slideId = slideBody.data.slides.at(-1).id
+
+    await request(app)
+      .patch(`/courses/${courseId}/slides/${slideId}`)
+      .set(auth)
+      .send({
+        widgets: [
+          {
+            id: 'w1',
+            type: 'button',
+            name: 'StartBtn',
+            bounds: { x: 0, y: 0, width: 100, height: 50 },
+          },
+        ],
+      })
+
+    const res = await request(app).get(`/courses/${courseId}`).set(auth)
+    expect(res.status).toBe(200)
+    const widget = res.body.data.slides.find((sl: { id: string }) => sl.id === slideId).widgets[0]
+    expect(widget.name).toBe('StartBtn')
+  })
+
   it('updates slide title atomically', async () => {
     const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'C' })
     const id = created.data._id

@@ -36,6 +36,12 @@ const WidgetSchema = new Schema(
     id: { type: String, required: true },
     // M-03 fix: enforce enum to match WidgetType union
     type: { type: String, required: true, enum: WIDGET_TYPES },
+    // TD-019b: author-assigned display name (BaseWidget.name). Its absence
+    // here made Mongoose (strict mode) silently DROP the name on every save —
+    // the root cause behind the whole author-name-loss family: any load
+    // served from the database came back nameless and the editor re-saved
+    // the type default over the author's name.
+    name: String,
     bounds: { type: BoundsSchema, required: true },
     layer: { type: Number, default: 0 },
     visible: { type: Boolean, default: true },

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.73] — 2026-07-19 — TD-019b: widget names persist in the backend + TD-020 closed
+
+### Fixed
+
+- **The backend silently dropped author-assigned widget names on every save** (TD-019b — the true root cause behind the whole name-loss family). The `WidgetSchema` had no `name` field, so Mongoose strict mode stripped it from each PATCH; any editor load served from the server came back nameless and the next save wrote the type default over the author's name. `name` is now declared in the schema (regression test: PATCH a named widget → GET → name preserved; backend 150/150). With this, the TD-019 residual (§17 worked-example capture) is fully resolved — the campaign's NameField re-fill workaround is retired and the slide-3 capture shows the author name organically.
+
+### Investigated / Closed
+
+- **TD-020** ("Execution context was destroyed" during evaluate-based deselection) closed as a **Playwright driver quirk, not an app bug**: a CDP-instrumented repro proves the page's main world survives the error (a probe tag planted before the dying evaluate is still readable after it) — the driver holds a stale context handle raced by the GrapesJS canvas-iframe churn. The shipped workarounds (Escape-key deselect + one safe retry) stand; evidence recorded in `tasks.md` TD-020 and the `retryOnDestroyedContext` docstring.
+
+---
+
 ## [0.5.72] — 2026-07-19 — TD-019: author widget names survive slide reloads
 
 ### Fixed
