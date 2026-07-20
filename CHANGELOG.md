@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.77] — 2026-07-20 — TD-023: one authority for simulation and animation contracts
+
+### Changed
+
+- **The simulation types (3 hand-maintained copies across authoring, backend and runtime) and animation types (2 copies) are now a single canonical contract in `@elearn-studio/shared-types`** — finding 2 (Alta) of the structural audit, the same parallel-authorities family that produced TD-019b. The one real divergence the inventory surfaced: the runtime had drifted `AuthoredSimStep.interactionType` to optional; the contract requires it (decision D2 — every producer emits it) and the runtime keeps its documented `?? 'click'` read-side default for pre-T202 SCORM packages. All five former copies are now pure `export type` re-exports (zero bundle impact).
+
+### Added
+
+- **Compile-time contract guards that actually fire**: the planned test-file guards would have been dead letters — several packages exclude `__tests__` from `tsc` — so the guards live in production `src` (`TypeEquals`/`AssertTrue` type assertions). Reintroducing a drifting local copy breaks `tsc -b`/verify:types in CI; the runtime guard proved itself by failing on the real divergence before the migration (honest RED).
+
+### Verification
+
+- tsc -b across the 4 packages + e2e: 0 · lint 0 errors · runtime 278 / authoring 1069 / backend 150 · E2E simulation-editor green ×2.
+
+---
+
 ## [0.5.76] — 2026-07-20 — TD-022: properties panels can no longer edit the wrong widget
 
 ### Fixed

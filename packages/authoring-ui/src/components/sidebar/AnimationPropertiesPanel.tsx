@@ -20,26 +20,15 @@ import { useEditorStore } from '../../store/editorStore'
 import { PathEditorCanvas } from '../konva/PathEditorCanvas'
 import { useComponentProperty } from '../../hooks/useComponentProperty'
 
-// ─── Types (mirrored from runtime-player/src/animations/animator.ts) ────────
+// ─── Types — canonical contract re-export (TD-023) ───────────────────────────
+// Previously a hand-mirrored copy of runtime-player's animator types.
+// `types/simulationContractGuard.ts` fails the build if a local
+// redefinition reappears. PathEditorCanvas imports AnimationKeypoint from
+// here — the re-export keeps that path stable.
 
-export interface AnimationKeypoint {
-  x: number
-  y: number
-  t?: number
-}
+export type { AnimationKeypoint, AnimationFill, AnimationPath } from '@elearn-studio/shared-types'
 
-export type AnimationFill = 'none' | 'forwards' | 'backwards' | 'both' | 'auto'
-
-export interface AnimationPath {
-  id: string
-  name: string
-  keypoints: AnimationKeypoint[]
-  duration: number
-  easing: string
-  loop: number
-  delay?: number
-  fill?: AnimationFill
-}
+import type { AnimationKeypoint, AnimationFill, AnimationPath } from '@elearn-studio/shared-types'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 

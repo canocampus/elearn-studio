@@ -1,6 +1,6 @@
 # TASK_AUDIT — Tareas derivadas de AUDIT.md (2026-07-20)
 
-> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76).
+> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76) · TD-023 ✅ (v0.5.77).
 > Al aprobarse, estas entradas graduarán a `tasks.md` (sección TECH DEBT BACKLOG) y este fichero pasará a ser el índice de trazabilidad del bloque.
 > Convención heredada: una tarea = un bloque cerrable con TDD + verify:ci + E2E gate cuando aplique + cierre documentado.
 
@@ -21,14 +21,14 @@
 - [x] TD-022.3 — Sub-scope opcional (decidir al llegar): expresar la invariante completa también en Button/Question panels, que hoy solo usan Backbone para elegir formulario.
 - [x] TD-022.4 — E2E gate: spec de paneles existente + escenario de conmutación rápida de selección entre widgets de tipos distintos.
 
-### [ ] TD-023 — Contratos duplicados: shared-types como autoridad (simulación + animaciones)
+### [x] TD-023 — Contratos duplicados: shared-types como autoridad (simulación + animaciones)
 > **Fuente:** AUDIT.md hallazgo 2 (Alta) | **Fase:** 2 | **Complejidad:** HIGH | **Decisión previa:** D2 (interactionType)
 
-- [ ] TD-023.1 — Inventario de divergencias entre las tres copias de simulación (`authoring types/simulation.ts:7`, `backend types/simulation.ts:44`, `runtime simPlayer.ts:13`) y las dos de animaciones (`AnimationPropertiesPanel.tsx:23`, `animator.ts:14`). Salida: tabla campo a campo.
-- [ ] TD-023.2 — Resolver D2 con el inventario delante (recomendación: obligatorio en contrato, runtime tolera legacy con default documentado).
-- [ ] TD-023.3 — Definir los contratos canónicos en `@elearn-studio/shared-types` (RED: tests de forma en los 3 consumidores contra el contrato).
-- [ ] TD-023.4 — Migrar authoring → backend → runtime, un paquete por subtask, `verify:ci` entre pasos; eliminar las copias locales (o reducirlas a re-export).
-- [ ] TD-023.5 — Guard permanente: la regla `no-unsafe-domain-cast` cubre ya los paquetes; añadir test que falle si reaparece una redefinición local de los tipos consolidados.
+- [x] TD-023.1 — Inventario de divergencias entre las tres copias de simulación (`authoring types/simulation.ts:7`, `backend types/simulation.ts:44`, `runtime simPlayer.ts:13`) y las dos de animaciones (`AnimationPropertiesPanel.tsx:23`, `animator.ts:14`). Salida: tabla campo a campo.
+- [x] TD-023.2 — Resolver D2 con el inventario delante (recomendación: obligatorio en contrato, runtime tolera legacy con default documentado).
+- [x] TD-023.3 — Definir los contratos canónicos en `@elearn-studio/shared-types` (RED: tests de forma en los 3 consumidores contra el contrato).
+- [x] TD-023.4 — Migrar authoring → backend → runtime, un paquete por subtask, `verify:ci` entre pasos; eliminar las copias locales (o reducirlas a re-export).
+- [x] TD-023.5 — Guard permanente: la regla `no-unsafe-domain-cast` cubre ya los paquetes; añadir test que falle si reaparece una redefinición local de los tipos consolidados.
 
 ### [ ] TD-024 — Frontera OpenAPI: tipar Slide.widgets/Slide.actions y dejar de confiar por fe
 > **Fuente:** AUDIT.md hallazgo 3 (Alta) | **Fase:** 3 | **Complejidad:** HIGH | **Depende de:** TD-023 | **Decisión previa:** D3 (validación runtime)

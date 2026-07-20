@@ -95,3 +95,20 @@ export function unsafeCoerce<T>(value: unknown, reason: string): T {
   void reason
   return value as T
 }
+
+/**
+ * TD-023 — compile-time type-equality guard for contract consolidation.
+ *
+ * `TypeEquals<A, B>` resolves to `true` only when A and B are IDENTICAL
+ * types (mutual-assignability trick catches optionality and readonly
+ * differences that plain `extends` misses). Combine with `AssertTrue` in a
+ * PRODUCTION-compiled module — several packages exclude `__tests__` from
+ * `tsc`, so a guard living in a test file would never fire.
+ *
+ * @example
+ *   type _guard = AssertTrue<TypeEquals<LocalShape, SharedShape>>
+ */
+export type TypeEquals<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
+
+export type AssertTrue<T extends true> = T

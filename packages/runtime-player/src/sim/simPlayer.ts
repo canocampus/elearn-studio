@@ -10,47 +10,22 @@
  *   assessment — same as practice; correct clicks accumulate score reported to SCORM
  */
 
-// ─── Types (mirror authoring-ui/types/simulation) ────────────────────────────
+// ─── Types — canonical contract re-export (TD-023) ───────────────────────────
+// Previously a hand-mirrored copy whose `interactionType` had drifted to
+// optional. The contract requires it; steps inside SCORM packages exported
+// before T202 may still lack the field, which is handled at READ time below
+// (`step.interactionType ?? 'click'`), never by widening the type.
+// `contractGuards.ts` fails the build if a local redefinition reappears.
 
-export interface SimHotspot {
-  x: number
-  y: number
-  width: number
-  height: number
-  tolerance: number
-}
+export type {
+  SimHotspot,
+  SimInteractionType,
+  AuthoredSimStep,
+  SimMode,
+  SimConfig,
+} from '@elearn-studio/shared-types'
 
-export type SimInteractionType = 'click' | 'hover' | 'type'
-
-export interface AuthoredSimStep {
-  id: string
-  order: number
-  description: string
-  instruction: string
-  hint: string
-  correctFeedback: string
-  incorrectFeedback: string
-  /** Milliseconds before auto-advance in demo mode */
-  demoDelay: number
-  /** Max wrong attempts before forced advance; -1 = unlimited */
-  maxAttempts: number
-  screenshotKey: string
-  /** Backend-proxied URL for the screenshot image */
-  screenshotUrl: string
-  hotspot: SimHotspot
-  /** T202: How the learner interacts with this step (default: 'click') */
-  interactionType?: SimInteractionType
-  /** T202: Required text for 'type' interaction steps */
-  expectedText?: string
-}
-
-export type SimMode = 'demo' | 'practice' | 'assessment'
-
-export interface SimConfig {
-  mode: SimMode
-  passingScore: number
-  steps: AuthoredSimStep[]
-}
+import type { AuthoredSimStep, SimConfig } from '@elearn-studio/shared-types'
 
 // ─── Callbacks injected by the player host ────────────────────────────────────
 

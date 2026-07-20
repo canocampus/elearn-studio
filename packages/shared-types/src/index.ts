@@ -6,7 +6,9 @@
  */
 
 export * from './actions'
+export * from './animation'
 export * from './course'
+export * from './simulation'
 export * from './questions'
 export * from './widgets'
 export * from './test-utils'
