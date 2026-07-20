@@ -853,3 +853,28 @@ it became unused (StepForm). TDD: 3 RED→GREEN unit tests in
 `grep 'buttons.disabled : null'` → 0 hits in components; authoring-ui
 1055/1055; tsc -b 0; lint 0 errors. Closure note appended to
 `docs/issues/issues-TD-014.md`. **Backlog a 0.**
+
+---
+
+## BACKLOG — Auditoría estructural (AUDIT.md 2026-07-20; plan aprobado por el owner)
+
+> Fuente: `AUDIT.md` | Plan: `PLAN_AUDIT.md` | Subtasks detallados e índice de trazabilidad: `TASK_AUDIT.md`.
+> Orden aprobado: TD-026 → TD-022 → TD-023 → TD-024 → TD-027 → TD-025. Decisiones D1-D4 en el plan (recomendaciones aprobadas con el plan; D2/D4 se ratifican con datos delante).
+
+### [ ] TD-026 — Documentación arquitectónica y referencia de skill rotas (LOW)
+AGENTS.md cita `.claude/skills/grapesjs-react-lifecycle/` (no existe; carpeta real `grapejs-react-lifecycle`); `GRAPESJS_REACT_PATTERNS.md` exige el patrón `[courseId, slideId]`-reinit que reintroduciría las carreras que Phase 10 eliminó — documentar el ciclo real de dos effects (`EditorCanvas.tsx:173`).
+
+### [ ] TD-022 — Migración T648 incompleta: doble gate en 4 PropertiesPanel (MEDIUM, Alta)
+AudioNarration/MediaPlayer/ProgressBar/VolumeControl validan solo vía Zustand; durante el desfase Zustand→Backbone pueden editar el widget equivocado. Replicar el doble gate de `PhaserSimPropertiesPanel` + tests de estados deliberadamente desalineados.
+
+### [ ] TD-023 — Contratos duplicados: shared-types como autoridad de simulación y animaciones (HIGH, Alta)
+Tipos de simulación mantenidos a mano ×3 (authoring/backend/runtime, divergencia real en `interactionType`) y animaciones ×2. Consolidar en `@elearn-studio/shared-types`, migrar por paquete, guard antirreaparición.
+
+### [ ] TD-024 — Frontera OpenAPI: tipar `Slide.widgets`/`Slide.actions` (HIGH, Alta; depende de TD-023)
+`swagger.ts` los declara `object` genéricos → el cliente generado no protege nada y `courseApi.ts` castea por fe. Derivar schemas del contrato compartido + validación runtime en PATCH/POST courses + test de paridad Mongo↔OpenAPI↔shared-types (el triángulo de TD-019b).
+
+### [ ] TD-027 — Retirada completa del fósil `Slide.actions` (MEDIUM, Media; depende de TD-024)
+El `@deprecated` de TD-017 no basta: Mongo persiste, Swagger publica, `duplicateSlide()` copia. Censo en BD primero; retirada de las tres superficies.
+
+### [ ] TD-025 — Contract-tests de GrapesJS contra instancia real (MEDIUM, Media; cierra H-01/T705)
+`grapesjs-contracts.test.ts` prueba stubs. Spec `@contract` E2E contra la instancia real; los stubs pierden el nombre "contract".
