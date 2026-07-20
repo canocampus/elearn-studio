@@ -821,8 +821,23 @@ an app bug; no GrapesJS `select(null)` × autosave interaction involved. The
 shipped workarounds were already correct and stand: Escape-key deselect
 (fewer evaluates in the churn window) + `retryOnDestroyedContext` (always
 safe — the retry runs in the same, live world; rationale in its docstring in
-`e2e/utils/worked-example.ts`). Optional follow-up: file the quirk upstream
-with the CDP evidence.
+`e2e/utils/worked-example.ts`).
+
+**Upstream filing attempted and DROPPED (2026-07-20)**: to file at
+microsoft/playwright (v1.58.2; no matching open issue — #40940/#28572 are
+different classes) a reproducible artefact was required. Three standalone
+minimal variants (iframe churn via srcdoc / real navigations+reload+jank /
+in-flight async evaluates + concurrent locator traffic) scored **0/6000**
+spurious failures; a faithful in-app probe replaying the §17 second-course
+build to the historical deterministic death point (select(null) after
+slide-4 placement) scored **0/10 across 2 runs** — the quirk no longer
+reproduces even here. Reading: the TD-019b backend fix removed the
+cache-invalidation reload turbulence that raced the driver; the trigger
+window has closed. An upstream report with no runnable repro and no longer
+reproducible on our side would not survive triage — dropped. **Sentinel**:
+the `[docs-screenshots] evaluate hit a destroyed context — retrying once`
+warn in `retryOnDestroyedContext` is the canary; if it ever fires again,
+capture `DEBUG=pw:protocol` on the spot and revisit the filing.
 
 ### TD-014-followup-1 — R-M2: spread-with-null pattern for conditional disabled styles
 > **Source:** TD-014.26 reviewer pass (typescript-reviewer, deferred by owner decision) | **Status:** ✅ CLOSED 2026-07-20 (v0.5.74) | **Severity:** was MEDIUM (cosmetic/readability)
