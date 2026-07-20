@@ -861,8 +861,10 @@ it became unused (StepForm). TDD: 3 RED→GREEN unit tests in
 > Fuente: `AUDIT.md` | Plan: `PLAN_AUDIT.md` | Subtasks detallados e índice de trazabilidad: `TASK_AUDIT.md`.
 > Orden aprobado: TD-026 → TD-022 → TD-023 → TD-024 → TD-027 → TD-025. Decisiones D1-D4 en el plan (recomendaciones aprobadas con el plan; D2/D4 se ratifican con datos delante).
 
-### [ ] TD-026 — Documentación arquitectónica y referencia de skill rotas (LOW)
+### [x] TD-026 — Documentación arquitectónica y referencia de skill rotas — ✅ CLOSED 2026-07-20 (v0.5.75)
 AGENTS.md cita `.claude/skills/grapesjs-react-lifecycle/` (no existe; carpeta real `grapejs-react-lifecycle`); `GRAPESJS_REACT_PATTERNS.md` exige el patrón `[courseId, slideId]`-reinit que reintroduciría las carreras que Phase 10 eliminó — documentar el ciclo real de dos effects (`EditorCanvas.tsx:173`).
+
+**Cierre**: (1) `GRAPESJS_REACT_PATTERNS.md` Pattern 1 reescrito — documenta el ciclo real de DOS effects (Effect 1 `[courseId]` instancia/destruye con limpieza de los load-context refs TD-009; Effect 2 `[courseId, slideId]` carga slides con guard StrictMode) con nota de corrección explicando por qué el patrón antiguo reintroduciría las carreras TD-009; reglas actualizadas (incl. "Effect 2 owns ALL loads"). (2) D1 resuelto como recomendado — referencias corregidas al nombre real `grapejs-react-lifecycle` en AGENTS.md, CLAUDE.md y `pre-edit-cleanup-check.js` (rezagado encontrado por el barrido); carpeta no renombrada. (3) Barrido ripgrep: cero referencias a la grafía inexistente fuera de los documentos del audit que describen el hallazgo; la ruta que cita AGENTS existe y contiene SKILL.md.
 
 ### [ ] TD-022 — Migración T648 incompleta: doble gate en 4 PropertiesPanel (MEDIUM, Alta)
 AudioNarration/MediaPlayer/ProgressBar/VolumeControl validan solo vía Zustand; durante el desfase Zustand→Backbone pueden editar el widget equivocado. Replicar el doble gate de `PhaserSimPropertiesPanel` + tests de estados deliberadamente desalineados.

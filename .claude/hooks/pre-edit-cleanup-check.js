@@ -13,7 +13,7 @@ if (content.includes('useEffect')) {
 
     if (hasEditor && !hasCleanup) {
         console.warn("⚠️ ADVERTENCIA: useEffect detectado sin función de cleanup.");
-        console.warn("👉 El editor de GrapesJS debe ser destruido: .claude/skills/grapesjs-react-lifecycle/SKILL.md");
+        console.warn("👉 El editor de GrapesJS debe ser destruido: .claude/skills/grapejs-react-lifecycle/SKILL.md");
     }
 
     // Conteo básico de listeners

@@ -51,7 +51,7 @@ This phase is deferred. Do NOT apply design tokens until explicitly instructed.
 
 ### GrapesJS & React Architecture
 - **When to use**: Modifying `packages/authoring-ui`, GrapesJS widgets, canvas, or property panels.
-- **Protocol**: You MUST read and adhere to `.claude/skills/grapesjs-react-lifecycle/SKILL.md`.
+- **Protocol**: You MUST read and adhere to `.claude/skills/grapejs-react-lifecycle/SKILL.md`.
 
 ### Hooks
 - **pre-edit**: Before each write (`write_file`) to `packages/authoring-ui/src`, run `node .claude/hooks/pre-edit-cleanup-check.js {{file_path}}` and analyze the warnings before proposing the final code.

@@ -7,57 +7,87 @@
 
 ---
 
-## Pattern 1: Editor Wrapper with Full Cleanup
+## Pattern 1: Editor Wrapper — Two-Effect Lifecycle with Full Cleanup
 
 Canonical implementation: `packages/authoring-ui/src/components/editor/EditorCanvas.tsx`
+
+> **TD-026 correction (2026-07-20).** This section previously mandated a single
+> effect with deps `[courseId, slideId]` that destroyed and recreated the whole
+> GrapesJS instance on every slide switch. That is NOT what ships and MUST NOT
+> be reintroduced: recreating the editor per slide is exactly the race factory
+> that Phase 10 / TD-009 eliminated (double loads clearing fresh content, lost
+> ready signals, canvas churn). The shipped, deliberate lifecycle is TWO
+> effects with different responsibilities:
 
 ```typescript
 export function EditorCanvas({ courseId, slideId }: Props) {
   const editorRef = useRef<Editor | null>(null)
 
+  // Effect 1 — instance lifecycle. Runs ONLY when courseId changes.
+  // Creates the GrapesJS instance once per course and destroys it on
+  // course switch / unmount. slideId is intentionally NOT a dep.
   useEffect(() => {
-    // T650/T651: initEditor now returns a four-tuple.
+    if (isInitializedRef.current) return          // StrictMode double-mount guard
+    isInitializedRef.current = true
+
     const { editor, cleanup, hasPendingChanges, requestSave } = initEditor({
       container: containerRef.current!,
       courseId,
       slideId,
-      blockManagerContainer: '#block-manager',
-      layerManagerContainer: '#layer-manager',
-      styleManagerContainer: '#style-manager',
+      // ... manager containers, onReady wiring (selection listeners, E2E handles)
     })
     editorRef.current = editor
+    useEditorStore.getState().setRequestSave(requestSave)   // T651.3 unified save entry
 
-    // T651.3: expose the unified save closure via Zustand so SaveErrorBanner,
-    // useActionsSave, SimulationEditor, and saveAndLoad all share one entry point.
-    useEditorStore.getState().setRequestSave(requestSave)
-
-    // T650.2: dirty-state warning on tab close mid-debounce (uses hasPendingChanges).
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {       // T650.2 dirty-state warn
       if (hasPendingChanges()) { e.preventDefault(); e.returnValue = '' }
     }
     window.addEventListener('beforeunload', onBeforeUnload)
 
     return () => {
       window.removeEventListener('beforeunload', onBeforeUnload)
-      cleanup()             // clears autosaveTimer, removes dragstart listener, unsubscribes cache
+      isInitializedRef.current = false
+      cleanup()             // order matters: clears autosaveTimer, dragstart listener, cache sub
       editor.destroy()
       editorRef.current = null
+      // TD-009: clear the load-context refs Effect 2 keys off — a stale
+      // "already loaded slide X" entry would make the FRESH editor skip its
+      // first load and leave the canvas empty.
+      lastLoadContextRef.current = null
+      lastLoadPromiseRef.current = null
       useEditorStore.getState().setRequestSave(null)
     }
-  }, [courseId, slideId])   // explicit deps — remounts on slide/course change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId])
+
+  // Effect 2 — content lifecycle. Runs on courseId OR slideId change.
+  // Loads slide content into the EXISTING editor via editor.load(); never
+  // recreates the instance. Guards against StrictMode double-invocation by
+  // comparing against lastLoadContextRef (two concurrent editor.load() calls
+  // race: the first one's loadData() lands late and clears fresh content).
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) return
+    // ... lastLoadContextRef guard, then load slide content + flip ready signal
+  }, [courseId, slideId])
 
   return <div ref={containerRef} />
 }
 ```
 
 Rules:
-- `useEffect` deps MUST be `[courseId, slideId]` — never `[]`
+- **Effect 1 deps are `[courseId]` — instance per course.** Effect 2 deps are
+  `[courseId, slideId]` — content per slide. Never merge them back into one
+  effect: destroying GrapesJS per slide switch reintroduces the TD-009 races.
+- Do NOT call `ed.load()` inside `initEditor`'s `onReady` — Effect 2 owns ALL
+  loads (initial mount and slide switches). Two load paths = the race above.
 - cleanup MUST run before `editor.destroy()` — order matters
 - `initEditor` returns `{ editor, cleanup, hasPendingChanges, requestSave }`
 - `cleanup()` handles `clearTimeout(autosaveTimer)`,
   `blockContainer.removeEventListener('dragstart', ...)`, and `unsubscribeCache()`
 - `hasPendingChanges` (T650) is a closure over `autosaveTimer`; read at event time, no parallel flag
 - `requestSave` (T651) must be published to Zustand AND cleared on unmount
+- Effect 1's cleanup MUST also clear the Effect-2 load-context refs (TD-009)
 
 ---
 

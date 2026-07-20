@@ -21,7 +21,7 @@ Proceeding without explicit confirmation is a protocol violation.
 ---
 ## 🔍 Pre-Commit Self-Verification Checklist
 
-The agent must validate changes against the patterns defined in .claude/skills/grapesjs-react-lifecycle/SKILL.md. The automatic pre-edit hook will report any deviations in resource cleanup.
+The agent must validate changes against the patterns defined in .claude/skills/grapejs-react-lifecycle/SKILL.md (TD-026: path corrected — the folder was always `grapejs-…`, the old reference pointed to a non-existent `grapesjs-…`). The automatic pre-edit hook will report any deviations in resource cleanup.
 
 **Verification commands MUST mirror CI** — `tsc -b` is incremental and skips cached-passed files; `tsc --noEmit` likewise. A green local `tsc -b` is NOT sufficient to claim "verified". The canonical pre-push command is `pnpm verify:ci` (defined in root `package.json`); use `pnpm verify:ci:debug` for diagnostic mode (`--fail-soft`, `--quick`, `--only`, `--from`, `--help`). See **§4.1 — Local vs CI environment parity** for the full asymmetry table and rationale. Skipping §4.1 produces false-greens that fail in CI's build phase (root cause of the TD-014 closure CI red on 2026-04-26).
 

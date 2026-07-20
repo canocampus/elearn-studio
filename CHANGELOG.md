@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.75] — 2026-07-20 — TD-026: architecture docs match the shipped lifecycle (audit block F0)
+
+### Fixed (documentation / protocol)
+
+- **`GRAPESJS_REACT_PATTERNS.md` Pattern 1 rewritten** (AUDIT.md finding 5): it mandated a single effect with `[courseId, slideId]` deps that destroyed and recreated GrapesJS on every slide switch — a pattern that, applied literally, would reintroduce the TD-009 races Phase 10 eliminated. It now documents the shipped two-effect lifecycle (Effect 1 `[courseId]` owns the instance, incl. TD-009 load-context-ref cleanup; Effect 2 `[courseId, slideId]` owns slide loads with the StrictMode guard) and forbids merging them back.
+- **Skill path references fixed** (D1, as recommended): AGENTS.md, CLAUDE.md and `pre-edit-cleanup-check.js` pointed at `.claude/skills/grapesjs-react-lifecycle/` — a path that never existed (real folder: `grapejs-react-lifecycle`), so the mandatory protocol read silently never happened. All references now point at the real folder; sweep confirms no stray spellings outside the audit documents that describe the finding.
+
+---
+
+## [0.5.75] — 2026-07-20 — TD-026: architecture docs realigned with the shipped editor lifecycle
+
+### Fixed (documentation / tooling)
+
+- **`GRAPESJS_REACT_PATTERNS.md` Pattern 1 rewritten** (AUDIT.md finding 5): it mandated a single-effect `[courseId, slideId]` editor lifecycle that destroys and recreates GrapesJS on every slide switch — exactly the race pattern Phase 10/TD-009 eliminated. It now documents the shipped two-effect lifecycle (Effect 1 `[courseId]` owns the instance and clears the load-context refs on teardown; Effect 2 `[courseId, slideId]` owns all loads with the StrictMode guard) and forbids merging them back.
+- **Broken skill path corrected** in AGENTS.md, CLAUDE.md and `pre-edit-cleanup-check.js`: they referenced `.claude/skills/grapesjs-react-lifecycle/` (never existed); the real folder is `grapejs-react-lifecycle`. Decision D1: references corrected, folder not renamed. Sweep verified zero live references to the wrong spelling remain.
+
+Also: structural audit shipped (`AUDIT.md`) with approved remediation plan (`PLAN_AUDIT.md`) and task backlog TD-022…TD-027 (`TASK_AUDIT.md` + tasks.md).
+
+---
+
 ## [0.5.74] — 2026-07-20 — TD-014-followup-1: withDisabled helper (backlog to zero)
 
 ### Changed

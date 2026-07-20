@@ -2,7 +2,7 @@
 
 > **Fuente**: `AUDIT.md` (auditoría estática vía `/audit-structural`, sin cambios de código).
 > **Tareas derivadas**: `TASK_AUDIT.md` (TD-022…TD-027; graduarán a `tasks.md` al aprobarse este plan).
-> **Estado**: PENDIENTE DE APROBACIÓN DEL OWNER — no se escribe código hasta el visto bueno.
+> **Estado**: APROBADO por el owner (2026-07-20). Fase 0 (TD-026) ✅ completada; D1 resuelta (referencias corregidas, carpeta no renombrada).
 
 ---
 

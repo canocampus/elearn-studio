@@ -1,17 +1,17 @@
 # TASK_AUDIT — Tareas derivadas de AUDIT.md (2026-07-20)
 
-> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: PENDIENTE DE APROBACIÓN.
+> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ cerrado (v0.5.75).
 > Al aprobarse, estas entradas graduarán a `tasks.md` (sección TECH DEBT BACKLOG) y este fichero pasará a ser el índice de trazabilidad del bloque.
 > Convención heredada: una tarea = un bloque cerrable con TDD + verify:ci + E2E gate cuando aplique + cierre documentado.
 
 ---
 
-### [ ] TD-026 — Documentación arquitectónica y referencia de skill rotas
+### [x] TD-026 — Documentación arquitectónica y referencia de skill rotas
 > **Fuente:** AUDIT.md hallazgo 5 (Media) | **Fase:** 0 | **Complejidad:** LOW | **Decisión previa:** D1 (ruta skill)
 
-- [ ] TD-026.1 — `GRAPESJS_REACT_PATTERNS.md`: sustituir el patrón obligatorio `[courseId, slideId]`-reinit por el ciclo de vida real de dos effects (Effect 1 `[courseId]` instancia/destruye; Effect 2 `[courseId, slideId]` carga slides sin recrear), citando `EditorCanvas.tsx:173` y el porqué (carreras Phase 10).
-- [ ] TD-026.2 — Resolver D1: referencias de AGENTS.md/CLAUDE.md a `grapesjs-react-lifecycle` vs carpeta real `.claude/skills/grapejs-react-lifecycle/` (recomendado: corregir referencias al nombre real).
-- [ ] TD-026.3 — Grep global de ambas grafías para no dejar referencias mixtas; verificación: la ruta que cite AGENTS existe.
+- [x] TD-026.1 — `GRAPESJS_REACT_PATTERNS.md`: sustituir el patrón obligatorio `[courseId, slideId]`-reinit por el ciclo de vida real de dos effects (Effect 1 `[courseId]` instancia/destruye; Effect 2 `[courseId, slideId]` carga slides sin recrear), citando `EditorCanvas.tsx:173` y el porqué (carreras Phase 10).
+- [x] TD-026.2 — Resolver D1: referencias de AGENTS.md/CLAUDE.md a `grapesjs-react-lifecycle` vs carpeta real `.claude/skills/grapejs-react-lifecycle/` (recomendado: corregir referencias al nombre real).
+- [x] TD-026.3 — Grep global de ambas grafías para no dejar referencias mixtas; verificación: la ruta que cite AGENTS existe.
 
 ### [ ] TD-022 — Migración T648 incompleta: doble gate en 4 PropertiesPanel
 > **Fuente:** AUDIT.md hallazgo 1 (Alta) | **Fase:** 1 | **Complejidad:** MEDIUM
