@@ -5,6 +5,7 @@ import { isValidObjectId } from 'mongoose'
 import rateLimit from 'express-rate-limit'
 import { Course } from '../models/Course'
 import { AuditLog } from '../models/AuditLog'
+import { WidgetsArrayZ, ActionSequencesArrayZ, SlidesArrayZ, formatZodError } from '../lib/courseValidation'
 import { logAudit } from '../lib/auditLogger'
 import { runExport, type ExportFormat } from '../lib/export/runExport'
 
@@ -195,7 +196,7 @@ coursesRouter.post('/', async (req, res) => {
  *             type: object
  *             properties:
  *               title:     { type: string, maxLength: 200 }
- *               slides:    { type: array, items: { type: object } }
+ *               slides:    { type: array, items: { $ref: '#/components/schemas/Slide' } }
  *               templates: { type: array, items: { type: object } }
  *               resources: { type: array, items: { type: object } }
  *               settings:  { type: object }
@@ -237,6 +238,15 @@ coursesRouter.put('/:id', async (req, res) => {
   // C-01: allowlist only writable fields — never pass raw req.body to Mongoose
   const { title, slides, templates, resources, settings, metadata, sharedSequences } =
     req.body as CourseUpdatePayload
+
+  // TD-024.4 (D3): slides carry the widget contract — validate before Mongo.
+  if (slides !== undefined) {
+    const parsed = SlidesArrayZ.safeParse(slides)
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: formatZodError('slides', parsed.error) })
+      return
+    }
+  }
 
   const course = await Course.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },
@@ -532,8 +542,8 @@ coursesRouter.patch('/:id/slides/reorder', async (req, res) => {
  *             type: object
  *             properties:
  *               title:     { type: string }
- *               widgets:   { type: array, items: { type: object } }
- *               actions:   { type: array, items: { type: object } }
+ *               widgets:   { type: array, items: { $ref: '#/components/schemas/Widget' } }
+ *               actions:   { type: array, items: { $ref: '#/components/schemas/ActionSequence' } }
  *               thumbnail: { type: string }
  *     responses:
  *       200:
@@ -569,6 +579,24 @@ coursesRouter.patch('/:id/slides/:slideId', async (req, res) => {
     return
   }
   const { title, widgets, actions, thumbnail } = req.body as SlidePatchPayload
+  // TD-024.4 (D3): validate the widget/action payload against the shared
+  // contract BEFORE Mongo. Previously contract-invalid widgets surfaced as
+  // unhandled Mongoose ValidationErrors (500) and undeclared fields were
+  // silently stripped — the TD-019b failure mode.
+  if (widgets !== undefined) {
+    const parsed = WidgetsArrayZ.safeParse(widgets)
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: formatZodError('widgets', parsed.error) })
+      return
+    }
+  }
+  if (actions !== undefined) {
+    const parsed = ActionSequencesArrayZ.safeParse(actions)
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: formatZodError('actions', parsed.error) })
+      return
+    }
+  }
   const $set: Record<string, unknown> = {}
   if (title !== undefined) $set['slides.$.title'] = title
   if (widgets !== undefined) $set['slides.$.widgets'] = widgets

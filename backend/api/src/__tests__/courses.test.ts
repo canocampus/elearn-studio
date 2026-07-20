@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { Readable } from 'stream'
 import request from 'supertest'
 import { app } from '../app'
+import { Course } from '../models/Course'
 import { authHeader } from './authHelper'
 import { getObject } from '../storage/s3'
 
@@ -292,6 +293,123 @@ describe('PATCH /courses/:id/slides/:slideId', () => {
     expect(res.status).toBe(200)
     const widget = res.body.data.slides.find((sl: { id: string }) => sl.id === slideId).widgets[0]
     expect(widget.name).toBe('StartBtn')
+  })
+
+  // ── TD-024.4 (D3): the Course write boundary validates widget shape ────────
+  // TD-019b happened because nothing between the HTTP boundary and Mongo
+  // checked the contract. These tests pin the boundary: contract-invalid
+  // widgets are rejected with 400 + a useful message, never silently
+  // stripped/coerced by Mongoose.
+
+  async function createCourseWithSlide(): Promise<{ courseId: string; slideId: string }> {
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'V' })
+    const courseId = created.data._id
+    const { body: slideBody } = await request(app)
+      .post(`/courses/${courseId}/slides`)
+      .set(auth)
+      .send({ title: 'S1' })
+    return { courseId, slideId: slideBody.data.slides.at(-1).id }
+  }
+
+  it('TD-024: PATCH slide rejects a widget missing required fields (400)', async () => {
+    const { courseId, slideId } = await createCourseWithSlide()
+    const res = await request(app)
+      .patch(`/courses/${courseId}/slides/${slideId}`)
+      .set(auth)
+      .send({ widgets: [{ id: 'w1', type: 'button' }] }) // no bounds
+    expect(res.status).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(String(res.body.error)).toMatch(/bounds/)
+  })
+
+  it('TD-024: PATCH slide rejects a widget with an unknown type (400)', async () => {
+    const { courseId, slideId } = await createCourseWithSlide()
+    const res = await request(app)
+      .patch(`/courses/${courseId}/slides/${slideId}`)
+      .set(auth)
+      .send({
+        widgets: [
+          { id: 'w1', type: 'not-a-widget', bounds: { x: 0, y: 0, width: 10, height: 10 } },
+        ],
+      })
+    expect(res.status).toBe(400)
+    expect(String(res.body.error)).toMatch(/type/)
+  })
+
+  it('TD-024: PATCH slide rejects non-array widgets payload (400)', async () => {
+    const { courseId, slideId } = await createCourseWithSlide()
+    const res = await request(app)
+      .patch(`/courses/${courseId}/slides/${slideId}`)
+      .set(auth)
+      .send({ widgets: { not: 'an array' } })
+    expect(res.status).toBe(400)
+  })
+
+  it('TD-024: PUT course rejects slides containing an invalid widget (400)', async () => {
+    const { courseId, slideId } = await createCourseWithSlide()
+    const res = await request(app)
+      .put(`/courses/${courseId}`)
+      .set(auth)
+      .send({
+        slides: [
+          {
+            id: slideId,
+            title: 'S1',
+            widgets: [{ id: 'w1', type: 'button', bounds: { x: 0, y: 0, width: 10 } }], // height missing
+          },
+        ],
+      })
+    expect(res.status).toBe(400)
+    expect(String(res.body.error)).toMatch(/height|bounds/)
+  })
+
+  it('TD-024: a contract-valid widget with actions still round-trips (200)', async () => {
+    const { courseId, slideId } = await createCourseWithSlide()
+    const res = await request(app)
+      .patch(`/courses/${courseId}/slides/${slideId}`)
+      .set(auth)
+      .send({
+        widgets: [
+          {
+            id: 'w1',
+            type: 'button',
+            name: 'StartBtn',
+            bounds: { x: 0, y: 0, width: 100, height: 50 },
+            layer: 1,
+            visible: true,
+            properties: { label: 'Go' },
+            actions: [
+              {
+                event: 'click',
+                actions: [
+                  { type: 'navigate', params: { target: 'next' }, children: [], elseChildren: [] },
+                ],
+              },
+            ],
+            extendedProperties: {},
+          },
+        ],
+      })
+    expect(res.status).toBe(200)
+    const widget = res.body.data.slides
+      .find((sl: { id: string }) => sl.id === slideId).widgets[0]
+    expect(widget.actions[0].event).toBe('click')
+  })
+
+  // ── TD-024.5: Mongo ↔ shared-types parity (the TD-019b triangle) ───────────
+  it('TD-024: WidgetSchema declares every BaseWidget contract key', () => {
+    // The exact TD-019b failure mode: a contract field absent from the Mongo
+    // schema is silently dropped on save. Reflect over the live schema.
+    const widgetSchema = (Course.schema.path('slides') as unknown as {
+      schema: { path(p: string): { schema?: { paths: Record<string, unknown> } } }
+    }).schema.path('widgets')
+    const paths = widgetSchema.schema ? Object.keys(widgetSchema.schema.paths) : []
+    for (const key of [
+      'id', 'type', 'name', 'bounds', 'layer', 'visible',
+      'properties', 'actions', 'extendedProperties',
+    ]) {
+      expect(paths.some(p => p === key || p.startsWith(key + '.')), `WidgetSchema missing '${key}'`).toBe(true)
+    }
   })
 
   it('updates slide title atomically', async () => {

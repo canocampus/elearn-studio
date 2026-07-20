@@ -1,6 +1,6 @@
 # TASK_AUDIT — Tareas derivadas de AUDIT.md (2026-07-20)
 
-> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76) · TD-023 ✅ (v0.5.77).
+> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76) · TD-023 ✅ (v0.5.77) · TD-024 ✅ (v0.5.78).
 > Al aprobarse, estas entradas graduarán a `tasks.md` (sección TECH DEBT BACKLOG) y este fichero pasará a ser el índice de trazabilidad del bloque.
 > Convención heredada: una tarea = un bloque cerrable con TDD + verify:ci + E2E gate cuando aplique + cierre documentado.
 
@@ -30,14 +30,14 @@
 - [x] TD-023.4 — Migrar authoring → backend → runtime, un paquete por subtask, `verify:ci` entre pasos; eliminar las copias locales (o reducirlas a re-export).
 - [x] TD-023.5 — Guard permanente: la regla `no-unsafe-domain-cast` cubre ya los paquetes; añadir test que falle si reaparece una redefinición local de los tipos consolidados.
 
-### [ ] TD-024 — Frontera OpenAPI: tipar Slide.widgets/Slide.actions y dejar de confiar por fe
+### [x] TD-024 — Frontera OpenAPI: tipar Slide.widgets/Slide.actions y dejar de confiar por fe
 > **Fuente:** AUDIT.md hallazgo 3 (Alta) | **Fase:** 3 | **Complejidad:** HIGH | **Depende de:** TD-023 | **Decisión previa:** D3 (validación runtime)
 
-- [ ] TD-024.1 — `swagger.ts:95`: sustituir los `object` genéricos por schemas de Widget/ActionSequence derivados del contrato compartido (incluye `name` — la ausencia que TD-019b habría hecho visible).
-- [ ] TD-024.2 — Regenerar cliente (`gen:api-client`, patrón TD-014.27.d: solo `openapi.hash` trackeado) y comprobar que el cliente ya no expone `actions?: Record<string, never>[]`.
-- [ ] TD-024.3 — `courseApi.ts:21`: alinear el tipado de respuestas con el cliente generado en vez de castear a `CourseDoc`.
-- [ ] TD-024.4 — Resolver D3; si va validación runtime: zod en PATCH/POST de courses (la ruta de escritura de TD-019b), RED con payload sin `name`.
-- [ ] TD-024.5 — Test de paridad schema Mongo ↔ OpenAPI ↔ shared-types (el triángulo cuya desincronización fue TD-019b).
+- [x] TD-024.1 — `swagger.ts:95`: sustituir los `object` genéricos por schemas de Widget/ActionSequence derivados del contrato compartido (incluye `name` — la ausencia que TD-019b habría hecho visible).
+- [x] TD-024.2 — Regenerar cliente (`gen:api-client`, patrón TD-014.27.d: solo `openapi.hash` trackeado) y comprobar que el cliente ya no expone `actions?: Record<string, never>[]`.
+- [x] TD-024.3 — `courseApi.ts:21`: alinear el tipado de respuestas con el cliente generado en vez de castear a `CourseDoc`.
+- [x] TD-024.4 — Resolver D3; si va validación runtime: zod en PATCH/POST de courses (la ruta de escritura de TD-019b), RED con payload sin `name`.
+- [x] TD-024.5 — Test de paridad schema Mongo ↔ OpenAPI ↔ shared-types (el triángulo cuya desincronización fue TD-019b).
 
 ### [ ] TD-027 — Retirada completa del fósil `Slide.actions`
 > **Fuente:** AUDIT.md hallazgo 6 (Media) | **Fase:** 4 | **Complejidad:** MEDIUM | **Depende de:** TD-024 | **Decisión previa:** D4 (censo → migración)

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.78] — 2026-07-21 — TD-024: the OpenAPI boundary now protects the Course domain
+
+### Fixed
+
+- **Contract-invalid widgets sent to the Course write routes crashed as unhandled 500s** (Mongoose ValidationError with no useful client message) — surfaced by this block's RED tests. The boundary now validates widgets/actions (PATCH slide) and slides (PUT course) with zod schemas derived from the shared contract and rejects with 400 plus a path-qualified message (`widgets[0].bounds: …`). Unknown extra keys still pass (Mongoose strict strips them); the strictness is on the contract fields.
+
+### Changed
+
+- **`Slide.widgets`/`Slide.actions` are no longer generic objects in the OpenAPI** (audit finding 3): new `Widget`/`Bounds`/`ActionNode`/`ActionSequence` schemas, with the widget type enum imported from `WIDGET_TYPES` so the spec follows the contract automatically. The generated client now exposes `Widget.name?: string` — the field whose invisibility allowed TD-019b. `Slide.actions` is published as `deprecated` (bridge to TD-027); `Slide.templateId`/`transition` were added when the parity guard exposed their absence.
+
+### Added
+
+- **The TD-019b triangle is now guarded on all three sides**: Mongo ↔ contract (backend test reflecting over `WidgetSchema` paths), OpenAPI ↔ contract (`apiContractGuard.ts`, compile-time key/enum/name parity against the generated client), and runtime validation at the HTTP boundary (D3). A missing contract field now fails CI three different ways.
+
+### Verification
+
+- backend 156/156 (6 new: 4 RED→GREEN rejections, valid round-trip control, Mongo-parity guard) · authoring 1069 · tsc -b 4 packages + e2e 0 · lint 0 errors · E2E action-sequence + widget-persistence 10/10 against the live validated backend (curl probe confirmed 400/200 behavior).
+
+---
+
 ## [0.5.77] — 2026-07-20 — TD-023: one authority for simulation and animation contracts
 
 ### Changed

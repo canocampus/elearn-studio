@@ -12,6 +12,10 @@ import { apiRequest, apiBlobRequest } from './apiClient'
 // Courses
 // ---------------------------------------------------------------------------
 
+// TD-024: typing responses as the shared domain types (CourseDoc/Slide) is
+// backed by `apiContractGuard.ts`, which compile-checks the generated OpenAPI
+// client against the shared contract — drift fails verify:types, so this is
+// no longer trust-by-assertion (audit finding 3).
 type ApiEnvelope<T> = { success: boolean; data: T }
 
 export function listCourses(): Promise<CourseListItem[]> {

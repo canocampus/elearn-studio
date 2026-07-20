@@ -8,6 +8,9 @@
 
 import swaggerJsdoc from 'swagger-jsdoc'
 import path from 'path'
+// TD-024: the Widget type enum is DERIVED from the shared contract — adding a
+// widget type updates the OpenAPI (and the generated client) automatically.
+import { WIDGET_TYPES } from '@elearn-studio/shared-types'
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -92,13 +95,74 @@ const options: swaggerJsdoc.Options = {
         },
         Slide: {
           type: 'object',
-          required: ['id', 'title'],
+          required: ['id', 'title', 'widgets'],
           properties: {
-            id:        { type: 'string', example: 'a1b2c3d4-e5f6-4789-abcd-ef0123456789' },
-            title:     { type: 'string', example: 'Introduction' },
-            widgets:   { type: 'array', items: { type: 'object' } },
-            actions:   { type: 'array', items: { type: 'object' } },
+            id:         { type: 'string', example: 'a1b2c3d4-e5f6-4789-abcd-ef0123456789' },
+            title:      { type: 'string', example: 'Introduction' },
+            templateId: { type: 'string', description: 'SlideTemplate this slide was created from.' },
+            widgets:    { type: 'array', items: { '$ref': '#/components/schemas/Widget' } },
+            transition: { type: 'object', additionalProperties: true },
+            actions: {
+              type: 'array',
+              items: { '$ref': '#/components/schemas/ActionSequence' },
+              deprecated: true,
+              description:
+                'FOSSIL FIELD (TD-017): never wired — slide lifecycle events live on widget sequences. Scheduled for removal (TD-027); do not start using it.',
+            },
             thumbnail: { type: 'string', nullable: true },
+          },
+        },
+        // TD-024 (audit finding 3): Widget/ActionSequence were published as
+        // generic objects, so the generated client typed slide content as
+        // Record<string, never> and the compiler could not see the Course
+        // domain at all — the missing `name` of TD-019b was invisible here.
+        Bounds: {
+          type: 'object',
+          required: ['x', 'y', 'width', 'height'],
+          properties: {
+            x:      { type: 'number', example: 100 },
+            y:      { type: 'number', example: 200 },
+            width:  { type: 'number', example: 320 },
+            height: { type: 'number', example: 180 },
+          },
+        },
+        ActionNode: {
+          type: 'object',
+          required: ['type'],
+          properties: {
+            id:           { type: 'string', example: 'act-1' },
+            type:         { type: 'string', example: 'navigate' },
+            params:       { type: 'object', additionalProperties: true },
+            children:     { type: 'array', items: { '$ref': '#/components/schemas/ActionNode' } },
+            elseChildren: { type: 'array', items: { '$ref': '#/components/schemas/ActionNode' } },
+          },
+        },
+        ActionSequence: {
+          type: 'object',
+          required: ['event', 'actions'],
+          properties: {
+            event:   { type: 'string', example: 'click' },
+            actions: { type: 'array', items: { '$ref': '#/components/schemas/ActionNode' } },
+          },
+        },
+        Widget: {
+          type: 'object',
+          required: ['id', 'type', 'bounds', 'layer', 'visible', 'properties', 'extendedProperties'],
+          properties: {
+            id:     { type: 'string', example: 'w1' },
+            type:   { type: 'string', enum: [...WIDGET_TYPES], example: 'button' },
+            name: {
+              type: 'string',
+              description:
+                'Author-assigned display name (Props panel → Name). Optional for courses saved before the field existed (TD-019b).',
+              example: 'StartBtn',
+            },
+            bounds:             { '$ref': '#/components/schemas/Bounds' },
+            layer:              { type: 'number', example: 0 },
+            visible:            { type: 'boolean', example: true },
+            properties:         { type: 'object', additionalProperties: true },
+            actions:            { type: 'array', items: { '$ref': '#/components/schemas/ActionSequence' } },
+            extendedProperties: { type: 'object', additionalProperties: true },
           },
         },
         AuditEntry: {
