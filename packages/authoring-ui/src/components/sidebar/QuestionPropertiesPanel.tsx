@@ -520,6 +520,9 @@ export function QuestionPropertiesPanel() {
 
   // T648: within-panel routing from Backbone only — no Zustand fallback
   const type = selected.get('type') as string
+  // TD-022: explicit invariant — if Backbone already selected a non-question
+  // component (Zustand lag window), render nothing instead of an empty shell.
+  if (type !== 'question-mc' && type !== 'question-tf' && type !== 'question-fill') return null
 
   return (
     <div data-testid="question-properties-panel" style={{ overflowY: 'auto', flex: 1 }}>

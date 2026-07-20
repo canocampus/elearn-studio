@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.76] — 2026-07-20 — TD-022: properties panels can no longer edit the wrong widget
+
+### Fixed
+
+- **Four properties panels (Audio Narration, Media Player, Progress Bar, Volume Control) could mount their editing hooks on the wrong widget** during the brief window where sidebar routing (Zustand) lags the real canvas selection (Backbone) — the incomplete half of the T648 migration, flagged as finding 1 (Alta) of the 2026-07-20 structural audit. Each panel now double-checks the selected component's own type before rendering, exactly like the already-correct Phaser panel. 8 regression tests reproduced the bug before the fix (panel rendered and subscribed on a mismatched component); 14 new tests pin the matrix.
+- **Button and Question panels rendered an empty panel shell in the same lag window** (their inner forms were already safely gated per type). The invariant is now explicit: no matching type, no render.
+
+### Verification
+
+- authoring-ui 1069/1069 · tsc 0 · lint 0 errors · E2E `@regression TD-022` (rapid MC ↔ Media Player selection switching) plus the 7 touched widgets' dedicated specs, 60/60.
+
+---
+
 ## [0.5.75] — 2026-07-20 — TD-026: architecture docs match the shipped lifecycle (audit block F0)
 
 ### Fixed (documentation / protocol)

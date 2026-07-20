@@ -276,6 +276,9 @@ export function ButtonPropertiesPanel() {
 
   // T648: within-panel routing from Backbone only — no Zustand fallback
   const type = selected.get('type') as string
+  // TD-022: explicit invariant — if Backbone already selected a non-button
+  // component (Zustand lag window), render nothing instead of an empty shell.
+  if (type !== 'button' && type !== 'done-button' && type !== 'nav-buttons') return null
 
   return (
     <div data-testid="button-properties-panel" style={{ overflowY: 'auto', flex: 1 }}>

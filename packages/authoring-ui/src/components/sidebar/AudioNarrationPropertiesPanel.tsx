@@ -205,6 +205,10 @@ export function AudioNarrationPropertiesPanel() {
 
   const selected = editor.getSelected()
   if (!selected) return null
+  // TD-022: Backbone double-check (T648). Zustand routing can lag the real
+  // selection by a render — without this gate the sections below mount their
+  // hooks on whatever getSelected() returns, editing the wrong widget.
+  if ((selected.get('type') as string) !== 'audio-narration') return null
 
   return (
     <div data-testid="audio-narration-properties-panel" style={{ overflowY: 'auto', flex: 1 }}>

@@ -208,6 +208,49 @@ test.describe('T608.5 — QuestionPropertiesPanel synced to GrapesJS selection',
   })
 })
 
+// ─── TD-022 — Panel dual gate under rapid selection switching ────────────────
+
+test.describe('TD-022 — properties panels track rapid selection switches', () => {
+  test.beforeEach(async ({ editorPage }) => {
+    await editorPage.addSlide()
+    await editorPage.waitForCanvas()
+  })
+
+  test('@regression TD-022 — alternating selection never shows the other type\'s panel', async ({ editorPage }) => {
+    const page = editorPage.page
+    // Two widgets whose panels were audit-flagged: question (invariant) and
+    // media-player (missing Backbone double-check pre-fix).
+    await editorPage.addComponentViaEditor('question-mc')
+    await page.waitForTimeout(300)
+    await editorPage.addComponentViaEditor('media-player')
+    await page.waitForTimeout(300)
+    await editorPage.propsTab.click()
+
+    const qPanel = page.locator('[data-testid="question-properties-panel"]')
+    const mpPanel = page.locator('[data-testid="media-player-properties-panel"]')
+
+    const selectByType = (type: string) =>
+      page.evaluate((t) => {
+        const ed = window.__elearn_editor
+        const comp = ed?.getWrapper().find(`[data-widget="${t}"]`)[0]
+          ?? ed?.getWrapper().components().find(c => c.get('type') === t)
+        if (comp) ed?.select(comp)
+      }, type)
+
+    // Rapid alternation exercises the Zustand→Backbone lag window the dual
+    // gate closes. After each settle, exactly the matching panel is visible.
+    for (let i = 0; i < 3; i += 1) {
+      await selectByType('media-player')
+      await expect(mpPanel).toBeVisible({ timeout: 5_000 })
+      await expect(qPanel).toHaveCount(0)
+
+      await selectByType('question-mc')
+      await expect(qPanel).toBeVisible({ timeout: 5_000 })
+      await expect(mpPanel).toHaveCount(0)
+    }
+  })
+})
+
 // ─── T608.6 — TopToolbar: Delete Slide with dialog dismiss ──────────────────
 
 test.describe('T608.6 — TopToolbar Delete Slide', () => {

@@ -225,6 +225,10 @@ export function MediaPlayerPropertiesPanel() {
 
   const selected = editor.getSelected()
   if (!selected) return null
+  // TD-022: Backbone double-check (T648). Zustand routing can lag the real
+  // selection by a render — without this gate the sections below mount their
+  // hooks on whatever getSelected() returns, editing the wrong widget.
+  if ((selected.get('type') as string) !== 'media-player') return null
 
   return (
     <div data-testid="media-player-properties-panel" style={{ overflowY: 'auto', flex: 1 }}>

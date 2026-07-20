@@ -1,6 +1,6 @@
 # TASK_AUDIT — Tareas derivadas de AUDIT.md (2026-07-20)
 
-> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ cerrado (v0.5.75).
+> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76).
 > Al aprobarse, estas entradas graduarán a `tasks.md` (sección TECH DEBT BACKLOG) y este fichero pasará a ser el índice de trazabilidad del bloque.
 > Convención heredada: una tarea = un bloque cerrable con TDD + verify:ci + E2E gate cuando aplique + cierre documentado.
 
@@ -13,13 +13,13 @@
 - [x] TD-026.2 — Resolver D1: referencias de AGENTS.md/CLAUDE.md a `grapesjs-react-lifecycle` vs carpeta real `.claude/skills/grapejs-react-lifecycle/` (recomendado: corregir referencias al nombre real).
 - [x] TD-026.3 — Grep global de ambas grafías para no dejar referencias mixtas; verificación: la ruta que cite AGENTS existe.
 
-### [ ] TD-022 — Migración T648 incompleta: doble gate en 4 PropertiesPanel
+### [x] TD-022 — Migración T648 incompleta: doble gate en 4 PropertiesPanel
 > **Fuente:** AUDIT.md hallazgo 1 (Alta) | **Fase:** 1 | **Complejidad:** MEDIUM
 
-- [ ] TD-022.1 — TDD RED: tests por panel con Zustand y Backbone **deliberadamente desalineados** (el estado que hoy nadie prueba) — el panel NO debe montar hooks ni editar el componente equivocado. Paneles: AudioNarration (:197), MediaPlayer (:216), ProgressBar (:130), VolumeControl (:121).
-- [ ] TD-022.2 — GREEN: replicar el doble gate de `PhaserSimPropertiesPanel` (tipo Zustand + tipo del componente Backbone seleccionado) en los 4 paneles.
-- [ ] TD-022.3 — Sub-scope opcional (decidir al llegar): expresar la invariante completa también en Button/Question panels, que hoy solo usan Backbone para elegir formulario.
-- [ ] TD-022.4 — E2E gate: spec de paneles existente + escenario de conmutación rápida de selección entre widgets de tipos distintos.
+- [x] TD-022.1 — TDD RED: tests por panel con Zustand y Backbone **deliberadamente desalineados** (el estado que hoy nadie prueba) — el panel NO debe montar hooks ni editar el componente equivocado. Paneles: AudioNarration (:197), MediaPlayer (:216), ProgressBar (:130), VolumeControl (:121).
+- [x] TD-022.2 — GREEN: replicar el doble gate de `PhaserSimPropertiesPanel` (tipo Zustand + tipo del componente Backbone seleccionado) en los 4 paneles.
+- [x] TD-022.3 — Sub-scope opcional (decidir al llegar): expresar la invariante completa también en Button/Question panels, que hoy solo usan Backbone para elegir formulario.
+- [x] TD-022.4 — E2E gate: spec de paneles existente + escenario de conmutación rápida de selección entre widgets de tipos distintos.
 
 ### [ ] TD-023 — Contratos duplicados: shared-types como autoridad (simulación + animaciones)
 > **Fuente:** AUDIT.md hallazgo 2 (Alta) | **Fase:** 2 | **Complejidad:** HIGH | **Decisión previa:** D2 (interactionType)
