@@ -70,7 +70,13 @@ export function SlideList() {
   async function handleDuplicate(slide: Slide) {
     if (isSaving) return
     const updated = await useEditorStore.getState().requestCourseMutation(
-      () => duplicateSlide(course!._id, slide),
+      async () => {
+        // TD-028: flush any pending autosave first — duplicating the ACTIVE
+        // slide mid-debounce would otherwise copy the server's pre-edit
+        // state (duplicateSlide reads the fresh course from the server).
+        await useEditorStore.getState().requestSave?.()
+        return duplicateSlide(course!._id, slide)
+      },
     )
     if (!updated) {
       toast.error(`Failed to duplicate slide: ${getSaveError()}`)

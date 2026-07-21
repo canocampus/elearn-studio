@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.81] — 2026-07-21 — TD-028: duplicating a slide right after editing no longer loses the edit
+
+### Fixed
+
+- **Duplicating a slide immediately after editing it copied the pre-edit state.** `duplicateSlide` fed from the Zustand course store, which GrapesJS canvas edits do not update (the known T-15 staleness) — surfaced by the TD-027 E2E. Two-layer fix: the duplicate flow now flushes any pending autosave first (covers the active slide mid-debounce) and `duplicateSlide` fetches the fresh course from the server, copying the server's version of the source slide. The TD-027 E2E dropped its reload workaround: the organic edit-then-duplicate flow now passes as-is.
+
+### Verification
+
+- 3 RED→GREEN unit tests (server widgets ≠ caller's stale copy) · authoring 1069/1069 · widget-persistence E2E 4/4 without the reload · tsc 0 · lint 0 errors.
+
+---
+
 ## [0.5.80] — 2026-07-21 — TD-025: GrapesJS contracts are now tested against the real editor — audit block complete
 
 ### Added

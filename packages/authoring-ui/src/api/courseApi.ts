@@ -80,11 +80,19 @@ export function deleteSlide(courseId: string, slideId: string): Promise<CourseDo
 // The new slide is appended at the end of the slide list.
 // TD-027: only widgets are copied — widget sequences travel INSIDE widgets;
 // the slide-level `actions` fossil is retired.
+// TD-028: the caller's slide object comes from the Zustand store, which
+// GrapesJS edits do NOT update (T-15 staleness) — duplicating right after an
+// edit used to copy the pre-edit state. The server is the authority: fetch
+// the fresh course and copy ITS version of the source slide. (SlideList
+// additionally flushes any pending autosave before calling this, so the
+// server has the latest canvas state for the active slide.)
 export async function duplicateSlide(courseId: string, sourceSlide: Slide): Promise<CourseDoc> {
-  const withNew = await addSlide(courseId, `${sourceSlide.title} copy`)
+  const fresh = await getCourse(courseId)
+  const freshSource = fresh.slides.find(s => s.id === sourceSlide.id) ?? sourceSlide
+  const withNew = await addSlide(courseId, `${freshSource.title} copy`)
   const newSlide = withNew.slides[withNew.slides.length - 1]
   return updateSlide(courseId, newSlide.id, {
-    widgets: sourceSlide.widgets,
+    widgets: freshSource.widgets,
   })
 }
 

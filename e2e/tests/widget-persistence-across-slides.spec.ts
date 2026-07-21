@@ -232,13 +232,10 @@ test('@regression TD-027 — duplicating a slide copies widgets (and their seque
     { timeout: 15_000 },
   ).catch(() => page.waitForTimeout(2500))
 
-  // Reload so the Zustand course store is fresh before duplicating:
-  // SlideList feeds duplicateSlide from the STORE slide, and GrapesJS edits
-  // reach the backend via storageManager without updating the store (T-15
-  // staleness — duplicating immediately after an edit copies the pre-edit
-  // state; filed as TD-028 during this block).
-  await page.reload()
-  await editorPage.waitForReloadComplete()
+  // TD-028 fixed the staleness this test originally had to dodge with a
+  // page.reload(): duplicateSlide now flushes the pending autosave and reads
+  // the fresh slide from the server, so duplicating IMMEDIATELY after an
+  // edit — the organic author flow below, no reload — copies the new widget.
 
   // Duplicate via the real UI button and inspect the duplicate's PATCH body.
   const patchBodies: string[] = []

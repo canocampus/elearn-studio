@@ -192,18 +192,24 @@ describe('courseApi — T013.2 duplicateSlide', () => {
     actions: [],
   }
   const newSlide = { id: 'slide-new', title: 'Slide 1 copy', widgets: [], actions: [] }
+  // TD-028: the SERVER copy of the source slide differs from the caller's
+  // (store-stale) copy — the duplicate must carry the server's widgets.
+  const freshWidgets = [{ id: 'w1' }, { id: 'w2-fresh-from-server' }]
   let fetchSpy: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
-    // First call: addSlide → returns course with new blank slide appended
-    // Second call: updateSlide → returns course with copied content
-    const withNew = { _id: courseId, slides: [sourceSlide, newSlide] }
+    // Call 1: getCourse → fresh course (TD-028: authoritative source)
+    // Call 2: addSlide  → course with new blank slide appended
+    // Call 3: updateSlide → course with copied content
+    const fresh = { _id: courseId, slides: [{ ...sourceSlide, widgets: freshWidgets }] }
+    const withNew = { _id: courseId, slides: [{ ...sourceSlide, widgets: freshWidgets }, newSlide] }
     const withContent = {
       _id: courseId,
-      slides: [sourceSlide, { ...newSlide, widgets: sourceSlide.widgets }],
+      slides: [{ ...sourceSlide, widgets: freshWidgets }, { ...newSlide, widgets: freshWidgets }],
     }
     fetchSpy = vi
       .fn()
+      .mockResolvedValueOnce(makeResponse({ success: true, data: fresh }))
       .mockResolvedValueOnce(makeResponse({ success: true, data: withNew }))
       .mockResolvedValueOnce(makeResponse({ success: true, data: withContent }))
     vi.stubGlobal('fetch', fetchSpy)
@@ -213,28 +219,30 @@ describe('courseApi — T013.2 duplicateSlide', () => {
     vi.unstubAllGlobals()
   })
 
-  it('makes exactly 2 fetch calls (addSlide + updateSlide)', async () => {
+  it('TD-028: fetches the fresh course first — 3 calls (GET + addSlide + updateSlide)', async () => {
     await duplicateSlide(courseId, sourceSlide as never)
-    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    const [getUrl] = fetchSpy.mock.calls[0] as [string, RequestInit | undefined]
+    expect(getUrl).toContain(`/courses/${courseId}`)
   })
 
-  it('first call is POST /courses/:id/slides with title "<source> copy"', async () => {
+  it('second call is POST /courses/:id/slides with title "<source> copy"', async () => {
     await duplicateSlide(courseId, sourceSlide as never)
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    const [url, init] = fetchSpy.mock.calls[1] as [string, RequestInit]
     expect(url).toContain(`/courses/${courseId}/slides`)
     expect(init.method).toBe('POST')
     expect(JSON.parse(init.body as string)).toEqual({ title: 'Slide 1 copy' })
   })
 
-  it('second call is PATCH copying widgets only — no slide-level actions (TD-027)', async () => {
+  it("TD-028: PATCH copies the SERVER widgets, not the caller's stale copy", async () => {
+    // The caller passes the store-stale slide (1 widget); the server has 2.
     await duplicateSlide(courseId, sourceSlide as never)
-    const [url, init] = fetchSpy.mock.calls[1] as [string, RequestInit]
+    const [url, init] = fetchSpy.mock.calls[2] as [string, RequestInit]
     expect(url).toContain(`/courses/${courseId}/slides/${newSlide.id}`)
     expect(init.method).toBe('PATCH')
     const body = JSON.parse(init.body as string)
-    expect(body.widgets).toEqual(sourceSlide.widgets)
-    // TD-027: the slide-level actions fossil is retired — widget sequences
-    // travel inside widgets; the duplicate payload must not resurrect it.
+    expect(body.widgets).toEqual(freshWidgets)
+    // TD-027: the slide-level actions fossil stays retired.
     expect(body).not.toHaveProperty('actions')
   })
 
