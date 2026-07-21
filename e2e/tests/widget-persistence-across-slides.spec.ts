@@ -207,3 +207,68 @@ test.describe('TD-019 — widget name round-trip', () => {
     await expect(page.getByTestId('widget-name-input')).toHaveValue('MyStartBtn', { timeout: 5_000 })
   })
 })
+
+test('@regression TD-027 — duplicating a slide copies widgets (and their sequences) with no slide-level actions', async ({ editorPage, page }) => {
+  test.setTimeout(60_000)
+
+  // TD-027 retired the fossil Slide.actions: duplicateSlide now PATCHes only
+  // widgets. This guards the author-visible contract — the copy carries the
+  // source widgets — and pins that the duplicate payload does not resurrect
+  // the fossil.
+  await editorPage.addSlide()
+  await editorPage.waitForCanvas()
+  const slides = page.locator('[data-testid="slide-item"]')
+  const sourceIndex = (await slides.count()) - 1
+
+  await editorPage.addComponentViaEditor('button')
+  await page.waitForTimeout(300)
+  await editorPage.propsTab.click()
+  const nameInput = page.getByTestId('widget-name-input')
+  await expect(nameInput).toBeVisible({ timeout: 5_000 })
+  await nameInput.fill('DupSourceBtn')
+  await page.waitForTimeout(300)
+  await page.waitForResponse(
+    resp => resp.url().includes('/courses') && resp.request().method() === 'PATCH',
+    { timeout: 15_000 },
+  ).catch(() => page.waitForTimeout(2500))
+
+  // Reload so the Zustand course store is fresh before duplicating:
+  // SlideList feeds duplicateSlide from the STORE slide, and GrapesJS edits
+  // reach the backend via storageManager without updating the store (T-15
+  // staleness — duplicating immediately after an edit copies the pre-edit
+  // state; filed as TD-028 during this block).
+  await page.reload()
+  await editorPage.waitForReloadComplete()
+
+  // Duplicate via the real UI button and inspect the duplicate's PATCH body.
+  const patchBodies: string[] = []
+  page.on('request', req => {
+    if (req.method() === 'PATCH' && req.url().includes('/slides/')) {
+      patchBodies.push(req.postData() ?? '')
+    }
+  })
+  await editorPage.slidesTab.click()
+  const dupPatch = page.waitForResponse(
+    resp => resp.url().includes('/slides/') && resp.request().method() === 'PATCH',
+    { timeout: 15_000 },
+  )
+  await slides.nth(sourceIndex).locator('..').getByTitle('Duplicate slide').click()
+  await expect(slides).toHaveCount(sourceIndex + 2, { timeout: 10_000 })
+  // duplicateSlide is addSlide (POST) + updateSlide (PATCH with the widgets):
+  // opening the copy before that PATCH lands shows a blank canvas.
+  await dupPatch
+
+  // The copy loads with the source widget intact.
+  await slides.nth(sourceIndex + 1).click()
+  await editorPage.waitForCanvas()
+  const copiedName = await page.evaluate(() => {
+    const ed = window.__elearn_editor
+    return ed?.getWrapper().components().map(c => c.get('name') as string) ?? []
+  })
+  expect(copiedName).toContain('DupSourceBtn')
+
+  // And the duplicate PATCH body never resurrected slide-level actions.
+  const dupBody = patchBodies.find(b => b.includes('DupSourceBtn'))
+  expect(dupBody).toBeTruthy()
+  expect(JSON.parse(dupBody!)).not.toHaveProperty('actions')
+})

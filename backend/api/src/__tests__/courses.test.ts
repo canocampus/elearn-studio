@@ -396,6 +396,34 @@ describe('PATCH /courses/:id/slides/:slideId', () => {
     expect(widget.actions[0].event).toBe('click')
   })
 
+  // ── TD-027: the Slide.actions fossil is fully retired ──────────────────────
+  it('TD-027: slides carry no slide-level actions field anywhere in the lifecycle', async () => {
+    // TD-017 established the field was never wired (slide events live on
+    // widget sequences); TD-027 retires it from Mongo/OpenAPI/duplicate.
+    const { body: created } = await request(app).post('/courses').set(auth).send({ title: 'F' })
+    const courseId = created.data._id
+    const { body: slideBody } = await request(app)
+      .post(`/courses/${courseId}/slides`)
+      .set(auth)
+      .send({ title: 'S1' })
+    const newSlide = slideBody.data.slides.at(-1)
+    expect(newSlide).not.toHaveProperty('actions')
+
+    // Legacy senders that still include slide-level actions are tolerated
+    // (Postel) but the field is ignored, never persisted.
+    const patched = await request(app)
+      .patch(`/courses/${courseId}/slides/${newSlide.id}`)
+      .set(auth)
+      .send({
+        title: 'S1b',
+        actions: [{ event: 'enterSlide', actions: [] }],
+      })
+    expect(patched.status).toBe(200)
+    const res = await request(app).get(`/courses/${courseId}`).set(auth)
+    const slide = res.body.data.slides.find((sl: { id: string }) => sl.id === newSlide.id)
+    expect(slide).not.toHaveProperty('actions')
+  })
+
   // ── TD-024.5: Mongo ↔ shared-types parity (the TD-019b triangle) ───────────
   it('TD-024: WidgetSchema declares every BaseWidget contract key', () => {
     // The exact TD-019b failure mode: a contract field absent from the Mongo

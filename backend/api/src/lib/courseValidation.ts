@@ -57,11 +57,12 @@ const WidgetZ = z.looseObject({
 export const WidgetsArrayZ = z.array(WidgetZ)
 export const ActionSequencesArrayZ = z.array(ActionSequenceZ)
 
+// TD-027: no slide-level `actions` in the contract (fossil retired). Loose
+// object: legacy payloads still carrying it pass through and Mongo drops it.
 const SlideZ = z.looseObject({
   id: z.string().min(1),
   title: z.string(),
   widgets: WidgetsArrayZ.optional(),
-  actions: ActionSequencesArrayZ.optional(),
   thumbnail: z.string().optional(),
 })
 

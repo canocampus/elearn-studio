@@ -78,12 +78,13 @@ export function deleteSlide(courseId: string, slideId: string): Promise<CourseDo
 
 // Duplicate: add a blank slide then copy the source slide's content into it.
 // The new slide is appended at the end of the slide list.
+// TD-027: only widgets are copied — widget sequences travel INSIDE widgets;
+// the slide-level `actions` fossil is retired.
 export async function duplicateSlide(courseId: string, sourceSlide: Slide): Promise<CourseDoc> {
   const withNew = await addSlide(courseId, `${sourceSlide.title} copy`)
   const newSlide = withNew.slides[withNew.slides.length - 1]
   return updateSlide(courseId, newSlide.id, {
     widgets: sourceSlide.widgets,
-    actions: sourceSlide.actions,
   })
 }
 

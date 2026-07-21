@@ -5,7 +5,7 @@ import { isValidObjectId } from 'mongoose'
 import rateLimit from 'express-rate-limit'
 import { Course } from '../models/Course'
 import { AuditLog } from '../models/AuditLog'
-import { WidgetsArrayZ, ActionSequencesArrayZ, SlidesArrayZ, formatZodError } from '../lib/courseValidation'
+import { WidgetsArrayZ, SlidesArrayZ, formatZodError } from '../lib/courseValidation'
 import { logAudit } from '../lib/auditLogger'
 import { runExport, type ExportFormat } from '../lib/export/runExport'
 
@@ -336,7 +336,6 @@ coursesRouter.delete('/:id', async (req, res) => {
 interface SlidePatchPayload {
   title?: unknown
   widgets?: unknown
-  actions?: unknown
   thumbnail?: unknown
 }
 
@@ -398,7 +397,8 @@ coursesRouter.post('/:id/slides', async (req, res) => {
     typeof body.title === 'string' && body.title.trim()
       ? body.title.trim().slice(0, 200)
       : 'New Slide'
-  const slide = { id: randomUUID(), title, widgets: [], actions: [] }
+  // TD-027: no slide-level `actions` seed — the field is retired (fossil, TD-017).
+  const slide = { id: randomUUID(), title, widgets: [] }
   const course = await Course.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },
     { $push: { slides: slide } },
@@ -543,7 +543,6 @@ coursesRouter.patch('/:id/slides/reorder', async (req, res) => {
  *             properties:
  *               title:     { type: string }
  *               widgets:   { type: array, items: { $ref: '#/components/schemas/Widget' } }
- *               actions:   { type: array, items: { $ref: '#/components/schemas/ActionSequence' } }
  *               thumbnail: { type: string }
  *     responses:
  *       200:
@@ -578,7 +577,9 @@ coursesRouter.patch('/:id/slides/:slideId', async (req, res) => {
     res.status(400).json({ success: false, error: 'Invalid course id' })
     return
   }
-  const { title, widgets, actions, thumbnail } = req.body as SlidePatchPayload
+  // TD-027: slide-level `actions` no longer accepted — legacy senders are
+  // tolerated (the key is simply ignored), nothing persists it.
+  const { title, widgets, thumbnail } = req.body as SlidePatchPayload
   // TD-024.4 (D3): validate the widget/action payload against the shared
   // contract BEFORE Mongo. Previously contract-invalid widgets surfaced as
   // unhandled Mongoose ValidationErrors (500) and undeclared fields were
@@ -590,17 +591,9 @@ coursesRouter.patch('/:id/slides/:slideId', async (req, res) => {
       return
     }
   }
-  if (actions !== undefined) {
-    const parsed = ActionSequencesArrayZ.safeParse(actions)
-    if (!parsed.success) {
-      res.status(400).json({ success: false, error: formatZodError('actions', parsed.error) })
-      return
-    }
-  }
   const $set: Record<string, unknown> = {}
   if (title !== undefined) $set['slides.$.title'] = title
   if (widgets !== undefined) $set['slides.$.widgets'] = widgets
-  if (actions !== undefined) $set['slides.$.actions'] = actions
   if (thumbnail !== undefined) $set['slides.$.thumbnail'] = thumbnail
 
   if (Object.keys($set).length === 0) {

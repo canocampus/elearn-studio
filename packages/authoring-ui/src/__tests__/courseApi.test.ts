@@ -226,14 +226,16 @@ describe('courseApi — T013.2 duplicateSlide', () => {
     expect(JSON.parse(init.body as string)).toEqual({ title: 'Slide 1 copy' })
   })
 
-  it('second call is PATCH to copy widgets and actions to new slide', async () => {
+  it('second call is PATCH copying widgets only — no slide-level actions (TD-027)', async () => {
     await duplicateSlide(courseId, sourceSlide as never)
     const [url, init] = fetchSpy.mock.calls[1] as [string, RequestInit]
     expect(url).toContain(`/courses/${courseId}/slides/${newSlide.id}`)
     expect(init.method).toBe('PATCH')
     const body = JSON.parse(init.body as string)
     expect(body.widgets).toEqual(sourceSlide.widgets)
-    expect(body.actions).toEqual(sourceSlide.actions)
+    // TD-027: the slide-level actions fossil is retired — widget sequences
+    // travel inside widgets; the duplicate payload must not resurrect it.
+    expect(body).not.toHaveProperty('actions')
   })
 
   it('returns the course returned by the second (updateSlide) call', async () => {

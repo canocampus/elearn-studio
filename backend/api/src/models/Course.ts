@@ -58,7 +58,10 @@ const SlideSchema = new Schema(
     title: { type: String, required: true },
     templateId: String,
     widgets: { type: [WidgetSchema], default: [] },
-    actions: { type: [ActionSequenceSchema], default: [] },
+    // TD-027: slide-level `actions` retired — the fossil field (TD-017) was
+    // never wired; slide lifecycle events live on WIDGET sequences. Old docs
+    // still carrying empty arrays are inert: strict mode drops the field on
+    // every future save and it is no longer projected into responses.
     transition: Schema.Types.Mixed,
     // T013.6: serialized HTML thumbnail (srcdoc string)
     thumbnail: String,

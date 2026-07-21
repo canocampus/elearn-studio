@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.79] — 2026-07-21 — TD-027: the Slide.actions fossil is fully retired
+
+### Removed
+
+- **The never-wired slide-level `actions` field is gone from every surface** (audit finding 6, closing the TD-017 arc): the Mongo `SlideSchema`, the OpenAPI `Slide` schema, the POST-slide seed, the PATCH-slide route (legacy senders are tolerated — the key is ignored, never persisted), the zod boundary, `duplicateSlide()` (widget sequences travel inside widgets) and the shared-types contract. DB census before removal: 2,421 courses, zero with content in the field — only inert seeded empty arrays, which strict mode now drops on the next save. No migration needed.
+
+### Added
+
+- Backend regression pinning the retirement across the slide lifecycle, and E2E `@regression TD-027`: duplicating a slide through the real UI copies the widgets and the duplicate's PATCH payload carries no slide-level actions.
+
+### Found (filed as TD-028)
+
+- The TD-027 E2E exposed a latent product bug: `duplicateSlide` feeds from the Zustand store, which GrapesJS edits do not update (T-15 staleness) — duplicating a slide right after editing it copies the pre-edit state. Filed with fix candidates; not caused by this block.
+
+### Verification
+
+- backend 157/157 · authoring 1069/1069 · tsc 5 packages + e2e 0 · lint 0 errors · widget-persistence E2E 4/4.
+
+---
+
 ## [0.5.78] — 2026-07-21 — TD-024: the OpenAPI boundary now protects the Course domain
 
 ### Fixed

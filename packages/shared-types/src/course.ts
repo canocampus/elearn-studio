@@ -5,24 +5,18 @@
  */
 
 import type { BaseWidget } from './widgets'
-import type { ActionSequence, SharedActionSequence } from './actions'
+import type { SharedActionSequence } from './actions'
 
 export interface Slide {
   id: string
   title: string
   templateId?: string
   widgets: BaseWidget[]
-  /**
-   * @deprecated FOSSIL FIELD — never wired (TD-017 archaeology, 2026-07-19).
-   * Slide-level sequence storage was the original intent, but the shipped
-   * design (T021.10 EventDispatcher) hosts slide lifecycle events
-   * (enterSlide/exitSlide) on WIDGET sequences instead: the runtime's
-   * fireSlideEvent scans every widget's `actions` for the event, and the
-   * authoring panel attaches sequences to the selected widget. Nothing reads
-   * or writes this field. Kept only to avoid a schema migration; do not start
-   * using it — remove in a future schema-hygiene pass.
-   */
-  actions?: ActionSequence[]
+  // TD-027 (2026-07-21): the fossil `actions?: ActionSequence[]` field is
+  // GONE. It was never wired (TD-017 archaeology) — slide lifecycle events
+  // (enterSlide/exitSlide) live on WIDGET sequences via the EventDispatcher.
+  // DB census before removal: 0 documents with content (only inert seeded
+  // empty arrays, which Mongo strict mode now drops on every save).
   transition?: Record<string, unknown>
   /** Serialized HTML thumbnail for slide list preview (T013.6). */
   thumbnail?: string

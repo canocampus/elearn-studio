@@ -102,13 +102,6 @@ const options: swaggerJsdoc.Options = {
             templateId: { type: 'string', description: 'SlideTemplate this slide was created from.' },
             widgets:    { type: 'array', items: { '$ref': '#/components/schemas/Widget' } },
             transition: { type: 'object', additionalProperties: true },
-            actions: {
-              type: 'array',
-              items: { '$ref': '#/components/schemas/ActionSequence' },
-              deprecated: true,
-              description:
-                'FOSSIL FIELD (TD-017): never wired — slide lifecycle events live on widget sequences. Scheduled for removal (TD-027); do not start using it.',
-            },
             thumbnail: { type: 'string', nullable: true },
           },
         },

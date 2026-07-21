@@ -1,6 +1,6 @@
 # TASK_AUDIT — Tareas derivadas de AUDIT.md (2026-07-20)
 
-> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76) · TD-023 ✅ (v0.5.77) · TD-024 ✅ (v0.5.78).
+> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76) · TD-023 ✅ (v0.5.77) · TD-024 ✅ (v0.5.78) · TD-027 ✅ (v0.5.79).
 > Al aprobarse, estas entradas graduarán a `tasks.md` (sección TECH DEBT BACKLOG) y este fichero pasará a ser el índice de trazabilidad del bloque.
 > Convención heredada: una tarea = un bloque cerrable con TDD + verify:ci + E2E gate cuando aplique + cierre documentado.
 
@@ -39,13 +39,13 @@
 - [x] TD-024.4 — Resolver D3; si va validación runtime: zod en PATCH/POST de courses (la ruta de escritura de TD-019b), RED con payload sin `name`.
 - [x] TD-024.5 — Test de paridad schema Mongo ↔ OpenAPI ↔ shared-types (el triángulo cuya desincronización fue TD-019b).
 
-### [ ] TD-027 — Retirada completa del fósil `Slide.actions`
+### [x] TD-027 — Retirada completa del fósil `Slide.actions`
 > **Fuente:** AUDIT.md hallazgo 6 (Media) | **Fase:** 4 | **Complejidad:** MEDIUM | **Depende de:** TD-024 | **Decisión previa:** D4 (censo → migración)
 
-- [ ] TD-027.1 — Censo en BD: ¿algún course-doc real tiene contenido en `Slide.actions`? (esperado 0 — nada lo escribe). Gate: el resultado decide si hay migración.
-- [ ] TD-027.2 — Retirar de las tres superficies vivas: `SlideSchema` (Mongo), `swagger.ts`, `duplicateSlide()`.
-- [ ] TD-027.3 — Retirar el campo `@deprecated` de `shared-types/course.ts` (cierre del arco TD-017) y regenerar cliente.
-- [ ] TD-027.4 — Regresión: backend suite + E2E duplicate-slide.
+- [x] TD-027.1 — Censo en BD: ¿algún course-doc real tiene contenido en `Slide.actions`? (esperado 0 — nada lo escribe). Gate: el resultado decide si hay migración.
+- [x] TD-027.2 — Retirar de las tres superficies vivas: `SlideSchema` (Mongo), `swagger.ts`, `duplicateSlide()`.
+- [x] TD-027.3 — Retirar el campo `@deprecated` de `shared-types/course.ts` (cierre del arco TD-017) y regenerar cliente.
+- [x] TD-027.4 — Regresión: backend suite + E2E duplicate-slide.
 
 ### [ ] TD-025 — Contract-tests de GrapesJS contra instancia real (cierra H-01/T705)
 > **Fuente:** AUDIT.md hallazgo 4 (Media) | **Fase:** 5 | **Complejidad:** MEDIUM
