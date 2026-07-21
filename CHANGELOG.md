@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.80] — 2026-07-21 — TD-025: GrapesJS contracts are now tested against the real editor — audit block complete
+
+### Added
+
+- **`e2e/tests/grapesjs-contracts.spec.ts` (@contract)**: 7 tests asserting the GrapesJS APIs eLearn Studio depends on against the LIVE editor and bundled GrapesJS version — id↔attribute parity, collection `toArray()`, `getInnerHTML` + content fallback, the registered `elearn-api` storage type, Backbone `listenTo` and the `component:add`/`component:selected` bus, and the name-trait store/load round-trip. A simulated incompatible upgrade (API deleted from the live prototype) makes the spec fail — verified locally. This closes H-01/T705: an incompatible GrapesJS bump now fails CI instead of sailing past stub tests.
+
+### Changed
+
+- The stub suite lost its "contract" name (`grapesjs-api-shapes.test.ts`): it documents call signatures quickly but can never detect an upgrade. The real instance also corrected a drift the stubs carried — `toArray()` lives on the Components collection (`editor.getComponents().toArray()`, the actual AppLayout usage), not on individual components.
+
+### Milestone
+
+- **Structural-audit remediation block complete (6/6)**: TD-026, TD-022, TD-023, TD-024, TD-027, TD-025 — v0.5.75 through v0.5.80, two days, every finding closed with TDD and CI green. Remaining backlog: TD-028 (collateral finding from TD-027).
+
+---
+
 ## [0.5.79] — 2026-07-21 — TD-027: the Slide.actions fossil is fully retired
 
 ### Removed

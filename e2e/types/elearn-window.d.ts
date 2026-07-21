@@ -45,6 +45,15 @@ export interface E2EComponent {
   addStyle(styles: Record<string, string>): void
   addAttributes(attrs: Record<string, string>): void
   toJSON(): unknown
+  // ── TD-025 contract-spec surface (grapesjs-contracts.spec.ts only) ────────
+  /** Backbone-inherited: HTML `id` attribute mirror of getId() (T705.5). */
+  getAttributes(): Record<string, unknown>
+  /** View-backed serializer; may be absent outside a mounted view (T705.2). */
+  getInnerHTML?(): string
+  /** Backbone Collection helper on the component's children (T705.1). */
+  toArray?(): E2EComponent[]
+  /** Backbone.Events inheritance (T705.4). */
+  listenTo?(target: unknown, event: string, callback: () => void): void
 }
 
 export interface E2EWrapper {
@@ -84,6 +93,12 @@ export interface E2EEditor {
   runCommand(command: string): unknown
   store(): Promise<unknown>
   BlockManager: E2EBlockManager
+  // ── TD-025 contract-spec surface (grapesjs-contracts.spec.ts only) ────────
+  /** Backbone.Events on the editor bus (component:add / component:selected). */
+  on(event: string, callback: (...args: unknown[]) => void): void
+  off(event: string, callback: (...args: unknown[]) => void): void
+  /** Custom storage registry — storageManager.ts registers 'elearn-api' here (T705.3). */
+  StorageManager: { get(type: string): unknown }
 }
 
 /**

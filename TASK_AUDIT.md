@@ -1,6 +1,6 @@
 # TASK_AUDIT — Tareas derivadas de AUDIT.md (2026-07-20)
 
-> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76) · TD-023 ✅ (v0.5.77) · TD-024 ✅ (v0.5.78) · TD-027 ✅ (v0.5.79).
+> **Fuente**: `AUDIT.md` | **Plan**: `PLAN_AUDIT.md` | **Estado**: APROBADO (owner, 2026-07-20) — EN EJECUCIÓN. TD-026 ✅ (v0.5.75) · TD-022 ✅ (v0.5.76) · TD-023 ✅ (v0.5.77) · TD-024 ✅ (v0.5.78) · TD-027 ✅ (v0.5.79) · TD-025 ✅ (v0.5.80). **BLOQUE COMPLETO 6/6** 🎉
 > Al aprobarse, estas entradas graduarán a `tasks.md` (sección TECH DEBT BACKLOG) y este fichero pasará a ser el índice de trazabilidad del bloque.
 > Convención heredada: una tarea = un bloque cerrable con TDD + verify:ci + E2E gate cuando aplique + cierre documentado.
 
@@ -47,13 +47,13 @@
 - [x] TD-027.3 — Retirar el campo `@deprecated` de `shared-types/course.ts` (cierre del arco TD-017) y regenerar cliente.
 - [x] TD-027.4 — Regresión: backend suite + E2E duplicate-slide.
 
-### [ ] TD-025 — Contract-tests de GrapesJS contra instancia real (cierra H-01/T705)
+### [x] TD-025 — Contract-tests de GrapesJS contra instancia real (cierra H-01/T705)
 > **Fuente:** AUDIT.md hallazgo 4 (Media) | **Fase:** 5 | **Complejidad:** MEDIUM
 
-- [ ] TD-025.1 — Decidir capa: E2E (GrapesJS real en la app, churn de iframe ya dominado) vs unit con grapesjs real en jsdom. Recomendación: E2E — spec `@contract` dedicado.
-- [ ] TD-025.2 — Portar los contratos de `grapesjs-contracts.test.ts` (hoy stubs) a asserts contra la instancia real: `getInnerHTML` fallback, `attributes.id`, shape de `component:add`/`component:selected`, restore de `name`.
-- [ ] TD-025.3 — Los tests stub actuales se conservan (rápidos, unit) pero pierden el nombre "contract"; renombrar para que nadie los confunda con la garantía real.
-- [ ] TD-025.4 — Verificar que un bump simulado de GrapesJS incompatible hace fallar el spec (sabotaje controlado en local, no comiteado).
+- [x] TD-025.1 — Decidir capa: E2E (GrapesJS real en la app, churn de iframe ya dominado) vs unit con grapesjs real en jsdom. Recomendación: E2E — spec `@contract` dedicado.
+- [x] TD-025.2 — Portar los contratos de `grapesjs-contracts.test.ts` (hoy stubs) a asserts contra la instancia real: `getInnerHTML` fallback, `attributes.id`, shape de `component:add`/`component:selected`, restore de `name`.
+- [x] TD-025.3 — Los tests stub actuales se conservan (rápidos, unit) pero pierden el nombre "contract"; renombrar para que nadie los confunda con la garantía real.
+- [x] TD-025.4 — Verificar que un bump simulado de GrapesJS incompatible hace fallar el spec (sabotaje controlado en local, no comiteado).
 
 ---
 

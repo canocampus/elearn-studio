@@ -2,7 +2,7 @@
 
 > **Fuente**: `AUDIT.md` (auditoría estática vía `/audit-structural`, sin cambios de código).
 > **Tareas derivadas**: `TASK_AUDIT.md` (TD-022…TD-027; graduarán a `tasks.md` al aprobarse este plan).
-> **Estado**: APROBADO por el owner (2026-07-20). Fase 0 (TD-026) ✅ completada; D1 resuelta (referencias corregidas, carpeta no renombrada).
+> **Estado**: ✅ **PLAN COMPLETADO 6/6** (2026-07-21) — TD-026 v0.5.75 · TD-022 v0.5.76 · TD-023 v0.5.77 · TD-024 v0.5.78 · TD-027 v0.5.79 · TD-025 v0.5.80. Decisiones D1-D4 resueltas según recomendación (D4 ratificada con censo: 0 docs con contenido). Hallazgo colateral filed: TD-028.
 
 ---
 

@@ -1,14 +1,19 @@
 /**
- * GrapesJS API Contract Tests — T705
+ * GrapesJS API SHAPE tests — T705 (renamed from "contract" in TD-025).
  *
- * These tests document the GrapesJS / Backbone APIs that eLearn Studio depends on.
- * They use minimal stubs that reflect the real GrapesJS 0.21.x Backbone-based API
- * shape and call signature.
+ * These exercise minimal STUBS that document the GrapesJS / Backbone call
+ * signatures eLearn Studio depends on. They are fast unit-level docs — they
+ * can NOT detect an incompatible GrapesJS upgrade (the stubs always match
+ * themselves; H-01/T705 finding, confirmed by the structural audit).
  *
- * PURPOSE: If any of these tests break on a GrapesJS upgrade, the consuming code in
- * converters.ts, registerBlocks.ts, or storageManager.ts must be updated before merging.
+ * The REAL guarantee lives in `e2e/tests/grapesjs-contracts.spec.ts`
+ * (@contract), which asserts the same contracts against the live editor and
+ * the bundled GrapesJS version. That spec also corrected a drift these stubs
+ * carried: `toArray()` lives on the Components COLLECTION
+ * (editor.getComponents().toArray()), not on an individual component.
  *
- * @grapesjs-contract — Re-verify ALL tests in this file after any GrapesJS upgrade.
+ * On a GrapesJS upgrade: run the E2E @contract spec first; update these
+ * shapes to match whatever it reveals.
  */
 
 import { describe, it, expect, vi } from 'vitest'
