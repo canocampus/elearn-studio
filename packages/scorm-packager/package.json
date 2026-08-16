@@ -20,10 +20,10 @@
     "@types/adm-zip": "^0.5.8",
     "@types/archiver": "^6.0.2",
     "@types/node": "^20.14.0",
-    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/coverage-v8": "^4.1.8",
     "@xmldom/xmldom": "^0.9.0",
     "adm-zip": "^0.5.14",
     "typescript": "^5.4.5",
-    "vitest": "^1.6.0"
+    "vitest": "^4.1.8"
   }
 }
